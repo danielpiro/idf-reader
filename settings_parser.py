@@ -21,18 +21,43 @@ SETTINGS_CATEGORIES = {
     ]
 }
 
-# Flatten categories for easy lookup
+def normalize_identifier(identifier):
+    """Normalize identifiers by removing extra spaces and handling colons"""
+    # For comment identifiers (with spaces around colon)
+    if " : " in identifier:
+        return identifier.strip()
+    # For object identifiers (no spaces around colon)
+    return identifier.strip().replace(" ", "")
+
+# Define object types first
+SIMPLE_OBJECTS = [
+    "Version", "RunPeriod", "Timestep", "ConvergenceLimits", "SimulationControl"
+]
+
+# Then define the target keys using the object types
 TARGET_COMMENT_KEYS = [
     key for category in SETTINGS_CATEGORIES.values()
     for key in category
-    if ":" not in key
+    if ":" not in key and key not in SIMPLE_OBJECTS
 ]
 
 TARGET_OBJECT_KEYWORDS = [
-    key for category in SETTINGS_CATEGORIES.values()
-    for key in category
-    if ":" in key
+    # Include simple objects
+    *SIMPLE_OBJECTS,
+    # Include complex objects (with colons)
+    *(key.replace(" ", "") for category in SETTINGS_CATEGORIES.values()
+      for key in category if ":" in key)
 ]
+
+print("\nDEBUG: Settings Parser Configuration")
+print("----------------------------------------")
+print("Looking for Comment Settings:")
+for key in sorted(TARGET_COMMENT_KEYS):
+    print(f"  - {key}")
+print("\nLooking for Object Settings:")
+for key in sorted(TARGET_OBJECT_KEYWORDS):
+    print(f"  - {key}")
+print("----------------------------------------\n")
 
 class SettingsExtractor:
     """
@@ -56,34 +81,58 @@ class SettingsExtractor:
         return f"EnergyPlus Version {data[0]}"
 
     def _format_temperature_data(self, data):
-        """Format temperature data into a readable table-like format"""
-        if not isinstance(data, list) or not data:
+        """Format temperature or reflectance data into a readable table-like format"""
+        if not isinstance(data, list) or not data or len(data) > 12:
             return "Not Found"
         
-        # For temperature data, typically monthly values
         try:
-            values = [float(x) for x in data]
+            # Convert all valid numeric values
+            values = []
+            for val in data:
+                try:
+                    values.append(float(val))
+                except ValueError:
+                    # Skip non-numeric values but don't fail
+                    continue
+            
+            if not values:
+                return "Not Found"
+            
+            # Ensure we have 12 months of data
+            while len(values) < 12:
+                values.append(values[-1])  # Repeat last value if needed
+            
             months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
             
-            # Format as a two-row table
+            # Format as a three-row table with 4 months per row
             rows = []
-            for i in range(0, len(values), 4):
+            for i in range(0, 12, 4):
                 chunk_months = months[i:i+4]
                 chunk_values = values[i:i+4]
-                month_row = "  ".join(f"{m:^5}" for m in chunk_months)
-                value_row = "  ".join(f"{v:^5.1f}" for v in chunk_values)
-                rows.extend([month_row, value_row, ""])
+                month_row = "  ".join(f"{m:^8}" for m in chunk_months)
+                value_row = "  ".join(f"{v:^8.2f}" for v in chunk_values)
+                rows.extend([month_row, value_row, ""])  # Empty line between rows
             
             return "\n".join(rows).rstrip()
-        except (ValueError, IndexError):
-            return ", ".join(data)
+        except Exception:
+            # Fallback to simple format if anything goes wrong
+            return ", ".join(str(x) for x in data)
 
     def _get_category_for_key(self, key):
         """Get the category name for a given key"""
-        for category, keys in SETTINGS_CATEGORIES.items():
-            if key in keys:
-                return category
+        # For object keys, compare without spaces
+        if ":" in key:
+            clean_key = key.replace(" ", "")
+            for category, keys in SETTINGS_CATEGORIES.items():
+                clean_keys = [k.replace(" ", "") for k in keys]
+                if clean_key in clean_keys:
+                    return category
+        # For comment keys, compare as-is
+        else:
+            for category, keys in SETTINGS_CATEGORIES.items():
+                if key in keys:
+                    return category
         return None
 
     def _format_runperiod(self, data):
@@ -157,6 +206,16 @@ class SettingsExtractor:
             data (str or list): Comment value or list of cleaned object fields.
             current_zone_id (str or None): The current zone context (ignored).
         """
+        if element_type == 'object':
+            orig_identifier = identifier
+            identifier = identifier.replace(" ", "")
+            if identifier in TARGET_OBJECT_KEYWORDS:
+                print(f"\nDEBUG[Settings]: Processing '{identifier}'")
+                if data:
+                    print(f"  Data: {data}")
+                else:
+                    print("  Warning: No data received")
+
         category = self._get_category_for_key(identifier)
         if not category:
             return
@@ -164,20 +223,34 @@ class SettingsExtractor:
         if element_type == 'comment' and identifier in TARGET_COMMENT_KEYS:
             self.extracted_settings[category][identifier] = data
         elif element_type == 'object' and identifier in TARGET_OBJECT_KEYWORDS:
+            formatted_value = "Not Found"
+            
             if identifier == "Version":
-                self.extracted_settings[category][identifier] = self._format_version(data)
+                print(f"Processing Version object with data: {data}")
+                formatted_value = self._format_version(data)
             elif identifier == "RunPeriod":
-                self.extracted_settings[category][identifier] = self._format_runperiod(data)
+                print(f"Processing RunPeriod object with data: {data}")
+                formatted_value = self._format_runperiod(data)
             elif identifier == "Site:Location":
-                self.extracted_settings[category][identifier] = self._format_location(data)
+                print(f"Processing Site:Location object with data: {data}")
+                formatted_value = self._format_location(data)
             elif identifier == "SimulationControl":
-                self.extracted_settings[category][identifier] = self._format_simulation_control(data)
+                print(f"Processing SimulationControl object with data: {data}")
+                formatted_value = self._format_simulation_control(data)
             elif identifier == "ConvergenceLimits":
-                self.extracted_settings[category][identifier] = self._format_convergence_limits(data)
+                print(f"Processing ConvergenceLimits object with data: {data}")
+                formatted_value = self._format_convergence_limits(data)
+            elif identifier == "Timestep":
+                print(f"Processing Timestep object with data: {data}")
+                formatted_value = f"{data[0]} timesteps per hour" if data else "Not Found"
             elif "Temperature" in identifier or "Reflectance" in identifier:
-                self.extracted_settings[category][identifier] = self._format_temperature_data(data)
+                print(f"Processing Temperature/Reflectance object with data: {data}")
+                formatted_value = self._format_temperature_data(data)
             else:
-                self.extracted_settings[category][identifier] = ", ".join(data) if isinstance(data, list) and data else "Not Found"
+                formatted_value = ", ".join(data) if isinstance(data, list) and data else "Not Found"
+            
+            print(f"Final formatted value: {formatted_value}")
+            self.extracted_settings[category][identifier] = formatted_value
 
     def get_settings(self):
         """
@@ -196,9 +269,9 @@ if __name__ == '__main__':
 
     try:
         # Update test loop for 4-tuple yield from parse_idf
-        target_keys = set(TARGET_COMMENT_KEYS) | set(TARGET_OBJECT_KEYWORDS) # Combine keys for parsing if needed, though parser mainly uses comment keys
-        for element_type, identifier, data, zone_id in parse_idf(test_file, settings_keys=set(TARGET_COMMENT_KEYS)):
-            # Pass all 4 args, process_element will decide if it needs zone_id
+        # Combine both comment keys and object keywords for parsing
+        target_keys = set(TARGET_COMMENT_KEYS) | set(TARGET_OBJECT_KEYWORDS)
+        for element_type, identifier, data, zone_id in parse_idf(test_file, settings_keys=target_keys):
             extractor.process_element(element_type, identifier, data, zone_id)
 
         settings = extractor.get_settings()

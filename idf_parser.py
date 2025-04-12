@@ -119,7 +119,8 @@ def parse_idf(file_path, settings_keys=None):
                         fields = [f.strip() for f in full_content.split(',')]
                         cleaned_fields = [f for f in fields if f] # Remove empty fields
 
-                        yield ('object', keyword, cleaned_fields, current_zone_id)
+                        if not settings_keys or keyword in settings_keys:
+                            yield ('object', keyword, cleaned_fields, current_zone_id)
 
                         # Reset state AFTER yielding
                         current_object_keyword = None
@@ -130,37 +131,36 @@ def parse_idf(file_path, settings_keys=None):
                         match = re.match(r"^\s*([^!,;]+?)\s*,", original_line)
                         if match:
                             keyword = match.group(1).strip()
-                            current_object_keyword = keyword
-                            current_object_lines = [original_line] # Start accumulating
+                            # Print when we find a target object
+                            if keyword in settings_keys:
+                                print(f"\nDEBUG[Parser]: Found target object '{keyword}'")
+                            
+                            # Only process if no settings_keys provided or keyword is in settings_keys
+                            if not settings_keys or keyword in settings_keys:
+                                current_object_keyword = keyword
+                                current_object_lines = [original_line] # Start accumulating
 
                             # Update zone context if it's a Zone object
                             if keyword.lower() == 'zone':
-                                 zone_name_match = re.match(r"^\s*[^,]+,\s*(.*?)\s*(?:!|,|;|$)", original_line)
-                                 if zone_name_match:
-                                     potential_zone_id = strip_inline_comment(zone_name_match.group(1).strip())
-                                     if potential_zone_id:
-                                         current_zone_id = potential_zone_id
+                                zone_name_match = re.match(r"^\s*[^,]+,\s*(.*?)\s*(?:!|,|;|$)", original_line)
+                                if zone_name_match:
+                                    potential_zone_id = strip_inline_comment(zone_name_match.group(1).strip())
+                                    if potential_zone_id:
+                                        current_zone_id = potential_zone_id
 
-                            # Handle single-line objects immediately
-                            if original_line.strip().endswith(';'): # Check stripped line end
-                                # Process the accumulated (single) line
-                                keyword = current_object_keyword
-                                cleaned_line = strip_inline_comment(original_line.strip()) # Clean comments
-
-                                # Remove keyword and first comma
+                            # Handle single-line objects immediately (outside zone check)
+                            if original_line.strip().endswith(';'):
+                                cleaned_line = strip_inline_comment(original_line.strip())
                                 cleaned_line = re.sub(r"^\s*" + re.escape(keyword) + r"\s*,?\s*", "", cleaned_line, count=1)
-                                # Remove trailing semicolon
                                 cleaned_line = cleaned_line.rstrip().rstrip(';')
-                                # Split and clean fields
                                 fields = [f.strip() for f in cleaned_line.split(',')]
                                 cleaned_fields = [f for f in fields if f]
 
-                                yield ('object', keyword, cleaned_fields, current_zone_id)
+                                if not settings_keys or keyword in settings_keys:
+                                    yield ('object', keyword, cleaned_fields, current_zone_id)
 
-                                # Reset state AFTER yielding
                                 current_object_keyword = None
                                 current_object_lines = []
-                            # else: Multi-line object started, continue accumulating
 
     except FileNotFoundError:
         print(f"Error: IDF file not found at {file_path}")

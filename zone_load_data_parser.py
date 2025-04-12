@@ -214,17 +214,17 @@ class ZoneLoadDataExtractor:
     def get_zone_load_data(self):
         """Returns the dictionary of extracted zone load data."""
         # Calculate ACH values before returning
-        print("\nDEBUG ZoneLoad: Calculating final ACH values...") # Debug
+        #print("\nDEBUG ZoneLoad: Calculating final ACH values...") # Debug
         for zone_id in self.zone_data:
             self._calculate_ach(zone_id)
-        print("\nDEBUG ZoneLoad: Final zone_data before return:") # Debug
-        import pprint; pprint.pprint(self.zone_data) # Debug
+        #print("\nDEBUG ZoneLoad: Final zone_data before return:") # Debug
+        #import pprint; pprint.pprint(self.zone_data) # Debug
         return self.zone_data
 
     def get_setpoint_schedule_links(self):
         """Returns the temporarily stored setpoint schedule names."""
-        print("\nDEBUG ZoneLoad: Final setpoint_schedules_by_thermostat_name before return:") # Debug
-        import pprint; pprint.pprint(self.setpoint_schedules_by_thermostat_name) # Debug
+        #print("\nDEBUG ZoneLoad: Final setpoint_schedules_by_thermostat_name before return:") # Debug
+        #import pprint; pprint.pprint(self.setpoint_schedules_by_thermostat_name) # Debug
         return self.setpoint_schedules_by_thermostat_name
 
 # Example usage placeholder
