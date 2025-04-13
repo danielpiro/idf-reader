@@ -143,23 +143,3 @@ def parse_idf(file_path, settings_keys=None):
     except Exception as e:
         print(f"An error occurred during IDF parsing on or near line {line_num}: {e}")
         raise
-
-if __name__ == '__main__':
-    test_file = 'in.idf'
-    print(f"Testing parser with {test_file}")
-    test_settings = {'Version Identifier'}
-    try:
-        for element_type, identifier, data, zone_id_context in parse_idf(test_file, test_settings):
-            print(f"Type: {element_type}, ID/Keyword: {identifier}")
-            if isinstance(data, list):
-                print("  Cleaned Fields:")
-                for i, item in enumerate(data):
-                    print(f"    [{i}] - '{item}'")
-            else:
-                print(f"  Value: {data}")
-            print(f"  Zone Context: {zone_id_context}")
-            print("-" * 10)
-    except FileNotFoundError:
-        print(f"Test file '{test_file}' not found. Cannot run example.")
-    except Exception as e:
-        print(f"Error during test: {e}")

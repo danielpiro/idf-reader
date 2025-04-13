@@ -2,7 +2,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import Paragraph, Spacer, Table, TableStyle # Added Table, TableStyle, removed Image
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.colors import navy, black, grey, blue, lightgrey
 from reportlab.lib.styles import ParagraphStyle
 

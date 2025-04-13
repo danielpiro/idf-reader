@@ -1,1 +1,2 @@
 reportlab>=3.6.8
+eppy>=0.5.63
