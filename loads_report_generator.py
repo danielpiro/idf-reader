@@ -144,14 +144,3 @@ def generate_loads_report_pdf(zone_ids, zone_data, output_filename="loads_report
     except Exception as e:
         print(f"Error building loads report PDF {output_filename}: {e}")
         return False
-
-# Example usage placeholder
-if __name__ == '__main__':
-    print("loads_report_generator.py executed directly (intended for import).")
-    # Example Data (replace with actual data from parser)
-    # test_zone_ids = ['ZoneA', 'ZoneB']
-    # test_zone_data = {
-    #     'ZoneA': {'occupancy_people_per_area': 0.05, 'lighting_schedule': 'LightSched', 'infiltration_ach': 0.5},
-    #     'ZoneB': {'occupancy_people_per_area': 0.10, 'lighting_watts_per_area': 8.0, 'ventilation_schedule': 'VentSched'}
-    # }
-    # generate_loads_report_pdf(test_zone_ids, test_zone_data, "example_loads_report.pdf")

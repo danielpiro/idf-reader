@@ -317,24 +317,3 @@ def generate_schedules_pdf(schedule_data, output_filename="schedules.pdf"):
     except Exception as e:
         print(f"Error generating or saving schedules PDF file {output_filename}: {e}")
         return False # Indicate failure
-    # No finally block needed as no temp files are created
-
-
-if __name__ == '__main__':
-    # Example usage for testing separate reports
-    print("pdf_generator.py executed directly (intended for import).")
-    # Example data
-    test_settings = {"Version": ["9.5"], "Timestep": ["4"]}
-    test_schedules = [
-        {'name': 'Test Heating Schedule', 'type': 'Temperature',
-         'raw_rules': ['Through: 31 Mar', 'For: AllDays', 'Until: 24:00, 20',
-                       'Through: 30 Sep', 'For: AllDays', 'Until: 24:00, 18',
-                       'Through: 31 Dec', 'For: AllDays', 'Until: 24:00, 21']},
-        {'name': 'Test Lighting Schedule', 'type': 'Fraction',
-         'raw_rules': ['Through: 31 Dec', 'For: Weekdays', 'Until: 08:00, 0.1', 'Until: 18:00, 0.9', 'Until: 24:00, 0.1',
-                       'For: Weekends', 'Until: 24:00, 0.05']}
-    ]
-    print("Generating example separate PDF reports...")
-    # No longer need matplotlib check here
-    generate_settings_pdf(test_settings, "example_settings_report.pdf")
-    generate_schedules_pdf(test_schedules, "example_schedules_report.pdf") # Test table generation

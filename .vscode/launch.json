@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Current File",
+      "type": "debugpy", // Use debugpy type
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Python: Launch main.py",
+      "type": "debugpy", // Use debugpy type
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "args": [
+        // Directly reference the file in the workspace folder
+        "${workspaceFolder}/in-small.idf"
+        // Or change to: "${workspaceFolder}/in-big.idf" if needed
+      ],
+      "console": "integratedTerminal"
+    }
+  ]
+  // Remove the "inputs" section if you added it previously
+}

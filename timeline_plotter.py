@@ -180,20 +180,3 @@ def plot_schedule_timeline(schedule_data, output_dir=None):
         if 'fig' in locals() and plt.fignum_exists(fig.number):
              plt.close(fig)
         return None
-
-# Example usage placeholder
-if __name__ == '__main__':
-    print("timeline_plotter.py executed directly (intended for import).")
-    # Add test logic here if needed later, e.g.:
-    # test_schedule = {
-    #     'name': 'Test Heating Schedule',
-    #     'type': 'Temperature',
-    #     'raw_rules': [
-    #         'Through: 31 Mar', 'For: AllDays', 'Until: 24:00, 20',
-    #         'Through: 30 Sep', 'For: AllDays', 'Until: 24:00, 18',
-    #         'Through: 31 Dec', 'For: AllDays', 'Until: 24:00, 21'
-    #     ]
-    # }
-    # img_path = plot_schedule_timeline(test_schedule)
-    # if img_path:
-    #     print(f"Generated test plot: {img_path}")

@@ -38,7 +38,3 @@ class LoadExtractor:
             set: A set of strings containing unique zone IDs.
         """
         return self.unique_zone_ids
-
-# Example usage placeholder
-if __name__ == '__main__':
-    print("load_parser.py executed directly (intended for import).")

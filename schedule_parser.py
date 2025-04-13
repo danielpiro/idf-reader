@@ -76,7 +76,3 @@ class ScheduleExtractor:
         for type_dict in self.schedules_by_type.values():
             result.extend(type_dict.values())
         return result
-
-# Example usage placeholder
-if __name__ == '__main__':
-    print("schedule_parser.py executed directly (intended for import).")

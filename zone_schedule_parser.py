@@ -42,7 +42,3 @@ class ZoneScheduleParser:
             dict: {zone_id (str): set(schedule_name (str))}
         """
         return self.schedules_by_zone
-
-# Example usage placeholder
-if __name__ == '__main__':
-    print("zone_schedule_parser.py executed directly (intended for import).")

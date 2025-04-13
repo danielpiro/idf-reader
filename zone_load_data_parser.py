@@ -226,7 +226,3 @@ class ZoneLoadDataExtractor:
         #print("\nDEBUG ZoneLoad: Final setpoint_schedules_by_thermostat_name before return:") # Debug
         #import pprint; pprint.pprint(self.setpoint_schedules_by_thermostat_name) # Debug
         return self.setpoint_schedules_by_thermostat_name
-
-# Example usage placeholder
-if __name__ == '__main__':
-    print("zone_load_data_parser.py executed directly (intended for import).")

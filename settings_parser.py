@@ -49,9 +49,6 @@ TARGET_OBJECT_KEYWORDS = [
       for key in category if ":" in key)
 ]
 
-print("\nDEBUG: Settings Parser Configuration")
-print("----------------------------------------")
-print("Looking for Comment Settings:")
 for key in sorted(TARGET_COMMENT_KEYS):
     print(f"  - {key}")
 print("\nLooking for Object Settings:")
@@ -257,30 +254,3 @@ class SettingsExtractor:
         Returns the categorized dictionary of extracted settings.
         """
         return self.extracted_settings
-
-# Example usage (demonstrates how it would be used with the parser)
-if __name__ == '__main__':
-    from idf_parser import parse_idf # Assuming idf_parser.py is in the same directory
-
-    test_file = 'in.idf'
-    print(f"Testing settings extraction with {test_file}")
-
-    extractor = SettingsExtractor()
-
-    try:
-        # Update test loop for 4-tuple yield from parse_idf
-        # Combine both comment keys and object keywords for parsing
-        target_keys = set(TARGET_COMMENT_KEYS) | set(TARGET_OBJECT_KEYWORDS)
-        for element_type, identifier, data, zone_id in parse_idf(test_file, settings_keys=target_keys):
-            extractor.process_element(element_type, identifier, data, zone_id)
-
-        settings = extractor.get_settings()
-
-        print("\nExtracted Settings:")
-        for key, value in settings.items():
-            print(f"  {key}: {value}")
-
-    except FileNotFoundError:
-        print(f"Test file '{test_file}' not found. Cannot run example.")
-    except Exception as e:
-        print(f"Error during test: {e}")
