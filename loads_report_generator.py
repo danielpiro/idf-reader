@@ -10,7 +10,7 @@ except ImportError:
     print("Please install it using: pip install reportlab")
     SimpleDocTemplate = None # Flag missing library
 
-def generate_loads_report_pdf(zone_ids, zone_data, output_filename="loads_report.pdf"):
+def generate_loads_report_pdf(zone_ids, zone_data, output_filename="output/loads_report.pdf"):
     """
     Generates a PDF report summarizing zone load data in a table format.
 

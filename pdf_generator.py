@@ -16,7 +16,7 @@ except ImportError:
     canvas = None # Prevent further errors in this script if not imported
 
 # Function to generate the settings PDF
-def generate_settings_pdf(settings_data, output_filename="settings.pdf"):
+def generate_settings_pdf(settings_data, output_filename="output/settings.pdf"):
     """
     Generates a PDF report from the extracted settings data.
 
@@ -182,7 +182,7 @@ def generate_settings_pdf(settings_data, output_filename="settings.pdf"):
     # Note: No finally block needed here as no temp files are created
 
 # Function to generate the schedules PDF
-def generate_schedules_pdf(schedule_data, output_filename="schedules.pdf"):
+def generate_schedules_pdf(schedule_data, output_filename="output/schedules.pdf"):
     """
     Generates a PDF report containing schedule definitions in a table format.
 

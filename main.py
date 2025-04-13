@@ -25,9 +25,9 @@ def main():
     args = parser.parse_args()
 
     idf_file_path = args.idf_file
-    settings_pdf_path = "settings.pdf"
-    schedules_pdf_path = "schedules.pdf"
-    loads_pdf_path = "loads.pdf"
+    settings_pdf_path = "output/settings.pdf"
+    schedules_pdf_path = "output/schedules.pdf"
+    loads_pdf_path = "output/loads.pdf"
 
     # Instantiate all extractors
     settings_extractor = SettingsExtractor()
