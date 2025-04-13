@@ -72,64 +72,81 @@ class SettingsExtractor:
 
     def _format_runperiod(self, data):
         """Format RunPeriod data"""
-        if not data or len(data) < 10:
+        if not data or len(data) < 7:
             return "Not Found"
+        location = data[1].split('(')[0].strip() if data else "Not Found"
+        start_month, start_day, start_year = data[2:5]
+        end_month, end_day, end_year = data[5:8]
+
+        if len(data) > 13:
+            subjects = []
+            if data[8].lower() == "yes":
+                subjects.append("Use weather file holidays/special day periods")
+            if data[9].lower() == "yes":
+                subjects.append("Use WeatherFile DaylightSavingPeriod - will use daylight saving time")
+            if data[10].lower() == "yes":
+                subjects.append("Apply Weekend Holiday Rule - will reassign weekend holidays to Monday")
+            if data[11].lower() == "yes":
+                subjects.append("use weather file rain indicators")
+            if data[12].lower() == "yes":
+                subjects.append("use weather file snow indicators")
+            if data[13].lower() == "yes":
+                subjects.append("Treat Weather as Actual")
         
-        name = data[0].strip() or "Annual simulation"
-        start_month, start_day, start_year = data[1:4]
-        end_month, end_day, end_year = data[4:7]
-        
+        #build the result string
         result = [
-            f"Period: {name}",
-            f"Date Range: {start_month}/{start_day}/{start_year} to {end_month}/{end_day}/{end_year}"
+            f"Location: {location}",
+            f"Start Date: {start_month} {start_day}, {start_year}",
+            f"End Date: {end_month} {end_day}, {end_year}"
         ]
-        
-        options = []
-        if data[7].lower() == "yes": options.append("Use Weather Holidays")
-        if data[8].lower() == "yes": options.append("Use Weather DST")
-        if data[9].lower() == "yes": options.append("Apply Weekend Rule")
-        
-        if options:
-            result.append(f"Options: {', '.join(options)}")
-            
+        if len(data) > 13:
+            result.extend(subjects)
+            result.append("")
         return "\n".join(result)
 
     def _format_location(self, data):
         """Format location data"""
-        if not data or len(data) < 5:
+        if not data or len(data) < 6:
             return "Not Found"
         
         try:
             return "\n".join([
-                f"Location: {data[0]}",
-                f"Latitude: {float(data[1])}°",
-                f"Longitude: {float(data[2])}°",
-                f"Time Zone: GMT{float(data[3])}",
-                f"Elevation: {float(data[4])}m"
+                f"Location: {data[1]}",
+                f"Latitude: {float(data[2])}°",
+                f"Longitude: {float(data[3])}°",
+                f"Time Zone: GMT{float(data[4])}",
+                f"Elevation: {float(data[5])}m"
             ])
         except (ValueError, IndexError):
             return "Not Found"
 
     def _format_simulation_control(self, data):
         """Format simulation control settings"""
-        if not data or len(data) < 5:
+        #here we need to start from index 1 to skip the first element which is the object name
+        if not data or len(data) < 6:
             return "Not Found"
         
-        controls = [
-            "Zone Sizing", "System Sizing", "Plant Sizing",
-            "Design Day", "Weather File"
-        ]
-        return "\n".join(f"{control}: {value}"
-                        for control, value in zip(controls, data))
+        try:
+            control = {
+                "Do the zone sizing calculation": data[1],
+                "Do the system sizing calculation": data[2],
+                "Do the plant sizing calculation": data[3],
+                "Do the design day calculation": data[4],
+                "Do the weather file calculation": data[5]
+            }
+            
+            return "\n".join([f"{key}: {value}" for key, value in control.items()])
+        except (ValueError, IndexError):
+            return "Not Found"
 
     def _format_convergence_limits(self, data):
         """Format convergence limits"""
-        if not data or len(data) < 2:
+        if not data or len(data) < 3:
             return "Not Found"
         
         return "\n".join([
-            f"Min System Time Step: {data[0]}",
-            f"Max HVAC Iterations: {data[1]}"
+            f"Min System Time Step: {data[1]}",
+            f"Max HVAC Iterations: {data[2]}"
         ])
 
     def _format_temperature_data(self, data):
@@ -176,9 +193,13 @@ class SettingsExtractor:
         """Process a single element yielded by the idf_parser."""
         if element_type == 'comment':
             # Handle comment elements (geometry settings)
-            if identifier in TARGET_COMMENT_KEYS:
-                self.extracted_settings["Geometry Settings"][identifier] = data
-                return
+            key = identifier.split(":")[0].strip()
+            value = identifier.split(":")[1].strip() if ":" in identifier else "Not Found"
+            if key in TARGET_COMMENT_KEYS:
+                category = self._get_category_for_key(key)
+                if category:
+                    self.extracted_settings[category][key] = value
+                    return
                 
         elif element_type == 'object':
             # Normalize the identifier
@@ -196,7 +217,7 @@ class SettingsExtractor:
                 elif norm_id == "runperiod":
                     value = self._format_runperiod(data)
                 elif norm_id == "timestep":
-                    value = f"{data[0]} timesteps per hour" if data else "Not Found"
+                    value = f"{data[1]} timesteps per hour" if data else "Not Found"
                 elif norm_id == "convergencelimits":
                     value = self._format_convergence_limits(data)
                 elif norm_id == "simulationcontrol":
