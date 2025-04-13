@@ -30,8 +30,6 @@ def parse_schedule_rules(raw_rules):
     This is a simplified parser assuming 'Through', 'For: AllDays', 'Until'.
     """
     parsed_periods = []
-    current_day = 0
-    last_value = None
 
     # Process rules in chunks (assuming Through, For, Until pattern)
     # This needs to be robust to variations. A simple chunking might work for the example.
@@ -145,11 +143,6 @@ def plot_schedule_timeline(schedule_data, output_dir=None):
 
         # Use step plot for schedule values
         ax.step(days, daily_values, where='post', linewidth=1.5)
-
-        # Formatting the x-axis to show months
-        # Create date objects for the axis formatter
-        base_date = datetime.date(2001, 1, 1) # Use a non-leap year
-        dates = [base_date + datetime.timedelta(days=int(d-1)) for d in days]
 
         ax.set_xlim(1, 365)
         ax.xaxis.set_major_locator(mdates.MonthLocator())

@@ -1,7 +1,3 @@
-import re
-
-from idf_parser import strip_inline_comment
-
 # Substrings that indicate this is a setpoint schedule (to be ignored)
 IGNORE_SUBSTRINGS = ["Setpoint", "SP"]
 

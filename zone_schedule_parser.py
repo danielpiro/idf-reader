@@ -1,6 +1,3 @@
-import re
-from idf_parser import strip_inline_comment # Import helper function
-
 class ZoneScheduleParser:
     """
     Parses IDF objects to map schedule names to the zone they are used within.

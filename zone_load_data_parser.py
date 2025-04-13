@@ -1,6 +1,3 @@
-import re
-from idf_parser import strip_inline_comment
-
 class ZoneLoadDataExtractor:
     """
     Extracts key load data parameters for each zone from relevant IDF objects.

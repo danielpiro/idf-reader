@@ -1,6 +1,5 @@
 from idf_parser import strip_inline_comment
 
-
 class LoadExtractor:
     """
     Extracts unique zone IDs from ZoneControl:Thermostat objects.

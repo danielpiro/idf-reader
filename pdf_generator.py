@@ -1,4 +1,3 @@
-import os # For deleting temp files
 try:
     from reportlab.pdfgen import canvas
     from reportlab.lib.pagesizes import A4
@@ -45,13 +44,6 @@ def generate_settings_pdf(settings_data, output_filename="settings.pdf"):
     section_title_style = styles['h2'] # Style for section titles
     section_title_style.spaceBefore = 0.5 * cm
     section_title_style.spaceAfter = 0.3 * cm
-    schedule_name_style = ParagraphStyle( # Style for schedule names above plots
-        name='ScheduleName',
-        parent=styles['Normal'],
-        fontName='Helvetica-Bold',
-        spaceBefore = 0.4*cm,
-        spaceAfter=0.1*cm
-    )
     # Custom Styles for better formatting
     setting_key_style = ParagraphStyle(
         name='SettingKey',
@@ -64,12 +56,6 @@ def generate_settings_pdf(settings_data, output_filename="settings.pdf"):
         parent=styles['Normal'],
         leftIndent=0.5*cm, # Indent normal values slightly
         spaceAfter=0.4*cm # Space after each setting block
-    )
-    setting_list_item_style = ParagraphStyle(
-        name='SettingListItem',
-        parent=styles['Normal'],
-        leftIndent=1.0*cm, # Indent list items more
-        spaceAfter=0.1*cm # Less space between list items
     )
     not_found_style = ParagraphStyle(
         name='NotFound',
