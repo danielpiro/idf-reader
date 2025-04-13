@@ -21,20 +21,10 @@ SETTINGS_CATEGORIES = {
     ]
 }
 
-def normalize_identifier(identifier):
-    """Normalize identifiers by removing extra spaces and handling colons"""
-    # For comment identifiers (with spaces around colon)
-    if " : " in identifier:
-        return identifier.strip()
-    # For object identifiers (no spaces around colon)
-    return identifier.strip().replace(" ", "")
-
-# Define object types first
 SIMPLE_OBJECTS = [
     "Version", "RunPeriod", "Timestep", "ConvergenceLimits", "SimulationControl"
 ]
 
-# Then define the target keys using the object types
 TARGET_COMMENT_KEYS = [
     key for category in SETTINGS_CATEGORIES.values()
     for key in category
@@ -42,27 +32,18 @@ TARGET_COMMENT_KEYS = [
 ]
 
 TARGET_OBJECT_KEYWORDS = [
-    # Include simple objects
     *SIMPLE_OBJECTS,
-    # Include complex objects (with colons)
     *(key.replace(" ", "") for category in SETTINGS_CATEGORIES.values()
       for key in category if ":" in key)
 ]
 
-for key in sorted(TARGET_COMMENT_KEYS):
-    print(f"  - {key}")
-print("\nLooking for Object Settings:")
-for key in sorted(TARGET_OBJECT_KEYWORDS):
-    print(f"  - {key}")
-print("----------------------------------------\n")
-
 class SettingsExtractor:
-    """
-    Extracts and formats predefined settings data from parsed IDF elements.
-    """
+    """Extracts and formats predefined settings data from parsed IDF elements."""
+    
     def __init__(self):
         self.extracted_settings = {}
         self.initialize_settings()
+        self._setup_formatters()
 
     def initialize_settings(self):
         """Initialize settings dictionary with categories"""
@@ -71,80 +52,60 @@ class SettingsExtractor:
             for category, keys in SETTINGS_CATEGORIES.items()
         }
 
-    def _format_version(self, data):
-        """Format version information"""
+    def _setup_formatters(self):
+        """Set up mapping of identifiers to their formatting functions"""
+        self.formatters = {
+            "Version": lambda data: f"EnergyPlus Version {data[0]}" if data else "Not Found",
+            "RunPeriod": self._format_runperiod,
+            "Site:Location": self._format_location,
+            "SimulationControl": self._format_simulation_control,
+            "ConvergenceLimits": self._format_convergence_limits,
+            "Timestep": lambda data: f"{data[0]} timesteps per hour" if data else "Not Found"
+        }
+    
+    def _format_tabular_data(self, data, num_columns=4):
+        """Generic formatter for tabular data display"""
         if not isinstance(data, list) or not data:
-            return "Not Found"
-        return f"EnergyPlus Version {data[0]}"
-
-    def _format_temperature_data(self, data):
-        """Format temperature or reflectance data into a readable table-like format"""
-        if not isinstance(data, list) or not data or len(data) > 12:
             return "Not Found"
         
         try:
-            # Convert all valid numeric values
-            values = []
-            for val in data:
-                try:
-                    values.append(float(val))
-                except ValueError:
-                    # Skip non-numeric values but don't fail
-                    continue
-            
+            values = [float(val) for val in data if val.replace('.', '').isdigit()]
             if not values:
                 return "Not Found"
             
-            # Ensure we have 12 months of data
+            # Ensure consistent length
             while len(values) < 12:
-                values.append(values[-1])  # Repeat last value if needed
+                values.append(values[-1])
             
             months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
             
-            # Format as a three-row table with 4 months per row
             rows = []
-            for i in range(0, 12, 4):
-                chunk_months = months[i:i+4]
-                chunk_values = values[i:i+4]
-                month_row = "  ".join(f"{m:^8}" for m in chunk_months)
-                value_row = "  ".join(f"{v:^8.2f}" for v in chunk_values)
-                rows.extend([month_row, value_row, ""])  # Empty line between rows
+            for i in range(0, 12, num_columns):
+                month_chunk = months[i:i + num_columns]
+                value_chunk = values[i:i + num_columns]
+                rows.extend([
+                    "  ".join(f"{m:^8}" for m in month_chunk),
+                    "  ".join(f"{v:^8.2f}" for v in value_chunk),
+                    ""
+                ])
             
             return "\n".join(rows).rstrip()
         except Exception:
-            # Fallback to simple format if anything goes wrong
             return ", ".join(str(x) for x in data)
-
-    def _get_category_for_key(self, key):
-        """Get the category name for a given key"""
-        # For object keys, compare without spaces
-        if ":" in key:
-            clean_key = key.replace(" ", "")
-            for category, keys in SETTINGS_CATEGORIES.items():
-                clean_keys = [k.replace(" ", "") for k in keys]
-                if clean_key in clean_keys:
-                    return category
-        # For comment keys, compare as-is
-        else:
-            for category, keys in SETTINGS_CATEGORIES.items():
-                if key in keys:
-                    return category
-        return None
 
     def _format_runperiod(self, data):
         """Format RunPeriod data"""
         if not isinstance(data, list) or len(data) < 10:
             return "Not Found"
         
-        period_name = data[0] if data[0] else "Annual simulation"
-        start_date = f"{data[1]}/{data[2]}/{data[3]}"  # MM/DD/YYYY
-        end_date = f"{data[4]}/{data[5]}/{data[6]}"    # MM/DD/YYYY
+        period_name = data[0] or "Annual simulation"
+        start_date = f"{data[1]}/{data[2]}/{data[3]}"
+        end_date = f"{data[4]}/{data[5]}/{data[6]}"
         
-        options = []
-        if data[7] == "Yes": options.append("Use Weather Holidays")
-        if data[8] == "Yes": options.append("Use Weather DST")
-        if data[9] == "Yes": options.append("Apply Weekend Rule")
+        options = [opt for flag, opt in zip(data[7:10], 
+                  ["Use Weather Holidays", "Use Weather DST", "Apply Weekend Rule"])
+                  if flag == "Yes"]
         
         result = [
             f"Period: {period_name}",
@@ -178,10 +139,8 @@ class SettingsExtractor:
             "Design Day", "Weather File"
         ]
         
-        return "\n".join(
-            f"{control}: {value}"
-            for control, value in zip(controls, data)
-        )
+        return "\n".join(f"{control}: {value}"
+                        for control, value in zip(controls, data))
 
     def _format_convergence_limits(self, data):
         """Format convergence limits"""
@@ -193,64 +152,36 @@ class SettingsExtractor:
             f"Max HVAC Iterations: {data[1]}"
         ])
 
+    def _get_category_for_key(self, key):
+        """Get the category name for a given key"""
+        normalized_key = key.replace(" ", "") if ":" in key else key
+        for category, keys in SETTINGS_CATEGORIES.items():
+            normalized_keys = [k.replace(" ", "") if ":" in k else k for k in keys]
+            if normalized_key in normalized_keys:
+                return category
+        return None
+
     def process_element(self, element_type, identifier, data, current_zone_id=None):
-        """
-        Processes a single element yielded by the idf_parser.
-
-        Args:
-            element_type (str): 'comment' or 'object'.
-            identifier (str): The comment key or object keyword.
-            data (str or list): Comment value or list of cleaned object fields.
-            current_zone_id (str or None): The current zone context (ignored).
-        """
-        if element_type == 'object':
-            orig_identifier = identifier
-            identifier = identifier.replace(" ", "")
-            if identifier in TARGET_OBJECT_KEYWORDS:
-                print(f"\nDEBUG[Settings]: Processing '{identifier}'")
-                if data:
-                    print(f"  Data: {data}")
-                else:
-                    print("  Warning: No data received")
-
+        """Process a single element yielded by the idf_parser."""
+        normalized_id = identifier.replace(" ", "") if element_type == 'object' else identifier
         category = self._get_category_for_key(identifier)
+        
         if not category:
             return
-
+            
         if element_type == 'comment' and identifier in TARGET_COMMENT_KEYS:
             self.extracted_settings[category][identifier] = data
-        elif element_type == 'object' and identifier in TARGET_OBJECT_KEYWORDS:
-            formatted_value = "Not Found"
+        elif element_type == 'object' and normalized_id in TARGET_OBJECT_KEYWORDS:
+            formatter = self.formatters.get(normalized_id, 
+                      self._format_tabular_data if any(x in normalized_id 
+                      for x in ["Temperature", "Reflectance"]) else None)
             
-            if identifier == "Version":
-                print(f"Processing Version object with data: {data}")
-                formatted_value = self._format_version(data)
-            elif identifier == "RunPeriod":
-                print(f"Processing RunPeriod object with data: {data}")
-                formatted_value = self._format_runperiod(data)
-            elif identifier == "Site:Location":
-                print(f"Processing Site:Location object with data: {data}")
-                formatted_value = self._format_location(data)
-            elif identifier == "SimulationControl":
-                print(f"Processing SimulationControl object with data: {data}")
-                formatted_value = self._format_simulation_control(data)
-            elif identifier == "ConvergenceLimits":
-                print(f"Processing ConvergenceLimits object with data: {data}")
-                formatted_value = self._format_convergence_limits(data)
-            elif identifier == "Timestep":
-                print(f"Processing Timestep object with data: {data}")
-                formatted_value = f"{data[0]} timesteps per hour" if data else "Not Found"
-            elif "Temperature" in identifier or "Reflectance" in identifier:
-                print(f"Processing Temperature/Reflectance object with data: {data}")
-                formatted_value = self._format_temperature_data(data)
-            else:
-                formatted_value = ", ".join(data) if isinstance(data, list) and data else "Not Found"
+            formatted_value = formatter(data) if formatter else (
+                ", ".join(data) if isinstance(data, list) and data else "Not Found"
+            )
             
-            print(f"Final formatted value: {formatted_value}")
             self.extracted_settings[category][identifier] = formatted_value
 
     def get_settings(self):
-        """
-        Returns the categorized dictionary of extracted settings.
-        """
+        """Returns the categorized dictionary of extracted settings."""
         return self.extracted_settings
