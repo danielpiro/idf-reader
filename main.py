@@ -1,14 +1,14 @@
 import argparse
 import sys
-from parsers.idf_parser import parse_idf
-from generators.pdf_generator import generate_schedules_pdf, generate_settings_pdf
+from utils.eppy_handler import EppyHandler
 from generators.pdf_generator import generate_schedules_pdf, generate_settings_pdf
 from parsers.schedule_parser import ScheduleExtractor
 from parsers.settings_parser import SettingsExtractor
 
 def main():
     """
-    Main function to parse IDF, extract settings and schedules, and generate separate PDF reports.
+    Main function to parse IDF using eppy, extract settings and schedules, 
+    and generate separate PDF reports.
     """
     # Set up argument parser
     parser = argparse.ArgumentParser(
@@ -18,6 +18,10 @@ def main():
         "idf_file",
         help="Path to the input IDF file."
     )
+    parser.add_argument(
+        "--idd",
+        help="Path to the Energy+.idd file (optional)."
+    )
 
     args = parser.parse_args()
 
@@ -25,16 +29,22 @@ def main():
     settings_pdf_path = "output/settings.pdf"
     schedules_pdf_path = "output/schedules.pdf"
 
-    # Instantiate all extractors
-    settings_extractor = SettingsExtractor()
-    schedule_extractor = ScheduleExtractor()
-
     try:
-        # Parse the IDF file and pass all elements to all extractors
-        for element_type, identifier, data, current_zone_id in parse_idf(idf_file_path):
-            # Process element with all extractors
-            settings_extractor.process_element(element_type, identifier, data)
-            schedule_extractor.process_element(element_type, identifier, data)
+        # Initialize eppy handler and load IDF
+        eppy_handler = EppyHandler(idd_path=args.idd)
+        idf = eppy_handler.load_idf(idf_file_path)
+        
+        # Process settings
+        settings_extractor = SettingsExtractor()
+        settings_objects = eppy_handler.get_settings_objects(idf)
+        for obj_type, objects in settings_objects.items():
+            for obj in objects:
+                settings_extractor.process_eppy_object(obj_type, obj)
+
+        # Process schedules
+        schedule_extractor = ScheduleExtractor()
+        for schedule in eppy_handler.get_schedule_objects(idf):
+            schedule_extractor.process_eppy_schedule(schedule)
 
         # Get the extracted data
         extracted_settings = settings_extractor.get_settings()
@@ -55,13 +65,17 @@ def main():
         else:
             print("  Schedules report generated successfully.")
 
-
-    except FileNotFoundError:
-        print(f"Error: Input IDF file not found at '{idf_file_path}'")
+    except FileNotFoundError as e:
+        if "Energy+.idd" in str(e):
+            print("Error: Energy+.idd file not found. Please provide path using --idd or place it in the project root.")
+        else:
+            print(f"Error: Input IDF file not found at '{idf_file_path}'")
         sys.exit(1)
     except ImportError as import_err:
         if 'reportlab' in str(import_err).lower():
             print("Error: 'reportlab' library required - install with: pip install reportlab")
+        elif 'eppy' in str(import_err).lower():
+            print("Error: 'eppy' library required - install with: pip install eppy")
         else:
             print(f"An unexpected import error occurred: {import_err}")
         sys.exit(1)

@@ -1,13 +1,10 @@
+"""
+Extracts and formats settings data from IDF files using eppy.
+"""
+
 # Settings categories and their associated keys
 SETTINGS_CATEGORIES = {
     "General Settings": ["Version", "RunPeriod", "Timestep", "ConvergenceLimits", "SimulationControl"],
-    "Geometry Settings": [
-        "Geometry convention template",
-        "Zone geometry and surface areas",
-        "Zone volume calculation method",
-        "Zone floor area calculation method",
-        "Window to wall ratio method"
-    ],
     "Location Settings": ["Site:Location"],
     "Ground Temperature Settings": [
         "Site:GroundTemperature:BuildingSurface",
@@ -21,19 +18,15 @@ SETTINGS_CATEGORIES = {
     ]
 }
 
-# Define target comment keys (geometry settings)
-TARGET_COMMENT_KEYS = SETTINGS_CATEGORIES["Geometry Settings"]
-
-# Define target object keywords (everything else)
+# Define target object keywords
 TARGET_OBJECT_KEYWORDS = (
     ["Version", "RunPeriod", "Timestep", "ConvergenceLimits", "SimulationControl"] +
     [key.replace(" ", "") for category, keys in SETTINGS_CATEGORIES.items() 
-     if category != "Geometry Settings" 
      for key in keys]
 )
 
 class SettingsExtractor:
-    """Extracts and formats predefined settings data from parsed IDF elements."""
+    """Extracts and formats predefined settings data from IDF files using eppy."""
     
     def __init__(self):
         self.extracted_settings = {}
@@ -66,6 +59,57 @@ class SettingsExtractor:
                     normalized = key.replace(" ", "").lower()
                     self.complex_objects[normalized] = key
 
+    def process_eppy_object(self, obj_type: str, obj):
+        """
+        Process an eppy object directly.
+        
+        Args:
+            obj_type: The type of the eppy object
+            obj: The eppy object to process
+        """
+        # Convert eppy object to field values
+        data = [field for field in obj.fieldvalues]
+        self.process_element('object', obj_type, data)
+
+    def process_element(self, element_type, identifier, data, current_zone_id=None):
+        """Process a single element from either parser format."""
+        if element_type == 'object':
+            # Normalize the identifier
+            norm_id = identifier.replace(" ", "").lower()
+            
+            # Handle simple objects
+            if norm_id in self.simple_objects:
+                key = self.simple_objects[norm_id]
+                category = "General Settings"
+                
+                if norm_id == "version":
+                    value = self._format_version(data)
+                elif norm_id == "runperiod":
+                    value = self._format_runperiod(data)
+                elif norm_id == "timestep":
+                    value = f"{data[1]} timesteps per hour" if len(data) > 1 else "Not Found"
+                elif norm_id == "convergencelimits":
+                    value = self._format_convergence_limits(data)
+                elif norm_id == "simulationcontrol":
+                    value = self._format_simulation_control(data)
+                    
+                self.extracted_settings[category][key] = value
+                return
+                
+            # Handle complex objects (with colons)
+            if norm_id in self.complex_objects:
+                key = self.complex_objects[norm_id]
+                category = self._get_category_for_key(key)
+                if category:
+                    if "Location" in key:
+                        value = self._format_location(data)
+                    elif "Temperature" in key or "Reflectance" in key:
+                        value = self._format_temperature_data(data)
+                    else:
+                        value = ", ".join(data) if data else "Not Found"
+                        
+                    self.extracted_settings[category][key] = value
+
     def _format_version(self, data):
         """Format version information"""
         return f"EnergyPlus Version {data[0]}" if data else "Not Found"
@@ -74,34 +118,36 @@ class SettingsExtractor:
         """Format RunPeriod data"""
         if not data or len(data) < 7:
             return "Not Found"
+            
         location = data[1].split('(')[0].strip() if data else "Not Found"
         start_month, start_day, start_year = data[2:5]
         end_month, end_day, end_year = data[5:8]
 
-        if len(data) > 13:
-            subjects = []
-            if data[8].lower() == "yes":
-                subjects.append("Use weather file holidays/special day periods")
-            if data[9].lower() == "yes":
-                subjects.append("Use WeatherFile DaylightSavingPeriod - will use daylight saving time")
-            if data[10].lower() == "yes":
-                subjects.append("Apply Weekend Holiday Rule - will reassign weekend holidays to Monday")
-            if data[11].lower() == "yes":
-                subjects.append("use weather file rain indicators")
-            if data[12].lower() == "yes":
-                subjects.append("use weather file snow indicators")
-            if data[13].lower() == "yes":
-                subjects.append("Treat Weather as Actual")
-        
-        #build the result string
         result = [
             f"Location: {location}",
             f"Start Date: {start_month} {start_day}, {start_year}",
             f"End Date: {end_month} {end_day}, {end_year}"
         ]
+
         if len(data) > 13:
-            result.extend(subjects)
-            result.append("")
+            subjects = []
+            flags = [
+                ("Use weather file holidays/special day periods", data[8]),
+                ("Use WeatherFile DaylightSavingPeriod - will use daylight saving time", data[9]),
+                ("Apply Weekend Holiday Rule - will reassign weekend holidays to Monday", data[10]),
+                ("use weather file rain indicators", data[11]),
+                ("use weather file snow indicators", data[12]),
+                ("Treat Weather as Actual", data[13])
+            ]
+            
+            for desc, flag in flags:
+                if str(flag).lower() == "yes":
+                    subjects.append(desc)
+            
+            if subjects:
+                result.extend(subjects)
+                result.append("")
+
         return "\n".join(result)
 
     def _format_location(self, data):
@@ -122,7 +168,6 @@ class SettingsExtractor:
 
     def _format_simulation_control(self, data):
         """Format simulation control settings"""
-        #here we need to start from index 1 to skip the first element which is the object name
         if not data or len(data) < 6:
             return "Not Found"
         
@@ -193,57 +238,6 @@ class SettingsExtractor:
             if key in keys:
                 return category
         return None
-
-    def process_element(self, element_type, identifier, data, current_zone_id=None):
-        """Process a single element yielded by the idf_parser."""
-        if element_type == 'comment':
-            # Handle comment elements (geometry settings)
-            key = identifier.split(":")[0].strip()
-            value = identifier.split(":")[1].strip() if ":" in identifier else "Not Found"
-            if key in TARGET_COMMENT_KEYS:
-                category = self._get_category_for_key(key)
-                if category:
-                    self.extracted_settings[category][key] = value
-                    return
-                
-        elif element_type == 'object':
-            # Normalize the identifier
-            if data and len(data) > 1:
-                identifier = data[0].strip()
-            norm_id = identifier.replace(" ", "").lower()
-            
-            # Handle simple objects
-            if norm_id in self.simple_objects:
-                key = self.simple_objects[norm_id]
-                category = "General Settings"
-                
-                if norm_id == "version":
-                    value = self._format_version(data)
-                elif norm_id == "runperiod":
-                    value = self._format_runperiod(data)
-                elif norm_id == "timestep":
-                    value = f"{data[1]} timesteps per hour" if data else "Not Found"
-                elif norm_id == "convergencelimits":
-                    value = self._format_convergence_limits(data)
-                elif norm_id == "simulationcontrol":
-                    value = self._format_simulation_control(data)
-                    
-                self.extracted_settings[category][key] = value
-                return
-                
-            # Handle complex objects (with colons)
-            if norm_id in self.complex_objects:
-                key = self.complex_objects[norm_id]
-                category = self._get_category_for_key(key)
-                if category:
-                    if "Location" in key:
-                        value = self._format_location(data)
-                    elif "Temperature" in key or "Reflectance" in key:
-                        value = self._format_temperature_data(data)
-                    else:
-                        value = ", ".join(data) if data else "Not Found"
-                        
-                    self.extracted_settings[category][key] = value
 
     def get_settings(self):
         """Returns the categorized dictionary of extracted settings."""
