@@ -3,8 +3,10 @@ import sys
 from utils.eppy_handler import EppyHandler
 from generators.settings_report_generator import generate_settings_report_pdf
 from generators.schedule_report_generator import generate_schedules_report_pdf
+from generators.load_report_generator import generate_loads_report_pdf
 from parsers.schedule_parser import ScheduleExtractor
 from parsers.settings_parser import SettingsExtractor
+from parsers.load_parser import LoadExtractor
 
 def main():
     """
@@ -29,6 +31,7 @@ def main():
     idf_file_path = args.idf_file
     settings_pdf_path = "output/settings.pdf"
     schedules_pdf_path = "output/schedules.pdf"
+    loads_pdf_path = "output/loads.pdf"
 
     try:
         # Initialize eppy handler and load IDF
@@ -47,9 +50,14 @@ def main():
         for schedule in eppy_handler.get_schedule_objects(idf):
             schedule_extractor.process_eppy_schedule(schedule)
 
+        # Process zone loads
+        load_extractor = LoadExtractor()
+        load_extractor.process_idf(idf)
+
         # Get the extracted data
         extracted_settings = settings_extractor.get_settings()
         extracted_schedules = schedule_extractor.get_parsed_unique_schedules()
+        extracted_loads = load_extractor.get_parsed_zone_loads()
     
         # Generate Reports
         print(f"Generating settings report: {settings_pdf_path}")
@@ -65,6 +73,13 @@ def main():
             print("Error: Schedules PDF generation failed")
         else:
             print("  Schedules report generated successfully.")
+
+        print(f"Generating loads report: {loads_pdf_path}")
+        loads_success = generate_loads_report_pdf(extracted_loads, loads_pdf_path)
+        if not loads_success:
+            print("Error: Loads PDF generation failed")
+        else:
+            print("  Loads report generated successfully.")
 
     except FileNotFoundError as e:
         if "Energy+.idd" in str(e):

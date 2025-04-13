@@ -1,125 +1,149 @@
-# Refactoring Plan: Migration to eppy
+# Load Parser and Generator Implementation Plan
 
 ## Overview
 
-This document outlines the plan to refactor the IDF reader project to use eppy instead of custom parsing logic.
+Create a new parser and generator to analyze and report on loads and schedules for each zone in the IDF file.
 
-## Current Architecture
+## Class Structure
 
 ```mermaid
-graph TD
-    A[Current Architecture] --> B[Refactored Architecture]
+classDiagram
+    class LoadExtractor {
+        +loads_by_zone : dict
+        -zone_schedules : dict
+        +process_element(element_type, identifier, data, zone_id)
+        +process_eppy_zone(zone_obj)
+        +process_eppy_equipment(equip_obj)
+        +process_zone_schedules(schedule_obj)
+        +get_parsed_zone_loads()
+    }
 
-    subgraph "Current"
-        C[idf_parser.py] --> D[ScheduleExtractor]
-        C --> E[SettingsExtractor]
-        D --> F[PDF Generation]
-        E --> F
-    end
+    class LoadReportGenerator {
+        +generate_loads_report_pdf(load_data, output_filename)
+    }
 
-    subgraph "Refactored with eppy"
-        G[IDF Model] --> H[EppyScheduleExtractor]
-        G --> I[EppySettingsExtractor]
-        H --> J[PDF Generation]
-        I --> J
-    end
+    class EppyHandler {
+        +get_zone_objects()
+        +get_zone_equipment()
+        +get_zone_schedules()
+    }
+
+    LoadExtractor ..> EppyHandler : uses
+    LoadReportGenerator ..> LoadExtractor : uses data from
 ```
 
-## Implementation Steps
+## Implementation Details
 
-1. **Dependencies Update**
+### 1. Load Parser (parsers/load_parser.py)
 
-   - Add eppy to requirements.txt
-   - Install required dependencies for eppy (including Energy+.idd file)
+- Create LoadExtractor class to process and store zone load data
+- Track loads by zone using dictionary structure:
 
-2. **Core Parser Replacement**
+```python
+loads_by_zone = {
+    "zone_name": {
+        "properties": {
+            "area": float,
+            "volume": float,
+            "ceiling_height": float,
+            "multiplier": int
+        },
+        "loads": {
+            "people": [{
+                "name": str,
+                "calculation_method": str,
+                "value": float,  # people/area or total
+                "schedule": str,
+                "activity_schedule": str
+            }],
+            "lights": [{
+                "name": str,
+                "calculation_method": str,
+                "watts_per_area": float,
+                "schedule": str
+            }],
+            "equipment": [{
+                "name": str,
+                "fuel_type": str,
+                "calculation_method": str,
+                "watts_per_area": float,
+                "schedule": str
+            }],
+            "infiltration": [{
+                "name": str,
+                "calculation_method": str,
+                "flow_rate": float,
+                "schedule": str
+            }]
+        },
+        "schedules": {
+            "heating": str,
+            "cooling": str,
+            "lighting": str,
+            "equipment": str,
+            "occupancy": str
+        }
+    }
+}
+```
 
-   - Remove custom idf_parser.py as eppy will handle parsing
-   - Create a new module `eppy_handler.py` to manage IDF model loading and initialization
+- Key methods:
+  - process_eppy_zone(): Process zone objects for base info (area, volume)
+  - process_eppy_equipment(): Process equipment in zones (lights, people, other equipment)
+  - process_zone_schedules(): Process schedules linked to zone equipment
+  - get_parsed_zone_loads(): Return processed data for report generation
 
-3. **Schedule Extractor Refactoring**
+### 2. Load Report Generator (generators/load_report_generator.py)
 
-   ```mermaid
-   graph LR
-       A[Current ScheduleExtractor] --> B[EppyScheduleExtractor]
-       B --> C[Schedule:Compact Objects]
-       B --> D[Unique Pattern Detection]
-       D --> E[PDF Generation]
-   ```
+- Create PDF report showing:
+  - Zone Summary Table:
+    - Zone name
+    - Floor area
+    - Volume
+    - Zone multiplier
+  - Zone Loads Table:
+    - People loads (people/m², schedule)
+    - Lighting loads (W/m², schedule)
+    - Equipment loads (W/m², schedule)
+    - Infiltration rates
+  - Zone Schedules Section:
+    - Heating/cooling setpoints
+    - Occupancy patterns
+    - Equipment operation
+    - Lighting patterns
+- Use consistent PDF styling with existing reports
+- Include tables and sections for clear data organization
 
-   - Create new `EppyScheduleExtractor` class
-   - Utilize eppy's built-in schedule object handling
-   - Maintain existing schedule pattern detection logic
-   - Keep PDF generation interface unchanged
+### 3. EppyHandler Updates (utils/eppy_handler.py)
 
-4. **Settings Extractor Refactoring**
+- Add new methods:
+  - get_zone_objects(): Get Zone objects
+  - get_zone_equipment(): Get People, Lights, OtherEquipment objects
+  - get_zone_schedules(): Get Schedule:Compact objects linked to zones
 
-   ```mermaid
-   graph LR
-       A[Current SettingsExtractor] --> B[EppySettingsExtractor]
-       B --> C[Version/RunPeriod]
-       B --> D[Location Settings]
-       B --> E[Ground Settings]
-       C & D & E --> F[PDF Generation]
-   ```
+### 4. Integration
 
-   - Create new `EppySettingsExtractor` class
-   - Use eppy's object query capabilities for settings extraction
-   - Map eppy objects to existing settings categories
-   - Keep PDF generation interface unchanged
+- Update main.py to include new parser and generator
+- Add command line options for generating load reports
+- Example usage:
 
-5. **Main Script Updates**
+```python
+handler = EppyHandler()
+idf = handler.load_idf(idf_path)
 
-   ```python
-   from eppy.modeleditor import IDF
+# Parse loads
+load_parser = LoadExtractor()
+for zone in handler.get_zone_objects(idf):
+    load_parser.process_eppy_zone(zone)
 
-   def main():
-       # Initialize eppy with IDD file
-       IDF.setiddname("path/to/Energy+.idd")
+# Generate report
+load_data = load_parser.get_parsed_zone_loads()
+generate_loads_report_pdf(load_data, "output/loads.pdf")
+```
 
-       # Load IDF model
-       idf = IDF("input.idf")
+## Next Steps
 
-       # Extract data using new extractors
-       settings = EppySettingsExtractor(idf).get_settings()
-       schedules = EppyScheduleExtractor(idf).get_parsed_unique_schedules()
-
-       # Generate reports (unchanged)
-       generate_settings_pdf(settings, "output/settings.pdf")
-       generate_schedules_pdf(schedules, "output/schedules.pdf")
-   ```
-
-6. **Testing Integration**
-
-   - Create test fixtures using eppy's test utilities
-   - Update existing tests to work with eppy models
-   - Add new tests for eppy-specific functionality
-
-7. **Documentation Update**
-   - Add eppy setup instructions
-   - Document new eppy-based extractor classes
-   - Update usage examples
-
-## Benefits
-
-1. **Reliability**: eppy provides robust IDF file parsing and validation
-2. **Maintainability**: Removes need for custom parsing logic
-3. **Extensibility**: Easy access to additional IDF features through eppy
-4. **Performance**: eppy's optimized parsing and object handling
-5. **Compatibility**: Better support for different IDF versions
-
-## Risks and Mitigations
-
-1. **Risk**: eppy dependency management
-
-   - Mitigation: Clear documentation of setup requirements
-   - Mitigation: Version pinning in requirements.txt
-
-2. **Risk**: Different object handling between custom parser and eppy
-
-   - Mitigation: Thorough testing of extracted data
-   - Mitigation: Validation of PDF output format
-
-3. **Risk**: Migration complexity
-   - Mitigation: Phased approach, one extractor at a time
-   - Mitigation: Maintain existing interfaces for PDF generation
+1. Switch to Code mode to implement the LoadExtractor class
+2. Implement LoadReportGenerator with PDF generation
+3. Add new EppyHandler methods
+4. Update main.py for integration

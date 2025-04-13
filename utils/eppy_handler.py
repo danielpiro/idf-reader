@@ -92,6 +92,7 @@ class EppyHandler:
         except KeyError:
             return []  # Return empty list if object type not found
 
+
     def get_schedule_objects(self, idf: IDF) -> list:
         """
         Get all Schedule:Compact objects from the IDF model.
