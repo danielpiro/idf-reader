@@ -1,14 +1,9 @@
-try:
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-    from reportlab.lib.styles import getSampleStyleSheet
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT
-    from reportlab.lib.units import cm
-    from reportlab.lib.pagesizes import landscape, A4
-    from reportlab.lib import colors
-except ImportError:
-    print("Error: reportlab library not found.")
-    print("Please install it using: pip install reportlab")
-    SimpleDocTemplate = None # Flag missing library
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.units import cm
+from reportlab.lib.pagesizes import landscape, A4
+from reportlab.lib import colors
 
 def generate_loads_report_pdf(zone_ids, zone_data, output_filename="output/loads_report.pdf"):
     """

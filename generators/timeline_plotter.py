@@ -1,15 +1,9 @@
 import os
 import tempfile
 import datetime
-
-try:
-    import matplotlib.pyplot as plt
-    import matplotlib.dates as mdates
-    import numpy as np
-except ImportError:
-    print("Error: matplotlib library not found.")
-    print("Please install it using: pip install matplotlib")
-    plt = None # Flag that plotting is unavailable
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import numpy as np
 
 # Helper function to convert month/day to day of year
 def get_day_of_year(month_day_str):

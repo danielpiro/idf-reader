@@ -1,13 +1,14 @@
 import argparse
 import sys
-from idf_parser import parse_idf
-from settings_parser import SettingsExtractor, TARGET_COMMENT_KEYS, TARGET_OBJECT_KEYWORDS
-from schedule_parser import ScheduleExtractor
-from load_parser import LoadExtractor
-from zone_schedule_parser import ZoneScheduleParser
-from zone_load_data_parser import ZoneLoadDataExtractor
-from pdf_generator import generate_settings_pdf, generate_schedules_pdf
-from loads_report_generator import generate_loads_report_pdf
+from parsers.idf_parser import parse_idf
+from generators.pdf_generator import generate_schedules_pdf, generate_settings_pdf
+from generators.pdf_generator import generate_schedules_pdf, generate_settings_pdf
+from generators.zone_loads_report_generator import generate_loads_report_pdf
+from parsers.load_parser import LoadExtractor
+from parsers.schedule_parser import ScheduleExtractor
+from parsers.settings_parser import SettingsExtractor
+from parsers.zone_load_data_parser import ZoneLoadDataExtractor
+from parsers.zone_schedule_parser import ZoneScheduleParser
 
 def main():
     """

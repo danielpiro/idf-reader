@@ -1,19 +1,11 @@
-try:
-    from reportlab.pdfgen import canvas
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.units import cm
-    from reportlab.lib.styles import getSampleStyleSheet
-    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle # Added Table, TableStyle, removed Image
-    from reportlab.lib.enums import TA_LEFT
-    from reportlab.lib.colors import navy, black, grey, blue, lightgrey
-    from reportlab.lib.styles import ParagraphStyle # For custom styles
-    # from timeline_plotter import plot_schedule_timeline # No longer needed
-except ImportError:
-    print("Error: reportlab library not found.")
-    print("Please install it using: pip install reportlab")
-    # You might want to exit or raise an error here depending on desired behavior
-    # For now, we'll let it fail later if the user tries to run without it.
-    canvas = None # Prevent further errors in this script if not imported
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import cm
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle # Added Table, TableStyle, removed Image
+from reportlab.lib.enums import TA_LEFT
+from reportlab.lib.colors import navy, black, grey, blue, lightgrey
+from reportlab.lib.styles import ParagraphStyle
 
 # Function to generate the settings PDF
 def generate_settings_pdf(settings_data, output_filename="output/settings.pdf"):

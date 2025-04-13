@@ -1,4 +1,4 @@
-from idf_parser import strip_inline_comment
+from .idf_parser import strip_inline_comment
 
 class LoadExtractor:
     """
