@@ -119,8 +119,8 @@ def parse_idf(file_path, settings_keys=None):
                         fields = [f.strip() for f in full_content.split(',')]
                         cleaned_fields = [f for f in fields if f] # Remove empty fields
 
-                        if not settings_keys or keyword in settings_keys:
-                            yield ('object', keyword, cleaned_fields, current_zone_id)
+                        # Always yield the object, filtering happens downstream
+                        yield ('object', keyword, cleaned_fields, current_zone_id)
 
                         # Reset state AFTER yielding
                         current_object_keyword = None
@@ -132,13 +132,12 @@ def parse_idf(file_path, settings_keys=None):
                         if match:
                             keyword = match.group(1).strip()
                             # Print when we find a target object
-                            if keyword in settings_keys:
-                                print(f"\nDEBUG[Parser]: Found target object '{keyword}'")
-                            
-                            # Only process if no settings_keys provided or keyword is in settings_keys
-                            if not settings_keys or keyword in settings_keys:
-                                current_object_keyword = keyword
-                                current_object_lines = [original_line] # Start accumulating
+                            # Debug print for any object found
+                            # print(f"\nDEBUG[Parser]: Found object '{keyword}'")
+
+                            # Always process the object, start accumulating
+                            current_object_keyword = keyword
+                            current_object_lines = [original_line] # Start accumulating
 
                             # Update zone context if it's a Zone object
                             if keyword.lower() == 'zone':
@@ -156,8 +155,8 @@ def parse_idf(file_path, settings_keys=None):
                                 fields = [f.strip() for f in cleaned_line.split(',')]
                                 cleaned_fields = [f for f in fields if f]
 
-                                if not settings_keys or keyword in settings_keys:
-                                    yield ('object', keyword, cleaned_fields, current_zone_id)
+                                # Always yield the single-line object
+                                yield ('object', keyword, cleaned_fields, current_zone_id)
 
                                 current_object_keyword = None
                                 current_object_lines = []

@@ -30,8 +30,7 @@ def main():
     # Output filenames are now fixed
     settings_pdf_path = "settings.pdf"
     schedules_pdf_path = "schedules.pdf"
-
-
+    loads_pdf_path = "loads.pdf" # Define path for loads report
     # Instantiate the settings extractor
     settings_extractor = SettingsExtractor()
     schedule_extractor = ScheduleExtractor()  # Instantiate schedule extractor
@@ -81,9 +80,27 @@ def main():
         # --- Generate Reports ---
 
         # Generate reports quietly unless there's an error
+        print(f"Generating settings report: {settings_pdf_path}")
         settings_success = generate_settings_pdf(extracted_settings, settings_pdf_path)
         if not settings_success:
             print("Error: Settings PDF generation failed")
+        else:
+            print("  Settings report generated successfully.")
+
+        print(f"Generating schedules report: {schedules_pdf_path}")
+        schedules_success = generate_schedules_pdf(extracted_schedules, schedules_pdf_path)
+        if not schedules_success:
+            print("Error: Schedules PDF generation failed")
+        else:
+            print("  Schedules report generated successfully.")
+
+        print(f"Generating loads report: {loads_pdf_path}")
+        # Pass the processed zone_load_data which includes linked schedules
+        loads_success = generate_loads_report_pdf(zone_ids, zone_load_data, loads_pdf_path)
+        if not loads_success:
+             print("Error: Loads PDF generation failed")
+        else:
+            print("  Loads report generated successfully.")
     except FileNotFoundError:
         print(f"Error: Input IDF file not found at '{idf_file_path}'")
         sys.exit(1) # Exit with error code
