@@ -13,7 +13,7 @@ SETTINGS_CATEGORIES = {
         "Site:GroundTemperature:BuildingSurface",
         "Site:GroundTemperature:Deep",
         "Site:GroundTemperature:Shallow",
-        "Site:GroundTemperature:FCfactorMethod"
+        "Site:GroundTemperature:FCfactorMethod",
     ],
     "Ground Reflectance Settings": [
         "Site:GroundReflectance",
@@ -182,6 +182,8 @@ class SettingsExtractor:
                 
         elif element_type == 'object':
             # Normalize the identifier
+            if data and len(data) > 1:
+                identifier = data[0].strip()
             norm_id = identifier.replace(" ", "").lower()
             
             # Handle simple objects
