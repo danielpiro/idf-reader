@@ -151,7 +151,7 @@ class SettingsExtractor:
 
     def _format_temperature_data(self, data):
         """Format temperature or reflectance data"""
-        if not data or len(data) < 12:
+        if not data:
             return "Not Found"
             
         try:
@@ -162,14 +162,19 @@ class SettingsExtractor:
                 except (ValueError, TypeError):
                     continue
             
-            if len(values) < 12:
+            if not values:
                 return "Not Found"
                 
             months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
             
+            # Use only as many months as we have values
+            num_values = len(values)
+            months = months[:num_values]
+            
             rows = []
-            for i in range(0, 12, 4):
+            # Process in chunks of 4, but only up to the actual data length
+            for i in range(0, num_values, 4):
                 month_chunk = months[i:i+4]
                 value_chunk = values[i:i+4]
                 rows.extend([
