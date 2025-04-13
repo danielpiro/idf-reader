@@ -1,7 +1,8 @@
 import argparse
 import sys
 from utils.eppy_handler import EppyHandler
-from generators.pdf_generator import generate_schedules_pdf, generate_settings_pdf
+from generators.settings_report_generator import generate_settings_report_pdf
+from generators.schedule_report_generator import generate_schedules_report_pdf
 from parsers.schedule_parser import ScheduleExtractor
 from parsers.settings_parser import SettingsExtractor
 
@@ -52,14 +53,14 @@ def main():
     
         # Generate Reports
         print(f"Generating settings report: {settings_pdf_path}")
-        settings_success = generate_settings_pdf(extracted_settings, settings_pdf_path)
+        settings_success = generate_settings_report_pdf(extracted_settings, settings_pdf_path)
         if not settings_success:
             print("Error: Settings PDF generation failed")
         else:
             print("  Settings report generated successfully.")
 
         print(f"Generating schedules report: {schedules_pdf_path}")
-        schedules_success = generate_schedules_pdf(extracted_schedules, schedules_pdf_path)
+        schedules_success = generate_schedules_report_pdf(extracted_schedules, schedules_pdf_path)
         if not schedules_success:
             print("Error: Schedules PDF generation failed")
         else:
