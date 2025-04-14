@@ -4,11 +4,13 @@ from utils.eppy_handler import EppyHandler
 from generators.settings_report_generator import generate_settings_report_pdf
 from generators.schedule_report_generator import generate_schedules_report_pdf
 from generators.load_report_generator import generate_loads_report_pdf
+from generators.area_report_generator import generate_area_reports
 from generators.materials_report_generator import generate_materials_report_pdf
 from parsers.schedule_parser import ScheduleExtractor
 from parsers.settings_parser import SettingsExtractor
 from parsers.load_parser import LoadExtractor
 from parsers.materials_parser import MaterialsParser
+from parsers.area_parser import AreaParser
 
 def main():
     """
@@ -60,12 +62,17 @@ def main():
         # Process materials and constructions
         materials_extractor = MaterialsParser()
         materials_extractor.process_idf(idf)
+        
+        # Process areas
+        area_parser = AreaParser()
+        area_parser.process_idf(idf)
 
         # Get the extracted data
         extracted_settings = settings_extractor.get_settings()
         extracted_schedules = schedule_extractor.get_parsed_unique_schedules()
         extracted_loads = load_extractor.get_parsed_zone_loads()
         extracted_element_data = materials_extractor.get_element_data()
+        extracted_areas = area_parser.get_parsed_areas()
     
         # Generate Reports
         print(f"Generating settings report: {settings_pdf_path}")
@@ -95,6 +102,14 @@ def main():
             print("Error: Materials PDF generation failed")
         else:
             print("  Materials report generated successfully.")
+
+        # Generate area reports
+        print("Generating area reports...")
+        areas_success = generate_area_reports(extracted_areas)
+        if not areas_success:
+            print("Error: Areas PDF generation failed")
+        else:
+            print("  Area reports generated successfully in output directory")
 
     except FileNotFoundError as e:
         if "Energy+.idd" in str(e):
