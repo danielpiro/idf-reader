@@ -4,18 +4,20 @@ from utils.eppy_handler import EppyHandler
 from generators.settings_report_generator import generate_settings_report_pdf
 from generators.schedule_report_generator import generate_schedules_report_pdf
 from generators.load_report_generator import generate_loads_report_pdf
+from generators.materials_report_generator import generate_materials_report_pdf
 from parsers.schedule_parser import ScheduleExtractor
 from parsers.settings_parser import SettingsExtractor
 from parsers.load_parser import LoadExtractor
+from parsers.materials_parser import MaterialsParser
 
 def main():
     """
-    Main function to parse IDF using eppy, extract settings and schedules, 
-    and generate separate PDF reports.
+    Main function to parse IDF using eppy, extract settings, schedules, loads,
+    and materials, then generate separate PDF reports.
     """
     # Set up argument parser
     parser = argparse.ArgumentParser(
-        description="Parse an EnergyPlus IDF file and generate separate PDF reports for settings and schedule timelines."
+        description="Parse an EnergyPlus IDF file and generate separate PDF reports."
     )
     parser.add_argument(
         "idf_file",
@@ -32,6 +34,7 @@ def main():
     settings_pdf_path = "output/settings.pdf"
     schedules_pdf_path = "output/schedules.pdf"
     loads_pdf_path = "output/loads.pdf"
+    materials_pdf_path = "output/materials.pdf"
 
     try:
         # Initialize eppy handler and load IDF
@@ -54,10 +57,15 @@ def main():
         load_extractor = LoadExtractor()
         load_extractor.process_idf(idf)
 
+        # Process materials and constructions
+        materials_extractor = MaterialsParser()
+        materials_extractor.process_idf(idf)
+
         # Get the extracted data
         extracted_settings = settings_extractor.get_settings()
         extracted_schedules = schedule_extractor.get_parsed_unique_schedules()
         extracted_loads = load_extractor.get_parsed_zone_loads()
+        extracted_element_data = materials_extractor.get_element_data()
     
         # Generate Reports
         print(f"Generating settings report: {settings_pdf_path}")
@@ -80,6 +88,13 @@ def main():
             print("Error: Loads PDF generation failed")
         else:
             print("  Loads report generated successfully.")
+
+        print(f"Generating materials report: {materials_pdf_path}")
+        materials_success = generate_materials_report_pdf(extracted_element_data, materials_pdf_path)
+        if not materials_success:
+            print("Error: Materials PDF generation failed")
+        else:
+            print("  Materials report generated successfully.")
 
     except FileNotFoundError as e:
         if "Energy+.idd" in str(e):
