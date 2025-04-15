@@ -35,6 +35,7 @@ class MaterialsParser:
             for construction_id, construction_data in constructions.items():
                 if "_rev" in construction_id.lower():
                     continue
+                
                 # Get all materials in the construction
                 for layer_id in construction_data.material_layers:
                     material_data = self.data_loader.get_material(layer_id)
@@ -80,18 +81,23 @@ class MaterialsParser:
         if not construction_surfaces:
             return ""
             
-        surface = construction_surfaces[0]
-        s_type = surface.surface_type.lower()
-        boundary = surface.boundary_condition.lower()
-        zone_name = surface.zone_name
+        try:
+            surface = construction_surfaces[0]
+            s_type = surface.surface_type.lower() if surface.surface_type else ""
+            boundary = surface.boundary_condition.lower() if surface.boundary_condition else ""
+            zone_name = surface.zone_name
+        except (AttributeError, IndexError):
+            return ""
         
         has_hvac = self._check_zone_hvac(zone_name)
         
         if s_type == "wall":
-            if boundary == "outdoors" or boundary == "ground":
+            if boundary == "outdoors":
                 return "External wall"
+            elif boundary == "ground":
+                return "Ground wall"
             else:
-                return "Internal wall" if has_hvac else "Separation wall"
+                return "Internal wall"
                 
         if s_type == "floor":
             if boundary == "outdoors":
@@ -99,7 +105,7 @@ class MaterialsParser:
             elif boundary == "ground":
                 return "Ground floor"
             else:
-                return "Intermediate floor" if has_hvac else "Separation floor"
+                return "Internal floor"
                 
         if s_type == "ceiling":
             if boundary == "ground":
@@ -107,7 +113,7 @@ class MaterialsParser:
             elif boundary == "outdoors":
                 return "External ceiling"
             else:
-                return "Intermediate ceiling" if has_hvac else "Separation ceiling"
+                return "Internal ceiling"
                 
         if s_type == "roof":
             return "Roof"
@@ -126,21 +132,40 @@ class MaterialsParser:
             bool: True if zone has HVAC systems, False otherwise
         """
         try:
-            if not zone_name:
+            # Validate zone name
+            if not zone_name or not isinstance(zone_name, str):
                 return False
                 
-            zone_id = zone_name.split('_')[0] if '_' in zone_name else zone_name
-            zone_id = zone_id.lower()
+            # Process zone name safely
+            try:
+                zone_id = zone_name.lower()
+                if '_' in zone_id:
+                    zone_id = zone_id.split('_')[0]
+            except AttributeError:
+                return False
             
             schedules = self.data_loader.get_all_schedules()
+            # First check if we have valid schedules
+            if not schedules:
+                return False
+                
+            # Check each schedule
             for schedule in schedules.values():
+                # Skip invalid schedules
+                if not schedule or not schedule.zone_id or not schedule.type:
+                    continue
+                    
+                # Compare zone IDs
                 if schedule.zone_id.lower() == zone_id:
-                    # Check if the schedule is for heating or cooling
-                    if "heating" in schedule.type.lower() or "cooling" in schedule.type.lower():
+                    # Check schedule type
+                    schedule_type = schedule.type.lower()
+                    if "heating" in schedule_type or "cooling" in schedule_type:
                         return True
             
-        except Exception as e:
-            print(f"Error checking HVAC system for zone {zone_name}: {e}")
+            return False
+                
+        except Exception:
+            # Silently handle errors for non-HVAC zones
             return False
             
     def get_element_data(self) -> list:

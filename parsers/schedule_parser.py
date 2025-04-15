@@ -28,6 +28,37 @@ class ScheduleExtractor:
         self.data_loader = data_loader
         # Store schedules by type, with unique value patterns
         self.schedules_by_type: Dict[str, Dict[Tuple, Dict[str, Any]]] = {}
+        
+    def _check_zone_hvac(self, zone_name: str) -> bool:
+        """
+        Check if a zone has HVAC systems by looking for heating/cooling schedules.
+        Uses cached zone data.
+        
+        Args:
+            zone_name: Name of the zone to check
+            
+        Returns:
+            bool: True if zone has HVAC systems, False otherwise
+        """
+        try:
+            if not zone_name:
+                return False
+                
+            zone_id = zone_name.split('_')[0] if '_' in zone_name else zone_name
+            zone_id = zone_id.lower()
+            
+            schedules = self.data_loader.get_all_schedules()
+            for schedule in schedules.values():
+                if schedule.zone_id and schedule.zone_id.lower() == zone_id:
+                    # Check if the schedule is for heating or cooling
+                    if "heating" in schedule.type.lower() or "cooling" in schedule.type.lower():
+                        return True
+            
+        except Exception as e:
+            print(f"Error checking HVAC system for zone {zone_name}: {e}")
+            return False
+            
+        return False
 
     def process_element(self, element_type: str, identifier: str, 
                        data: List[str], current_zone_id: Optional[str] = None) -> None:
@@ -105,9 +136,11 @@ class ScheduleExtractor:
                 zones = self.data_loader.get_all_zones()
                 for zone_id, zone_data in zones.items():
                     if zone_id.lower() in schedule_name_lower:
-                        schedule_data['zone_id'] = zone_id
-                        schedule_data['zone_type'] = zone_data.type
-                        break
+                        # Only store schedule if zone has HVAC
+                        if self._check_zone_hvac(zone_id):
+                            schedule_data['zone_id'] = zone_id
+                            schedule_data['zone_type'] = zone_data.type
+                            break
             
             self.schedules_by_type[type_][rule_tuple] = schedule_data
 
