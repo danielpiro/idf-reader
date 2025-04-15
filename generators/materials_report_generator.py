@@ -282,7 +282,6 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
             first_page = False
 
         c.save()
-        print(f"Successfully generated materials report: {output_filename}")
         return True
 
     except Exception as e:
