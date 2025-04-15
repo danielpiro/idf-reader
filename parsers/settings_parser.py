@@ -1,6 +1,8 @@
 """
 Extracts and formats settings data from IDF files using eppy.
 """
+from typing import Optional
+from utils.data_loader import DataLoader
 
 # Settings categories and their associated keys
 SETTINGS_CATEGORIES = {
@@ -28,7 +30,14 @@ TARGET_OBJECT_KEYWORDS = (
 class SettingsExtractor:
     """Extracts and formats predefined settings data from IDF files using eppy."""
     
-    def __init__(self):
+    def __init__(self, data_loader: Optional[DataLoader] = None):
+        """
+        Initialize the SettingsExtractor.
+        
+        Args:
+            data_loader: Optional DataLoader instance for accessing cached data
+        """
+        self.data_loader = data_loader
         self.extracted_settings = {}
         self.initialize_settings()
         self._setup_mappings()

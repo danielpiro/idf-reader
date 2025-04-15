@@ -1,5 +1,8 @@
 import argparse
 import sys
+import os
+from pathlib import Path
+from utils.data_loader import DataLoader
 from utils.eppy_handler import EppyHandler
 from generators.settings_report_generator import generate_settings_report_pdf
 from generators.schedule_report_generator import generate_schedules_report_pdf
@@ -14,9 +17,21 @@ from parsers.materials_parser import MaterialsParser
 from parsers.area_parser import AreaParser
 from parsers.storage_parser import StorageParser
 
+def ensure_directory_exists(file_path: str) -> None:
+    """
+    Ensure the directory for the given file path exists.
+    Create it if it doesn't exist.
+    
+    Args:
+        file_path: Path to the file
+    """
+    directory = os.path.dirname(file_path)
+    if directory and not os.path.exists(directory):
+        os.makedirs(directory)
+
 def main():
     """
-    Main function to parse IDF using eppy, extract settings, schedules, loads,
+    Main function to parse IDF using DataLoader, extract settings, schedules, loads,
     and materials, then generate separate PDF reports.
     """
     # Set up argument parser
@@ -41,39 +56,54 @@ def main():
     materials_pdf_path = "output/materials.pdf"
     storage_pdf_path = "output/zone/storage.pdf"
 
+    # Create output directories
+    for path in [settings_pdf_path, schedules_pdf_path, loads_pdf_path, 
+                materials_pdf_path, storage_pdf_path]:
+        ensure_directory_exists(path)
+
     try:
-        # Initialize eppy handler and load IDF
+        # Initialize DataLoader and load IDF file
+        data_loader = DataLoader()
+        data_loader.load_file(idf_file_path, args.idd)
+        
+        # Get raw IDF object for parsers that need it
         eppy_handler = EppyHandler(idd_path=args.idd)
         idf = eppy_handler.load_idf(idf_file_path)
         
-        # Process settings
-        settings_extractor = SettingsExtractor()
+        # Initialize parsers with DataLoader
+        settings_extractor = SettingsExtractor(data_loader)
+        schedule_extractor = ScheduleExtractor(data_loader)
+        load_extractor = LoadExtractor(data_loader)
+        materials_extractor = MaterialsParser(data_loader)
+        area_parser = AreaParser(data_loader)
+        storage_parser = StorageParser(data_loader)
+        
+        # Process data using DataLoader
+        print("Processing IDF data...")
+        
+        # Process settings - uses both IDF objects and cached data
         settings_objects = eppy_handler.get_settings_objects(idf)
         for obj_type, objects in settings_objects.items():
             for obj in objects:
                 settings_extractor.process_eppy_object(obj_type, obj)
-
-        # Process schedules
-        schedule_extractor = ScheduleExtractor()
+        
+        # Process schedules - uses IDF objects with zone context from cache
         for schedule in eppy_handler.get_schedule_objects(idf):
             schedule_extractor.process_eppy_schedule(schedule)
-
-        # Process zone loads
-        load_extractor = LoadExtractor()
+        
+        # Process other data - primarily uses cached data
         load_extractor.process_idf(idf)
-
-        # Process materials and constructions
-        materials_extractor = MaterialsParser()
         materials_extractor.process_idf(idf)
-        
-        # Process areas
-        area_parser = AreaParser()
         area_parser.process_idf(idf)
-        
-        # Process storage zones
-        storage_parser = StorageParser()
         storage_parser.process_idf(idf)
-
+        
+        # Cache status report
+        cache_status = data_loader.get_cache_status()
+        print("\nData Cache Status:")
+        for section, loaded in cache_status.items():
+            status = "Loaded" if loaded else "Not loaded"
+            print(f"  {section.capitalize()}: {status}")
+        
         # Get the extracted data
         extracted_settings = settings_extractor.get_settings()
         extracted_schedules = schedule_extractor.get_parsed_unique_schedules()
@@ -83,7 +113,7 @@ def main():
         extracted_storage = storage_parser.get_storage_zones()
     
         # Generate Reports
-        print(f"Generating settings report: {settings_pdf_path}")
+        print(f"\nGenerating settings report: {settings_pdf_path}")
         settings_success = generate_settings_report_pdf(extracted_settings, settings_pdf_path)
         if not settings_success:
             print("Error: Settings PDF generation failed")

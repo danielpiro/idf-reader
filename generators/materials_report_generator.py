@@ -7,7 +7,6 @@ from reportlab.lib.units import cm
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import Paragraph, Table, TableStyle
 from reportlab.lib.colors import navy, black, grey, lightgrey, white
-import traceback
 
 def wrap_text(text, style):
     """Helper function to create wrapped text in a cell."""
@@ -18,8 +17,8 @@ def create_cell_style(styles, is_header=False, total_row=False):
     style = ParagraphStyle(
         'Cell',
         parent=styles['Normal'],
-        fontSize=9.5,  # Increased font size
-        leading=13,    # Increased leading
+        fontSize=9.5,
+        leading=13,
         spaceBefore=5,
         spaceAfter=5,
         fontName='Helvetica-Bold' if is_header or total_row else 'Helvetica',
@@ -42,14 +41,11 @@ def create_table_style(row_count):
         ('GRID', (0, 0), (-1, -1), 1, grey),
         ('BACKGROUND', (0, 0), (-1, 0), lightgrey),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        
-        # Add slightly darker vertical lines between groups of columns
         ('LINEAFTER', (1, 0), (1, -1), 1.5, grey),
         ('LINEAFTER', (4, 0), (4, -1), 1.5, grey),
         ('LINEAFTER', (7, 0), (7, -1), 1.5, grey),
     ]
     
-    # Add alternating backgrounds for totals rows and extra space after each group
     for i in range(2, row_count, 3):
         style.append(('BACKGROUND', (0, i), (-1, i), lightgrey))
         if i + 1 < row_count:
@@ -65,13 +61,8 @@ def safe_sort_key(item):
 
 def group_element_data(element_data):
     """Group element data by element type and name, and calculate totals."""
-    print("DEBUG: Grouping element data...")
-    print(f"DEBUG: Received {len(element_data)} elements")
-    
     try:
         sorted_data = sorted(element_data, key=safe_sort_key)
-        print(f"DEBUG: Sorted data into {len(sorted_data)} elements")
-        
         grouped_data = []
         current_key = None
         current_group = []
@@ -112,12 +103,10 @@ def group_element_data(element_data):
                 'total_resistance': total_resistance
             })
         
-        print(f"DEBUG: Created {len(grouped_data)} groups")
         return grouped_data
         
     except Exception as e:
-        print(f"ERROR in group_element_data: {e}")
-        traceback.print_exc()
+        print(f"Error grouping element data: {e}")
         return []
 
 def safe_value(value, default=""):
@@ -132,9 +121,6 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
         element_data (list): List of dictionaries containing element data and calculated properties.
         output_filename (str): The name of the output PDF file.
     """
-    print("DEBUG: Starting report generation...")
-    print(f"DEBUG: Received {len(element_data) if element_data else 0} elements")
-    
     if not element_data:
         print("Warning: No element data provided for report generation")
         return False
@@ -165,7 +151,7 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
         title_style = styles['h1']
         title_style.textColor = navy
 
-        # --- Title ---
+        # Title
         title_text = "Building Elements Materials Properties Report"
         p_title = Paragraph(title_text, title_style)
         p_title.wrapOn(c, content_width, margin_y)
@@ -203,7 +189,7 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
             content_width * 0.08   # Specific Heat
         ]
 
-        # Create all data rows first
+        # Create all data rows
         all_rows = []
         for group in grouped_data:
             try:
@@ -259,7 +245,7 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
 
         # Calculate rows per page
         row_height = 1.2*cm
-        max_rows_per_page = int((height - 2 * margin_y - title_height - cm) / row_height) - 1  # Reserve space for header
+        max_rows_per_page = int((height - 2 * margin_y - title_height - cm) / row_height) - 1
 
         # Split into pages
         current_row = 0
@@ -300,6 +286,5 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
         return True
 
     except Exception as e:
-        print(f"Error generating or saving materials PDF file {output_filename}: {e}")
-        traceback.print_exc()
+        print(f"Error generating materials report: {e}")
         return False

@@ -3,89 +3,57 @@ Extracts and processes area information from zone IDs using eppy.
 Areas are extracted from zone IDs following the pattern: XXXXX:YYZZZ where YY is the area identifier.
 Special handling for STORAGE zones with pattern: XXXXX:STORAGE
 """
-import re
-import json
-import os
-from pathlib import Path
 from typing import Dict, Any
-from eppy.modeleditor import IDF
-from generators.storage_report_generator import generate_storage_report_pdf
+from utils.data_loader import DataLoader
 
 class AreaParser:
     """
     Extracts and processes area information from zone IDs.
-    Tracks areas, their associated zones, and properties.
+    Uses DataLoader for efficient data access and caching.
     """
-    def __init__(self):
-        # Store area data by zone
+    def __init__(self, data_loader: DataLoader):
+        """
+        Initialize AreaParser with DataLoader instance.
+        
+        Args:
+            data_loader: DataLoader instance for accessing cached IDF data
+        """
+        self.data_loader = data_loader
         self.areas_by_zone = {}  # {zone_id: {"area_id": str, "properties": {}}}
-        # Store storage zone data separately
         self.storage_zones = {}  # {zone_id: {"properties": {}}}
         
-    def is_storage_zone(self, zone_id: str) -> bool:
-        """
-        Check if the zone ID matches the STORAGE pattern.
-        
-        Args:
-            zone_id: The zone identifier to check
-            
-        Returns:
-            bool: True if this is a storage zone, False otherwise
-        """
-        return bool(re.search(r':STORAGE$', zone_id))
-        
-    def extract_area_from_zone_id(self, zone_id: str) -> str:
-        """
-        Extract area identifier from zone ID.
-        Expected format: XXXXX:YYZZZ where YY is the area identifier.
-        
-        Args:
-            zone_id: The zone identifier to parse
-            
-        Returns:
-            str: The extracted area identifier, or None if no match found
-        """
-        # Match pattern: anything followed by colon, then capture 2 digits
-        area_pattern = r':(\d{2})'
-        match = re.search(area_pattern, zone_id)
-        
-        if match:
-            return match.group(1)
-        return None
-
-    def process_idf(self, idf: IDF) -> None:
+    def process_idf(self, idf) -> None:
         """
         Process an entire IDF model to extract all area information.
-        Handles both regular zones and storage zones.
+        Uses cached zone data from DataLoader instead of direct file access.
         
         Args:
-            idf: eppy IDF object
+            idf: eppy IDF object (kept for compatibility)
         """
-        # Process each zone to extract area information
-        for zone in idf.idfobjects['ZONE']:
-            zone_id = str(zone.Name)
-            
-            # Extract common zone properties
-            zone_properties = {
-                "floor_area": float(getattr(zone, "Floor_Area", 0.0)),
-                "volume": float(getattr(zone, "Volume", 0.0)),
-                "multiplier": int(float(getattr(zone, "Multiplier", 1)))
-            }
-            
-            if self.is_storage_zone(zone_id):
-                # Handle storage zones separately
-                self.storage_zones[zone_id] = {
-                    "properties": zone_properties
-                }
-            else:
-                # Process regular zones as before
-                area_id = self.extract_area_from_zone_id(zone_id)
-                if area_id:
-                    self.areas_by_zone[zone_id] = {
-                        "area_id": area_id,
-                        "properties": zone_properties
+        # Process regular zones
+        regular_zones = self.data_loader.get_zones_by_type("regular")
+        for zone_id, zone_data in regular_zones.items():
+            if zone_data.area_id:  # Area ID was already extracted by DataLoader
+                self.areas_by_zone[zone_id] = {
+                    "area_id": zone_data.area_id,
+                    "properties": {
+                        "floor_area": zone_data.floor_area,
+                        "volume": zone_data.volume,
+                        "multiplier": zone_data.multiplier
                     }
-
+                }
+        
+        # Process storage zones
+        storage_zones = self.data_loader.get_zones_by_type("storage")
+        for zone_id, zone_data in storage_zones.items():
+            self.storage_zones[zone_id] = {
+                "properties": {
+                    "floor_area": zone_data.floor_area,
+                    "volume": zone_data.volume,
+                    "multiplier": zone_data.multiplier
+                }
+            }
+        
     def get_parsed_areas(self) -> Dict[str, Any]:
         """
         Returns the dictionary of parsed area information.
@@ -104,29 +72,45 @@ class AreaParser:
             dict: Dictionary of storage zone information
         """
         return self.storage_zones
-        
-    def save_storage_zones(self, output_dir: str = "output/zones") -> bool:
+
+    def get_zones_by_area(self, area_id: str) -> Dict[str, Any]:
         """
-        Save storage zones to a PDF report.
-        Creates output directory if it doesn't exist.
+        Get all zones belonging to a specific area.
         
         Args:
-            output_dir: Directory where to save the PDF report
+            area_id: The area identifier to filter by
             
         Returns:
-            bool: True if saving was successful, False otherwise
+            dict: Dictionary of zones in the specified area
         """
-        try:
-            # Create output directory if it doesn't exist
-            output_path = Path(output_dir)
-            output_path.mkdir(parents=True, exist_ok=True)
+        return {
+            zone_id: zone_data
+            for zone_id, zone_data in self.areas_by_zone.items()
+            if zone_data["area_id"] == area_id
+        }
+        
+    def get_area_totals(self, area_id: str) -> Dict[str, float]:
+        """
+        Calculate total properties for an area.
+        
+        Args:
+            area_id: The area identifier to calculate totals for
             
-            # Generate storage zones PDF report
-            return generate_storage_report_pdf(
-                self.storage_zones,
-                str(output_path / "storage_zones.pdf")
-            )
+        Returns:
+            dict: Dictionary with total floor area, volume, etc.
+        """
+        area_zones = self.get_zones_by_area(area_id)
+        
+        total_floor_area = 0.0
+        total_volume = 0.0
+        
+        for zone_data in area_zones.values():
+            multiplier = zone_data["properties"]["multiplier"]
+            total_floor_area += zone_data["properties"]["floor_area"] * multiplier
+            total_volume += zone_data["properties"]["volume"] * multiplier
             
-        except Exception as e:
-            print(f"Error saving storage zones: {e}")
-            return False
+        return {
+            "total_floor_area": total_floor_area,
+            "total_volume": total_volume,
+            "zone_count": len(area_zones)
+        }

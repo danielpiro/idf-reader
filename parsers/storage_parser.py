@@ -2,32 +2,41 @@
 Parser for extracting storage zone information from IDF files.
 """
 from typing import Dict, Any
+from utils.data_loader import DataLoader
 
 class StorageParser:
     """Parser for extracting storage zone data from IDF files."""
     
-    def __init__(self):
+    def __init__(self, data_loader: DataLoader):
+        """
+        Initialize the StorageParser with a DataLoader instance.
+        
+        Args:
+            data_loader: DataLoader instance for accessing cached IDF data
+        """
+        self.data_loader = data_loader
         self.storage_zones = {}
         
     def process_idf(self, idf) -> None:
         """
         Process an IDF file to extract storage zone information.
+        Uses cached data from DataLoader instead of direct file access.
         
         Args:
-            idf: An IDF file object from eppy
+            idf: An IDF file object from eppy (kept for compatibility)
         """
-        for zone in idf.idfobjects['ZONE']:
-            # Check if zone name contains storage indicators
-            zone_name = str(zone.Name).lower()
-            if any(keyword in zone_name for keyword in ['storage', 'store', 'warehouse']):
-                zone_data = {
-                    "properties": {
-                        "floor_area": float(zone.Floor_Area) if hasattr(zone, 'Floor_Area') else 0.0,
-                        "volume": float(zone.Volume) if hasattr(zone, 'Volume') else 0.0,
-                        "multiplier": int(zone.Multiplier) if hasattr(zone, 'Multiplier') else 1
-                    }
+        # Get all storage zones from DataLoader
+        storage_zones = self.data_loader.get_zones_by_type("storage")
+        
+        # Process each storage zone
+        for zone_id, zone_data in storage_zones.items():
+            self.storage_zones[zone_id] = {
+                "properties": {
+                    "floor_area": zone_data.floor_area,
+                    "volume": zone_data.volume,
+                    "multiplier": zone_data.multiplier
                 }
-                self.storage_zones[zone.Name] = zone_data
+            }
                 
     def get_storage_zones(self) -> Dict[str, Any]:
         """
