@@ -42,7 +42,7 @@ class AreaParser:
             
             schedules = self.data_loader.get_all_schedules()
             for schedule in schedules.values():
-                if schedule.type and schedule.type.lower() != "temparature":
+                if schedule.type and schedule.type.lower() != "temperature":
                     continue
                 schedule_id = schedule.id.split(' ')[0] if ' ' in schedule.id else schedule.id
                 if schedule_id and schedule_id.lower() == zone_id:
@@ -65,7 +65,7 @@ class AreaParser:
         # Process regular zones
         regular_zones = self.data_loader.get_zones_by_type("regular")
         for zone_id, zone_data in regular_zones.items():
-            if zone_data.area_id and self._check_zone_hvac(zone_id):  # Only include zones with HVAC
+            if zone_data.area_id and self._check_zone_hvac(zone_id):
                 self.areas_by_zone[zone_id] = {
                     "area_id": zone_data.area_id,
                     "properties": {

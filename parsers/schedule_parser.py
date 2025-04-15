@@ -61,7 +61,7 @@ class ScheduleExtractor:
             
             schedules = self.data_loader.get_all_schedules()
             for schedule in schedules.values():
-                if schedule.type and schedule.type.lower() != "temparature":
+                if schedule.type and schedule.type.lower() != "temperature":
                     continue
                 schedule_id = schedule.id.split(' ')[0] if ' ' in schedule.id else schedule.id
                 if schedule_id and schedule_id.lower() == zone_id:

@@ -60,13 +60,10 @@ class DataLoader:
             
             area_id = None
             if zone_type == "regular":
-                # More flexible area ID extraction that can handle different formats
-                area_match = re.search(r':([A-Za-z0-9]+)', zone_id)
+                # Extract exactly two digits after the colon for area ID
+                area_match = re.search(r':(\d{2})', zone_id)
                 if area_match:
                     area_id = area_match.group(1)
-                    # If the area_id is purely numeric, ensure consistent formatting
-                    if area_id.isdigit():
-                        area_id = area_id.zfill(2)  # Pad with leading zeros if needed
             
             zones[zone_id] = ZoneData(
                 id=zone_id,
