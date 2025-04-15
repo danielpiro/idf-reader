@@ -6,11 +6,13 @@ from generators.schedule_report_generator import generate_schedules_report_pdf
 from generators.load_report_generator import generate_loads_report_pdf
 from generators.area_report_generator import generate_area_reports
 from generators.materials_report_generator import generate_materials_report_pdf
+from generators.storage_report_generator import generate_storage_report_pdf
 from parsers.schedule_parser import ScheduleExtractor
 from parsers.settings_parser import SettingsExtractor
 from parsers.load_parser import LoadExtractor
 from parsers.materials_parser import MaterialsParser
 from parsers.area_parser import AreaParser
+from parsers.storage_parser import StorageParser
 
 def main():
     """
@@ -37,6 +39,7 @@ def main():
     schedules_pdf_path = "output/schedules.pdf"
     loads_pdf_path = "output/loads.pdf"
     materials_pdf_path = "output/materials.pdf"
+    storage_pdf_path = "output/zone/storage.pdf"
 
     try:
         # Initialize eppy handler and load IDF
@@ -66,6 +69,10 @@ def main():
         # Process areas
         area_parser = AreaParser()
         area_parser.process_idf(idf)
+        
+        # Process storage zones
+        storage_parser = StorageParser()
+        storage_parser.process_idf(idf)
 
         # Get the extracted data
         extracted_settings = settings_extractor.get_settings()
@@ -73,6 +80,7 @@ def main():
         extracted_loads = load_extractor.get_parsed_zone_loads()
         extracted_element_data = materials_extractor.get_element_data()
         extracted_areas = area_parser.get_parsed_areas()
+        extracted_storage = storage_parser.get_storage_zones()
     
         # Generate Reports
         print(f"Generating settings report: {settings_pdf_path}")
@@ -110,6 +118,13 @@ def main():
             print("Error: Areas PDF generation failed")
         else:
             print("  Area reports generated successfully in output directory")
+            
+        print(f"Generating storage report: {storage_pdf_path}")
+        storage_success = generate_storage_report_pdf(extracted_storage, storage_pdf_path)
+        if not storage_success:
+            print("Error: Storage PDF generation failed")
+        else:
+            print("  Storage report generated successfully.")
 
     except FileNotFoundError as e:
         if "Energy+.idd" in str(e):

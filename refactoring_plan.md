@@ -1,136 +1,64 @@
-# Materials Parser and Generator Refactoring Plan
+# Area Parser Refactoring Plan
 
-## New Requirements
+## Current Understanding
 
-Create a detailed table showing relationships between building surfaces, constructions, and materials with calculated thermal properties.
+- Need to handle a special zone ID format: `00XB1:STORAGE`
+- These STORAGE zones should be moved to a separate file
+- They should be removed from the regular areas_by_zone dictionary
 
-### Table Headers
+## Implementation Plan
 
-1. element type
-2. element name
-3. material name
-4. thickness
-5. conductivity
-6. density
-7. calculated mass
-8. thermal resistance
-9. solar absorptance
-10. Specific Heat
+```mermaid
+flowchart TD
+    A[Parse Zone ID] --> B{Is STORAGE?}
+    B -->|Yes| C[Extract to STORAGE file]
+    B -->|No| D[Add to areas_by_zone]
 
-### Calculations
+    subgraph "STORAGE Processing"
+        C --> E[Create storage_zones dict]
+        E --> F[Write to separate file]
+    end
 
-- thickness = from construction
-- conductivity = from material
-- density = from material
-- mass = density \* thickness
-- thermal resistance = thickness / conductivity
-- solar absorptance = from material
-- Specific Heat = from material
-
-## Implementation Changes
-
-### 1. Update MaterialsParser
-
-```python
-class MaterialsParser:
-    def __init__(self):
-        self.materials = {}
-        self.constructions = {}
-        self.surfaces = {}
-        self.element_data = []  # Will store final processed data for report
-
-    def process_idf(self, idf):
-        # Process materials (unchanged)
-        self._process_materials(idf)
-
-        # Process constructions (unchanged)
-        self._process_constructions(idf)
-
-        # New: Process surfaces and deduce element types
-        self._process_surfaces(idf)
-
-        # New: Generate final element data with calculations
-        self._generate_element_data()
+    subgraph "Regular Processing"
+        D --> G[Extract area ID]
+        G --> H[Add zone properties]
+    end
 ```
 
-Add new helper methods:
+## Detailed Steps
 
-- `_deduce_element_type(surface)`: Implement element type deduction logic
-- `_process_surfaces(idf)`: Process BUILDINGSURFACE:DETAILED objects
-- `_calculate_properties(surface, construction, material)`: Calculate mass and thermal resistance
-- `_generate_element_data()`: Compile final data structure for report
+1. **Modify AreaParser Class**
 
-### 2. Update MaterialsReportGenerator
+   - Add a new dictionary `storage_zones` to track STORAGE zones
+   - Add method `is_storage_zone(zone_id)` to check for STORAGE pattern
+   - Modify `extract_area_from_zone_id()` to handle STORAGE zones
+   - Update `process_idf()` to:
+     - Check for STORAGE zones
+     - Route STORAGE zones to storage_zones dict
+     - Keep regular zones in areas_by_zone
 
-Create new table format with all required columns:
+2. **Add New Methods**
 
-```python
-def generate_materials_report_pdf(element_data, output_filename):
-    # Create table with new headers
-    headers = [
-        "Element Type",
-        "Element Name",
-        "Material Name",
-        "Thickness (m)",
-        "Conductivity (W/m-K)",
-        "Density (kg/m³)",
-        "Mass (kg/m²)",
-        "Thermal Resistance (m²K/W)",
-        "Solar Absorptance",
-        "Specific Heat (J/kg-K)"
-    ]
+   ```python
+   def get_storage_zones(self):
+       # Return storage zones dictionary
 
-    # Generate rows with calculated values
-    data_rows = []
-    for element in element_data:
-        data_rows.append([
-            element["element_type"],
-            element["element_name"],
-            element["material_name"],
-            f"{element['thickness']:.3f}",
-            f"{element['conductivity']:.3f}",
-            f"{element['density']:.1f}",
-            f"{element['mass']:.1f}",
-            f"{element['thermal_resistance']:.3f}",
-            f"{element['solar_absorptance']:.3f}",
-            f"{element['specific_heat']:.1f}"
-        ])
-```
+   def save_storage_zones(self, filepath):
+       # Save storage zones to separate file
+   ```
 
-### 3. Update Main.py
+3. **Changes to Zone Processing Logic**
 
-Update main.py to handle the new data structure:
+   - For regular zones: Keep current behavior
+   - For STORAGE zones:
+     - Extract full zone ID (00XB1:STORAGE)
+     - Store zone properties in storage_zones dict
+     - Skip adding to areas_by_zone
 
-```python
-# Process materials and surfaces
-materials_extractor = MaterialsParser()
-materials_extractor.process_idf(idf)
-
-# Get processed element data
-element_data = materials_extractor.get_element_data()
-
-# Generate report with new format
-materials_success = generate_materials_report_pdf(element_data, materials_pdf_path)
-```
-
-## Implementation Steps
-
-1. Update MaterialsParser
-
-   - Add new methods for surface processing
-   - Implement element type deduction
-   - Add property calculations
-
-2. Update MaterialsReportGenerator
-
-   - Create new table format
-   - Update styling for new columns
-   - Add calculations display
-
-3. Test
-   - Test with sample IDF file
-   - Verify calculations
-   - Check element type deduction
-   - Validate report formatting
-
-Would you like me to proceed with implementing these changes?
+4. **File Structure**
+   ```
+   parsers/
+   ├── area_parser.py
+   └── storage/        # New directory
+       └── zones.json  # Storage zones data
+   ```

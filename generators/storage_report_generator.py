@@ -1,21 +1,19 @@
 """
-Generates reports for area-specific information extracted from IDF files.
+Generates PDF reports for storage zone information extracted from IDF files.
 """
 from typing import Dict, Any
 from pathlib import Path
-from collections import defaultdict
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
-def generate_area_detail_report_pdf(area_id: str, zones_data: Dict[str, Any], output_path: str) -> bool:
+def generate_storage_report_pdf(storage_data: Dict[str, Any], output_path: str) -> bool:
     """
-    Generate a detailed PDF report for a specific area.
+    Generate a PDF report for storage zones.
     
     Args:
-        area_id: The ID of the area to generate report for
-        zones_data: Dictionary of zone information for this area
+        storage_data: Dictionary of storage zone information
         output_path: Path where to save the PDF report
         
     Returns:
@@ -33,26 +31,26 @@ def generate_area_detail_report_pdf(area_id: str, zones_data: Dict[str, Any], ou
             fontSize=24,
             spaceAfter=30
         )
-        story.append(Paragraph(f"Area {area_id} Report", title_style))
+        story.append(Paragraph("Storage Zones Report", title_style))
         
-        # Calculate area metrics
+        # Calculate storage metrics
         total_floor_area = 0
         total_volume = 0
-        for zone_data in zones_data.values():
+        for zone_data in storage_data.values():
             props = zone_data["properties"]
             multiplier = props.get("multiplier", 1)
             total_floor_area += props.get("floor_area", 0) * multiplier
             total_volume += props.get("volume", 0) * multiplier
         
-        # Area Summary
-        story.append(Paragraph("Area Summary", styles["Heading2"]))
+        # Storage Summary
+        story.append(Paragraph("Storage Summary", styles["Heading2"]))
         story.append(Spacer(1, 12))
         
         summary_data = [
-            ["Total Zones", str(len(zones_data))],
+            ["Total Storage Zones", str(len(storage_data))],
             ["Total Floor Area", f"{total_floor_area:.2f} m²"],
             ["Total Volume", f"{total_volume:.2f} m³"],
-            ["Average Zone Size", f"{total_floor_area/len(zones_data):.2f} m²"]
+            ["Average Zone Size", f"{total_floor_area/len(storage_data):.2f} m²"]
         ]
         
         summary_table = Table(summary_data, colWidths=[200, 200])
@@ -69,11 +67,11 @@ def generate_area_detail_report_pdf(area_id: str, zones_data: Dict[str, Any], ou
         story.append(Spacer(1, 20))
         
         # Zone Details
-        story.append(Paragraph("Zone Details", styles["Heading2"]))
+        story.append(Paragraph("Storage Zone Details", styles["Heading2"]))
         story.append(Spacer(1, 12))
         
         zone_data = [["Zone ID", "Floor Area", "Volume", "Multiplier"]]
-        for zone_id, data in sorted(zones_data.items()):
+        for zone_id, data in sorted(storage_data.items()):
             props = data["properties"]
             zone_data.append([
                 zone_id,
@@ -99,42 +97,5 @@ def generate_area_detail_report_pdf(area_id: str, zones_data: Dict[str, Any], ou
         return True
         
     except Exception as e:
-        print(f"Error generating area detail report PDF: {e}")
-        return False
-
-def generate_area_reports(areas_data: Dict[str, Any], output_dir: str = "output/zones") -> bool:
-    """
-    Generate individual PDF reports for each area.
-    
-    Args:
-        areas_data: Dictionary of area information by zone
-        output_dir: Directory where to save the PDF reports
-        
-    Returns:
-        bool: True if all report generation was successful, False otherwise
-    """
-    try:
-        output_path = Path(output_dir)
-        output_path.mkdir(exist_ok=True)
-        
-        # Group zones by area
-        areas_grouped = defaultdict(dict)
-        for zone_id, data in areas_data.items():
-            area_id = data["area_id"]
-            areas_grouped[area_id][zone_id] = data
-        
-        # Generate individual area reports
-        successes = []
-        for area_id, zones_data in areas_grouped.items():
-            success = generate_area_detail_report_pdf(
-                area_id,
-                zones_data,
-                str(output_path / f"area_{area_id}.pdf")
-            )
-            successes.append(success)
-        
-        return all(successes)
-        
-    except Exception as e:
-        print(f"Error generating area reports: {e}")
+        print(f"Error generating storage report PDF: {e}")
         return False
