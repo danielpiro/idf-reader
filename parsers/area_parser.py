@@ -1,7 +1,6 @@
 """
 Extracts and processes area information from zone IDs using eppy.
 Areas are extracted from zone IDs following the pattern: XXXXX:YYZZZ where YY is the area identifier.
-Special handling for STORAGE zones with pattern: XXXXX:STORAGE
 """
 from typing import Dict, Any
 from utils.data_loader import DataLoader
@@ -20,7 +19,6 @@ class AreaParser:
         """
         self.data_loader = data_loader
         self.areas_by_zone = {}  # {zone_id: {"area_id": str, "properties": {}}}
-        self.storage_zones = {}  # {zone_id: {"properties": {}}}
         
     def _check_zone_hvac(self, zone_name: str) -> bool:
         """
@@ -62,9 +60,9 @@ class AreaParser:
         Args:
             idf: eppy IDF object (kept for compatibility)
         """
-        # Process regular zones
-        regular_zones = self.data_loader.get_zones_by_type("regular")
-        for zone_id, zone_data in regular_zones.items():
+        # Process all non-core zones
+        zones = self.data_loader.get_zones_by_type("regular")
+        for zone_id, zone_data in zones.items():
             if zone_data.area_id and self._check_zone_hvac(zone_id):
                 self.areas_by_zone[zone_id] = {
                     "area_id": zone_data.area_id,
@@ -74,19 +72,6 @@ class AreaParser:
                         "multiplier": zone_data.multiplier
                     }
                 }
-        
-        # Process storage zones
-        storage_zones = self.data_loader.get_zones_by_type("storage")
-        for zone_id, zone_data in storage_zones.items():
-            if not self._check_zone_hvac(zone_id):  # Skip storage zones without HVAC
-                continue
-            self.storage_zones[zone_id] = {
-                "properties": {
-                    "floor_area": zone_data.floor_area,
-                    "volume": zone_data.volume,
-                    "multiplier": zone_data.multiplier
-                }
-            }
         
     def get_parsed_areas(self) -> Dict[str, Any]:
         """
@@ -98,15 +83,6 @@ class AreaParser:
         """
         return self.areas_by_zone
         
-    def get_storage_zones(self) -> Dict[str, Any]:
-        """
-        Returns the dictionary of storage zone information.
-        
-        Returns:
-            dict: Dictionary of storage zone information
-        """
-        return self.storage_zones
-
     def get_zones_by_area(self, area_id: str) -> Dict[str, Any]:
         """
         Get all zones belonging to a specific area.

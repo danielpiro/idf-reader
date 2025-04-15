@@ -51,13 +51,12 @@ class DataLoader:
             zone_id = str(zone.Name)
             # Determine zone type based on keywords in zone ID
             zone_id_lower = zone_id.lower()
-            if any(keyword in zone_id_lower for keyword in ['storage', 'store', 'warehouse']):
-                zone_type = "storage"
-            elif any(keyword in zone_id_lower for keyword in ['core', 'corridor', 'stair']):
+            if any(keyword in zone_id_lower for keyword in ['core', 'corridor', 'stair']):
                 zone_type = "core"
             else:
                 zone_type = "regular"
             
+            # Extract area ID for any non-core zone
             area_id = None
             if zone_type == "regular":
                 # Extract exactly two digits after the colon for area ID
@@ -169,8 +168,8 @@ class DataLoader:
                 # Try to find matching zone to get its type
                 for zone in self._idf.idfobjects['ZONE']:
                     if zone_id.lower() in str(zone.Name).lower():
-                        zone_type = "storage" if any(keyword in str(zone.Name).lower()
-                                                  for keyword in ['storage', 'store', 'warehouse']) else "regular"
+                        zone_type = "core" if any(keyword in str(zone.Name).lower()
+                                                for keyword in ['core', 'corridor', 'stair']) else "regular"
                         break
             
             # Get all non-empty fields after Name and Type
