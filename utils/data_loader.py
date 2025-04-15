@@ -2,52 +2,15 @@
 DataLoader module for efficient IDF data caching and access.
 Provides centralized data management for IDF file parsing and data retrieval.
 """
-from typing import Dict, Optional, Set, Any
-from dataclasses import dataclass
+from typing import Dict, Optional, Set, Any, List
 from pathlib import Path
 import re
-from eppy.modeleditor import IDF
+from parsers.schedule_parser import ScheduleExtractor
 from utils.eppy_handler import EppyHandler
-
-@dataclass
-class ZoneData:
-    """Container for zone-related data"""
-    id: str
-    name: str
-    floor_area: float
-    volume: float
-    multiplier: int
-    type: str  # regular or storage
-    area_id: Optional[str] = None
-
-@dataclass
-class SurfaceData:
-    """Container for surface-related data"""
-    id: str
-    name: str
-    surface_type: str
-    construction_name: str
-    boundary_condition: str
-    zone_name: str
-
-@dataclass
-class ConstructionData:
-    """Container for construction-related data"""
-    id: str
-    name: str
-    material_layers: list[str]
-    thickness: float
-
-@dataclass
-class MaterialData:
-    """Container for material-related data"""
-    id: str
-    name: str
-    conductivity: float
-    density: float
-    specific_heat: float
-    thickness: float
-    solar_absorptance: float
+from utils.data_models import (
+    ZoneData, SurfaceData, ConstructionData,
+    ScheduleData, MaterialData
+)
 
 class DataLoader:
     """
@@ -60,6 +23,7 @@ class DataLoader:
         self._surfaces_cache: Dict[str, SurfaceData] = {}
         self._constructions_cache: Dict[str, ConstructionData] = {}
         self._materials_cache: Dict[str, MaterialData] = {}
+        self._schedules_cache: Dict[str, ScheduleData] = {}
         
         # Cache status tracking
         self._loaded_sections: Set[str] = set()
@@ -106,7 +70,8 @@ class DataLoader:
             self._load_common_constructions()
             self._load_zones_basic()
             self._load_surfaces_basic()
-            self._loaded_sections.update(['zones', 'surfaces', 'materials', 'constructions'])
+            self._load_schedules()
+            self._loaded_sections.update(['zones', 'surfaces', 'materials', 'constructions', 'schedules'])
         except Exception as e:
             raise Exception(f"Error loading primary cache: {str(e)}")
         
@@ -282,6 +247,59 @@ class DataLoader:
         """Get all cached material data."""
         return self._materials_cache.copy()
         
+    def get_all_schedules(self) -> Dict[str, ScheduleData]:
+        """Get all cached schedule data."""
+        return self._schedules_cache.copy()
+
+    def get_schedules_by_type(self, schedule_type: str) -> Dict[str, ScheduleData]:
+        """Get all schedules of a specific type."""
+        return {
+            schedule_id: schedule_data
+            for schedule_id, schedule_data in self._schedules_cache.items()
+            if schedule_data.type.lower() == schedule_type.lower()
+        }
+
+    def get_zone_schedules(self, zone_id: str) -> Dict[str, ScheduleData]:
+        """Get all schedules associated with a specific zone."""
+        return {
+            schedule_id: schedule_data
+            for schedule_id, schedule_data in self._schedules_cache.items()
+            if schedule_data.zone_id == zone_id
+        }
+
+    def _load_schedules(self) -> None:
+        """
+        Load schedule data into primary cache using ScheduleExtractor.
+        
+        Raises:
+            Exception: If error occurs during schedule loading
+        """
+        if not self._idf:
+            return
+            
+        try:
+            schedule_extractor = ScheduleExtractor(self)
+            
+            # Process all Schedule:Compact objects
+            for schedule in self._idf.idfobjects['SCHEDULE:COMPACT']:
+                schedule_extractor.process_eppy_schedule(schedule)
+            
+            # Store processed schedules in cache
+            for schedule in schedule_extractor.get_parsed_unique_schedules():
+                schedule_id = schedule['name']
+                schedule_data = ScheduleData(
+                    id=schedule_id,
+                    name=schedule_id,
+                    type=schedule['type'],
+                    raw_rules=schedule['raw_rules'],
+                    zone_id=schedule.get('zone_id'),
+                    zone_type=schedule.get('zone_type')
+                )
+                self._schedules_cache[schedule_id] = schedule_data
+                
+        except Exception as e:
+            raise Exception(f"Error loading schedules: {str(e)}")
+
     def get_surfaces_by_type(self, surface_type: str) -> Dict[str, SurfaceData]:
         """Get all surfaces of a specific type."""
         return {
@@ -304,5 +322,6 @@ class DataLoader:
             'zones': 'zones' in self._loaded_sections,
             'surfaces': 'surfaces' in self._loaded_sections,
             'materials': 'materials' in self._loaded_sections,
-            'constructions': 'constructions' in self._loaded_sections
+            'constructions': 'constructions' in self._loaded_sections,
+            'schedules': 'schedules' in self._loaded_sections
         }

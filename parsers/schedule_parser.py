@@ -2,8 +2,13 @@
 Extracts and processes Schedule:Compact objects.
 Uses DataLoader for potential future schedule caching.
 """
-from typing import Dict, List, Any, Optional, Tuple
-from utils.data_loader import DataLoader
+from typing import Dict, List, Any, Optional, Tuple, TYPE_CHECKING, Union
+
+# Forward reference for type hints
+DataLoader = Union['DataLoader', None]
+
+if TYPE_CHECKING:
+    from utils.data_loader import DataLoader
 
 # Substrings that indicate this is a setpoint schedule (to be ignored)
 IGNORE_SUBSTRINGS = ["Setpoint", "SP"]
@@ -13,7 +18,7 @@ class ScheduleExtractor:
     Extracts Schedule:Compact objects, ignoring setpoint schedules 
     and grouping unique schedule patterns by type.
     """
-    def __init__(self, data_loader: Optional[DataLoader] = None):
+    def __init__(self, data_loader: DataLoader = None):
         """
         Initialize ScheduleExtractor.
         

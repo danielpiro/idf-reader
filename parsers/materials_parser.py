@@ -33,6 +33,8 @@ class MaterialsParser:
             
             # Process each construction
             for construction_id, construction_data in constructions.items():
+                if "_rev" in construction_id.lower():
+                    continue
                 # Get all materials in the construction
                 for layer_id in construction_data.material_layers:
                     material_data = self.data_loader.get_material(layer_id)
@@ -78,13 +80,11 @@ class MaterialsParser:
         if not construction_surfaces:
             return ""
             
-        # Get the first surface's type (assuming consistent usage)
         surface = construction_surfaces[0]
         s_type = surface.surface_type.lower()
         boundary = surface.boundary_condition.lower()
         zone_name = surface.zone_name
         
-        # Check if zone has HVAC by checking schedule associations
         has_hvac = self._check_zone_hvac(zone_name)
         
         if s_type == "wall":
@@ -132,9 +132,12 @@ class MaterialsParser:
             zone_id = zone_name.split('_')[0] if '_' in zone_name else zone_name
             zone_id = zone_id.lower()
             
-            # This would be enhanced when schedule caching is implemented
-            # For now, return True if zone exists (conservative approach)
-            return bool(self.data_loader.get_zone(zone_name))
+            schedules = self.data_loader.get_all_schedules()
+            for schedule in schedules.values():
+                if schedule.zone_id.lower() == zone_id:
+                    # Check if the schedule is for heating or cooling
+                    if "heating" in schedule.type.lower() or "cooling" in schedule.type.lower():
+                        return True
             
         except Exception as e:
             print(f"Error checking HVAC system for zone {zone_name}: {e}")
