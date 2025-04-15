@@ -49,9 +49,14 @@ def generate_storage_report_pdf(storage_data: Dict[str, Any], output_path: str) 
         summary_data = [
             ["Total Storage Zones", str(len(storage_data))],
             ["Total Floor Area", f"{total_floor_area:.2f} m²"],
-            ["Total Volume", f"{total_volume:.2f} m³"],
-            ["Average Zone Size", f"{total_floor_area/len(storage_data):.2f} m²"]
+            ["Total Volume", f"{total_volume:.2f} m³"]
         ]
+        
+        # Only add average if we have zones
+        if len(storage_data) > 0:
+            summary_data.append(["Average Zone Size", f"{total_floor_area/len(storage_data):.2f} m²"])
+        else:
+            summary_data.append(["Average Zone Size", "N/A"])
         
         summary_table = Table(summary_data, colWidths=[200, 200])
         summary_table.setStyle(TableStyle([

@@ -1,2 +1,4 @@
 reportlab>=3.6.8
 eppy>=0.5.63
+customtkinter>=5.2.0
+pyinstaller>=6.3.0

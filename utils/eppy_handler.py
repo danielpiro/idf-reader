@@ -37,8 +37,9 @@ class EppyHandler:
         if idd_path and os.path.isfile(idd_path):
             return idd_path
             
-        # Common locations to check
+        # System installation path and common locations
         search_paths = [
+            r"C:\EnergyPlusV9-4-0\Energy+.idd",  # System installation path
             "Energy+.idd",  # Current directory
             "tests/Energy+.idd",  # Tests directory
             "../Energy+.idd",  # Parent directory

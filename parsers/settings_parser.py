@@ -121,7 +121,7 @@ class SettingsExtractor:
 
     def _format_version(self, data):
         """Format version information"""
-        return f"EnergyPlus Version {data[0]}" if data else "Not Found"
+        return f"EnergyPlus Version {data[1]}" if data else "Not Found"
 
     def _format_runperiod(self, data):
         """Format RunPeriod data"""
