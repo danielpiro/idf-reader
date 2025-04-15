@@ -1,8 +1,8 @@
 """
-DataLoader module for efficient IDF data caching and access.
-Provides centralized data management for IDF file parsing and data retrieval.
+DataLoader module for direct IDF data access.
+Provides simplified data loading and retrieval functionality.
 """
-from typing import Dict, Optional, Set, Any, List
+from typing import Dict, Optional, List
 from pathlib import Path
 import re
 from parsers.schedule_parser import ScheduleExtractor
@@ -14,25 +14,17 @@ from utils.data_models import (
 
 class DataLoader:
     """
-    Central data management class for IDF file parsing and caching.
-    Implements two-tier caching system for efficient data access.
+    Data loading class for IDF file parsing and object retrieval.
+    Provides direct access to IDF objects without caching.
     """
     def __init__(self):
-        # Primary cache initialization
-        self._zones_cache: Dict[str, ZoneData] = {}
-        self._surfaces_cache: Dict[str, SurfaceData] = {}
-        self._constructions_cache: Dict[str, ConstructionData] = {}
-        self._materials_cache: Dict[str, MaterialData] = {}
-        self._schedules_cache: Dict[str, ScheduleData] = {}
-        
-        # Cache status tracking
-        self._loaded_sections: Set[str] = set()
-        self._idf = None  # Store IDF reference
-        self._eppy_handler = None  # Store EppyHandler reference
+        self._idf = None
+        self._eppy_handler = None
+        self._loaded_sections = set()  # Keep track for compatibility
         
     def load_file(self, idf_path: str, idd_path: Optional[str] = None) -> None:
         """
-        Initial load of IDF file and population of primary cache.
+        Load IDF file for data access.
         
         Args:
             idf_path: Path to the IDF file
@@ -42,269 +34,169 @@ class DataLoader:
             FileNotFoundError: If IDF or IDD file not found
             Exception: Other errors during file loading
         """
-        try:
-            if not Path(idf_path).exists():
-                raise FileNotFoundError(f"IDF file not found at '{idf_path}'")
-                
-            # Initialize EppyHandler
-            self._eppy_handler = EppyHandler(idd_path)
-            self._idf = self._eppy_handler.load_idf(idf_path)
+        if not Path(idf_path).exists():
+            raise FileNotFoundError(f"IDF file not found at '{idf_path}'")
             
-            # Load primary cache data
-            self._load_primary_cache()
-            
-        except FileNotFoundError as e:
-            raise e
-        except Exception as e:
-            raise Exception(f"Error loading IDF file: {str(e)}")
+        self._eppy_handler = EppyHandler(idd_path)
+        self._idf = self._eppy_handler.load_idf(idf_path)
+        self._loaded_sections = {'zones', 'surfaces', 'materials', 'constructions', 'schedules'}
         
-    def _load_primary_cache(self) -> None:
-        """
-        Load most frequently accessed data during initialization.
-        
-        Raises:
-            Exception: If error occurs during cache loading
-        """
-        try:
-            self._load_core_materials()  # Load materials before constructions
-            self._load_common_constructions()
-            self._load_zones_basic()
-            self._load_surfaces_basic()
-            self._load_schedules()
-            self._loaded_sections.update(['zones', 'surfaces', 'materials', 'constructions', 'schedules'])
-        except Exception as e:
-            raise Exception(f"Error loading primary cache: {str(e)}")
-        
-    def _load_zones_basic(self) -> None:
-        """
-        Load basic zone data into primary cache.
-        
-        Raises:
-            Exception: If error occurs during zone loading
-        """
-        if not self._idf:
-            return
-            
-        try:
-            for zone in self._idf.idfobjects['ZONE']:
-                zone_id = str(zone.Name)
-                
-                # Determine zone type (regular or storage)
-                zone_type = "storage" if any(keyword in zone_id.lower() 
-                                           for keyword in ['storage', 'store', 'warehouse']) else "regular"
-                
-                # Extract area ID if present
-                area_id = None
-                if zone_type == "regular":
-                    area_match = re.search(r':(\d{2})', zone_id)
-                    if area_match:
-                        area_id = area_match.group(1)
-                
-                # Create zone data object
-                zone_data = ZoneData(
-                    id=zone_id,
-                    name=zone_id,
-                    floor_area=float(getattr(zone, "Floor_Area", 0.0)),
-                    volume=float(getattr(zone, "Volume", 0.0)),
-                    multiplier=int(float(getattr(zone, "Multiplier", 1))),
-                    type=zone_type,
-                    area_id=area_id
-                )
-                
-                self._zones_cache[zone_id] = zone_data
-                
-        except Exception as e:
-            raise Exception(f"Error loading zones: {str(e)}")
-            
-    def _load_surfaces_basic(self) -> None:
-        """
-        Load basic surface data into primary cache.
-        
-        Raises:
-            Exception: If error occurs during surface loading
-        """
-        if not self._idf:
-            return
-            
-        try:
-            for surface in self._idf.idfobjects['BUILDINGSURFACE:DETAILED']:
-                surface_id = str(surface.Name)
-                
-                surface_data = SurfaceData(
-                    id=surface_id,
-                    name=surface_id,
-                    surface_type=str(getattr(surface, "Surface_Type", "")),
-                    construction_name=str(getattr(surface, "Construction_Name", "")),
-                    boundary_condition=str(getattr(surface, "Outside_Boundary_Condition", "")),
-                    zone_name=str(getattr(surface, "Zone_Name", ""))
-                )
-                
-                self._surfaces_cache[surface_id] = surface_data
-                
-        except Exception as e:
-            raise Exception(f"Error loading surfaces: {str(e)}")
-            
-    def _load_common_constructions(self) -> None:
-        """
-        Load commonly used construction data into primary cache.
-        
-        Raises:
-            Exception: If error occurs during construction loading
-        """
-        if not self._idf:
-            return
-            
-        try:
-            for construction in self._idf.idfobjects['CONSTRUCTION']:
-                construction_id = str(construction.Name)
-                construction_name = str(construction.Name)
-                
-                # Get material layers
-                material_layers = []
-                total_thickness = 0.0
-                
-                for i in range(1, len(construction.fieldnames)):
-                    layer = getattr(construction, f"Layer_{i}", None)
-                    if layer:
-                        material_layers.append(str(layer))
-                        
-                        # Add thickness if material exists in cache
-                        if str(layer) in self._materials_cache:
-                            total_thickness += self._materials_cache[str(layer)].thickness
-                
-                construction_data = ConstructionData(
-                    id=construction_id,
-                    name=construction_name,
-                    material_layers=material_layers,
-                    thickness=total_thickness
-                )
-                
-                self._constructions_cache[construction_id] = construction_data
-                
-        except Exception as e:
-            raise Exception(f"Error loading constructions: {str(e)}")
-            
-    def _load_core_materials(self) -> None:
-        """
-        Load basic material data into primary cache.
-        
-        Raises:
-            Exception: If error occurs during material loading
-        """
-        if not self._idf:
-            return
-            
-        try:
-            for material in self._idf.idfobjects['MATERIAL']:
-                material_id = str(material.Name)
-                
-                material_data = MaterialData(
-                    id=material_id,
-                    name=material_id,
-                    conductivity=float(getattr(material, "Conductivity", 0.0)),
-                    density=float(getattr(material, "Density", 0.0)),
-                    specific_heat=float(getattr(material, "Specific_Heat", 0.0)),
-                    thickness=float(getattr(material, "Thickness", 0.0)),
-                    solar_absorptance=float(getattr(material, "Solar_Absorptance", 0.0))
-                )
-                
-                self._materials_cache[material_id] = material_data
-                
-        except Exception as e:
-            raise Exception(f"Error loading materials: {str(e)}")
-            
-    # Getter methods for cached data
-    def get_zone(self, zone_id: str) -> Optional[ZoneData]:
-        """Get zone data from cache."""
-        return self._zones_cache.get(zone_id)
-        
-    def get_surface(self, surface_id: str) -> Optional[SurfaceData]:
-        """Get surface data from cache."""
-        return self._surfaces_cache.get(surface_id)
-        
-    def get_construction(self, construction_id: str) -> Optional[ConstructionData]:
-        """Get construction data from cache."""
-        return self._constructions_cache.get(construction_id)
-        
-    def get_material(self, material_id: str) -> Optional[MaterialData]:
-        """Get material data from cache."""
-        return self._materials_cache.get(material_id)
-        
-    # Bulk getter methods
     def get_all_zones(self) -> Dict[str, ZoneData]:
-        """Get all cached zone data."""
-        return self._zones_cache.copy()
+        """Get all zone data."""
+        if not self._idf:
+            return {}
+            
+        zones = {}
+        for zone in self._idf.idfobjects['ZONE']:
+            zone_id = str(zone.Name)
+            # Determine zone type based on keywords in zone ID
+            zone_id_lower = zone_id.lower()
+            if any(keyword in zone_id_lower for keyword in ['storage', 'store', 'warehouse']):
+                zone_type = "storage"
+            elif any(keyword in zone_id_lower for keyword in ['core', 'corridor', 'stair']):
+                zone_type = "core"
+            else:
+                zone_type = "regular"
+            
+            area_id = None
+            if zone_type == "regular":
+                # More flexible area ID extraction that can handle different formats
+                area_match = re.search(r':([A-Za-z0-9]+)', zone_id)
+                if area_match:
+                    area_id = area_match.group(1)
+                    # If the area_id is purely numeric, ensure consistent formatting
+                    if area_id.isdigit():
+                        area_id = area_id.zfill(2)  # Pad with leading zeros if needed
+            
+            zones[zone_id] = ZoneData(
+                id=zone_id,
+                name=zone_id,
+                floor_area=float(getattr(zone, "Floor_Area", 0.0)),
+                volume=float(getattr(zone, "Volume", 0.0)),
+                multiplier=int(float(getattr(zone, "Multiplier", 1))),
+                type=zone_type,
+                area_id=area_id
+            )
+        return zones
         
     def get_all_surfaces(self) -> Dict[str, SurfaceData]:
-        """Get all cached surface data."""
-        return self._surfaces_cache.copy()
-
+        """Get all surface data."""
+        if not self._idf:
+            return {}
+            
+        surfaces = {}
+        for surface in self._idf.idfobjects['BUILDINGSURFACE:DETAILED']:
+            surface_id = str(surface.Name)
+            surfaces[surface_id] = SurfaceData(
+                id=surface_id,
+                name=surface_id,
+                surface_type=str(getattr(surface, "Surface_Type", "")),
+                construction_name=str(getattr(surface, "Construction_Name", "")),
+                boundary_condition=str(getattr(surface, "Outside_Boundary_Condition", "")),
+                zone_name=str(getattr(surface, "Zone_Name", ""))
+            )
+        return surfaces
+        
     def get_all_constructions(self) -> Dict[str, ConstructionData]:
-        """Get all cached construction data."""
-        return self._constructions_cache.copy()
+        """Get all construction data."""
+        if not self._idf:
+            return {}
+            
+        constructions = {}
+        materials = self.get_all_materials()
+        
+        for construction in self._idf.idfobjects['CONSTRUCTION']:
+            construction_id = str(construction.Name)
+            material_layers = []
+            total_thickness = 0.0
+            
+            for i in range(1, len(construction.fieldnames)):
+                layer = getattr(construction, f"Layer_{i}", None)
+                if layer:
+                    layer_id = str(layer)
+                    material_layers.append(layer_id)
+                    if layer_id in materials:
+                        total_thickness += materials[layer_id].thickness
+            
+            constructions[construction_id] = ConstructionData(
+                id=construction_id,
+                name=construction_id,
+                material_layers=material_layers,
+                thickness=total_thickness
+            )
+        return constructions
         
     def get_all_materials(self) -> Dict[str, MaterialData]:
-        """Get all cached material data."""
-        return self._materials_cache.copy()
-        
-    def get_all_schedules(self) -> Dict[str, ScheduleData]:
-        """Get all cached schedule data."""
-        return self._schedules_cache.copy()
-
-    def get_schedules_by_type(self, schedule_type: str) -> Dict[str, ScheduleData]:
-        """Get all schedules of a specific type."""
-        return {
-            schedule_id: schedule_data
-            for schedule_id, schedule_data in self._schedules_cache.items()
-            if schedule_data.type.lower() == schedule_type.lower()
-        }
-
-    def get_zone_schedules(self, zone_id: str) -> Dict[str, ScheduleData]:
-        """Get all schedules associated with a specific zone."""
-        return {
-            schedule_id: schedule_data
-            for schedule_id, schedule_data in self._schedules_cache.items()
-            if schedule_data.zone_id == zone_id
-        }
-
-    def _load_schedules(self) -> None:
-        """
-        Load schedule data into primary cache using ScheduleExtractor.
-        
-        Raises:
-            Exception: If error occurs during schedule loading
-        """
+        """Get all material data."""
         if not self._idf:
-            return
+            return {}
             
-        try:
-            schedule_extractor = ScheduleExtractor(self)
+        materials = {}
+        for material in self._idf.idfobjects['MATERIAL']:
+            material_id = str(material.Name)
+            materials[material_id] = MaterialData(
+                id=material_id,
+                name=material_id,
+                conductivity=float(getattr(material, "Conductivity", 0.0)),
+                density=float(getattr(material, "Density", 0.0)),
+                specific_heat=float(getattr(material, "Specific_Heat", 0.0)),
+                thickness=float(getattr(material, "Thickness", 0.0)),
+                solar_absorptance=float(getattr(material, "Solar_Absorptance", 0.0))
+            )
+        return materials
+        
+    def _extract_zone_id_from_schedule(self, schedule_id: str) -> Optional[str]:
+        """Extract zone ID from schedule identifier for HVAC schedules."""
+        schedule_lower = schedule_id.lower()
+        if 'heating' in schedule_lower or 'cooling' in schedule_lower:
+            # Split on spaces and take first part as zone ID
+            parts = schedule_id.split()
+            if parts:
+                return parts[0]  # Returns e.g. '00:01XLIVING' from '00:01XLIVING Heating Setpoint Schedule'
+        return None
+
+    def get_all_schedules(self) -> Dict[str, ScheduleData]:
+        """Get all schedule data with enhanced zone ID extraction for HVAC schedules."""
+        if not self._idf:
+            return {}
             
-            # Process all Schedule:Compact objects
-            for schedule in self._idf.idfobjects['SCHEDULE:COMPACT']:
-                schedule_extractor.process_eppy_schedule(schedule)
+        schedules = {}
+        for schedule in self._idf.idfobjects['SCHEDULE:COMPACT']:
+            schedule_id = str(schedule.Name)
+            schedule_type = str(schedule.Schedule_Type_Limits_Name)
             
-            # Store processed schedules in cache
-            for schedule in schedule_extractor.get_parsed_unique_schedules():
-                schedule_id = schedule['name']
-                schedule_data = ScheduleData(
-                    id=schedule_id,
-                    name=schedule_id,
-                    type=schedule['type'],
-                    raw_rules=schedule['raw_rules'],
-                    zone_id=schedule.get('zone_id'),
-                    zone_type=schedule.get('zone_type')
-                )
-                self._schedules_cache[schedule_id] = schedule_data
-                
-        except Exception as e:
-            raise Exception(f"Error loading schedules: {str(e)}")
+            # Extract zone ID for HVAC schedules
+            zone_id = self._extract_zone_id_from_schedule(schedule_id)
+            zone_type = None
+            if zone_id:
+                # Try to find matching zone to get its type
+                for zone in self._idf.idfobjects['ZONE']:
+                    if zone_id.lower() in str(zone.Name).lower():
+                        zone_type = "storage" if any(keyword in str(zone.Name).lower()
+                                                  for keyword in ['storage', 'store', 'warehouse']) else "regular"
+                        break
+            
+            # Get all non-empty fields after Name and Type
+            rule_fields = []
+            for field in schedule.fieldvalues[2:]:  # Skip Name and Type
+                if field.strip():
+                    rule_fields.append(str(field))
+            
+            schedules[schedule_id] = ScheduleData(
+                id=schedule_id,
+                name=schedule_id,
+                type=schedule_type,
+                raw_rules=rule_fields,
+                zone_id=zone_id,
+                zone_type=zone_type
+            )
+        return schedules
 
     def get_surfaces_by_type(self, surface_type: str) -> Dict[str, SurfaceData]:
         """Get all surfaces of a specific type."""
         return {
             surface_id: surface_data
-            for surface_id, surface_data in self._surfaces_cache.items()
+            for surface_id, surface_data in self.get_all_surfaces().items()
             if surface_data.surface_type.lower() == surface_type.lower()
         }
         
@@ -312,12 +204,45 @@ class DataLoader:
         """Get all zones of a specific type (regular or storage)."""
         return {
             zone_id: zone_data
-            for zone_id, zone_data in self._zones_cache.items()
+            for zone_id, zone_data in self.get_all_zones().items()
             if zone_data.type == zone_type
         }
+        
+    def get_schedules_by_type(self, schedule_type: str) -> Dict[str, ScheduleData]:
+        """Get all schedules of a specific type."""
+        return {
+            schedule_id: schedule_data
+            for schedule_id, schedule_data in self.get_all_schedules().items()
+            if schedule_data.type.lower() == schedule_type.lower()
+        }
+        
+    def get_zone_schedules(self, zone_id: str) -> Dict[str, ScheduleData]:
+        """Get all schedules associated with a specific zone."""
+        return {
+            schedule_id: schedule_data
+            for schedule_id, schedule_data in self.get_all_schedules().items()
+            if schedule_data.zone_id == zone_id
+        }
 
+    # Individual getters for compatibility
+    def get_zone(self, zone_id: str) -> Optional[ZoneData]:
+        """Get zone data by ID."""
+        return self.get_all_zones().get(zone_id)
+        
+    def get_surface(self, surface_id: str) -> Optional[SurfaceData]:
+        """Get surface data by ID."""
+        return self.get_all_surfaces().get(surface_id)
+        
+    def get_construction(self, construction_id: str) -> Optional[ConstructionData]:
+        """Get construction data by ID."""
+        return self.get_all_constructions().get(construction_id)
+        
+    def get_material(self, material_id: str) -> Optional[MaterialData]:
+        """Get material data by ID."""
+        return self.get_all_materials().get(material_id)
+        
     def get_cache_status(self) -> Dict[str, bool]:
-        """Get the loading status of cache sections."""
+        """Get the loading status of cache sections (maintained for compatibility)."""
         return {
             'zones': 'zones' in self._loaded_sections,
             'surfaces': 'surfaces' in self._loaded_sections,

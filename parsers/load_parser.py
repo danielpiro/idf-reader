@@ -160,11 +160,22 @@ class LoadExtractor:
             data = [field for field in zone_obj.fieldvalues]
             self._process_zone_data(data)
 
-    def get_parsed_zone_loads(self) -> Dict[str, Any]:
+    def get_parsed_zone_loads(self, include_core: bool = False) -> Dict[str, Any]:
         """
-        Returns the dictionary of parsed zone loads.
+        Returns the dictionary of parsed zone loads, optionally filtering out core zones.
         
+        Args:
+            include_core: If False, core zones will be filtered out from results
+            
         Returns:
             dict: Dictionary of zone loads and their associated schedules
         """
-        return self.loads_by_zone
+        if include_core:
+            return self.loads_by_zone
+            
+        # Filter out core zones
+        return {
+            zone_name: zone_data
+            for zone_name, zone_data in self.loads_by_zone.items()
+            if not any(keyword in zone_name.lower() for keyword in ['core', 'corridor', 'stair'])
+        }

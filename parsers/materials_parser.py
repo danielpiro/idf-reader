@@ -89,8 +89,6 @@ class MaterialsParser:
         except (AttributeError, IndexError):
             return ""
         
-        has_hvac = self._check_zone_hvac(zone_name)
-        
         if s_type == "wall":
             if boundary == "outdoors":
                 return "External wall"
@@ -120,54 +118,6 @@ class MaterialsParser:
             
         return ""
         
-    def _check_zone_hvac(self, zone_name: str) -> bool:
-        """
-        Check if a zone has HVAC systems by looking for heating/cooling schedules.
-        Uses cached zone data.
-        
-        Args:
-            zone_name: Name of the zone to check
-            
-        Returns:
-            bool: True if zone has HVAC systems, False otherwise
-        """
-        try:
-            # Validate zone name
-            if not zone_name or not isinstance(zone_name, str):
-                return False
-                
-            # Process zone name safely
-            try:
-                zone_id = zone_name.lower()
-                if '_' in zone_id:
-                    zone_id = zone_id.split('_')[0]
-            except AttributeError:
-                return False
-            
-            schedules = self.data_loader.get_all_schedules()
-            # First check if we have valid schedules
-            if not schedules:
-                return False
-                
-            # Check each schedule
-            for schedule in schedules.values():
-                # Skip invalid schedules
-                if not schedule or not schedule.zone_id or not schedule.type:
-                    continue
-                    
-                # Compare zone IDs
-                if schedule.zone_id.lower() == zone_id:
-                    # Check schedule type
-                    schedule_type = schedule.type.lower()
-                    if "heating" in schedule_type or "cooling" in schedule_type:
-                        return True
-            
-            return False
-                
-        except Exception:
-            # Silently handle errors for non-HVAC zones
-            return False
-            
     def get_element_data(self) -> list:
         """
         Returns the list of processed element data.

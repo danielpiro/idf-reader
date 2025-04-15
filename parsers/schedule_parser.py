@@ -61,10 +61,11 @@ class ScheduleExtractor:
             
             schedules = self.data_loader.get_all_schedules()
             for schedule in schedules.values():
-                if schedule.zone_id and schedule.zone_id.lower() == zone_id:
-                    # Check if the schedule is for heating or cooling
-                    if "heating" in schedule.type.lower() or "cooling" in schedule.type.lower():
-                        return True
+                if schedule.type and schedule.type.lower() != "temparature":
+                    continue
+                schedule_id = schedule.id.split(' ')[0] if ' ' in schedule.id else schedule.id
+                if schedule_id and schedule_id.lower() == zone_id:
+                    return True
             
         except Exception as e:
             print(f"Error checking HVAC system for zone {zone_name}: {e}")
