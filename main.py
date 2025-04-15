@@ -54,7 +54,7 @@ def main():
     schedules_pdf_path = "output/schedules.pdf"
     loads_pdf_path = "output/loads.pdf"
     materials_pdf_path = "output/materials.pdf"
-    storage_pdf_path = "output/zone/storage.pdf"
+    storage_pdf_path = "output/zones/storage.pdf"
 
     # Create output directories
     for path in [settings_pdf_path, schedules_pdf_path, loads_pdf_path, 
