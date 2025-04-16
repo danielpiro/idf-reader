@@ -10,20 +10,13 @@ DataLoader = Union['DataLoader', None]
 if TYPE_CHECKING:
     from utils.data_loader import DataLoader
 
-# Substrings that indicate this is a setpoint schedule (to be ignored)
 # Basic schedule types to filter out
 BASIC_TYPES = [
     "on", "off", "work efficiency", "opaqueshade",
     "zone comfort control type sched", "design days only",
     "typoperativetempcontrolsch", "onwinterdesignday",
-    "onsummerdesignday"
+    "onsummerdesignday", "sp", "setpoint"
 ]
-
-# Enhanced setpoint pattern detection
-SETPOINT_PATTERNS = {
-    "prefixes": ["heating", "cooling"],
-    "suffixes": ["sp", "setpoint"]
-}
 
 class ScheduleExtractor:
     """
@@ -56,24 +49,6 @@ class ScheduleExtractor:
         return any(basic_type.lower() in schedule_type.lower()
                   for basic_type in BASIC_TYPES)
 
-    def _is_setpoint_schedule(self, schedule_name: str, schedule_type: str) -> bool:
-        """
-        Enhanced check for setpoint schedules.
-        
-        Args:
-            schedule_name: Name of the schedule
-            schedule_type: Type of the schedule
-            
-        Returns:
-            bool: True if schedule is a setpoint schedule
-        """
-        name_type = f"{schedule_name} {schedule_type}".lower()
-        
-        # Check for heating/cooling setpoint combinations
-        return any(prefix in name_type and suffix in name_type
-                  for prefix in SETPOINT_PATTERNS["prefixes"]
-                  for suffix in SETPOINT_PATTERNS["suffixes"])
-
     def process_element(self, element_type: str, identifier: str,
                        data: List[str], current_zone_id: Optional[str] = None) -> None:
         """
@@ -100,9 +75,8 @@ class ScheduleExtractor:
                 print(f"Warning: Could not parse name/type/rules for Schedule:Compact. Fields: {data}")
                 return
 
-            # Enhanced filtering: check both basic types and setpoint schedules
-            if (self._is_basic_type(schedule_type) or
-                self._is_setpoint_schedule(schedule_name, schedule_type)):
+            # Filter out basic types
+            if self._is_basic_type(schedule_type):
                 return
 
             self._store_schedule(schedule_name, schedule_type, rule_fields)

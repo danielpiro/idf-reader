@@ -53,7 +53,8 @@ class LoadExtractor:
                         "cooling": None,
                         "lighting": None,
                         "equipment": None,
-                        "occupancy": None
+                        "occupancy": None,
+                        "temperature": None
                     }
                 }
                 
@@ -64,6 +65,7 @@ class LoadExtractor:
             self._process_lights_loads(idf)
             self._process_equipment_loads(idf)
             self._process_infiltration_loads(idf)
+            self._process_temperature_schedules(idf)
             
     def _process_people_loads(self, idf) -> None:
         """Process people loads from IDF."""
@@ -120,6 +122,33 @@ class LoadExtractor:
                     "schedule": str(getattr(infil, "Schedule_Name", ""))
                 }
                 self.loads_by_zone[zone_name]["loads"]["infiltration"].append(infil_data)
+                
+    def _process_temperature_schedules(self, idf) -> None:
+        """Process zone temperature schedules from IDF."""
+        for schedule in idf.idfobjects['Schedule:Compact']:
+            # Get schedule name and type
+            schedule_name = str(schedule.Name)
+            schedule_type = str(schedule.Schedule_Type_Limits_Name)
+            
+            # Check if it's a temperature setpoint schedule
+            schedule_name_lower = schedule_name.lower()
+            # Check for heating or cooling temperature schedules
+            if 'heating' in schedule_name_lower or 'cooling' in schedule_name_lower:
+                # Find corresponding zone by matching schedule name with zone name
+                for zone_name in self.loads_by_zone:
+                    zone_name_lower = zone_name.lower()
+                    if zone_name_lower in schedule_name_lower:
+                        # Determine if it's heating or cooling schedule
+                        schedule_data = {
+                            "name": schedule_name,
+                            "type": schedule_type,
+                            "schedule_values": [field for field in schedule.fieldvalues[2:]]  # Skip name and type
+                        }
+                        
+                        if 'heating' in schedule_name_lower:
+                            self.loads_by_zone[zone_name]["schedules"]["heating"] = schedule_data
+                        elif 'cooling' in schedule_name_lower:
+                            self.loads_by_zone[zone_name]["schedules"]["cooling"] = schedule_data
 
     def process_eppy_zone(self, zone_obj) -> None:
         """
@@ -151,7 +180,8 @@ class LoadExtractor:
                             "cooling": None,
                             "lighting": None,
                             "equipment": None,
-                            "occupancy": None
+                            "occupancy": None,
+                            "temperature": None
                         }
                     }
                     return

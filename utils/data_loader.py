@@ -23,9 +23,12 @@ class DataLoader:
         self._loaded_sections = set()  # Keep track for compatibility
         
         # Cache for frequent lookups
-        self._temp_schedules = {}  # Cache for temperature schedules
-        self._zone_types = {}      # Cache for zone types
-        self._materials = None     # Cache for materials
+        self._temp_schedules = {}      # Cache for temperature schedules
+        self._zone_types = {}          # Cache for zone types
+        self._materials = None         # Cache for materials
+        self._floor_surfaces = {}      # Cache for floor surfaces by zone
+        self._construction_props = {}  # Cache for construction properties
+        self._surface_vertices = {}    # Cache for surface vertices
         
     def load_file(self, idf_path: str, idd_path: Optional[str] = None) -> None:
         """
@@ -49,6 +52,8 @@ class DataLoader:
         # Pre-cache frequently accessed data
         self._cache_temp_schedules()
         self._cache_zone_types()
+        self._cache_floor_surfaces()
+        self._cache_construction_properties()
         
     def _cache_temp_schedules(self):
         """Pre-cache temperature schedules for efficient zone filtering."""
@@ -148,6 +153,59 @@ class DataLoader:
                 vertices = self._extract_vertices(surface)
                 return vertices if vertices else None
         return None
+
+    def _cache_floor_surfaces(self):
+        """Pre-cache floor surfaces organized by zone for efficient access."""
+        if not self._idf:
+            return
+
+        self._floor_surfaces.clear()
+        for surface in self._idf.idfobjects['BUILDINGSURFACE:DETAILED']:
+            if str(surface.Surface_Type).lower() == "floor":
+                zone_name = str(surface.Zone_Name)
+                surface_data = SurfaceData(
+                    id=str(surface.Name),
+                    name=str(surface.Name),
+                    surface_type="Floor",
+                    construction_name=str(surface.Construction_Name),
+                    boundary_condition=str(surface.Outside_Boundary_Condition),
+                    zone_name=zone_name,
+                    vertices=self._extract_vertices(surface)
+                )
+                
+                if zone_name not in self._floor_surfaces:
+                    self._floor_surfaces[zone_name] = []
+                self._floor_surfaces[zone_name].append(surface_data)
+
+    def _cache_construction_properties(self):
+        """Pre-calculate and cache construction properties for efficient access."""
+        if not self._idf:
+            return
+
+        materials = self.get_all_materials()  # Uses existing materials cache
+        self._construction_props.clear()
+
+        for construction in self._idf.idfobjects['CONSTRUCTION']:
+            construction_id = str(construction.Name)
+            total_resistance = 0.0
+            total_thickness = 0.0
+
+            # Get material layers
+            layer_fields = [f for f in construction.fieldnames if f.startswith('Layer_')]
+            for field in layer_fields:
+                material_id = str(getattr(construction, field, ""))
+                if not material_id:
+                    continue
+                    
+                material = materials.get(material_id)
+                if material and material.conductivity > 0:
+                    total_resistance += material.thickness / material.conductivity
+                    total_thickness += material.thickness
+
+            self._construction_props[construction_id] = {
+                'thickness': total_thickness,
+                'conductivity': total_thickness / total_resistance if total_resistance > 0 else 0.0
+            }
 
     def get_all_surfaces(self) -> Dict[str, SurfaceData]:
         """Get all surface data including vertex coordinates efficiently."""
@@ -289,13 +347,48 @@ class DataLoader:
             )
         return schedules
 
+    def get_floor_surfaces_by_zone(self, zone_name: str) -> List[SurfaceData]:
+        """Get pre-cached floor surfaces for a specific zone."""
+        return self._floor_surfaces.get(zone_name, [])
+
+    def get_construction_properties(self, construction_id: str) -> Dict[str, float]:
+        """Get pre-calculated properties for a specific construction."""
+        return self._construction_props.get(construction_id, {'thickness': 0.0, 'conductivity': 0.0})
+
+    def get_surface_vertices_batch(self, surface_ids: List[str]) -> Dict[str, List[tuple]]:
+        """Get vertex coordinates for multiple surfaces efficiently."""
+        result = {}
+        for surface_id in surface_ids:
+            # Check cache first
+            if surface_id in self._surface_vertices:
+                result[surface_id] = self._surface_vertices[surface_id]
+                continue
+
+            # Load and cache if not found
+            for surface in self._idf.idfobjects['BUILDINGSURFACE:DETAILED']:
+                if str(surface.Name) == surface_id:
+                    vertices = self._extract_vertices(surface)
+                    self._surface_vertices[surface_id] = vertices
+                    result[surface_id] = vertices
+                    break
+        return result
+
     def get_surfaces_by_type(self, surface_type: str) -> Dict[str, SurfaceData]:
         """Get all surfaces of a specific type."""
-        return {
-            surface_id: surface_data
-            for surface_id, surface_data in self.get_all_surfaces().items()
-            if surface_data.surface_type.lower() == surface_type.lower()
-        }
+        if surface_type.lower() == "floor":
+            # Use pre-cached floor surfaces
+            all_floors = {}
+            for floors in self._floor_surfaces.values():
+                for floor in floors:
+                    all_floors[floor.id] = floor
+            return all_floors
+        else:
+            # Fall back to regular surface filtering
+            return {
+                surface_id: surface_data
+                for surface_id, surface_data in self.get_all_surfaces().items()
+                if surface_data.surface_type.lower() == surface_type.lower()
+            }
         
     def get_zones_by_type(self, zone_type: str) -> Dict[str, ZoneData]:
         """Get all zones of a specific type (regular or storage)."""
