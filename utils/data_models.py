@@ -13,7 +13,7 @@ class ZoneData:
     floor_area: float
     volume: float
     multiplier: int
-    type: str  # regular or storage
+    type: str
     area_id: Optional[str] = None
 
 @dataclass

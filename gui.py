@@ -15,13 +15,11 @@ from generators.schedule_report_generator import generate_schedules_report_pdf
 from generators.load_report_generator import generate_loads_report_pdf
 from generators.area_report_generator import generate_area_reports
 from generators.materials_report_generator import generate_materials_report_pdf
-from generators.storage_report_generator import generate_storage_report_pdf
 from parsers.schedule_parser import ScheduleExtractor
 from parsers.settings_parser import SettingsExtractor
 from parsers.load_parser import LoadExtractor
 from parsers.materials_parser import MaterialsParser
 from parsers.area_parser import AreaParser
-from parsers.storage_parser import StorageParser
 
 class ProcessingManager:
     def __init__(self, status_callback, progress_callback):
@@ -54,11 +52,10 @@ class ProcessingManager:
             schedules_pdf_path = os.path.join(base_output, "schedules.pdf")
             loads_pdf_path = os.path.join(base_output, "loads.pdf")
             materials_pdf_path = os.path.join(base_output, "materials.pdf")
-            storage_pdf_path = os.path.join(base_output, "zones", "storage.pdf")
 
             # Create output directories
             for path in [settings_pdf_path, schedules_pdf_path, loads_pdf_path,
-                        materials_pdf_path, storage_pdf_path]:
+                        materials_pdf_path]:
                 self.ensure_directory_exists(path)
 
             self.update_progress(0.1)
@@ -80,7 +77,6 @@ class ProcessingManager:
             load_extractor = LoadExtractor(data_loader)
             materials_extractor = MaterialsParser(data_loader)
             area_parser = AreaParser(data_loader)
-            storage_parser = StorageParser(data_loader)
 
             if self.is_cancelled:
                 return False
@@ -111,7 +107,6 @@ class ProcessingManager:
             load_extractor.process_idf(idf)
             materials_extractor.process_idf(idf)
             area_parser.process_idf(idf)
-            storage_parser.process_idf(idf)
 
             self.update_progress(0.6)
             self.update_status("Extracting processed data...")
@@ -122,7 +117,6 @@ class ProcessingManager:
             extracted_loads = load_extractor.get_parsed_zone_loads()
             extracted_element_data = materials_extractor.get_element_data()
             extracted_areas = area_parser.get_parsed_areas()
-            extracted_storage = storage_parser.get_storage_zones()
 
             if self.is_cancelled:
                 return False
@@ -144,10 +138,7 @@ class ProcessingManager:
             self.update_progress(0.9)
 
             generate_area_reports(extracted_areas)
-            self.update_progress(0.95)
-
-            generate_storage_report_pdf(extracted_storage, storage_pdf_path)
-            self.update_progress(1.0)
+            self.update_progress(1)            
 
             self.update_status("Processing completed successfully!")
             return True

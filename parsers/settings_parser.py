@@ -1,35 +1,15 @@
 """
-Extracts and formats settings data from IDF files using eppy.
+Extracts settings and simulation parameters from IDF files.
+Uses DataLoader for cached access to IDF data.
 """
-from typing import Optional
+from typing import Dict, Any, List, Optional
 from utils.data_loader import DataLoader
 
-# Settings categories and their associated keys
-SETTINGS_CATEGORIES = {
-    "General Settings": ["Version", "RunPeriod", "Timestep", "ConvergenceLimits", "SimulationControl"],
-    "Location Settings": ["Site:Location"],
-    "Ground Temperature Settings": [
-        "Site:GroundTemperature:BuildingSurface",
-        "Site:GroundTemperature:Deep",
-        "Site:GroundTemperature:Shallow",
-        "Site:GroundTemperature:FCfactorMethod",
-    ],
-    "Ground Reflectance Settings": [
-        "Site:GroundReflectance",
-        "Site:GroundReflectance:SnowModifier"
-    ]
-}
-
-# Define target object keywords
-TARGET_OBJECT_KEYWORDS = (
-    ["Version", "RunPeriod", "Timestep", "ConvergenceLimits", "SimulationControl"] +
-    [key.replace(" ", "") for category, keys in SETTINGS_CATEGORIES.items() 
-     for key in keys]
-)
-
 class SettingsExtractor:
-    """Extracts and formats predefined settings data from IDF files using eppy."""
-    
+    """
+    Extracts settings and simulation parameters from IDF files.
+    Implementation details moved from DataLoader.
+    """
     def __init__(self, data_loader: Optional[DataLoader] = None):
         """
         Initialize the SettingsExtractor.
@@ -42,213 +22,255 @@ class SettingsExtractor:
         self.initialize_settings()
         self._setup_mappings()
         self._cached_settings = {}  # Cache for settings data
-
-    def initialize_settings(self):
-        """Initialize settings dictionary with categories"""
+        
+    def initialize_settings(self) -> None:
+        """
+        Initialize the settings dictionary with default values.
+        """
         self.extracted_settings = {
-            category: {key: "Not Found" for key in keys}
-            for category, keys in SETTINGS_CATEGORIES.items()
+            'version': {
+                'energyplus': None,
+                'file': None
+            },
+            'location': {
+                'name': None,
+                'latitude': None,
+                'longitude': None,
+                'timezone': None,
+                'elevation': None
+            },
+            'sizing': {
+                'winter_design_day': None,
+                'summer_design_day': None,
+                'cooling_design_temp': None,
+                'heating_design_temp': None,
+                'cooling_design_humidity': None,
+                'heating_design_humidity': None,
+                'design_days': []
+            },
+            'site': {
+                'terrain': None,
+                'gnd_temperature': None
+            },
+            'simulation': {
+                'north': None,
+                'algorithm': None,
+                'time_step': None,
+                'run_period': None,
+                'begin_month': None,
+                'begin_day': None,
+                'end_month': None,
+                'end_day': None
+            }
         }
-
-    def _setup_mappings(self):
-        """Set up mappings for object identifiers"""
-        # Map for object types (like Version, RunPeriod, etc.)
-        self.simple_objects = {
-            "version": "Version",
-            "runperiod": "RunPeriod",
-            "timestep": "Timestep",
-            "convergencelimits": "ConvergenceLimits",
-            "simulationcontrol": "SimulationControl"
+    
+    def _setup_mappings(self) -> None:
+        """
+        Setup field mappings between IDF object fields and settings dictionary.
+        Implementation details moved from DataLoader.
+        """
+        self._settings_map = {
+            'VERSION': {
+                'Version': ('version', 'energyplus')
+            },
+            'BUILDING': {
+                'Name': ('version', 'file'),
+                'North_Axis': ('simulation', 'north'),
+                'Terrain': ('site', 'terrain')
+            },
+            'SITE:LOCATION': {
+                'Name': ('location', 'name'),
+                'Latitude': ('location', 'latitude'),
+                'Longitude': ('location', 'longitude'),
+                'Time_Zone': ('location', 'timezone'),
+                'Elevation': ('location', 'elevation')
+            },
+            'SIZINGPERIOD:DESIGNDAY': {
+                # Handled separately due to multiple instances
+            },
+            'SITE:GROUNDTEMPERATURE:BUILDINGSURFACE': {
+                'January_Ground_Temperature': ('site', 'gnd_temperature')
+            },
+            'SIMULATIONCONTROL': {
+                'Run_Simulation_for_Sizing_Periods': ('simulation', 'run_for_sizing'),
+                'Run_Simulation_for_Weather_File_Run_Periods': ('simulation', 'run_for_weather')
+            },
+            'RUNPERIOD': {
+                'Begin_Month': ('simulation', 'begin_month'),
+                'Begin_Day_of_Month': ('simulation', 'begin_day'),
+                'End_Month': ('simulation', 'end_month'),
+                'End_Day_of_Month': ('simulation', 'end_day')
+            },
+            'TIMESTEP': {
+                'Number_of_Timesteps_per_Hour': ('simulation', 'time_step')
+            }
         }
         
-        # Map for complex objects (with colons)
-        self.complex_objects = {}
-        for category in SETTINGS_CATEGORIES.values():
-            for key in category:
-                if ":" in key:
-                    normalized = key.replace(" ", "").lower()
-                    self.complex_objects[normalized] = key
-
-    def process_eppy_object(self, obj_type: str, obj):
+    def process_idf(self, idf) -> None:
         """
-        Process an eppy object directly.
+        Process an entire IDF model to extract settings.
+        This process will extract settings from various objects in the IDF file.
         
         Args:
-            obj_type: The type of the eppy object
+            idf: eppy IDF object (kept for compatibility)
+        """
+        if not idf:
+            print("Warning: No IDF object provided to process settings")
+            return
+            
+        try:
+            # Process VERSION objects
+            if 'VERSION' in idf.idfobjects:
+                for obj in idf.idfobjects['VERSION']:
+                    self.process_eppy_object('VERSION', obj)
+                    
+            # Process BUILDING objects
+            if 'BUILDING' in idf.idfobjects:
+                for obj in idf.idfobjects['BUILDING']:
+                    self.process_eppy_object('BUILDING', obj)
+                    
+            # Process SITE:LOCATION objects
+            if 'SITE:LOCATION' in idf.idfobjects:
+                for obj in idf.idfobjects['SITE:LOCATION']:
+                    self.process_eppy_object('SITE:LOCATION', obj)
+                    
+            # Process SIZINGPERIOD:DESIGNDAY objects
+            if 'SIZINGPERIOD:DESIGNDAY' in idf.idfobjects:
+                for obj in idf.idfobjects['SIZINGPERIOD:DESIGNDAY']:
+                    self.process_eppy_object('SIZINGPERIOD:DESIGNDAY', obj)
+                    
+            # Process SITE:GROUNDTEMPERATURE:BUILDINGSURFACE objects
+            if 'SITE:GROUNDTEMPERATURE:BUILDINGSURFACE' in idf.idfobjects:
+                for obj in idf.idfobjects['SITE:GROUNDTEMPERATURE:BUILDINGSURFACE']:
+                    self.process_eppy_object('SITE:GROUNDTEMPERATURE:BUILDINGSURFACE', obj)
+                    
+            # Process SIMULATIONCONTROL objects
+            if 'SIMULATIONCONTROL' in idf.idfobjects:
+                for obj in idf.idfobjects['SIMULATIONCONTROL']:
+                    self.process_eppy_object('SIMULATIONCONTROL', obj)
+                    
+            # Process RUNPERIOD objects
+            if 'RUNPERIOD' in idf.idfobjects:
+                for obj in idf.idfobjects['RUNPERIOD']:
+                    self.process_eppy_object('RUNPERIOD', obj)
+                    
+            # Process TIMESTEP objects
+            if 'TIMESTEP' in idf.idfobjects:
+                for obj in idf.idfobjects['TIMESTEP']:
+                    self.process_eppy_object('TIMESTEP', obj)
+                    
+            print("Settings extraction complete")
+            
+        except Exception as e:
+            print(f"Error extracting settings: {str(e)}")
+        
+    def process_eppy_object(self, obj_type: str, obj) -> None:
+        """
+        Process a single eppy object and extract relevant settings.
+        
+        Args:
+            obj_type: Type of the eppy object (e.g., 'BUILDING', 'SITE:LOCATION')
             obj: The eppy object to process
         """
-        # Convert eppy object to field values
-        data = [field for field in obj.fieldvalues]
-        self.process_element('object', obj_type, data)
-
-    def process_element(self, element_type, identifier, data, current_zone_id=None):
-        """Process a single element from either parser format."""
-        if element_type == 'object':
-            # Normalize the identifier
-            norm_id = identifier.replace(" ", "").lower()
+        # Skip if object type not in mappings
+        if obj_type not in self._settings_map:
+            return
             
-            # Handle simple objects
-            if norm_id in self.simple_objects:
-                key = self.simple_objects[norm_id]
-                category = "General Settings"
+        # Special handling for SIZINGPERIOD:DESIGNDAY
+        if obj_type == 'SIZINGPERIOD:DESIGNDAY':
+            self._handle_design_day(obj)
+            return
+            
+        # Process regular objects
+        field_map = self._settings_map[obj_type]
+        for field_name, setting_path in field_map.items():
+            if hasattr(obj, field_name):
+                section, key = setting_path
+                self.extracted_settings[section][key] = getattr(obj, field_name)
                 
-                if norm_id == "version":
-                    value = self._format_version(data)
-                elif norm_id == "runperiod":
-                    value = self._format_runperiod(data)
-                elif norm_id == "timestep":
-                    value = f"{data[1]} timesteps per hour" if len(data) > 1 else "Not Found"
-                elif norm_id == "convergencelimits":
-                    value = self._format_convergence_limits(data)
-                elif norm_id == "simulationcontrol":
-                    value = self._format_simulation_control(data)
-                    
-                self.extracted_settings[category][key] = value
-                return
-                
-            # Handle complex objects (with colons)
-            if norm_id in self.complex_objects:
-                key = self.complex_objects[norm_id]
-                category = self._get_category_for_key(key)
-                if category:
-                    if "Location" in key:
-                        value = self._format_location(data)
-                    elif "Temperature" in key or "Reflectance" in key:
-                        value = self._format_temperature_data(data)
-                    else:
-                        value = ", ".join(data) if data else "Not Found"
-                        
-                    self.extracted_settings[category][key] = value
-
-    def _format_version(self, data):
-        """Format version information"""
-        return f"EnergyPlus Version {data[1]}" if data else "Not Found"
-
-    def _format_runperiod(self, data):
-        """Format RunPeriod data"""
-        if not data or len(data) < 7:
-            return "Not Found"
-            
-        location = data[1].split('(')[0].strip() if data else "Not Found"
-        start_month, start_day, start_year = data[2:5]
-        end_month, end_day, end_year = data[5:8]
-
-        result = [
-            f"Location: {location}",
-            f"Start Date: {start_month} {start_day}, {start_year}",
-            f"End Date: {end_month} {end_day}, {end_year}"
-        ]
-
-        if len(data) > 13:
-            subjects = []
-            flags = [
-                ("Use weather file holidays/special day periods", data[8]),
-                ("Use WeatherFile DaylightSavingPeriod - will use daylight saving time", data[9]),
-                ("Apply Weekend Holiday Rule - will reassign weekend holidays to Monday", data[10]),
-                ("use weather file rain indicators", data[11]),
-                ("use weather file snow indicators", data[12]),
-                ("Treat Weather as Actual", data[13])
-            ]
-            
-            for desc, flag in flags:
-                if str(flag).lower() == "yes":
-                    subjects.append(desc)
-            
-            if subjects:
-                result.extend(subjects)
-                result.append("")
-
-        return "\n".join(result)
-
-    def _format_location(self, data):
-        """Format location data"""
-        if not data or len(data) < 6:
-            return "Not Found"
+    def _handle_design_day(self, obj) -> None:
+        """
+        Handle SizingPeriod:DesignDay objects, which need special handling.
+        Implementation details moved from DataLoader.
         
+        Args:
+            obj: The SizingPeriod:DesignDay eppy object
+        """
         try:
-            return "\n".join([
-                f"Location: {data[1]}",
-                f"Latitude: {float(data[2])}°",
-                f"Longitude: {float(data[3])}°",
-                f"Time Zone: GMT{float(data[4])}",
-                f"Elevation: {float(data[5])}m"
-            ])
-        except (ValueError, IndexError):
-            return "Not Found"
-
-    def _format_simulation_control(self, data):
-        """Format simulation control settings"""
-        if not data or len(data) < 6:
-            return "Not Found"
-        
-        try:
-            control = {
-                "Do the zone sizing calculation": data[1],
-                "Do the system sizing calculation": data[2],
-                "Do the plant sizing calculation": data[3],
-                "Do the design day calculation": data[4],
-                "Do the weather file calculation": data[5]
+            # Get design day name and determine if winter or summer
+            name = str(obj.Name)
+            name_lower = name.lower()
+            
+            day_data = {
+                'name': name,
+                'month': int(obj.Month),
+                'day': int(obj.Day_of_Month),
+                'temp': float(obj.Maximum_Dry_Bulb_Temperature),
+                'humidity': float(obj.Humidity_Condition_Day_Schedule_Name) if hasattr(obj, 'Humidity_Condition_Day_Schedule_Name') else None
             }
             
-            return "\n".join([f"{key}: {value}" for key, value in control.items()])
-        except (ValueError, IndexError):
-            return "Not Found"
-
-    def _format_convergence_limits(self, data):
-        """Format convergence limits"""
-        if not data or len(data) < 3:
-            return "Not Found"
+            # Store design day data
+            self.extracted_settings['sizing']['design_days'].append(day_data)
+            
+            # Determine if this is a winter or summer design day
+            if 'winter' in name_lower or 'heat' in name_lower:
+                self.extracted_settings['sizing']['winter_design_day'] = name
+                self.extracted_settings['sizing']['heating_design_temp'] = day_data['temp']
+                self.extracted_settings['sizing']['heating_design_humidity'] = day_data['humidity']
+            elif 'summer' in name_lower or 'cool' in name_lower:
+                self.extracted_settings['sizing']['summer_design_day'] = name
+                self.extracted_settings['sizing']['cooling_design_temp'] = day_data['temp']
+                self.extracted_settings['sizing']['cooling_design_humidity'] = day_data['humidity']
+        except Exception as e:
+            print(f"Error processing design day {getattr(obj, 'Name', 'unknown')}: {str(e)}")
+    
+    def get_settings(self) -> Dict[str, Any]:
+        """
+        Get the extracted settings.
         
-        return "\n".join([
-            f"Min System Time Step: {data[1]}",
-            f"Max HVAC Iterations: {data[2]}"
-        ])
-
-    def _format_temperature_data(self, data):
-        """Format temperature or reflectance data"""
-        if not data:
-            return "Not Found"
-            
-        try:
-            values = []
-            for val in data:
-                try:
-                    values.append(float(val))
-                except (ValueError, TypeError):
-                    continue
-            
-            if not values:
-                return "Not Found"
-                
-            months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-            
-            # Use only as many months as we have values
-            num_values = len(values)
-            months = months[:num_values]
-            
-            rows = []
-            # Process in chunks of 4, but only up to the actual data length
-            for i in range(0, num_values, 4):
-                month_chunk = months[i:i+4]
-                value_chunk = values[i:i+4]
-                rows.extend([
-                    "  ".join(f"{m:^8}" for m in month_chunk),
-                    "  ".join(f"{v:^8.2f}" for v in value_chunk),
-                    ""
-                ])
-            
-            return "\n".join(rows).rstrip()
-        except Exception:
-            return "Not Found"
-
-    def _get_category_for_key(self, key):
-        """Get the category for a given key"""
-        for category, keys in SETTINGS_CATEGORIES.items():
-            if key in keys:
-                return category
-        return None
-
-    def get_settings(self):
-        """Returns the categorized dictionary of extracted settings."""
+        Returns:
+            Dict[str, Any]: The settings dictionary
+        """
         return self.extracted_settings
+        
+    def get_setting(self, section: str, key: str) -> Any:
+        """
+        Get a specific setting value.
+        
+        Args:
+            section: The settings section (e.g., 'location', 'simulation')
+            key: The key within the section
+            
+        Returns:
+            Any: The setting value, or None if not found
+        """
+        if section in self.extracted_settings and key in self.extracted_settings[section]:
+            return self.extracted_settings[section][key]
+        return None
+        
+    def get_location_settings(self) -> Dict[str, Any]:
+        """
+        Get location settings.
+        
+        Returns:
+            Dict[str, Any]: The location settings
+        """
+        return self.extracted_settings.get('location', {})
+        
+    def get_simulation_settings(self) -> Dict[str, Any]:
+        """
+        Get simulation settings.
+        
+        Returns:
+            Dict[str, Any]: The simulation settings
+        """
+        return self.extracted_settings.get('simulation', {})
+        
+    def get_design_days(self) -> List[Dict[str, Any]]:
+        """
+        Get all design days.
+        
+        Returns:
+            List[Dict[str, Any]]: List of design day data
+        """
+        return self.extracted_settings.get('sizing', {}).get('design_days', [])

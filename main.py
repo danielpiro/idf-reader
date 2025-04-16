@@ -10,13 +10,11 @@ from generators.schedule_report_generator import generate_schedules_report_pdf
 from generators.load_report_generator import generate_loads_report_pdf
 from generators.area_report_generator import generate_area_reports
 from generators.materials_report_generator import generate_materials_report_pdf
-from generators.storage_report_generator import generate_storage_report_pdf
 from parsers.schedule_parser import ScheduleExtractor
 from parsers.settings_parser import SettingsExtractor
 from parsers.load_parser import LoadExtractor
 from parsers.materials_parser import MaterialsParser
 from parsers.area_parser import AreaParser
-from parsers.storage_parser import StorageParser
 
 def ensure_directory_exists(file_path: str) -> None:
     """
@@ -55,11 +53,10 @@ def main():
     schedules_pdf_path = "output/schedules.pdf"
     loads_pdf_path = "output/loads.pdf"
     materials_pdf_path = "output/materials.pdf"
-    storage_pdf_path = "output/zones/storage.pdf"
 
     # Create output directories
     for path in [settings_pdf_path, schedules_pdf_path, loads_pdf_path, 
-                materials_pdf_path, storage_pdf_path]:
+                materials_pdf_path]:
         ensure_directory_exists(path)
 
     try:
@@ -89,22 +86,29 @@ def main():
                 'schedules': ScheduleExtractor(data_loader),
                 'loads': LoadExtractor(data_loader),
                 'areas': AreaParser(data_loader),
-                'storage': StorageParser(data_loader)
             }
         }
         
         # Process core data first (settings and materials)
         print("  Processing core data...")
         core_start = time.time()
-        settings_objects = eppy_handler.get_settings_objects(idf)
-        for obj_type, objects in settings_objects.items():
-            for obj in objects:
-                parsers['core']['settings'].process_eppy_object(obj_type, obj)
+        
+        # Process settings using the new process_idf method
+        settings_start = time.time()
+        parsers['core']['settings'].process_idf(idf)
+        settings_time = time.time() - settings_start
+        print(f"    Settings processed in {settings_time:.2f}s")
+        
+        # Process materials
+        materials_start = time.time()
         parsers['core']['materials'].process_idf(idf)
+        materials_time = time.time() - materials_start
+        print(f"    Materials processed in {materials_time:.2f}s")
+        
         core_time = time.time() - core_start
         print(f"    Core processing completed in {core_time:.2f}s")
         
-        # Process dependent data (schedules, loads, areas, storage)
+        # Process dependent data (schedules, loads, areas)
         print("  Processing dependent data...")
         dependent_start = time.time()
         
@@ -114,7 +118,7 @@ def main():
         schedule_time = time.time() - schedule_start
         print(f"    Schedules processed in {schedule_time:.2f}s")
         
-        for parser in ['loads', 'areas', 'storage']:
+        for parser in ['loads', 'areas']:
             parser_start = time.time()
             parsers['dependent'][parser].process_idf(idf)
             parser_time = time.time() - parser_start
@@ -183,21 +187,12 @@ def main():
                 print(f"      Report generation {status} in {gen_time:.2f}s")
                 reports_start = time.time()  # Reset for next report
                 
-        # Handle special reports (areas and storage)
+        # Handle special reports (areas)
         print("  Processing Special Reports...")
         
         print("    Generating area reports...")
         areas_success = generate_area_reports(parsers['dependent']['areas'].get_parsed_areas())
         print(f"      Area reports generation {'successful' if areas_success else 'failed'}")
-            
-        storage_data = parsers['dependent']['storage'].get_storage_zones()
-        if not storage_data:
-            print("    Skipping storage report - no storage zones found")
-        else:
-            print("    Generating storage report...")
-            storage_success = generate_storage_report_pdf(storage_data, storage_pdf_path)
-            gen_time = time.time() - reports_start
-            print(f"      Storage report generation {'successful' if storage_success else 'failed'} in {gen_time:.2f}s")
             
         # Print total execution time
         total_time = time.time() - start_time

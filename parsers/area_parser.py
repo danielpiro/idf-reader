@@ -1,11 +1,12 @@
 """
 Extracts and processes area information including floor areas and material properties.
 """
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
 import time
 import logging
-from utils.data_loader import DataLoader
+from utils.data_loader import DataLoader, safe_float
+from utils.data_models import ZoneData, SurfaceData
 
 logger = logging.getLogger(__name__)
 
@@ -23,12 +24,11 @@ class AreaParser:
         """
         self.data_loader = data_loader
         self.areas_by_zone = {}  # {zone_id: {"area_id": str, "properties": {}, "constructions": {}}}
-        self._batch_size = 100    # Number of surfaces to process in one batch
         
     def process_idf(self, idf) -> None:
         """
         Process an entire IDF model to extract all area information.
-        Uses cached zone data from DataLoader instead of direct file access.
+        Implementation details moved from DataLoader.
         
         Args:
             idf: eppy IDF object (kept for compatibility)
@@ -36,38 +36,11 @@ class AreaParser:
         start_time = time.time()
         
         try:
-            # Use pre-cached zone data instead of reading from IDF
-            zones = self.data_loader._zones or self.data_loader._load_all_zones()
-            if not zones:
-                zones = self.data_loader.get_all_zones()
-                
-            surface_batch = []
-            zone_map = {}  # Map surfaces to their zones for batch processing
+            # Process zones first to extract area IDs
+            self._process_zones()
             
-            # First pass: collect all surfaces
-            for zone_id, zone_data in zones.items():
-                if not zone_data.area_id:
-                    continue
-                    
-                # Initialize zone data
-                self.areas_by_zone[zone_id] = {
-                    "area_id": zone_data.area_id,
-                    "properties": {
-                        "floor_area": zone_data.floor_area,
-                        "volume": zone_data.volume,
-                        "multiplier": zone_data.multiplier
-                    },
-                    "constructions": {}  # Group elements by construction name
-                }
-                
-                # Get pre-cached floor surfaces for this zone
-                floor_surfaces = self.data_loader.get_floor_surfaces_by_zone(zone_data.name)
-                for surface in floor_surfaces:
-                    surface_batch.append(surface)
-                    zone_map[surface.id] = zone_id
-            
-            # Process all surfaces in one batch for efficiency
-            self._process_surface_batch(surface_batch, zone_map)
+            # Then process surfaces for each zone
+            self._process_surfaces()
             
             end_time = time.time()
             logger.info(f"Area processing completed in {end_time - start_time:.2f}s")
@@ -75,11 +48,152 @@ class AreaParser:
         except Exception as e:
             logger.error(f"Error during area processing: {str(e)}")
             raise
+    
+    def _process_zones(self) -> None:
+        """
+        Process zones to extract area IDs.
+        Implementation details moved from DataLoader.
+        """
+        # Get cached zone data
+        zones = self.data_loader.get_zones()
+        
+        # Initialize zone data structure
+        for zone_id, zone_data in zones.items():
+            # Extract area ID from zone ID
+            area_id = None
+            import re
+            area_match = re.search(r':(\d{2})', zone_id)
+            if area_match:
+                area_id = area_match.group(1)
+            
+            # Skip zones without area ID
+            if not area_id:
+                continue
+                
+            # Initialize zone data structure
+            self.areas_by_zone[zone_id] = {
+                "area_id": area_id,
+                "properties": {
+                    "floor_area": zone_data['floor_area'],
+                    "volume": zone_data['volume'],
+                    "multiplier": zone_data['multiplier']
+                },
+                "constructions": {}  # Group elements by construction name
+            }
+    
+    def _process_surfaces(self) -> None:
+        """
+        Process surfaces for all zones.
+        Implementation details moved from DataLoader.
+        """
+        # Get cached surface data
+        surfaces = self.data_loader.get_surfaces()
+        
+        # Group surfaces by zone
+        for surface_id, surface_data in surfaces.items():
+            zone_name = surface_data['zone_name']
+            
+            # Skip if zone was filtered out
+            if zone_name not in self.areas_by_zone:
+                continue
+                
+            # Skip if not a floor surface
+            if surface_data['surface_type'].lower() != 'floor':
+                continue
+                
+            # Get construction properties
+            construction_name = surface_data['construction_name']
+            construction_props = self._get_construction_properties(construction_name)
+            
+            # Calculate area from vertices
+            vertices = surface_data['vertices']
+            area = self._calculate_polygon_area(vertices)
+            conductivity = construction_props['conductivity']
+            
+            # Initialize construction group if not exists
+            if construction_name not in self.areas_by_zone[zone_name]["constructions"]:
+                self.areas_by_zone[zone_name]["constructions"][construction_name] = {
+                    "elements": [],
+                    "total_area": 0.0,
+                    "total_conductivity": 0.0
+                }
+            
+            # Add element data and update totals
+            element_data = {
+                "zone": zone_name,
+                "surface_name": surface_id,
+                "element_type": "Floor",
+                "area": area,
+                "conductivity": conductivity,
+                "area_conductivity": area * conductivity
+            }
+            
+            constr_group = self.areas_by_zone[zone_name]["constructions"][construction_name]
+            constr_group["elements"].append(element_data)
+            constr_group["total_area"] += area
+            constr_group["total_conductivity"] += area * conductivity
+    
+    def _calculate_polygon_area(self, vertices: List[tuple]) -> float:
+        """
+        Calculate area of polygon defined by vertices.
+        
+        Args:
+            vertices: List of (x,y,z) coordinate tuples
+            
+        Returns:
+            float: Calculated area of the polygon
+        """
+        points_2d = np.array([(x, y) for x, y, z in vertices])
+        x = points_2d[:, 0]
+        y = points_2d[:, 1]
+        return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+    
+    def _get_construction_properties(self, construction_name: str) -> Dict[str, float]:
+        """
+        Get properties for a specific construction.
+        Implementation details moved from DataLoader.
+        
+        Args:
+            construction_name: Name of the construction
+            
+        Returns:
+            Dict[str, float]: Dictionary with thickness and conductivity
+        """
+        # Get cached construction data
+        constructions = self.data_loader.get_constructions()
+        materials = self.data_loader.get_materials()
+        
+        if construction_name not in constructions:
+            return {'thickness': 0.0, 'conductivity': 0.0}
+            
+        construction_data = constructions[construction_name]
+        material_layers = construction_data['material_layers']
+        
+        total_thickness = 0.0
+        total_resistance = 0.0
+        
+        # Calculate total thickness and resistance
+        for layer_id in material_layers:
+            if layer_id in materials:
+                material_data = materials[layer_id]
+                thickness = material_data['thickness']
+                conductivity = material_data['conductivity']
+                
+                total_thickness += thickness
+                if conductivity > 0:
+                    total_resistance += thickness / conductivity
+        
+        # Calculate effective conductivity
+        conductivity = total_thickness / total_resistance if total_resistance > 0 else 0.0
+        
+        return {
+            'thickness': total_thickness,
+            'conductivity': conductivity
+        }
         
     def get_parsed_areas(self) -> Dict[str, Any]:
         """
         Returns the dictionary of parsed area information.
-        Does not include storage zones.
         
         Returns:
             dict: Dictionary of area information by zone
@@ -127,80 +241,6 @@ class AreaParser:
             "total_volume": total_volume,
             "zone_count": len(area_zones)
         }
-        
-    def _calculate_polygon_area(self, vertices: List[tuple]) -> float:
-        """
-        Calculate area of polygon defined by vertices.
-        
-        Args:
-            vertices: List of (x,y,z) coordinate tuples
-            
-        Returns:
-            float: Calculated area of the polygon
-        """
-        points_2d = np.array([(x, y) for x, y, z in vertices])
-        x = points_2d[:, 0]
-        y = points_2d[:, 1]
-        return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
-        
-    def _process_surface_batch(self, surfaces, zone_map) -> None:
-        """
-        Process a batch of surfaces efficiently using cached data.
-        
-        Args:
-            surfaces: List of SurfaceData objects to process
-            zone_map: Mapping of surface IDs to zone IDs
-        """
-        if not surfaces:
-            return
-            
-        # Get all construction properties at once
-        construction_names = {s.construction_name for s in surfaces}
-        construction_props = {}
-        for name in construction_names:
-            construction_props[name] = self.data_loader.get_construction_properties(name)
-        
-        # Process each surface using cached data
-        for surface in surfaces:
-            if surface.id not in zone_map:
-                continue
-                
-            zone_id = zone_map[surface.id]
-            construction_name = surface.construction_name
-            
-            # Skip if zone was filtered out
-            if zone_id not in self.areas_by_zone:
-                continue
-                
-            # Get pre-calculated construction properties
-            props = construction_props.get(construction_name, {'thickness': 0.0, 'conductivity': 0.0})
-            
-            # Calculate area directly from vertices
-            area = self._calculate_polygon_area(surface.vertices)
-            conductivity = props['conductivity']
-            
-            # Initialize construction group if not exists
-            if construction_name not in self.areas_by_zone[zone_id]["constructions"]:
-                self.areas_by_zone[zone_id]["constructions"][construction_name] = {
-                    "elements": [],
-                    "total_area": 0.0,
-                    "total_conductivity": 0.0
-                }
-            
-            element_data = {
-                "zone": zone_id,
-                "surface_name": surface.name,
-                "element_type": "Floor",
-                "area": area,
-                "conductivity": conductivity,
-                "area_conductivity": area * conductivity
-            }
-            
-            # Add element data and update totals
-            constr_group = self.areas_by_zone[zone_id]["constructions"][construction_name]
-            constr_group["elements"].append(element_data)
-            constr_group["total_area"] += area
-            constr_group["total_conductivity"] += area * conductivity
             
     def get_element_data(self, zone_id: Optional[str] = None) -> Dict[str, Any]:
         """

@@ -1,11 +1,11 @@
 """
 Extracts and processes Schedule:Compact objects.
-Uses DataLoader for potential future schedule caching.
+Uses DataLoader for cached access to IDF data.
 """
 import re
-from typing import Dict, List, Any, Optional, Tuple, TYPE_CHECKING, Union
-
-# --- Helper Functions ---
+from typing import Dict, List, Any, Optional, Tuple, Union
+from utils.data_loader import DataLoader
+from utils.data_models import ScheduleData
 
 def time_str_to_minutes(time_str: str) -> int:
     """Converts HH:MM time string to minutes since midnight."""
@@ -22,14 +22,6 @@ def time_str_to_minutes(time_str: str) -> int:
         print(f"Warning: Could not parse time string: {time_str}. Defaulting to 0.")
         return 0
 
-# --- End Helper Functions ---
-
-# Forward reference for type hints
-DataLoader = Union['DataLoader', None]
-
-if TYPE_CHECKING:
-    from utils.data_loader import DataLoader
-
 # Basic schedule types to filter out
 BASIC_TYPES = [
     "on", "off", "work efficiency", "opaqueshade",
@@ -43,7 +35,7 @@ class ScheduleExtractor:
     Extracts Schedule:Compact objects, ignoring setpoint schedules 
     and grouping unique schedule patterns by type.
     """
-    def __init__(self, data_loader: DataLoader = None):
+    def __init__(self, data_loader: Optional[DataLoader] = None):
         """
         Initialize ScheduleExtractor.
         
@@ -54,6 +46,7 @@ class ScheduleExtractor:
         # Store schedules by type, with unique value patterns
         self.schedules_by_type: Dict[str, Dict[Tuple, Dict[str, Any]]] = {}
         self.zone_schedules: List[str] = []
+        self.processed_schedules: Dict[str, ScheduleData] = {}
         
 
     def _is_basic_type(self, schedule_type: str) -> bool:
@@ -115,16 +108,18 @@ class ScheduleExtractor:
 
     def process_idf(self, idf) -> None:
         """
-        Process all schedules from the IDF file, using cached data if available.
+        Process all schedules from the IDF file, using cached data.
+        Implementation details moved from DataLoader.
         
         Args:
             idf: eppy IDF object (kept for compatibility)
         """
         if not self.data_loader:
+            print("Warning: ScheduleExtractor requires a DataLoader instance for efficient processing")
             return
             
-        # Use cached schedules from DataLoader
-        schedule_cache = self.data_loader.get_all_schedules_with_names()
+        # Get cached schedule data
+        schedule_cache = self.data_loader.get_schedules()
         
         # Process each cached schedule
         for schedule_id, schedule_data in schedule_cache.items():
@@ -134,12 +129,14 @@ class ScheduleExtractor:
             if self._is_basic_type(schedule_type):
                 continue
                 
-            # Use raw rules directly from cache
-            name = schedule_id
-            rule_fields = schedule_data['raw_rules']
+            # Get schedule rules from cache
+            rule_fields = self.data_loader.get_schedule_rules(schedule_id)
             
-            # Store using existing logic
-            self._store_schedule(name, schedule_type, rule_fields)
+            # Process schedule
+            self._store_schedule(schedule_id, schedule_type, rule_fields)
+            
+            # Create ScheduleData objects for other parsers to use
+            self._create_schedule_data(schedule_id, schedule_type, rule_fields)
 
     def _normalize_schedule_type(self, type_: str) -> str:
         """
@@ -355,6 +352,57 @@ class ScheduleExtractor:
 
         return rule_blocks
 
+    def _extract_zone_id_from_schedule(self, schedule_id: str) -> Optional[str]:
+        """
+        Extract zone ID from schedule identifier for HVAC schedules.
+        Implementation moved from DataLoader.
+        
+        Args:
+            schedule_id: Schedule identifier
+            
+        Returns:
+            Optional[str]: Zone ID if found, None otherwise
+        """
+        schedule_lower = schedule_id.lower()
+        if 'heating' in schedule_lower or 'cooling' in schedule_lower:
+            # Split on spaces and take first part as zone ID
+            parts = schedule_id.split()
+            if parts:
+                return parts[0]  # Returns e.g. '00:01XLIVING' from '00:01XLIVING Heating Setpoint Schedule'
+        return None
+
+    def _create_schedule_data(self, name: str, type_: str, rule_fields: List[str]) -> None:
+        """
+        Create ScheduleData object for use by other parsers.
+        Implementation moved from DataLoader.
+        
+        Args:
+            name: Schedule name
+            type_: Schedule type
+            rule_fields: List of rule field values
+        """
+        # Extract zone ID for HVAC schedules
+        zone_id = self._extract_zone_id_from_schedule(name)
+        zone_type = None
+        
+        # Get zone type if zone ID is found
+        if zone_id and self.data_loader:
+            zones = self.data_loader.get_zones()
+            # Find matching zone
+            for zone_name in zones:
+                if zone_id.lower() in zone_name.lower():
+                    zone_type = self.data_loader.get_zone_type(zone_name)
+                    break
+        
+        # Create and store ScheduleData
+        self.processed_schedules[name] = ScheduleData(
+            id=name,
+            name=name,
+            type=type_,
+            raw_rules=rule_fields,
+            zone_id=zone_id,
+            zone_type=zone_type
+        )
 
     def _store_schedule(self, name: str, type_: str, rule_fields: List[str]) -> None:
         """
@@ -377,24 +425,27 @@ class ScheduleExtractor:
 
         # If this rule pattern hasn't been seen for this normalized type, store it
         if rule_tuple not in self.schedules_by_type[normalized_type]:
+            # Extract zone ID if possible
+            zone_id = self._extract_zone_id_from_schedule(name)
+            zone_type = None
+            
+            # Get zone type if zone ID is found
+            if zone_id and self.data_loader:
+                zones = self.data_loader.get_zones()
+                # Find matching zone
+                for zone_name in zones:
+                    if zone_id.lower() in zone_name.lower():
+                        zone_type = self.data_loader.get_zone_type(zone_name)
+                        break
+            
             schedule_data = {
                 'name': name,
                 'type': type_,
-                'raw_rules': rule_fields, # Keep raw rules for reference if needed
-                'rule_blocks': self._parse_compact_rule_blocks(rule_fields) # Add parsed hourly blocks
+                'raw_rules': rule_fields,
+                'rule_blocks': self._parse_compact_rule_blocks(rule_fields),
+                'zone_id': zone_id,
+                'zone_type': zone_type
             }
-
-            # If we have a DataLoader, store additional metadata
-            if self.data_loader is not None:
-                # Get zone that uses this schedule (if any)
-                schedule_name_lower = name.lower()
-                zones = self.data_loader.get_all_zones()
-                for zone_id, zone_data in zones.items():
-                    if zone_id.lower() in schedule_name_lower:
-                        # Only store schedule if zone has HVAC
-                            schedule_data['zone_id'] = zone_id
-                            schedule_data['zone_type'] = zone_data.type
-                            break
             
             self.schedules_by_type[normalized_type][rule_tuple] = schedule_data
 
@@ -408,7 +459,7 @@ class ScheduleExtractor:
                     'name': str, 
                     'type': str, 
                     'raw_rules': list,
-                    'rule_blocks': list[dict], # Changed: now stores rule blocks with hourly values
+                    'rule_blocks': list[dict],
                     'zone_id': Optional[str],
                     'zone_type': Optional[str]
                 }
@@ -447,3 +498,100 @@ class ScheduleExtractor:
                 if schedule.get('zone_id') == zone_id:
                     zone_schedules.append(schedule)
         return zone_schedules
+    
+    def get_all_schedules(self) -> Dict[str, ScheduleData]:
+        """
+        Get all processed schedules.
+        Implementation moved from DataLoader.
+        
+        Returns:
+            Dict[str, ScheduleData]: Dictionary of all processed schedules
+        """
+        return self.processed_schedules
+    
+    def get_schedule_by_id(self, schedule_id: str) -> Optional[ScheduleData]:
+        """
+        Get a specific schedule by ID.
+        Implementation moved from DataLoader.
+        
+        Args:
+            schedule_id: ID of the schedule to retrieve
+            
+        Returns:
+            Optional[ScheduleData]: Schedule data if found, None otherwise
+        """
+        return self.processed_schedules.get(schedule_id)
+    
+    def format_schedule_name(self, schedule_id: str) -> str:
+        """
+        Format schedule name for better readability.
+        Implementation moved from DataLoader.
+        
+        Args:
+            schedule_id: The original schedule identifier
+            
+        Returns:
+            str: Formatted schedule name
+        """
+        # Convert IDs like "00:01XLIVING Heating Setpoint Schedule" to "Living Heating Setpoint"
+        name = schedule_id
+        
+        # Remove common suffixes
+        for suffix in [' Schedule', ' Sch', '_schedule', '_sch']:
+            if name.lower().endswith(suffix.lower()):
+                name = name[:-len(suffix)]
+                
+        # Handle zone identifier formats (e.g., "00:01X")
+        zone_pattern = re.search(r'(\d{2}:\d{2}[A-Z]?)', name)
+        if zone_pattern:
+            # Extract the rest of the name after the zone pattern
+            remaining = name[zone_pattern.end():].strip()
+            if remaining:
+                name = remaining
+                
+        # Convert camelCase or snake_case to Title Case with spaces
+        name = re.sub(r'([a-z])([A-Z])', r'\1 \2', name)  # camelCase to spaces
+        name = name.replace('_', ' ')  # snake_case to spaces
+        
+        # Title case the result
+        name = ' '.join(word.capitalize() for word in name.split())
+        
+        return name
+    
+    def get_schedule_by_name(self, schedule_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get schedule data by providing a schedule name (either original ID or formatted name).
+        Implementation moved from DataLoader.
+        
+        Args:
+            schedule_name: The name of the schedule to find
+            
+        Returns:
+            Optional[Dict[str, Any]]: Schedule data if found, None otherwise
+        """
+        # First try exact match on original ID
+        all_schedules = self.get_parsed_unique_schedules()
+        
+        # Create a lookup by formatted name
+        formatted_name_map = {}
+        for schedule in all_schedules:
+            formatted_name = self.format_schedule_name(schedule['name'])
+            formatted_name_map[formatted_name.lower()] = schedule
+        
+        # Try exact match on ID
+        for schedule in all_schedules:
+            if schedule['name'] == schedule_name:
+                return schedule
+                
+        # Try case-insensitive match on formatted names
+        schedule_name_lower = schedule_name.lower()
+        if schedule_name_lower in formatted_name_map:
+            return formatted_name_map[schedule_name_lower]
+            
+        # Finally try partial match
+        for schedule in all_schedules:
+            if (schedule_name_lower in schedule['name'].lower() or 
+                schedule_name_lower in self.format_schedule_name(schedule['name']).lower()):
+                return schedule
+                
+        return None

@@ -156,7 +156,7 @@ def generate_schedules_report_pdf(schedule_data, output_filename="output/schedul
             rule_blocks = schedule.get('rule_blocks', []) # Get the parsed hourly data
 
             # Draw Schedule Name and Type
-            name_text = f"Schedule: {schedule_type} (Name: {schedule.get('name', 'N/A')})" # Include original name
+            name_text = f"Schedule: {schedule_type}" # Include original name
             p_sched_name = Paragraph(name_text, schedule_name_style)
             p_sched_name.wrapOn(c, content_width, margin_y)
             name_height = p_sched_name.height
