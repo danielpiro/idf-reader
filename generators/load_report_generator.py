@@ -234,8 +234,8 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf"):
                 equip_table.drawOn(c, margin_x, current_y - equip_height)
                 current_y -= (equip_height + 0.3*cm)
 
-            # Schedule Summary Section
-            section_title = Paragraph("Schedule Summary", section_title_style)
+            # Temperature Section
+            section_title = Paragraph("Temperature Loads", section_title_style)
             section_title.wrapOn(c, content_width, margin_y)
             section_title.drawOn(c, margin_x, current_y - section_title.height)
             current_y -= (section_title.height + 0.3*cm)
