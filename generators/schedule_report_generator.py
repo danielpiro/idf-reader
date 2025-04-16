@@ -81,12 +81,15 @@ def generate_schedules_report_pdf(schedule_data, output_filename="output/schedul
 
     try:
         for schedule in schedule_data:
-            schedule_name = schedule.get('name', 'Unknown Schedule')
             schedule_type = schedule.get('type', 'Unknown Type')
+            if ("activity" in schedule_type.lower() or "clothing" in schedule_type.lower()):
+                schedule_type = schedule_type.split(" ")[0] + " Schedule"
+            elif ("heating" in schedule_type.lower() or "cooling" in schedule_type.lower()):
+                schedule_type = schedule_type.split(" ")[1] + " " + schedule_type.split(" ")[2] + " Schedule"
             raw_rules = schedule.get('raw_rules', [])
 
             # Draw Schedule Name and Type
-            name_text = f"Schedule: {schedule_name} (Type: {schedule_type})"
+            name_text = f"Schedule: {schedule_type}"
             p_sched_name = Paragraph(name_text, schedule_name_style)
             p_sched_name.wrapOn(c, content_width, margin_y)
             name_height = p_sched_name.height
