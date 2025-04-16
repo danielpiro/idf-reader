@@ -54,12 +54,6 @@ class LoadExtractor:
                     "schedules": { # Keep detailed schedule info for heating/cooling here
                         "heating": None,
                         "cooling": None
-                        # Other schedule types might be redundant if captured in loads,
-                        # but keep for now if needed elsewhere.
-                        # "lighting": None,
-                        # "equipment": None,
-                        # "occupancy": None,
-                        # "temperature": None
                     }
                 }
                 

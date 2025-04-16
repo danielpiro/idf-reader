@@ -2,11 +2,12 @@
 Generates PDF reports showing materials and their thermal properties within constructions.
 """
 from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.pagesizes import A4, landscape, A3
 from reportlab.lib.units import cm
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import Paragraph, Table, TableStyle
+from reportlab.platypus import Paragraph, Table, TableStyle, SimpleDocTemplate, Spacer
 from reportlab.lib.colors import navy, black, grey, lightgrey, white
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 def wrap_text(text, style):
     """Helper function to create wrapped text in a cell."""
@@ -17,41 +18,38 @@ def create_cell_style(styles, is_header=False, total_row=False):
     style = ParagraphStyle(
         'Cell',
         parent=styles['Normal'],
-        fontSize=9.5,
-        leading=13,
-        spaceBefore=5,
-        spaceAfter=5,
+        fontSize=8,  # Reduced font size for better fit
+        leading=10,  # Reduced leading for better fit
+        spaceBefore=2, # Reduced space before
+        spaceAfter=2,  # Reduced space after
         fontName='Helvetica-Bold' if is_header or total_row else 'Helvetica',
         wordWrap='CJK',
-        alignment=0
+        alignment=TA_LEFT
     )
     return style
 
-def create_table_style(row_count):
-    """Create a consistent table style for all tables in the report."""
-    style = [
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 9.5),
-        ('FONTSIZE', (0, 1), (-1, -1), 9.5),
-        ('TOPPADDING', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-        ('LEFTPADDING', (0, 0), (-1, -1), 10),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-        ('GRID', (0, 0), (-1, -1), 1, grey),
+def create_table_style():
+    """Create a consistent table style for materials table."""
+    return TableStyle([
+        # Header styling
         ('BACKGROUND', (0, 0), (-1, 0), lightgrey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), black),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        
+        # All cell styling
+        ('GRID', (0, 0), (-1, -1), 0.5, grey),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LINEAFTER', (1, 0), (1, -1), 1.5, grey),
-        ('LINEAFTER', (4, 0), (4, -1), 1.5, grey),
-        ('LINEAFTER', (7, 0), (7, -1), 1.5, grey),
-    ]
-    
-    for i in range(2, row_count, 3):
-        style.append(('BACKGROUND', (0, i), (-1, i), lightgrey))
-        if i + 1 < row_count:
-            style.append(('TOPPADDING', (0, i+1), (-1, i+1), 20))
-    
-    return TableStyle(style)
+        
+        # Reduced padding for all cells
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        
+        # Total rows styling - will be applied dynamically
+    ])
 
 def safe_sort_key(item):
     """Create a safe sort key that handles None values."""
@@ -125,10 +123,6 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
         print("Warning: No element data provided for report generation")
         return False
         
-    if canvas is None:
-        print("Cannot generate PDF because reportlab is not installed.")
-        return False
-
     try:
         # Group the data first
         grouped_data = group_element_data(element_data)
@@ -136,28 +130,41 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
             print("Warning: No groups created from element data")
             return False
 
-        # Use landscape for wider tables
-        c = canvas.Canvas(output_filename, pagesize=landscape(A4))
-        width, height = landscape(A4)
-        margin_x = 2 * cm
-        margin_y = 2 * cm
-        content_width = width - 2 * margin_x
-        current_y = height - margin_y
-
+        # Use SimpleDocTemplate for better pagination and layout
+        page_size = landscape(A3)  # Use A3 for more space - better for wide tables
+        left_margin = 1.0*cm
+        right_margin = 1.0*cm
+        top_margin = 1.0*cm
+        bottom_margin = 1.0*cm
+        
+        doc = SimpleDocTemplate(output_filename, 
+                               pagesize=page_size,
+                               leftMargin=left_margin, 
+                               rightMargin=right_margin,
+                               topMargin=top_margin, 
+                               bottomMargin=bottom_margin)
+        
+        width, height = page_size
+        content_width = width - left_margin - right_margin
+        
+        # Build story for the document
+        story = []
+        
         # Styles
         styles = getSampleStyleSheet()
-        cell_style = create_cell_style(styles)
-        total_style = create_cell_style(styles, total_row=True)
-        title_style = styles['h1']
+        title_style = styles['Heading1']
+        title_style.alignment = TA_CENTER
         title_style.textColor = navy
+        title_style.spaceAfter = 0.5*cm
+        
+        cell_style = create_cell_style(styles)
+        header_cell_style = create_cell_style(styles, is_header=True)
+        total_style = create_cell_style(styles, total_row=True)
 
-        # Title
+        # Add title
         title_text = "Building Elements Materials Properties Report"
-        p_title = Paragraph(title_text, title_style)
-        p_title.wrapOn(c, content_width, margin_y)
-        title_height = p_title.height
-        p_title.drawOn(c, margin_x, current_y - title_height)
-        current_y -= (title_height + 1 * cm)
+        story.append(Paragraph(title_text, title_style))
+        story.append(Spacer(1, 0.5*cm))
 
         # Create table headers
         headers = [
@@ -168,122 +175,117 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
             "Conductivity\n(W/m-K)",
             "Density\n(kg/m³)",
             "Mass\n(kg/m²)",
-            "Thermal Resistance\n(m²K/W)",
+            "Thermal\nResistance\n(m²K/W)",
             "Solar\nAbsorptance",
-            "Specific Heat\n(J/kg-K)"
+            "Specific\nHeat (J/kg-K)"
         ]
 
-        headers_row = [wrap_text(header, create_cell_style(styles, True)) for header in headers]
-
-        # Column widths
+        headers_row = [wrap_text(h, header_cell_style) for h in headers]
+        
+        # Optimized column widths - adjusted based on content needs
         col_widths = [
-            content_width * 0.14,  # Element Type
-            content_width * 0.14,  # Element Name
-            content_width * 0.14,  # Material Name
-            content_width * 0.08,  # Thickness
-            content_width * 0.09,  # Conductivity
-            content_width * 0.09,  # Density
+            content_width * 0.1,   # Element Type - reduced width
+            content_width * 0.14,  # Element Name - slightly larger for longer names
+            content_width * 0.16,  # Material Name - increased for longer material names
+            content_width * 0.07,  # Thickness
+            content_width * 0.08,  # Conductivity
+            content_width * 0.08,  # Density
             content_width * 0.08,  # Mass
             content_width * 0.09,  # Thermal Resistance
-            content_width * 0.07,  # Solar Absorptance
-            content_width * 0.08   # Specific Heat
+            content_width * 0.08,  # Solar Absorptance
+            content_width * 0.12   # Specific Heat - increased slightly
         ]
 
-        # Create all data rows
-        all_rows = []
+        # Build the data rows for the table
+        table_data = [headers_row]
+        
+        # Track rows for styling
+        total_rows = []
+        row_index = 1  # Start after header
+        
+        current_element_type = None
+        current_element_name = None
+        
         for group in grouped_data:
-            try:
-                # First material row includes element type and name
-                first_layer = group["layers"][0]
-                first_row = [
-                    wrap_text(safe_value(group["element_type"]), cell_style),
-                    wrap_text(safe_value(group["element_name"]), cell_style),
-                    wrap_text(safe_value(first_layer.get("material_name")), cell_style),
-                    wrap_text(f"{first_layer.get('thickness', 0):.3f}", cell_style),
-                    wrap_text(f"{first_layer.get('conductivity', 0):.3f}", cell_style),
-                    wrap_text(f"{first_layer.get('density', 0):.1f}", cell_style),
-                    wrap_text(f"{first_layer.get('mass', 0):.1f}", cell_style),
-                    wrap_text(f"{first_layer.get('thermal_resistance', 0):.3f}", cell_style),
-                    wrap_text(f"{first_layer.get('solar_absorptance', 0):.3f}", cell_style),
-                    wrap_text(f"{first_layer.get('specific_heat', 0):.1f}", cell_style)
+            element_type = group["element_type"]
+            element_name = group["element_name"]
+            
+            # Process each material layer
+            for i, layer in enumerate(group["layers"]):
+                # Only include element type and name in the first row of the group
+                if i == 0:
+                    elem_type_cell = element_type
+                    elem_name_cell = element_name
+                    # Update tracking variables
+                    current_element_type = element_type
+                    current_element_name = element_name
+                else:
+                    # Empty cells to avoid repetition
+                    elem_type_cell = ""
+                    elem_name_cell = ""
+                
+                # Format numeric values with appropriate precision
+                row = [
+                    wrap_text(elem_type_cell, cell_style),
+                    wrap_text(elem_name_cell, cell_style),
+                    wrap_text(safe_value(layer.get("material_name")), cell_style),
+                    wrap_text(f"{float(layer.get('thickness', 0)):.3f}", cell_style),
+                    wrap_text(f"{float(layer.get('conductivity', 0)):.3f}", cell_style),
+                    wrap_text(f"{float(layer.get('density', 0)):.1f}", cell_style),
+                    wrap_text(f"{float(layer.get('mass', 0)):.1f}", cell_style),
+                    wrap_text(f"{float(layer.get('thermal_resistance', 0)):.3f}", cell_style),
+                    wrap_text(f"{float(layer.get('solar_absorptance', 0)):.3f}", cell_style),
+                    wrap_text(f"{float(layer.get('specific_heat', 0)):.1f}", cell_style)
                 ]
-                all_rows.append(first_row)
-
-                # Remaining material rows
-                for layer in group["layers"][1:]:
-                    all_rows.append([
-                        wrap_text("", cell_style),
-                        wrap_text("", cell_style),
-                        wrap_text(safe_value(layer.get("material_name")), cell_style),
-                        wrap_text(f"{layer.get('thickness', 0):.3f}", cell_style),
-                        wrap_text(f"{layer.get('conductivity', 0):.3f}", cell_style),
-                        wrap_text(f"{layer.get('density', 0):.1f}", cell_style),
-                        wrap_text(f"{layer.get('mass', 0):.1f}", cell_style),
-                        wrap_text(f"{layer.get('thermal_resistance', 0):.3f}", cell_style),
-                        wrap_text(f"{layer.get('solar_absorptance', 0):.3f}", cell_style),
-                        wrap_text(f"{layer.get('specific_heat', 0):.1f}", cell_style)
-                    ])
-
-                # Totals row
-                totals_row = [
-                    wrap_text("", cell_style),
-                    wrap_text("", cell_style),
-                    wrap_text("TOTALS", total_style),
-                    wrap_text(f"{group['total_thickness']:.3f}", total_style),
-                    wrap_text("", cell_style),
-                    wrap_text("", cell_style),
-                    wrap_text(f"{group['total_mass']:.1f}", total_style),
-                    wrap_text(f"{group['total_resistance']:.3f}", total_style),
-                    wrap_text("", cell_style),
-                    wrap_text("", cell_style)
-                ]
-                all_rows.append(totals_row)
-
-            except Exception as e:
-                print(f"Error processing group: {e}")
-                continue
-
-        # Calculate rows per page
-        row_height = 1.2*cm
-        max_rows_per_page = int((height - 2 * margin_y - title_height - cm) / row_height) - 1
-
-        # Split into pages
-        current_row = 0
-        first_page = True
-
-        while current_row < len(all_rows):
-            if not first_page:
-                c.showPage()
-                current_y = height - margin_y
-
-            # Calculate rows for this page
-            rows_remaining = len(all_rows) - current_row
-            rows_this_page = min(max_rows_per_page, rows_remaining)
+                table_data.append(row)
+                row_index += 1
             
-            # Get data rows for this page
-            page_rows = all_rows[current_row:current_row + rows_this_page]
-            
-            # Always add headers
-            table_rows = [headers_row] + page_rows
+            # Add totals row
+            totals_row = [
+                wrap_text("", cell_style),
+                wrap_text("", cell_style),
+                wrap_text("TOTALS", total_style),
+                wrap_text(f"{group['total_thickness']:.3f}", total_style),
+                wrap_text("", cell_style),
+                wrap_text("", cell_style),
+                wrap_text(f"{group['total_mass']:.1f}", total_style),
+                wrap_text(f"{group['total_resistance']:.3f}", total_style),
+                wrap_text("", cell_style),
+                wrap_text("", cell_style)
+            ]
+            table_data.append(totals_row)
+            total_rows.append(row_index)
+            row_index += 1
 
-            # Create and draw table
-            table = Table(
-                table_rows,
-                colWidths=col_widths,
-                rowHeights=[row_height] * len(table_rows)
-            )
-            table.setStyle(create_table_style(len(table_rows)))
-            
-            table_width, table_height = table.wrapOn(c, content_width, current_y)
-            table.drawOn(c, margin_x, current_y - table_height)
-            current_y -= table_height
-            
-            current_row += rows_this_page
-            first_page = False
-
-        c.save()
+        # Create the table with all data
+        materials_table = Table(table_data, colWidths=col_widths)
+        
+        # Apply basic table style
+        table_style = create_table_style()
+        
+        # Apply additional styling for alternating elements and total rows
+        for i in range(1, len(table_data)):
+            if i in total_rows:
+                # Highlight total rows
+                table_style.add('BACKGROUND', (0, i), (-1, i), lightgrey)
+                table_style.add('FONTNAME', (2, i), (2, i), 'Helvetica-Bold')  # TOTALS text
+                table_style.add('FONTNAME', (3, i), (3, i), 'Helvetica-Bold')  # Total thickness
+                table_style.add('FONTNAME', (6, i), (6, i), 'Helvetica-Bold')  # Total mass
+                table_style.add('FONTNAME', (7, i), (7, i), 'Helvetica-Bold')  # Total resistance
+        
+        # Apply style to table
+        materials_table.setStyle(table_style)
+        
+        # Add table to story
+        story.append(materials_table)
+        
+        # Build the document
+        doc.build(story)
+        print(f"Successfully generated materials report: {output_filename}")
         return True
 
     except Exception as e:
         print(f"Error generating materials report: {e}")
+        import traceback
+        traceback.print_exc()  # Enable traceback for better debugging
         return False
