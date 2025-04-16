@@ -93,8 +93,69 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
         alignment=TA_LEFT
     )
 
+    # Function to format dictionary values
+    def format_dict_value(value_dict):
+        if not value_dict:
+            return "Not specified"
+        
+        # Monthly temperature values (ground temps, reflectance)
+        if isinstance(value_dict, dict) and any(key in ['January', 'February', 'March'] for key in value_dict.keys()):
+            formatted_lines = []
+            # Sort months in calendar order
+            month_order = [
+                'January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'
+            ]
+            for month in month_order:
+                if month in value_dict:
+                    formatted_lines.append(f"{month}: {value_dict[month]}")
+            return "<br/>".join(formatted_lines)
+            
+        # For RunPeriod nested data
+        if isinstance(value_dict, dict) and any(key in ['start_month', 'end_month', 'location'] for key in value_dict.keys()):
+            formatted_lines = []
+            # Format start/end dates
+            if 'start_month' in value_dict and 'start_day' in value_dict:
+                formatted_lines.append(f"Start Date: {value_dict['start_month']}/{value_dict['start_day']}")
+            if 'end_month' in value_dict and 'end_day' in value_dict:
+                formatted_lines.append(f"End Date: {value_dict['end_month']}/{value_dict['end_day']}")
+            if 'location' in value_dict:
+                formatted_lines.append(f"Location: {value_dict['location']}")
+                
+            # Format weather options
+            for k, v in value_dict.items():
+                if k not in ['start_month', 'start_day', 'end_month', 'end_day', 'location'] and v is not None:
+                    formatted_name = k.replace('_', ' ').title()
+                    formatted_lines.append(f"{formatted_name}: {v}")
+                    
+            return "<br/>".join(formatted_lines)
+            
+        # For daylight saving
+        if isinstance(value_dict, dict) and any(key in ['start', 'end'] for key in value_dict.keys()):
+            formatted_lines = []
+            if 'start' in value_dict:
+                formatted_lines.append(f"Start: {value_dict['start']}")
+            if 'end' in value_dict:
+                formatted_lines.append(f"End: {value_dict['end']}")
+            return "<br/>".join(formatted_lines)
+            
+        # For snow modifiers
+        if isinstance(value_dict, dict) and any(key in ['ground', 'daylighting'] for key in value_dict.keys()):
+            formatted_lines = []
+            if 'ground' in value_dict:
+                formatted_lines.append(f"Ground Reflected: {value_dict['ground']}")
+            if 'daylighting' in value_dict:
+                formatted_lines.append(f"Daylighting: {value_dict['daylighting']}")
+            return "<br/>".join(formatted_lines)
+            
+        # Default formatting for other dictionary values
+        return "<br/>".join([f"{k}: {v}" for k, v in value_dict.items()])
+
     # Process each category
-    for category, settings in settings_data.items():
+    for category_name, settings in settings_data.items():
+        # Capitalize category name for display
+        display_category = category_name.replace('_', ' ').title()
+        
         # Add category header with improved styling
         category_style = ParagraphStyle(
             name='CategoryHeader',
@@ -104,7 +165,7 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
             spaceBefore=0.5*cm,
             spaceAfter=0.3*cm
         )
-        story.append(Paragraph(category, category_style))
+        story.append(Paragraph(display_category, category_style))
 
         # Prepare table data for this category
         table_data = [
@@ -113,8 +174,22 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
 
         # Add settings with properly wrapped text
         for key, value in settings.items():
-            key_para = wrap_text(key, key_cell_style)
-            value_para = wrap_text(value, value_cell_style)
+            # Format the key for display
+            display_key = key.replace('_', ' ').title()
+            
+            # Format different types of values
+            if isinstance(value, dict):
+                # Handle nested dictionary values
+                formatted_value = format_dict_value(value)
+                value_para = Paragraph(formatted_value, value_cell_style)
+            elif value is None:
+                # Handle None values
+                value_para = Paragraph("Not specified", value_cell_style)
+            else:
+                # Handle regular values
+                value_para = Paragraph(str(value), value_cell_style)
+                
+            key_para = Paragraph(display_key, key_cell_style)
             table_data.append([key_para, value_para])
 
         # Calculate column widths - give more space to values with complex data
