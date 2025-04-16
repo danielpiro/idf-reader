@@ -1,6 +1,7 @@
 import argparse
 import sys
 import os
+import time
 from pathlib import Path
 from utils.data_loader import DataLoader
 from utils.eppy_handler import EppyHandler
@@ -62,102 +63,145 @@ def main():
         ensure_directory_exists(path)
 
     try:
-        # Initialize DataLoader and load IDF file
-        data_loader = DataLoader()
-        data_loader.load_file(idf_file_path, args.idd)
+        start_time = time.time()
         
-        # Get raw IDF object for parsers that need it
+        # Initialize handlers and load IDF file once
+        print("Loading IDF file...")
+        load_start = time.time()
         eppy_handler = EppyHandler(idd_path=args.idd)
         idf = eppy_handler.load_idf(idf_file_path)
         
-        # Initialize parsers with DataLoader
-        settings_extractor = SettingsExtractor(data_loader)
-        schedule_extractor = ScheduleExtractor(data_loader)
-        load_extractor = LoadExtractor(data_loader)
-        materials_extractor = MaterialsParser(data_loader)
-        area_parser = AreaParser(data_loader)
-        storage_parser = StorageParser(data_loader)
+        data_loader = DataLoader()
+        data_loader.load_file(idf_file_path, args.idd)
+        load_time = time.time() - load_start
+        print(f"  File loaded in {load_time:.2f}s")
         
-        # Process data using DataLoader
-        print("Processing IDF data...")
+        print("\nProcessing IDF data...")
         
-        # Process settings - uses both IDF objects and cached data
+        # Group parsers by data dependencies
+        print("  Initializing parsers...")
+        parsers = {
+            'core': {
+                'settings': SettingsExtractor(data_loader),
+                'materials': MaterialsParser(data_loader),
+            },
+            'dependent': {
+                'schedules': ScheduleExtractor(data_loader),
+                'loads': LoadExtractor(data_loader),
+                'areas': AreaParser(data_loader),
+                'storage': StorageParser(data_loader)
+            }
+        }
+        
+        # Process core data first (settings and materials)
+        print("  Processing core data...")
+        core_start = time.time()
         settings_objects = eppy_handler.get_settings_objects(idf)
         for obj_type, objects in settings_objects.items():
             for obj in objects:
-                settings_extractor.process_eppy_object(obj_type, obj)
+                parsers['core']['settings'].process_eppy_object(obj_type, obj)
+        parsers['core']['materials'].process_idf(idf)
+        core_time = time.time() - core_start
+        print(f"    Core processing completed in {core_time:.2f}s")
         
-        # Process schedules - uses IDF objects with zone context from cache
+        # Process dependent data (schedules, loads, areas, storage)
+        print("  Processing dependent data...")
+        dependent_start = time.time()
+        
+        schedule_start = time.time()
         for schedule in eppy_handler.get_schedule_objects(idf):
-            schedule_extractor.process_eppy_schedule(schedule)
+            parsers['dependent']['schedules'].process_eppy_schedule(schedule)
+        schedule_time = time.time() - schedule_start
+        print(f"    Schedules processed in {schedule_time:.2f}s")
         
-        # Process other data - primarily uses cached data
-        load_extractor.process_idf(idf)
-        materials_extractor.process_idf(idf)
-        area_parser.process_idf(idf)
-        storage_parser.process_idf(idf)
-        
+        for parser in ['loads', 'areas', 'storage']:
+            parser_start = time.time()
+            parsers['dependent'][parser].process_idf(idf)
+            parser_time = time.time() - parser_start
+            print(f"    {parser.capitalize()} processed in {parser_time:.2f}s")
+            
+        dependent_time = time.time() - dependent_start
+        print(f"    Total dependent processing: {dependent_time:.2f}s")
+            
         # Cache status report
         cache_status = data_loader.get_cache_status()
         print("\nData Cache Status:")
         for section, loaded in cache_status.items():
-            status = "Loaded" if loaded else "Not loaded"
-            print(f"  {section.capitalize()}: {status}")
+            status = "✓ Loaded" if loaded else "✗ Not loaded"
+            print(f"  {section.capitalize():<12} {status}")
         
-        # Get the extracted data
-        extracted_settings = settings_extractor.get_settings()
-        extracted_schedules = schedule_extractor.get_parsed_unique_schedules()
-        extracted_loads = load_extractor.get_parsed_zone_loads()
-        extracted_element_data = materials_extractor.get_element_data()
-        extracted_areas = area_parser.get_parsed_areas()
-        extracted_storage = storage_parser.get_storage_zones()
-    
-        # Generate Reports
-        print(f"\nGenerating settings report: {settings_pdf_path}")
-        settings_success = generate_settings_report_pdf(extracted_settings, settings_pdf_path)
-        if not settings_success:
-            print("Error: Settings PDF generation failed")
-        else:
-            print("  Settings report generated successfully.")
-
-        print(f"Generating schedules report: {schedules_pdf_path}")
-        schedules_success = generate_schedules_report_pdf(extracted_schedules, schedules_pdf_path)
-        if not schedules_success:
-            print("Error: Schedules PDF generation failed")
-        else:
-            print("  Schedules report generated successfully.")
-
-        print(f"Generating loads report: {loads_pdf_path}")
-        loads_success = generate_loads_report_pdf(extracted_loads, loads_pdf_path)
-        if not loads_success:
-            print("Error: Loads PDF generation failed")
-        else:
-            print("  Loads report generated successfully.")
-
-        print(f"Generating materials report: {materials_pdf_path}")
-        materials_success = generate_materials_report_pdf(extracted_element_data, materials_pdf_path)
-        if not materials_success:
-            print("Error: Materials PDF generation failed")
-        else:
-            print("  Materials report generated successfully.")
-
-        # Generate area reports
-        print("Generating area reports...")
-        areas_success = generate_area_reports(extracted_areas)
-        if not areas_success:
-            print("Error: Areas PDF generation failed")
-        else:
-            print("  Area reports generated successfully in output directory")
+        # Extract data and generate reports
+        print("\nGenerating reports...")
+        reports_start = time.time()
+        
+        # Group reports by data dependencies
+        report_groups = [
+            {
+                'name': 'Core Reports',
+                'reports': [
+                    {
+                        'type': 'settings',
+                        'data': parsers['core']['settings'].get_settings(),
+                        'generator': generate_settings_report_pdf,
+                        'path': settings_pdf_path
+                    },
+                    {
+                        'type': 'materials',
+                        'data': parsers['core']['materials'].get_element_data(),
+                        'generator': generate_materials_report_pdf,
+                        'path': materials_pdf_path
+                    }
+                ]
+            },
+            {
+                'name': 'Zone Reports',
+                'reports': [
+                    {
+                        'type': 'schedules',
+                        'data': parsers['dependent']['schedules'].get_parsed_unique_schedules(),
+                        'generator': generate_schedules_report_pdf,
+                        'path': schedules_pdf_path
+                    },
+                    {
+                        'type': 'loads',
+                        'data': parsers['dependent']['loads'].get_parsed_zone_loads(),
+                        'generator': generate_loads_report_pdf,
+                        'path': loads_pdf_path
+                    }
+                ]
+            }
+        ]
+        
+        # Generate reports by group
+        for group in report_groups:
+            print(f"  Processing {group['name']}...")
+            for report in group['reports']:
+                print(f"    Generating {report['type']} report...")
+                success = report['generator'](report['data'], report['path'])
+                gen_time = time.time() - reports_start
+                status = "successfully" if success else "failed"
+                print(f"      Report generation {status} in {gen_time:.2f}s")
+                reports_start = time.time()  # Reset for next report
+                
+        # Handle special reports (areas and storage)
+        print("  Processing Special Reports...")
+        
+        print("    Generating area reports...")
+        areas_success = generate_area_reports(parsers['dependent']['areas'].get_parsed_areas())
+        print(f"      Area reports generation {'successful' if areas_success else 'failed'}")
             
-        print(f"Generating storage report: {storage_pdf_path}")
-        if not extracted_storage:
-            print("  Skipping storage report - no storage zones found")
+        storage_data = parsers['dependent']['storage'].get_storage_zones()
+        if not storage_data:
+            print("    Skipping storage report - no storage zones found")
         else:
-            storage_success = generate_storage_report_pdf(extracted_storage, storage_pdf_path)
-            if not storage_success:
-                print("Error: Storage PDF generation failed")
-            else:
-                print("  Storage report generated successfully.")
+            print("    Generating storage report...")
+            storage_success = generate_storage_report_pdf(storage_data, storage_pdf_path)
+            gen_time = time.time() - reports_start
+            print(f"      Storage report generation {'successful' if storage_success else 'failed'} in {gen_time:.2f}s")
+            
+        # Print total execution time
+        total_time = time.time() - start_time
+        print(f"\nTotal execution time: {total_time:.2f}s")
 
     except FileNotFoundError as e:
         if "Energy+.idd" in str(e):

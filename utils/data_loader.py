@@ -15,12 +15,17 @@ from utils.data_models import (
 class DataLoader:
     """
     Data loading class for IDF file parsing and object retrieval.
-    Provides direct access to IDF objects without caching.
+    Implements efficient data access with caching of frequently used lookups.
     """
     def __init__(self):
         self._idf = None
         self._eppy_handler = None
         self._loaded_sections = set()  # Keep track for compatibility
+        
+        # Cache for frequent lookups
+        self._temp_schedules = {}  # Cache for temperature schedules
+        self._zone_types = {}      # Cache for zone types
+        self._materials = None     # Cache for materials
         
     def load_file(self, idf_path: str, idd_path: Optional[str] = None) -> None:
         """
@@ -41,6 +46,28 @@ class DataLoader:
         self._idf = self._eppy_handler.load_idf(idf_path)
         self._loaded_sections = {'zones', 'surfaces', 'materials', 'constructions', 'schedules'}
         
+        # Pre-cache frequently accessed data
+        self._cache_temp_schedules()
+        self._cache_zone_types()
+        
+    def _cache_temp_schedules(self):
+        """Pre-cache temperature schedules for efficient zone filtering."""
+        self._temp_schedules.clear()
+        for schedule in self._idf.idfobjects['SCHEDULE:COMPACT']:
+            schedule_type = str(schedule.Schedule_Type_Limits_Name).lower()
+            if schedule_type == "temperature":
+                schedule_id = str(schedule.Name).split(' ')[0].lower()
+                self._temp_schedules[schedule_id] = True
+                
+    def _cache_zone_types(self):
+        """Pre-cache zone types for efficient schedule processing."""
+        self._zone_types.clear()
+        for zone in self._idf.idfobjects['ZONE']:
+            zone_id = str(zone.Name)
+            self._zone_types[zone_id] = "core" if any(
+                keyword in zone_id.lower() for keyword in ['core', 'corridor', 'stair']
+            ) else "regular"
+                
     def get_all_zones(self) -> Dict[str, ZoneData]:
         """
         Get all zones that have HVAC systems.
@@ -49,22 +76,14 @@ class DataLoader:
         if not self._idf:
             return {}
 
-        # Pre-filter temperature schedules for efficiency
-        temp_schedules = {}
-        for schedule in self._idf.idfobjects['SCHEDULE:COMPACT']:
-            schedule_type = str(schedule.Schedule_Type_Limits_Name).lower()
-            if schedule_type == "temperature":
-                schedule_id = str(schedule.Name).split(' ')[0].lower()
-                temp_schedules[schedule_id] = True
-
         zones = {}
         for zone in self._idf.idfobjects['ZONE']:
             zone_id = str(zone.Name)
             zone_id_lower = zone_id.lower()
             
-            # Check for HVAC by looking up in pre-filtered schedules
+            # Use cached temperature schedules lookup
             zone_base_id = zone_id_lower.split('_')[0] if '_' in zone_id_lower else zone_id_lower
-            if zone_base_id not in temp_schedules:
+            if zone_base_id not in self._temp_schedules:
                 continue
             
             # Determine zone type and extract area ID
@@ -87,6 +106,30 @@ class DataLoader:
             )
         return zones
         
+    def _extract_vertices(self, surface) -> List[tuple]:
+        """
+        Extract vertex coordinates from a surface object efficiently.
+        
+        Args:
+            surface: The surface object to extract vertices from
+            
+        Returns:
+            List[tuple]: List of (x,y,z) vertex coordinate tuples
+        """
+        vertices = []
+        for i in range(1, 5):
+            prefix = f'Vertex_{i}_'
+            try:
+                coords = [
+                    float(getattr(surface, f'{prefix}{coord}coordinate', 0.0))
+                    for coord in ('X', 'Y', 'Z')
+                ]
+                if any(coords):  # Only add if we have non-zero coordinates
+                    vertices.append(tuple(coords))
+            except (AttributeError, ValueError):
+                break
+        return vertices
+
     def get_surface_vertices(self, surface_id: str) -> Optional[List[tuple]]:
         """
         Get vertex coordinates for a specific surface.
@@ -102,60 +145,68 @@ class DataLoader:
             
         for surface in self._idf.idfobjects['BUILDINGSURFACE:DETAILED']:
             if str(surface.Name) == surface_id:
-                vertices = []
-                # Extract vertex coordinates (up to 4 vertices)
-                for i in range(1, 5):
-                    try:
-                        x = float(getattr(surface, f'Vertex_{i}_Xcoordinate', 0.0))
-                        y = float(getattr(surface, f'Vertex_{i}_Ycoordinate', 0.0))
-                        z = float(getattr(surface, f'Vertex_{i}_Zcoordinate', 0.0))
-                        vertices.append((x, y, z))
-                    except (AttributeError, ValueError):
-                        break
+                vertices = self._extract_vertices(surface)
                 return vertices if vertices else None
         return None
 
     def get_all_surfaces(self) -> Dict[str, SurfaceData]:
-        """Get all surface data including vertex coordinates."""
+        """Get all surface data including vertex coordinates efficiently."""
         if not self._idf:
             return {}
             
         surfaces = {}
         for surface in self._idf.idfobjects['BUILDINGSURFACE:DETAILED']:
             surface_id = str(surface.Name)
-            vertices = self.get_surface_vertices(surface_id)
+            
+            # Get all required attributes in one pass
+            attrs = {
+                "Surface_Type": "",
+                "Construction_Name": "",
+                "Outside_Boundary_Condition": "",
+                "Zone_Name": ""
+            }
+            for attr in attrs:
+                attrs[attr] = str(getattr(surface, attr, attrs[attr]))
             
             surfaces[surface_id] = SurfaceData(
                 id=surface_id,
                 name=surface_id,
-                surface_type=str(getattr(surface, "Surface_Type", "")),
-                construction_name=str(getattr(surface, "Construction_Name", "")),
-                boundary_condition=str(getattr(surface, "Outside_Boundary_Condition", "")),
-                zone_name=str(getattr(surface, "Zone_Name", "")),
-                vertices=vertices
+                surface_type=attrs["Surface_Type"],
+                construction_name=attrs["Construction_Name"],
+                boundary_condition=attrs["Outside_Boundary_Condition"],
+                zone_name=attrs["Zone_Name"],
+                vertices=self._extract_vertices(surface)
             )
         return surfaces
         
     def get_all_constructions(self) -> Dict[str, ConstructionData]:
-        """Get all construction data."""
+        """Get all construction data with optimized material layer processing."""
         if not self._idf:
             return {}
             
         constructions = {}
-        materials = self.get_all_materials()
+        materials = self.get_all_materials()  # Uses cached materials
+        
+        # Get field indices for Layer_* fields once
+        layer_fields = [f for f in self._idf.idfobjects['CONSTRUCTION'][0].fieldnames
+                       if f.startswith('Layer_')]
         
         for construction in self._idf.idfobjects['CONSTRUCTION']:
             construction_id = str(construction.Name)
-            material_layers = []
-            total_thickness = 0.0
             
-            for i in range(1, len(construction.fieldnames)):
-                layer = getattr(construction, f"Layer_{i}", None)
-                if layer:
-                    layer_id = str(layer)
-                    material_layers.append(layer_id)
-                    if layer_id in materials:
-                        total_thickness += materials[layer_id].thickness
+            # Process all layers in one go using list comprehension
+            material_layers = [
+                str(getattr(construction, field))
+                for field in layer_fields
+                if getattr(construction, field, None)
+            ]
+            
+            # Calculate total thickness using sum with generator
+            total_thickness = sum(
+                materials[layer_id].thickness
+                for layer_id in material_layers
+                if layer_id in materials
+            )
             
             constructions[construction_id] = ConstructionData(
                 id=construction_id,
@@ -166,14 +217,19 @@ class DataLoader:
         return constructions
         
     def get_all_materials(self) -> Dict[str, MaterialData]:
-        """Get all material data."""
+        """Get all material data with caching."""
         if not self._idf:
             return {}
             
-        materials = {}
+        # Return cached materials if available
+        if self._materials is not None:
+            return self._materials
+            
+        # Build materials cache
+        self._materials = {}
         for material in self._idf.idfobjects['MATERIAL']:
             material_id = str(material.Name)
-            materials[material_id] = MaterialData(
+            self._materials[material_id] = MaterialData(
                 id=material_id,
                 name=material_id,
                 conductivity=float(getattr(material, "Conductivity", 0.0)),
@@ -182,7 +238,7 @@ class DataLoader:
                 thickness=float(getattr(material, "Thickness", 0.0)),
                 solar_absorptance=float(getattr(material, "Solar_Absorptance", 0.0))
             )
-        return materials
+        return self._materials
         
     def _extract_zone_id_from_schedule(self, schedule_id: str) -> Optional[str]:
         """Extract zone ID from schedule identifier for HVAC schedules."""
@@ -208,12 +264,14 @@ class DataLoader:
             zone_id = self._extract_zone_id_from_schedule(schedule_id)
             zone_type = None
             if zone_id:
-                # Try to find matching zone to get its type
-                for zone in self._idf.idfobjects['ZONE']:
-                    if zone_id.lower() in str(zone.Name).lower():
-                        zone_type = "core" if any(keyword in str(zone.Name).lower()
-                                                for keyword in ['core', 'corridor', 'stair']) else "regular"
-                        break
+                # Use cached zone types
+                matching_zone = next(
+                    (zone_name for zone_name in self._zone_types
+                     if zone_id.lower() in zone_name.lower()),
+                    None
+                )
+                if matching_zone:
+                    zone_type = self._zone_types[matching_zone]
             
             # Get all non-empty fields after Name and Type
             rule_fields = []
