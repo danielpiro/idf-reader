@@ -38,7 +38,9 @@ def generate_area_detail_report_pdf(area_id: str, zones_data: Dict[str, Any], ou
         # Calculate area metrics
         total_floor_area = 0
         total_volume = 0
-        for zone_data in zones_data.values():
+        # Calculate metrics only from zone data portion
+        zone_info = {k: v for k, v in zones_data.items() if isinstance(v, dict) and "properties" in v}
+        for zone_data in zone_info.values():
             props = zone_data["properties"]
             multiplier = props.get("multiplier", 1)
             total_floor_area += props.get("floor_area", 0) * multiplier
@@ -68,19 +70,55 @@ def generate_area_detail_report_pdf(area_id: str, zones_data: Dict[str, Any], ou
         story.append(summary_table)
         story.append(Spacer(1, 20))
         
+        # Element Details
+        story.append(Paragraph("Zone Elements", styles["Heading2"]))
+        story.append(Spacer(1, 12))
+        
+        # Get element data from each zone
+        area_elements = []
+        for zone_data in zone_info.values():
+            if isinstance(zone_data.get("element_data"), list):
+                area_elements.extend(zone_data["element_data"])
+        
+        if area_elements:
+            element_data = [["Zone", "Element Name", "Type", "Area (m²)", "Conductivity (W/m·K)", "Area * Conductivity (W/K)"]]
+            for elem in area_elements:
+                element_data.append([
+                    elem["zone"],
+                    elem["element_name"],
+                    elem["element_type"],
+                    f"{elem['area']:.2f}",
+                    f"{elem['conductivity']:.3f}",
+                    f"{elem['area_conductivity']:.2f}"
+                ])
+            
+            element_table = Table(element_data, colWidths=[80, 120, 80, 80, 80, 80])
+            element_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.whitesmoke),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            story.append(element_table)
+            story.append(Spacer(1, 20))
+        
         # Zone Details
-        story.append(Paragraph("Zone Details", styles["Heading2"]))
+        story.append(Paragraph("Zone Summary", styles["Heading2"]))
         story.append(Spacer(1, 12))
         
         zone_data = [["Zone ID", "Floor Area", "Volume", "Multiplier"]]
-        for zone_id, data in sorted(zones_data.items()):
-            props = data["properties"]
-            zone_data.append([
-                zone_id,
-                f"{props['floor_area']:.2f} m²",
-                f"{props['volume']:.2f} m³",
-                str(props['multiplier'])
-            ])
+        for zone_id, data in sorted(zone_info.items()):
+            if isinstance(data, dict) and "properties" in data:
+                props = data["properties"]
+                zone_data.append([
+                    zone_id,
+                    f"{props['floor_area']:.2f} m²",
+                    f"{props['volume']:.2f} m³",
+                    str(props['multiplier'])
+                ])
         
         zone_table = Table(zone_data, colWidths=[200, 100, 100, 100])
         zone_table.setStyle(TableStyle([
@@ -117,18 +155,21 @@ def generate_area_reports(areas_data: Dict[str, Any], output_dir: str = "output/
         output_path = Path(output_dir)
         output_path.mkdir(exist_ok=True)
         
-        # Group zones by area
+        # Group zones by area and process reports
         areas_grouped = defaultdict(dict)
-        for zone_id, data in areas_data.items():
-            area_id = data["area_id"]
-            areas_grouped[area_id][zone_id] = data
+        for zone_id, zone_data in areas_data.items():
+            area_id = zone_data["area_id"]
+            if area_id not in areas_grouped:
+                areas_grouped[area_id] = {}
+            areas_grouped[area_id][zone_id] = zone_data
         
         # Generate individual area reports
         successes = []
-        for area_id, zones_data in areas_grouped.items():
+        for area_id, area_zones in areas_grouped.items():
+            
             success = generate_area_detail_report_pdf(
                 area_id,
-                zones_data,
+                area_zones,  # Pass complete zone data including element_data
                 str(output_path / f"area_{area_id}.pdf")
             )
             successes.append(success)

@@ -87,21 +87,52 @@ class DataLoader:
             )
         return zones
         
+    def get_surface_vertices(self, surface_id: str) -> Optional[List[tuple]]:
+        """
+        Get vertex coordinates for a specific surface.
+        
+        Args:
+            surface_id: ID of the surface
+            
+        Returns:
+            Optional[List[tuple]]: List of (x,y,z) vertex coordinate tuples if found, None otherwise
+        """
+        if not self._idf:
+            return None
+            
+        for surface in self._idf.idfobjects['BUILDINGSURFACE:DETAILED']:
+            if str(surface.Name) == surface_id:
+                vertices = []
+                # Extract vertex coordinates (up to 4 vertices)
+                for i in range(1, 5):
+                    try:
+                        x = float(getattr(surface, f'Vertex_{i}_Xcoordinate', 0.0))
+                        y = float(getattr(surface, f'Vertex_{i}_Ycoordinate', 0.0))
+                        z = float(getattr(surface, f'Vertex_{i}_Zcoordinate', 0.0))
+                        vertices.append((x, y, z))
+                    except (AttributeError, ValueError):
+                        break
+                return vertices if vertices else None
+        return None
+
     def get_all_surfaces(self) -> Dict[str, SurfaceData]:
-        """Get all surface data."""
+        """Get all surface data including vertex coordinates."""
         if not self._idf:
             return {}
             
         surfaces = {}
         for surface in self._idf.idfobjects['BUILDINGSURFACE:DETAILED']:
             surface_id = str(surface.Name)
+            vertices = self.get_surface_vertices(surface_id)
+            
             surfaces[surface_id] = SurfaceData(
                 id=surface_id,
                 name=surface_id,
                 surface_type=str(getattr(surface, "Surface_Type", "")),
                 construction_name=str(getattr(surface, "Construction_Name", "")),
                 boundary_condition=str(getattr(surface, "Outside_Boundary_Condition", "")),
-                zone_name=str(getattr(surface, "Zone_Name", ""))
+                zone_name=str(getattr(surface, "Zone_Name", "")),
+                vertices=vertices
             )
         return surfaces
         

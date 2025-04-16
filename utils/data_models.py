@@ -25,6 +25,7 @@ class SurfaceData:
     construction_name: str
     boundary_condition: str
     zone_name: str
+    vertices: Optional[List[tuple]] = None  # List of (x,y,z) vertex coordinates
 
 @dataclass
 class ConstructionData:
