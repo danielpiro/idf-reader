@@ -85,7 +85,6 @@ class MaterialsParser:
             surface = construction_surfaces[0]
             s_type = surface.surface_type.lower() if surface.surface_type else ""
             boundary = surface.boundary_condition.lower() if surface.boundary_condition else ""
-            zone_name = surface.zone_name
         except (AttributeError, IndexError):
             return ""
         

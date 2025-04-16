@@ -20,38 +20,6 @@ class AreaParser:
         self.data_loader = data_loader
         self.areas_by_zone = {}  # {zone_id: {"area_id": str, "properties": {}}}
         
-    def _check_zone_hvac(self, zone_name: str) -> bool:
-        """
-        Check if a zone has HVAC systems by looking for heating/cooling schedules.
-        Uses cached zone data.
-        
-        Args:
-            zone_name: Name of the zone to check
-            
-        Returns:
-            bool: True if zone has HVAC systems, False otherwise
-        """
-        try:
-            if not zone_name:
-                return False
-                
-            zone_id = zone_name.split('_')[0] if '_' in zone_name else zone_name
-            zone_id = zone_id.lower()
-            
-            schedules = self.data_loader.get_all_schedules()
-            for schedule in schedules.values():
-                if schedule.type and schedule.type.lower() != "temperature":
-                    continue
-                schedule_id = schedule.id.split(' ')[0] if ' ' in schedule.id else schedule.id
-                if schedule_id and schedule_id.lower() == zone_id:
-                    return True
-            
-        except Exception as e:
-            print(f"Error checking HVAC system for zone {zone_name}: {e}")
-            return False
-        
-        return False
-        
     def process_idf(self, idf) -> None:
         """
         Process an entire IDF model to extract all area information.
@@ -60,10 +28,10 @@ class AreaParser:
         Args:
             idf: eppy IDF object (kept for compatibility)
         """
-        # Process all non-core zones
-        zones = self.data_loader.get_zones_by_type("regular")
+        # Process all zones with HVAC systems
+        zones = self.data_loader.get_all_zones()
         for zone_id, zone_data in zones.items():
-            if zone_data.area_id and self._check_zone_hvac(zone_id):
+            if zone_data.area_id:  # HVAC check is now done in get_all_zones
                 self.areas_by_zone[zone_id] = {
                     "area_id": zone_data.area_id,
                     "properties": {

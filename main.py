@@ -150,11 +150,14 @@ def main():
             print("  Area reports generated successfully in output directory")
             
         print(f"Generating storage report: {storage_pdf_path}")
-        storage_success = generate_storage_report_pdf(extracted_storage, storage_pdf_path)
-        if not storage_success:
-            print("Error: Storage PDF generation failed")
+        if not extracted_storage:
+            print("  Skipping storage report - no storage zones found")
         else:
-            print("  Storage report generated successfully.")
+            storage_success = generate_storage_report_pdf(extracted_storage, storage_pdf_path)
+            if not storage_success:
+                print("Error: Storage PDF generation failed")
+            else:
+                print("  Storage report generated successfully.")
 
     except FileNotFoundError as e:
         if "Energy+.idd" in str(e):

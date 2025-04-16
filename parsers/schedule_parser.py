@@ -40,38 +40,8 @@ class ScheduleExtractor:
         self.data_loader = data_loader
         # Store schedules by type, with unique value patterns
         self.schedules_by_type: Dict[str, Dict[Tuple, Dict[str, Any]]] = {}
+        self.zone_schedules: List[str] = []
         
-    def _check_zone_hvac(self, zone_name: str) -> bool:
-        """
-        Check if a zone has HVAC systems by looking for heating/cooling schedules.
-        Uses cached zone data.
-        
-        Args:
-            zone_name: Name of the zone to check
-            
-        Returns:
-            bool: True if zone has HVAC systems, False otherwise
-        """
-        try:
-            if not zone_name:
-                return False
-                
-            zone_id = zone_name.split('_')[0] if '_' in zone_name else zone_name
-            zone_id = zone_id.lower()
-            
-            schedules = self.data_loader.get_all_schedules()
-            for schedule in schedules.values():
-                if schedule.type and schedule.type.lower() != "temperature":
-                    continue
-                schedule_id = schedule.id.split(' ')[0] if ' ' in schedule.id else schedule.id
-                if schedule_id and schedule_id.lower() == zone_id:
-                    return True
-            
-        except Exception as e:
-            print(f"Error checking HVAC system for zone {zone_name}: {e}")
-            return False
-            
-        return False
 
     def _is_basic_type(self, schedule_type: str) -> bool:
         """
@@ -211,7 +181,6 @@ class ScheduleExtractor:
                 for zone_id, zone_data in zones.items():
                     if zone_id.lower() in schedule_name_lower:
                         # Only store schedule if zone has HVAC
-                        if self._check_zone_hvac(zone_id):
                             schedule_data['zone_id'] = zone_id
                             schedule_data['zone_type'] = zone_data.type
                             break

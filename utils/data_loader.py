@@ -42,27 +42,39 @@ class DataLoader:
         self._loaded_sections = {'zones', 'surfaces', 'materials', 'constructions', 'schedules'}
         
     def get_all_zones(self) -> Dict[str, ZoneData]:
-        """Get all zone data."""
+        """
+        Get all zones that have HVAC systems.
+        Filters out zones without temperature schedules and extracts area IDs.
+        """
         if not self._idf:
             return {}
-            
+
+        # Pre-filter temperature schedules for efficiency
+        temp_schedules = {}
+        for schedule in self._idf.idfobjects['SCHEDULE:COMPACT']:
+            schedule_type = str(schedule.Schedule_Type_Limits_Name).lower()
+            if schedule_type == "temperature":
+                schedule_id = str(schedule.Name).split(' ')[0].lower()
+                temp_schedules[schedule_id] = True
+
         zones = {}
         for zone in self._idf.idfobjects['ZONE']:
             zone_id = str(zone.Name)
-            # Determine zone type based on keywords in zone ID
             zone_id_lower = zone_id.lower()
-            if any(keyword in zone_id_lower for keyword in ['core', 'corridor', 'stair']):
-                zone_type = "core"
-            else:
-                zone_type = "regular"
             
-            # Extract area ID for any non-core zone
+            # Check for HVAC by looking up in pre-filtered schedules
+            zone_base_id = zone_id_lower.split('_')[0] if '_' in zone_id_lower else zone_id_lower
+            if zone_base_id not in temp_schedules:
+                continue
+            
+            # Determine zone type and extract area ID
+            zone_type = "regular"  # No core zone filtering needed
+            
+            # Extract area ID from zone ID
             area_id = None
-            if zone_type == "regular":
-                # Extract exactly two digits after the colon for area ID
-                area_match = re.search(r':(\d{2})', zone_id)
-                if area_match:
-                    area_id = area_match.group(1)
+            area_match = re.search(r':(\d{2})', zone_id)
+            if area_match:
+                area_id = area_match.group(1)
             
             zones[zone_id] = ZoneData(
                 id=zone_id,
