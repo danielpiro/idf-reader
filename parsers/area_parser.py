@@ -22,7 +22,7 @@ class AreaParser:
             data_loader: DataLoader instance for accessing cached IDF data
         """
         self.data_loader = data_loader
-        self.areas_by_zone = {}  # {zone_id: {"area_id": str, "properties": {}, "element_data": []}}
+        self.areas_by_zone = {}  # {zone_id: {"area_id": str, "properties": {}, "constructions": {}}}
         self._batch_size = 100    # Number of surfaces to process in one batch
         
     def process_idf(self, idf) -> None:
@@ -54,7 +54,7 @@ class AreaParser:
                         "volume": zone_data.volume,
                         "multiplier": zone_data.multiplier
                     },
-                    "element_data": []
+                    "constructions": {}  # Group elements by construction name
                 }
                 
                 # Get pre-cached floor surfaces for this zone
@@ -173,33 +173,46 @@ class AreaParser:
             conductivity = construction_props['conductivity']
             
             zone_id = zone_map[surface.id]
+            construction_name = surface.construction_name
+            
+            # Initialize construction group if not exists
+            if construction_name not in self.areas_by_zone[zone_id]["constructions"]:
+                self.areas_by_zone[zone_id]["constructions"][construction_name] = {
+                    "elements": [],
+                    "total_area": 0.0,
+                    "total_conductivity": 0.0
+                }
+            
             element_data = {
                 "zone": zone_id,
-                "element_name": surface.name,
+                "surface_name": surface.name,
                 "element_type": "Floor",
                 "area": area,
                 "conductivity": conductivity,
                 "area_conductivity": area * conductivity
             }
             
-            # Add element data to zone
-            self.areas_by_zone[zone_id]["element_data"].append(element_data)
+            # Add element data and update totals
+            constr_group = self.areas_by_zone[zone_id]["constructions"][construction_name]
+            constr_group["elements"].append(element_data)
+            constr_group["total_area"] += area
+            constr_group["total_conductivity"] += area * conductivity
             
-    def get_element_data(self, zone_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_element_data(self, zone_id: Optional[str] = None) -> Dict[str, Any]:
         """
-        Get list of processed elements with areas and properties.
+        Get processed elements grouped by construction name.
         
         Args:
             zone_id: Optional zone ID to filter elements by
             
         Returns:
-            list: List of dictionaries containing element data
+            dict: Dictionary of elements grouped by construction name
         """
         if zone_id:
-            return self.areas_by_zone.get(zone_id, {}).get("element_data", [])
+            return self.areas_by_zone.get(zone_id, {}).get("constructions", {})
         
-        # Return all element data if no zone specified
-        all_elements = []
-        for zone_data in self.areas_by_zone.values():
-            all_elements.extend(zone_data.get("element_data", []))
-        return all_elements
+        # Return all constructions grouped by zone
+        all_constructions = {}
+        for zone_id, zone_data in self.areas_by_zone.items():
+            all_constructions[zone_id] = zone_data.get("constructions", {})
+        return all_constructions

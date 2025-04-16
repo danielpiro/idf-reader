@@ -70,29 +70,60 @@ def generate_area_detail_report_pdf(area_id: str, zones_data: Dict[str, Any], ou
         story.append(summary_table)
         story.append(Spacer(1, 20))
         
-        # Element Details
-        story.append(Paragraph("Zone Elements", styles["Heading2"]))
+        # Construction Groups
+        story.append(Paragraph("Construction Groups", styles["Heading2"]))
         story.append(Spacer(1, 12))
         
-        # Get element data from each zone
-        area_elements = []
-        for zone_data in zone_info.values():
-            if isinstance(zone_data.get("element_data"), list):
-                area_elements.extend(zone_data["element_data"])
+        # Process all constructions across zones
+        all_constructions = {}
+        for zone_id, zone_data in zone_info.items():
+            for constr_name, constr_data in zone_data.get("constructions", {}).items():
+                if constr_name not in all_constructions:
+                    all_constructions[constr_name] = {
+                        "elements": [],
+                        "total_area": 0.0,
+                        "total_conductivity": 0.0
+                    }
+                all_constructions[constr_name]["elements"].extend(constr_data["elements"])
+                all_constructions[constr_name]["total_area"] += constr_data["total_area"]
+                all_constructions[constr_name]["total_conductivity"] += constr_data["total_conductivity"]
         
-        if area_elements:
-            element_data = [["Zone", "Element Name", "Type", "Area (m²)", "Conductivity (W/m·K)", "Area * Conductivity (W/K)"]]
-            for elem in area_elements:
+        # Display construction summaries
+        for constr_name, constr_data in sorted(all_constructions.items()):
+            story.append(Paragraph(f"Construction: {constr_name}", styles["Heading3"]))
+            story.append(Spacer(1, 6))
+            
+            # Construction summary
+            summary_data = [
+                ["Total Area", f"{constr_data['total_area']:.2f} m²"],
+                ["Total Conductivity", f"{constr_data['total_conductivity']:.2f} W/K"],
+                ["Average Conductivity", f"{constr_data['total_conductivity']/constr_data['total_area']:.3f} W/m·K"]
+            ]
+            
+            constr_summary = Table(summary_data, colWidths=[150, 150])
+            constr_summary.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.lightgrey),
+                ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            story.append(constr_summary)
+            story.append(Spacer(1, 12))
+            
+            # Elements in this construction
+            element_data = [["Zone", "Surface Name", "Area (m²)", "Conductivity\n(W/m·K)", "Area * Conductivity\n(W/K)"]]
+            for elem in constr_data["elements"]:
                 element_data.append([
                     elem["zone"],
-                    elem["element_name"],
-                    elem["element_type"],
+                    elem["surface_name"],
                     f"{elem['area']:.2f}",
                     f"{elem['conductivity']:.3f}",
                     f"{elem['area_conductivity']:.2f}"
                 ])
             
-            element_table = Table(element_data, colWidths=[80, 120, 80, 80, 80, 80])
+            element_table = Table(element_data, colWidths=[120, 180, 90, 90, 120])
             element_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -100,7 +131,11 @@ def generate_area_detail_report_pdf(area_id: str, zones_data: Dict[str, Any], ou
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 10),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.whitesmoke),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 3),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 3)
             ]))
             story.append(element_table)
             story.append(Spacer(1, 20))
@@ -120,7 +155,7 @@ def generate_area_detail_report_pdf(area_id: str, zones_data: Dict[str, Any], ou
                     str(props['multiplier'])
                 ])
         
-        zone_table = Table(zone_data, colWidths=[200, 100, 100, 100])
+        zone_table = Table(zone_data, colWidths=[240, 120, 120, 120])
         zone_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -128,7 +163,11 @@ def generate_area_detail_report_pdf(area_id: str, zones_data: Dict[str, Any], ou
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('BACKGROUND', (0, 1), (-1, -1), colors.whitesmoke),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3)
         ]))
         story.append(zone_table)
         
