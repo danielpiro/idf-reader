@@ -33,7 +33,7 @@ class MaterialsParser:
             
             # Process each construction
             for construction_id, construction_data in constructions.items():
-                if "_rev" in construction_id.lower():
+                if "rev" in construction_id.lower() and "reverse" not in construction_id.lower():
                     continue
                 
                 # Get all materials in the construction
