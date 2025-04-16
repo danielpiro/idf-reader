@@ -49,7 +49,7 @@ class MaterialsParser:
                             "thickness": material_data.thickness,
                             "conductivity": material_data.conductivity,
                             "density": material_data.density,
-                            "calculated mass": material_data.density * material_data.thickness,
+                            "mass": material_data.density * material_data.thickness,
                             "thermal_resistance": (
                                 material_data.thickness / material_data.conductivity 
                                 if material_data.conductivity != 0 else 0.0
@@ -94,7 +94,7 @@ class MaterialsParser:
             elif boundary == "ground":
                 return "Ground wall"
             else:
-                return "Internal wall"
+                return surface.zone_name in self.data_loader.get_all_zones() and "Internal wall" or "Separation wall"
                 
         if s_type == "floor":
             if boundary == "outdoors":
@@ -102,7 +102,7 @@ class MaterialsParser:
             elif boundary == "ground":
                 return "Ground floor"
             else:
-                return "Internal floor"
+                return surface.zone_name in self.data_loader.get_all_zones() and "Intermediate floor" or "Separation floor"
                 
         if s_type == "ceiling":
             if boundary == "ground":
@@ -110,7 +110,7 @@ class MaterialsParser:
             elif boundary == "outdoors":
                 return "External ceiling"
             else:
-                return "Internal ceiling"
+                return surface.zone_name in self.data_loader.get_all_zones() and "Intermediate ceiling" or "Separation ceiling"
                 
         if s_type == "roof":
             return "Roof"
