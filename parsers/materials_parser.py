@@ -49,7 +49,7 @@ class MaterialsParser:
                             "thickness": material_data.thickness,
                             "conductivity": material_data.conductivity,
                             "density": material_data.density,
-                            "mass": material_data.density * material_data.thickness,
+                            "calculated mass": material_data.density * material_data.thickness,
                             "thermal_resistance": (
                                 material_data.thickness / material_data.conductivity 
                                 if material_data.conductivity != 0 else 0.0

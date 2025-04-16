@@ -2,7 +2,27 @@
 Extracts and processes Schedule:Compact objects.
 Uses DataLoader for potential future schedule caching.
 """
+import re
 from typing import Dict, List, Any, Optional, Tuple, TYPE_CHECKING, Union
+
+# --- Helper Functions ---
+
+def time_str_to_minutes(time_str: str) -> int:
+    """Converts HH:MM time string to minutes since midnight."""
+    try:
+        hours, minutes = map(int, time_str.split(':'))
+        # Handle 24:00 case specifically
+        if hours == 24 and minutes == 0:
+            return 24 * 60
+        elif 0 <= hours < 24 and 0 <= minutes < 60:
+             return hours * 60 + minutes
+        else:
+             raise ValueError("Time out of range")
+    except ValueError:
+        print(f"Warning: Could not parse time string: {time_str}. Defaulting to 0.")
+        return 0
+
+# --- End Helper Functions ---
 
 # Forward reference for type hints
 DataLoader = Union['DataLoader', None]
@@ -120,6 +140,194 @@ class ScheduleExtractor:
         
         return ' '.join(parts).strip()
 
+    def _expand_rules_to_hourly(self, time_value_pairs: List[Dict[str, str]]) -> List[Optional[str]]:
+        """
+        Expands a list of time-value pairs into a list of 24 hourly values.
+
+        Args:
+            time_value_pairs: List of {'end_time': 'HH:MM', 'value': str} dicts.
+
+        Returns:
+            A list of 24 strings representing the value for each hour (00:00-01:00 is index 0, ..., 23:00-24:00 is index 23).
+            Returns list of Nones if input is empty or invalid.
+        """
+        if not time_value_pairs:
+            return [None] * 24
+
+        hourly_values = [None] * 24
+        last_minute = 0
+
+        for pair in time_value_pairs:
+            end_time_str = pair['end_time']
+            value = pair['value']
+            current_minute = time_str_to_minutes(end_time_str)
+
+            # Ensure minutes are within a day and handle 24:00 correctly
+            current_minute = min(current_minute, 24 * 60)
+            if current_minute == 0 and end_time_str != "00:00": # Likely parsing error or wrap-around, treat as 24:00
+                 current_minute = 24*60
+
+
+            if current_minute <= last_minute:
+                # Skip zero/negative duration intervals, but log warning
+                print(f"Warning: Skipping zero/negative duration interval ending at {end_time_str} (value: {value}). Last minute was {last_minute}.")
+                continue # Don't update last_minute here, let the next valid interval handle it
+
+            # Determine the hour indices affected by this interval
+            # Start hour index is the ceiling of the last minute divided by 60
+            start_hour_index = last_minute // 60
+            # End hour index is the ceiling of the current minute divided by 60
+            # Special case: 24:00 (1440 minutes) should affect up to index 23
+            end_hour_index = (current_minute + 59) // 60 # Ceiling division
+            
+            # Clamp end_hour_index to be at most 24 (exclusive index for range)
+            end_hour_index = min(end_hour_index, 24)
+
+
+            # Fill the hourly values list
+            for h in range(start_hour_index, end_hour_index):
+                 if h < 24: # Ensure we don't write past index 23
+                    hourly_values[h] = value
+
+            last_minute = current_minute
+
+            # If we reached the end of the day, stop processing further pairs for this block
+            if last_minute >= 24 * 60:
+                break
+                
+        # Fill any remaining None values with the value from the last interval if day wasn't completed
+        if last_minute < 24 * 60 and time_value_pairs:
+             last_value = time_value_pairs[-1]['value']
+             start_fill_index = last_minute // 60
+             for h in range(start_fill_index, 24):
+                 if hourly_values[h] is None:
+                     hourly_values[h] = last_value
+
+
+        # Final check: if the first hour is None, use the last value (handles schedules starting after 00:00)
+        if hourly_values[0] is None and time_value_pairs:
+             first_val_minute = time_str_to_minutes(time_value_pairs[0]['end_time'])
+             # If the first interval ends *after* the first hour, assume the value applies from hour 0
+             if first_val_minute > 0:
+                 hourly_values[0] = time_value_pairs[0]['value'] # Or potentially the *last* value of the day? Needs clarification. Using first value for now.
+                 # Let's refine: Use the value defined for the *last* period of the day (wrap around)
+                 # Find the value active at 24:00
+                 final_value = None
+                 temp_last_minute = 0
+                 for pair in time_value_pairs:
+                     temp_current_minute = time_str_to_minutes(pair['end_time'])
+                     temp_current_minute = min(temp_current_minute, 24 * 60)
+                     if temp_current_minute > temp_last_minute:
+                         final_value = pair['value']
+                         temp_last_minute = temp_current_minute
+                     if temp_last_minute >= 24*60: break
+                 if final_value is not None:
+                     for h in range(first_val_minute // 60):
+                         if hourly_values[h] is None:
+                             hourly_values[h] = final_value
+
+
+        # Fill any remaining Nones with a default (e.g., '0' or last known value) - let's use last known value
+        last_known_value = '0' # Default fallback
+        for i in range(len(hourly_values)):
+            if hourly_values[i] is not None:
+                last_known_value = hourly_values[i]
+            elif hourly_values[i] is None:
+                 hourly_values[i] = last_known_value
+                 
+        # Attempt to round numeric values to 2 decimal places
+        formatted_hourly_values = []
+        for val in hourly_values:
+            try:
+                # Try converting to float and rounding
+                num_val = float(val)
+                # Format to avoid unnecessary '.0' for integers
+                if num_val == int(num_val):
+                     formatted_hourly_values.append(str(int(num_val)))
+                else:
+                     formatted_hourly_values.append(f"{num_val:.2f}")
+            except (ValueError, TypeError):
+                # If conversion fails, keep the original string value
+                formatted_hourly_values.append(str(val) if val is not None else '') # Ensure it's a string
+
+        return formatted_hourly_values
+
+
+    def _parse_compact_rule_blocks(self, rule_fields: List[str]) -> List[Dict[str, Any]]:
+        """
+        Parses Schedule:Compact rule fields into blocks, expanding time rules
+        into hourly values for each block.
+
+        Args:
+            rule_fields: List of string values from the Schedule:Compact object.
+
+        Returns:
+            List of dictionaries, where each dict represents a rule block:
+            {
+                'through': str,
+                'for_days': str,
+                'hourly_values': List[str] (24 values)
+            }
+        """
+        rule_blocks = []
+        current_block_rules = []
+        current_through = "Until: 31 Dec" # Default if not specified
+        current_for = "AllDays"       # Default if not specified
+        i = 0
+
+        while i < len(rule_fields):
+            field = rule_fields[i].strip()
+            field_lower = field.lower()
+
+            if field_lower.startswith("through:"):
+                # If we encounter a new 'Through:', process the previous block
+                if current_block_rules:
+                    hourly_values = self._expand_rules_to_hourly(current_block_rules)
+                    rule_blocks.append({
+                        'through': current_through,
+                        'for_days': current_for,
+                        'hourly_values': hourly_values
+                    })
+                    current_block_rules = [] # Reset for next block
+
+                current_through = field
+                i += 1
+            elif field_lower.startswith("for:"):
+                 # Handle 'For:' similarly, assuming it follows 'Through:'
+                 current_for = field
+                 i += 1
+            elif field_lower.startswith("until:"):
+                if i + 1 < len(rule_fields):
+                    time_match = re.search(r'(\d{1,2}:\d{2})', field)
+                    if time_match:
+                        end_time = time_match.group(1)
+                        value = rule_fields[i+1].strip()
+                        current_block_rules.append({'end_time': end_time, 'value': value})
+                        i += 2 # Move past pair
+                    else:
+                        print(f"Warning: Invalid 'Until:' format found: '{field}'. Skipping field.")
+                        i += 1 # Skip this field
+                else:
+                    # 'Until:' without a value following
+                    print(f"Warning: 'Until:' found without a subsequent value: '{field}'. Skipping field.")
+                    i += 1
+            else:
+                # Unknown field, skip it
+                # print(f"Info: Skipping unrecognized field in schedule rules: '{field}'")
+                i += 1
+
+        # Process the last block after the loop finishes
+        if current_block_rules:
+            hourly_values = self._expand_rules_to_hourly(current_block_rules)
+            rule_blocks.append({
+                'through': current_through,
+                'for_days': current_for,
+                'hourly_values': hourly_values
+            })
+
+        return rule_blocks
+
+
     def _store_schedule(self, name: str, type_: str, rule_fields: List[str]) -> None:
         """
         Store a schedule with its rules.
@@ -144,9 +352,10 @@ class ScheduleExtractor:
             schedule_data = {
                 'name': name,
                 'type': type_,
-                'raw_rules': rule_fields
+                'raw_rules': rule_fields, # Keep raw rules for reference if needed
+                'rule_blocks': self._parse_compact_rule_blocks(rule_fields) # Add parsed hourly blocks
             }
-            
+
             # If we have a DataLoader, store additional metadata
             if self.data_loader is not None:
                 # Get zone that uses this schedule (if any)
@@ -171,6 +380,7 @@ class ScheduleExtractor:
                     'name': str, 
                     'type': str, 
                     'raw_rules': list,
+                    'rule_blocks': list[dict], # Changed: now stores rule blocks with hourly values
                     'zone_id': Optional[str],
                     'zone_type': Optional[str]
                 }

@@ -3,10 +3,13 @@ Generates PDF reports showing zone loads and their associated schedules.
 """
 # Use platypus for automatic pagination
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer, PageBreak
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import cm
+from reportlab.lib.pagesizes import A4, landscape, A3
+from reportlab.lib.units import cm, inch
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.colors import navy, black, grey, lightgrey, white
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+import ast # Add import for literal_eval
+
 def wrap_text(text, style):
     """Helper function to create wrapped text in a cell."""
     return Paragraph(str(text), style)
@@ -16,8 +19,8 @@ def create_cell_style(styles, is_header=False):
     style = ParagraphStyle(
         'Cell',
         parent=styles['Normal'],
-        fontSize=8,
-        leading=9,
+        fontSize=5, # Further reduced font size from 6 to 5
+        leading=6, # Reduced leading accordingly
         spaceBefore=1,
         spaceAfter=1,
         fontName='Helvetica-Bold' if is_header else 'Helvetica',
@@ -26,22 +29,124 @@ def create_cell_style(styles, is_header=False):
     )
     return style
 
-def create_table_style():
-    """Create a consistent table style for all tables in the report."""
-    return TableStyle([
+def create_hierarchical_table_style():
+    """Create table style for the main load table with hierarchical headers."""
+    # Spans for the first header row (categories)
+    # (start_col, start_row), (end_col, end_row)
+    spans = [
+        ('SPAN', (0, 0), (0, 1)),  # Zone spans both header rows
+        ('SPAN', (1, 0), (3, 0)),  # Occupancy
+        ('SPAN', (4, 0), (5, 0)),  # Lighting
+        ('SPAN', (6, 0), (7, 0)),  # Non Fixed Equipment
+        ('SPAN', (8, 0), (9, 0)),  # Fixed Equipment
+        ('SPAN', (10, 0), (12, 0)), # Heating
+        ('SPAN', (13, 0), (15, 0)), # Cooling
+        ('SPAN', (16, 0), (17, 0)), # Infiltration
+        ('SPAN', (18, 0), (19, 0))  # Ventilation
+    ]
+
+    # Basic styling + spans
+    style = [
+        # Header Row 1 (Categories) Styling
         ('BACKGROUND', (0, 0), (-1, 0), lightgrey),
         ('TEXTCOLOR', (0, 0), (-1, 0), black),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'), # Center align category headers
+        ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ('BACKGROUND', (0, 1), (-1, -1), white),
+        ('FONTSIZE', (0, 0), (-1, 0), 6), # Reduced category header font size
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 3), # Slightly reduce padding
+
+        # Header Row 2 (Sub-columns) Styling
+        ('BACKGROUND', (1, 1), (-1, 1), lightgrey),
+        ('TEXTCOLOR', (1, 1), (-1, 1), black),
+        ('ALIGN', (1, 1), (-1, 1), 'CENTER'),
+        ('VALIGN', (1, 1), (-1, 1), 'MIDDLE'),
+        ('FONTNAME', (1, 1), (-1, 1), 'Helvetica-Bold'),
+        ('FONTSIZE', (1, 1), (-1, 1), 5), # Reduced sub-header font size
+        ('TOPPADDING', (1, 1), (-1, 1), 1), # Reduce padding
+        ('BOTTOMPADDING', (1, 1), (-1, 1), 1), # Reduce padding
+
+        # Zone Header Cell Specific Styling (spanning both rows)
+        ('ALIGN', (0, 0), (0, 1), 'CENTER'),
+        ('VALIGN', (0, 0), (0, 1), 'MIDDLE'),
+
+        # Data Rows Styling
+        ('BACKGROUND', (0, 2), (-1, -1), white), # Data rows start from row 2
+        ('TEXTCOLOR', (0, 2), (-1, -1), black),
+        ('ALIGN', (0, 2), (-1, -1), 'LEFT'), # Left align data cells
+        ('VALIGN', (0, 2), (-1, -1), 'MIDDLE'),
+        ('FONTNAME', (0, 2), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 2), (-1, -1), 5), # Reduced data font size
+        ('TOPPADDING', (0, 2), (-1, -1), 1), # Reduce padding
+        ('BOTTOMPADDING', (0, 2), (-1, -1), 1), # Reduce padding
+
+        # Grid lines for the entire table
         ('GRID', (0, 0), (-1, -1), 1, grey),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 4),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 4)
-    ])
+
+        # Padding for all cells
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3)
+    ]
+
+    return TableStyle(spans + style)
+
+def extract_setpoint(schedule_values, setpoint_type):
+    """
+    Extracts a specific setpoint value from Schedule:Compact data.
+    Args:
+        schedule_values (list): The list of values from the Schedule:Compact object.
+        setpoint_type (str): 'work' or 'non_work'.
+    Returns:
+        str: The extracted setpoint value or '-' if not found/invalid.
+    """
+    last_non_work_val = None
+    last_work_val = None
+    last_until = None
+
+    try:
+        for i, field in enumerate(schedule_values):
+            field_str = str(field).strip().lower()
+            if field_str.startswith("until:"):
+                last_until = field_str
+                # Look ahead for the value
+                if i + 1 < len(schedule_values):
+                    value_str = str(schedule_values[i+1]).strip()
+                    # Check if the value is numeric (handles integers and floats, including negative)
+                    is_numeric = False
+                    if value_str:
+                        if value_str.isdigit():
+                            is_numeric = True
+                        elif value_str.startswith('-') and value_str[1:].isdigit():
+                             is_numeric = True
+                        else:
+                            try:
+                                float(value_str)
+                                is_numeric = True
+                            except ValueError:
+                                is_numeric = False
+
+                    if is_numeric:
+                        if last_until == "until: 24:00":
+                            last_non_work_val = value_str
+                        else:
+                            last_work_val = value_str
+                    else:
+                         # If value after 'Until:' is not numeric, reset last_until
+                         last_until = None
+
+        if setpoint_type == 'non_work':
+            # Return last non-work value found, default '-'
+            return last_non_work_val if last_non_work_val is not None else '-'
+        elif setpoint_type == 'work':
+            # Return last work value found, or fallback to non-work if no specific work value found
+            return last_work_val if last_work_val is not None else (last_non_work_val if last_non_work_val is not None else '-')
+        else:
+            return '-'
+    except Exception as e:
+        # Log error during extraction if needed
+        # print(f"Error extracting setpoint: {e}")
+        return '-'
+
 
 def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf"):
     """
@@ -52,12 +157,19 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf"):
         output_filename (str): The name of the output PDF file.
     """
     # Use SimpleDocTemplate for automatic page layout
-    doc = SimpleDocTemplate(output_filename, pagesize=A4,
-                            leftMargin=2*cm, rightMargin=2*cm,
-                            topMargin=2*cm, bottomMargin=2*cm)
+    # Use A3 Landscape with minimal margins to maximize table space
+    left_margin = 0.5*cm
+    right_margin = 0.5*cm
+    top_margin = 1.0*cm
+    bottom_margin = 1.0*cm
+    page_size = landscape(A3)  # A3 gives much more space than A4
+    
+    doc = SimpleDocTemplate(output_filename, pagesize=page_size,
+                            leftMargin=left_margin, rightMargin=right_margin,
+                            topMargin=top_margin, bottomMargin=bottom_margin)
     story = []
-    width, height = A4 # Used for calculating column widths relative to page
-    content_width = width - 2*cm - 2*cm # Available width after margins
+    width, height = page_size
+    content_width = width - left_margin - right_margin # Available content width
 
     # Styles
     styles = getSampleStyleSheet()
@@ -65,6 +177,7 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf"):
     header_cell_style = create_cell_style(styles, is_header=True)
     title_style = styles['h1']
     title_style.textColor = navy
+    title_style.alignment = TA_CENTER  # Center the title
     section_title_style = styles['h2']
     section_title_style.spaceBefore = 0.5 * cm
     section_title_style.spaceAfter = 0.3 * cm
@@ -77,7 +190,7 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf"):
     # --- Title ---
     title_text = "IDF Zone Loads Report"
     story.append(Paragraph(title_text, title_style))
-    story.append(Spacer(1, 1*cm)) # Add space after title
+    story.append(Spacer(1, 0.5*cm)) # Reduce space after title
 
     if not zone_data:
         story.append(Paragraph("No zones found or processed.", styles['Normal']))
@@ -93,156 +206,165 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf"):
     cell_style = create_cell_style(styles)
 
     try:
+        # --- Consolidated Load Table ---
+        table_data = []
+
+        # Define Hierarchical Header Rows
+        header_row1 = [
+            "Zone", "Occupancy", "", "", "Lighting", "",
+            "Non Fixed Equipment", "", "Fixed Equipment", "",
+            "Heating", "", "", "Cooling", "", "",
+            "Infiltration", "", "Ventilation", ""
+        ]
+        header_row2 = [
+            "", # Spanned by Zone in row 1
+            "people/\narea", "activity\nschedule\nw/person", "schedule\ntemplate\nname",
+            "power\ndensity\n[w/m2]", "schedule\ntemplate\nname",
+            "power\ndensity\n(W/m2)", "schedule\ntemplate\nname",
+            "power\ndensity\n(W/m2)", "schedule\ntemplate\nname",
+            "setpoint\n(C)", "setpoint\nnon work\ntime(C)", "equipment\nschedule\ntemplate\nname",
+            "setpoint\n(C)", "setpoint\nnon work\ntime(C)", "equipment\nschedule\ntemplate\nname",
+            "rate\n(ACH)", "schedule",
+            "rate\n(ACH)", "schedule"
+        ]
+
+        # Apply styles to header cells
+        styled_header_row1 = [wrap_text(h, header_cell_style) if h else "" for h in header_row1]
+        styled_header_row2 = [wrap_text(h, header_cell_style) if h else "" for h in header_row2]
+
+        table_data.append(styled_header_row1)
+        table_data.append(styled_header_row2)
+
+        # Populate Data Rows
         for zone_name, zone_info in zone_data.items():
-            # Zone Title
-            zone_title = f"Zone: {zone_name}"
-            story.append(Paragraph(zone_title, zone_name_style))
-            story.append(Spacer(1, 0.2*cm)) # Space after zone title
+            loads = zone_info.get('loads', {})
+            schedules = zone_info.get('schedules', {})
 
-            # Zone Properties Table
-            properties = zone_info['properties']
-            prop_data = [
-                [wrap_text("Property", header_cell_style),
-                 wrap_text("Value", header_cell_style),
-                 wrap_text("Units", header_cell_style)],
-                [wrap_text("Floor Area", cell_style), wrap_text(f"{properties['area']:.2f}", cell_style), wrap_text("m²", cell_style)],
-                [wrap_text("Volume", cell_style), wrap_text(f"{properties['volume']:.2f}", cell_style), wrap_text("m³", cell_style)],
-                [wrap_text("Zone Multiplier", cell_style), wrap_text(str(properties['multiplier']), cell_style), wrap_text("-", cell_style)]
+            # Helper to safely get nested data or return default
+            def get_load_data(load_type, key, default='-'):
+                return loads.get(load_type, {}).get(key, default) or default
+
+            def get_schedule_name(schedule_type, default='-'):
+                 sched_info = schedules.get(schedule_type)
+                 if isinstance(sched_info, dict):
+                     return sched_info.get('name', default) or default
+                 return sched_info or default # Fallback if not a dict
+
+            # Extract data for each column
+            people_density = get_load_data('people', 'people_per_area', 0.0)
+            people_activity_sched = get_load_data('people', 'activity_schedule')
+            people_sched = get_load_data('people', 'schedule')
+
+            lights_density = get_load_data('lights', 'watts_per_area', 0.0)
+            lights_sched = get_load_data('lights', 'schedule')
+
+            non_fixed_density = get_load_data('non_fixed_equipment', 'watts_per_area', 0.0)
+            non_fixed_sched = get_load_data('non_fixed_equipment', 'schedule')
+
+            fixed_density = get_load_data('fixed_equipment', 'watts_per_area', 0.0)
+            fixed_sched = get_load_data('fixed_equipment', 'schedule')
+
+            heating_schedule_obj = schedules.get('heating')
+            heating_sched_name = heating_schedule_obj.get('name', '-') if isinstance(heating_schedule_obj, dict) else '-'
+            heating_sched_values = heating_schedule_obj.get('schedule_values', []) if isinstance(heating_schedule_obj, dict) else []
+            heating_setpoint = extract_setpoint(heating_sched_values, 'work')
+            heating_setpoint_non_work = extract_setpoint(heating_sched_values, 'non_work')
+
+            cooling_schedule_obj = schedules.get('cooling')
+            cooling_sched_name = cooling_schedule_obj.get('name', '-') if isinstance(cooling_schedule_obj, dict) else '-'
+            cooling_sched_values = cooling_schedule_obj.get('schedule_values', []) if isinstance(cooling_schedule_obj, dict) else []
+            cooling_setpoint = extract_setpoint(cooling_sched_values, 'work')
+            cooling_setpoint_non_work = extract_setpoint(cooling_sched_values, 'non_work')
+
+            infil_rate = get_load_data('infiltration', 'rate_ach', 0.0)
+            infil_sched = get_load_data('infiltration', 'schedule')
+
+            vent_rate = get_load_data('ventilation', 'rate_ach', 0.0)
+            vent_sched = get_load_data('ventilation', 'schedule')
+
+            # Format data for the row
+            # Ensure all data is string before wrapping
+            def to_str(val, precision=None):
+                if val is None: return '-'
+                if precision is not None:
+                    try:
+                        return f"{float(val):.{precision}f}"
+                    except (ValueError, TypeError):
+                        return str(val) # Fallback to string if formatting fails
+                return str(val)
+
+            row_data = [
+                wrap_text(to_str(zone_name), cell_style),
+                # Occupancy
+                wrap_text(to_str(people_density, 2), cell_style),
+                wrap_text(to_str(people_activity_sched), cell_style),
+                wrap_text(to_str(people_sched), cell_style),
+                # Lighting
+                wrap_text(to_str(lights_density, 1), cell_style),
+                wrap_text(to_str(lights_sched), cell_style),
+                # Non Fixed Equipment
+                wrap_text(to_str(non_fixed_density, 1), cell_style),
+                wrap_text(to_str(non_fixed_sched), cell_style),
+                # Fixed Equipment
+                wrap_text(to_str(fixed_density, 1), cell_style),
+                wrap_text(to_str(fixed_sched), cell_style),
+                # Heating
+                wrap_text(to_str(heating_setpoint), cell_style),
+                wrap_text(to_str(heating_setpoint_non_work), cell_style),
+                wrap_text(to_str(heating_sched_name), cell_style),
+                # Cooling
+                wrap_text(to_str(cooling_setpoint), cell_style),
+                wrap_text(to_str(cooling_setpoint_non_work), cell_style),
+                wrap_text(to_str(cooling_sched_name), cell_style),
+                # Infiltration
+                wrap_text(to_str(infil_rate, 2), cell_style),
+                wrap_text(to_str(infil_sched), cell_style),
+                # Ventilation
+                wrap_text(to_str(vent_rate, 2), cell_style),
+                wrap_text(to_str(vent_sched), cell_style),
             ]
-            prop_table = Table(
-                prop_data,
-                colWidths=[content_width*0.4, content_width*0.4, content_width*0.2],
-                # rowHeights removed - let platypus calculate height based on content
-                hAlign='LEFT' # Align table to the left
-            )
-            prop_table.setStyle(create_table_style())
-            story.append(prop_table)
-            story.append(Spacer(1, 0.5*cm)) # Space after properties table
+            table_data.append(row_data)
 
-            # People Loads Section
-            story.append(Paragraph("Occupancy Loads", section_title_style))
-            if zone_info['loads']['people']:
-                people_data = [
-                    [wrap_text("Description", header_cell_style),
-                     wrap_text("Density", header_cell_style),
-                     wrap_text("Activity Schedule", header_cell_style),
-                     wrap_text("Occupancy Schedule", header_cell_style)]
-                ]
-                for load in zone_info['loads']['people']:
-                    name = load['name'].replace(zone_name + " ", "")
-                    density = f"{load['value']:.3f} {load['calculation_method']}"
-                    people_data.append([
-                        wrap_text(name, cell_style),
-                        wrap_text(density, cell_style),
-                        wrap_text(load['activity_schedule'], cell_style),
-                        wrap_text(load['schedule'], cell_style)
-                    ])
-
-                people_table = Table(
-                    people_data,
-                    colWidths=[content_width*0.3, content_width*0.2, content_width*0.3, content_width*0.2],
-                    hAlign='LEFT'
-                )
-                people_table.setStyle(create_table_style())
-                story.append(people_table)
-                story.append(Spacer(1, 0.5*cm)) # Space after people table
-            else:
-                 story.append(Paragraph("No occupancy loads defined for this zone.", styles['Normal']))
-                 story.append(Spacer(1, 0.5*cm))
-
-            # Lighting Loads Section
-            story.append(Paragraph("Lighting Loads", section_title_style))
-            if zone_info['loads']['lights']:
-                lights_data = [
-                    [wrap_text("Description", header_cell_style),
-                     wrap_text("Load Density", header_cell_style),
-                     wrap_text("Schedule", header_cell_style),
-                     wrap_text("Category", header_cell_style)]
-                ]
-                for load in zone_info['loads']['lights']:
-                    name = load['name'].replace(zone_name + " ", "")
-                    density = f"{load['watts_per_area']:.1f} W/m²"
-                    lights_data.append([
-                        wrap_text(name, cell_style),
-                        wrap_text(density, cell_style),
-                        wrap_text(load['schedule'], cell_style),
-                        wrap_text("General Lighting", cell_style)
-                    ])
-
-                lights_table = Table(
-                    lights_data,
-                    colWidths=[content_width*0.3, content_width*0.2, content_width*0.3, content_width*0.2],
-                    hAlign='LEFT'
-                )
-                lights_table.setStyle(create_table_style())
-                story.append(lights_table)
-                story.append(Spacer(1, 0.5*cm)) # Space after lights table
-            else:
-                 story.append(Paragraph("No lighting loads defined for this zone.", styles['Normal']))
-                 story.append(Spacer(1, 0.5*cm))
-
-            # Equipment Loads Section
-            story.append(Paragraph("Equipment Loads", section_title_style))
-            if zone_info['loads']['equipment']:
-                equip_data = [
-                    [wrap_text("Description", header_cell_style),
-                     wrap_text("Load Density", header_cell_style),
-                     wrap_text("Schedule", header_cell_style),
-                     wrap_text("Type", header_cell_style)]
-                ]
-                for load in zone_info['loads']['equipment']:
-                    name = load['name'].replace(zone_name + " ", "")
-                    density = f"{load['watts_per_area']:.1f} W/m²"
-                    equip_type = "Miscellaneous" if load.get('type') == 'misc' else "Fixed Equipment"
-                    equip_data.append([
-                        wrap_text(name, cell_style),
-                        wrap_text(density, cell_style),
-                        wrap_text(load['schedule'], cell_style),
-                        wrap_text(equip_type, cell_style)
-                    ])
-
-                equip_table = Table(
-                    equip_data,
-                    colWidths=[content_width*0.3, content_width*0.2, content_width*0.3, content_width*0.2],
-                    hAlign='LEFT'
-                )
-                equip_table.setStyle(create_table_style())
-                story.append(equip_table)
-                story.append(Spacer(1, 0.5*cm)) # Space after equipment table
-            else:
-                 story.append(Paragraph("No equipment loads defined for this zone.", styles['Normal']))
-                 story.append(Spacer(1, 0.5*cm))
-
-            # Temperature Schedules Section (Renamed for clarity)
-            story.append(Paragraph("Temperature Schedules", section_title_style))
-            schedules = zone_info['schedules']
-            active_schedules = {k: v for k, v in schedules.items() if v} # Filter out empty schedules
-
-            if active_schedules:
-                sched_data = [
-                    [wrap_text("Schedule Type", header_cell_style),
-                     wrap_text("Schedule Name", header_cell_style)]
-                ]
-                for sched_type, sched_name in active_schedules.items():
-                     sched_data.append([
-                         wrap_text(sched_type.replace('_', ' ').title(), cell_style), # Nicer formatting
-                         wrap_text(sched_name, cell_style)
-                     ])
-
-                sched_table = Table(
-                    sched_data,
-                    colWidths=[content_width*0.4, content_width*0.6],
-                    hAlign='LEFT'
-                )
-                sched_table.setStyle(create_table_style())
-                story.append(sched_table)
-                story.append(Spacer(1, 0.5*cm)) # Space after schedules table
-            else:
-                 story.append(Paragraph("No temperature schedules defined for this zone.", styles['Normal']))
-                 story.append(Spacer(1, 0.5*cm))
-
-            # Add a page break between zones if desired (optional)
-            # story.append(PageBreak())
+        # Create and style the table
+        if len(table_data) > 2: # Check if there's data beyond the two header rows
+            # Optimize column widths based on content importance and available space
+            # Calculate total available width and distribute proportionally
+            available_width = content_width - 1*cm  # Allow some buffer
+            
+            # Define column width percentages (totaling 100%)
+            col_percentages = [
+                7.0,  # Zone - keep wider for zone names
+                3.5,  # people/area - narrow numeric column
+                5.5,  # activity schedule - medium width for text
+                8.0,  # occupancy schedule name - wider for long names
+                3.5,  # lighting density - narrow numeric column
+                6.5,  # lighting schedule name - medium width for names
+                3.5,  # non-fixed density - narrow numeric column
+                6.5,  # non-fixed schedule name - medium width for names
+                3.5,  # fixed density - narrow numeric column
+                6.5,  # fixed schedule name - medium width for names
+                3.0,  # heating setpoint - very narrow numeric column
+                3.5,  # heating non-work setpoint - narrow numeric column
+                8.0,  # heating schedule name - wider for long names
+                3.0,  # cooling setpoint - very narrow numeric column
+                3.5,  # cooling non-work setpoint - narrow numeric column
+                8.0,  # cooling schedule name - wider for long names
+                3.0,  # infil rate - very narrow numeric column
+                5.0,  # infil schedule - medium width for names
+                3.0,  # vent rate - very narrow numeric column
+                5.0   # vent schedule - medium width for names
+            ]
+            
+            # Calculate column widths based on percentages
+            col_widths = [available_width * (p/100) for p in col_percentages]
+            
+            # Create the table with the calculated widths
+            load_table = Table(table_data, colWidths=col_widths, hAlign='CENTER', repeatRows=2)
+            load_table.setStyle(create_hierarchical_table_style())
+            story.append(load_table)
+        else:
+            # Handle case where only header exists (e.g., zone_data was empty after filtering)
+             story.append(Paragraph("No zone load data to display.", styles['Normal']))
 
         # Build the PDF document from the story
         doc.build(story)
@@ -251,7 +373,6 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf"):
 
     except Exception as e:
         print(f"Error generating or saving loads PDF file {output_filename}: {e}")
-        # Consider re-raising or logging the exception for better debugging
-        # import traceback
-        # traceback.print_exc()
+        import traceback
+        traceback.print_exc()  # Enable traceback for better debugging
         return False
