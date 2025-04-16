@@ -25,8 +25,16 @@ class StorageParser:
         Args:
             idf: An IDF file object from eppy (kept for compatibility)
         """
-        # Get all storage zones from DataLoader
-        storage_zones = self.data_loader.get_zones_by_type("storage")
+        # Get all storage zones directly from cached data
+        if not self.data_loader._zones:
+            # If zones aren't already loaded, make sure to load them
+            self.data_loader._zones = self.data_loader._load_all_zones()
+            
+        # Get all zones and filter for storage zones
+        storage_zones = {}
+        for zone_id, zone_data in self.data_loader._zones.items():
+            if zone_data.type.lower() == "storage":
+                storage_zones[zone_id] = zone_data
         
         # Process each storage zone
         for zone_id, zone_data in storage_zones.items():

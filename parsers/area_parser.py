@@ -36,8 +36,11 @@ class AreaParser:
         start_time = time.time()
         
         try:
-            # Process all zones with HVAC systems
-            zones = self.data_loader.get_all_zones()
+            # Use pre-cached zone data instead of reading from IDF
+            zones = self.data_loader._zones or self.data_loader._load_all_zones()
+            if not zones:
+                zones = self.data_loader.get_all_zones()
+                
             surface_batch = []
             zone_map = {}  # Map surfaces to their zones for batch processing
             
@@ -62,16 +65,9 @@ class AreaParser:
                 for surface in floor_surfaces:
                     surface_batch.append(surface)
                     zone_map[surface.id] = zone_id
-                    
-                    # Process in batches
-                    if len(surface_batch) >= self._batch_size:
-                        self._process_surface_batch(surface_batch, zone_map)
-                        surface_batch = []
-                        zone_map = {}
             
-            # Process remaining surfaces
-            if surface_batch:
-                self._process_surface_batch(surface_batch, zone_map)
+            # Process all surfaces in one batch for efficiency
+            self._process_surface_batch(surface_batch, zone_map)
             
             end_time = time.time()
             logger.info(f"Area processing completed in {end_time - start_time:.2f}s")
@@ -147,7 +143,7 @@ class AreaParser:
         y = points_2d[:, 1]
         return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
         
-    def _process_surface_batch(self, surfaces: List[Any], zone_map: Dict[str, str]) -> None:
+    def _process_surface_batch(self, surfaces, zone_map) -> None:
         """
         Process a batch of surfaces efficiently using cached data.
         
@@ -155,25 +151,33 @@ class AreaParser:
             surfaces: List of SurfaceData objects to process
             zone_map: Mapping of surface IDs to zone IDs
         """
-        # Get all vertices in one batch
-        surface_ids = [s.id for s in surfaces]
-        vertices_map = self.data_loader.get_surface_vertices_batch(surface_ids)
+        if not surfaces:
+            return
+            
+        # Get all construction properties at once
+        construction_names = {s.construction_name for s in surfaces}
+        construction_props = {}
+        for name in construction_names:
+            construction_props[name] = self.data_loader.get_construction_properties(name)
         
         # Process each surface using cached data
         for surface in surfaces:
-            vertices = vertices_map.get(surface.id)
-            if not vertices:
+            if surface.id not in zone_map:
                 continue
                 
-            # Use pre-calculated construction properties
-            construction_props = self.data_loader.get_construction_properties(surface.construction_name)
-            
-            # Calculate area
-            area = self._calculate_polygon_area(vertices)
-            conductivity = construction_props['conductivity']
-            
             zone_id = zone_map[surface.id]
             construction_name = surface.construction_name
+            
+            # Skip if zone was filtered out
+            if zone_id not in self.areas_by_zone:
+                continue
+                
+            # Get pre-calculated construction properties
+            props = construction_props.get(construction_name, {'thickness': 0.0, 'conductivity': 0.0})
+            
+            # Calculate area directly from vertices
+            area = self._calculate_polygon_area(surface.vertices)
+            conductivity = props['conductivity']
             
             # Initialize construction group if not exists
             if construction_name not in self.areas_by_zone[zone_id]["constructions"]:

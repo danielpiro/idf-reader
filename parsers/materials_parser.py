@@ -27,9 +27,14 @@ class MaterialsParser:
         Args:
             idf: eppy IDF object (kept for compatibility)
         """
+        if not self.data_loader:
+            print("Warning: MaterialsParser requires a DataLoader instance for efficient processing")
+            return
+        
         try:
-            # Use cached constructions from DataLoader
-            constructions = self.data_loader.get_all_constructions()
+            # Use cached constructions and materials from DataLoader
+            constructions = self.data_loader._constructions or self.data_loader._load_all_constructions()
+            materials = self.data_loader._materials or self.data_loader._load_all_materials()
             
             # Process each construction
             for construction_id, construction_data in constructions.items():
@@ -38,9 +43,9 @@ class MaterialsParser:
                 
                 # Get all materials in the construction
                 for layer_id in construction_data.material_layers:
-                    material_data = self.data_loader.get_material(layer_id)
+                    material_data = materials.get(layer_id)
                     if material_data:
-                        element_type = self._get_element_type(construction_data)
+                        element_type = self._get_element_type_cached(construction_data)
                         
                         self.element_data.append({
                             "element_type": element_type,
@@ -61,9 +66,10 @@ class MaterialsParser:
         except Exception as e:
             print(f"Error processing materials and constructions: {str(e)}")
             
-    def _get_element_type(self, construction_data) -> str:
+    def _get_element_type_cached(self, construction_data) -> str:
         """
-        Determine element type based on construction usage.
+        Determine element type based on construction usage using cached data.
+        More efficient than the original method.
         
         Args:
             construction_data: ConstructionData from cache
@@ -71,12 +77,17 @@ class MaterialsParser:
         Returns:
             str: Element type description
         """
-        # Get all surfaces using this construction
-        surfaces = self.data_loader.get_all_surfaces()
-        construction_surfaces = [
-            s for s in surfaces.values() 
-            if s.construction_name == construction_data.name
-        ]
+        # Access the surfaces cache directly instead of calling get_all_surfaces()
+        surfaces = self.data_loader._surfaces or self.data_loader._load_all_surfaces()
+        
+        # Filter surfaces more efficiently
+        construction_surfaces = []
+        for surface_id, surface in surfaces.items():
+            if surface.construction_name == construction_data.name:
+                construction_surfaces.append(surface)
+                # Break early once we have one surface (for efficiency)
+                if len(construction_surfaces) >= 1:
+                    break
         
         if not construction_surfaces:
             return ""
@@ -88,13 +99,17 @@ class MaterialsParser:
         except (AttributeError, IndexError):
             return ""
         
+        # Use cached zones directly instead of calling get_all_zones()
+        zones = self.data_loader._zones or self.data_loader._load_all_zones()
+        is_zone_interior = surface.zone_name in zones
+        
         if s_type == "wall":
             if boundary == "outdoors":
                 return "External wall"
             elif boundary == "ground":
                 return "Ground wall"
             else:
-                return surface.zone_name in self.data_loader.get_all_zones() and "Internal wall" or "Separation wall"
+                return "Internal wall" if is_zone_interior else "Separation wall"
                 
         if s_type == "floor":
             if boundary == "outdoors":
@@ -102,7 +117,7 @@ class MaterialsParser:
             elif boundary == "ground":
                 return "Ground floor"
             else:
-                return surface.zone_name in self.data_loader.get_all_zones() and "Intermediate floor" or "Separation floor"
+                return "Intermediate floor" if is_zone_interior else "Separation floor"
                 
         if s_type == "ceiling":
             if boundary == "ground":
@@ -110,7 +125,7 @@ class MaterialsParser:
             elif boundary == "outdoors":
                 return "External ceiling"
             else:
-                return surface.zone_name in self.data_loader.get_all_zones() and "Intermediate ceiling" or "Separation ceiling"
+                return "Intermediate ceiling" if is_zone_interior else "Separation ceiling"
                 
         if s_type == "roof":
             return "Roof"

@@ -41,6 +41,7 @@ class SettingsExtractor:
         self.extracted_settings = {}
         self.initialize_settings()
         self._setup_mappings()
+        self._cached_settings = {}  # Cache for settings data
 
     def initialize_settings(self):
         """Initialize settings dictionary with categories"""

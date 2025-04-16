@@ -28,44 +28,19 @@ class LoadExtractor:
         Args:
             idf: eppy IDF object (kept for compatibility)
         """
-        if not idf and not self.data_loader:
+        if not self.data_loader:
+            # Fall back to direct IDF processing if no DataLoader available
+            if idf:
+                self._process_people_loads(idf)
+                self._process_lights_loads(idf)
+                self._process_equipment_loads(idf)
+                self._process_infiltration_loads(idf)
+                self._process_ventilation_loads(idf)
+                self._process_temperature_schedules(idf)
             return
             
-        # Use either cached data or IDF object
-        if self.data_loader:
-            # Get zones from cache
-            zones = self.data_loader.get_all_zones()
-            for zone_id, zone_data in zones.items():
-                # Initialize with aggregated structure
-                self.loads_by_zone[zone_id] = {
-                    "properties": {
-                        "area": zone_data.floor_area,
-                        "volume": zone_data.volume,
-                        "multiplier": zone_data.multiplier
-                    },
-                    "loads": {
-                        "people": {"people_per_area": 0.0, "activity_schedule": None, "schedule": None},
-                        "lights": {"watts_per_area": 0.0, "schedule": None},
-                        "non_fixed_equipment": {"watts_per_area": 0.0, "schedule": None},
-                        "fixed_equipment": {"watts_per_area": 0.0, "schedule": None},
-                        "infiltration": {"rate_ach": 0.0, "schedule": None}, # Assuming ACH for now
-                        "ventilation": {"rate_ach": 0.0, "schedule": None} # Assuming ACH for now
-                    },
-                    "schedules": { # Keep detailed schedule info for heating/cooling here
-                        "heating": None,
-                        "cooling": None
-                    }
-                }
-                
-        # Continue with original IDF processing for loads
-        # since they're not yet cached in DataLoader
-        if idf:
-            self._process_people_loads(idf)
-            self._process_lights_loads(idf)
-            self._process_equipment_loads(idf)
-            self._process_infiltration_loads(idf)
-            self._process_ventilation_loads(idf) # Add call for ventilation
-            self._process_temperature_schedules(idf)
+        # Use comprehensive pre-cached data from DataLoader
+        self.loads_by_zone = self.data_loader.get_all_load_data()
 
     def _process_people_loads(self, idf) -> None:
         """Process and aggregate people loads from IDF."""

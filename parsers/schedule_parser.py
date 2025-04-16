@@ -113,6 +113,34 @@ class ScheduleExtractor:
         # Process using existing logic
         self.process_element('object', 'Schedule:Compact', data)
 
+    def process_idf(self, idf) -> None:
+        """
+        Process all schedules from the IDF file, using cached data if available.
+        
+        Args:
+            idf: eppy IDF object (kept for compatibility)
+        """
+        if not self.data_loader:
+            return
+            
+        # Use cached schedules from DataLoader
+        schedule_cache = self.data_loader.get_all_schedules_with_names()
+        
+        # Process each cached schedule
+        for schedule_id, schedule_data in schedule_cache.items():
+            schedule_type = schedule_data['type']
+            
+            # Filter out basic types
+            if self._is_basic_type(schedule_type):
+                continue
+                
+            # Use raw rules directly from cache
+            name = schedule_id
+            rule_fields = schedule_data['raw_rules']
+            
+            # Store using existing logic
+            self._store_schedule(name, schedule_type, rule_fields)
+
     def _normalize_schedule_type(self, type_: str) -> str:
         """
         Normalize schedule type by removing:
