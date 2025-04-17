@@ -4,8 +4,7 @@ Extracts and processes area information including floor areas and material prope
 from typing import Dict, Any, List, Optional, Tuple
 import time
 import logging
-from utils.data_loader import DataLoader, safe_float
-from utils.data_models import ZoneData, SurfaceData
+from utils.data_loader import DataLoader
 
 logger = logging.getLogger(__name__)
 

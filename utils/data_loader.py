@@ -239,6 +239,7 @@ class DataLoader:
                 'number_of_people': safe_float(getattr(people, "Number_of_People", 0.0)),
                 'schedule': str(getattr(people, "Number_of_People_Schedule_Name", "")),
                 'activity_schedule': str(getattr(people, "Activity_Level_Schedule_Name", "")),
+                'clothing_schedule': str(getattr(people, "Clothing_Insulation_Schedule_Name", "")),
                 'raw_object': people  # Store the raw object for parsers
             })
         
