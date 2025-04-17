@@ -98,7 +98,7 @@ class LoadExtractor:
                 if zone_load_data["schedule"] is None:
                     zone_load_data["schedule"] = load['schedule']
                 if zone_load_data["activity_schedule"] is None:
-                    zone_load_data["activity_schedule"] = load['activity_schedule']
+                    zone_load_data["activity_schedule"] = self.data_loader.get_schedule_rules(load['activity_schedule'])[4]
 
     def _process_lights_loads(self) -> None:
         """

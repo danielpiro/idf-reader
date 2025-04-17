@@ -284,7 +284,7 @@ class DataLoader:
                 self._equipment_cache[zone_name].append({
                     'name': equip_name,
                     'type': "fixed" if is_fixed else "non_fixed",
-                    'watts_per_area': safe_float(getattr(equip, "Watts_per_Zone_Floor_Area", 0.0)),
+                    'watts_per_area': safe_float(getattr(equip, "Power_per_Zone_Floor_Area", 0.0)),
                     'schedule': str(getattr(equip, "Schedule_Name", "")),
                     'raw_object': equip  # Store the raw object for parsers
                 })
@@ -300,7 +300,7 @@ class DataLoader:
                 self._infiltration_cache[zone_name] = []
                 
             self._infiltration_cache[zone_name].append({
-                'air_changes_per_hour': safe_float(getattr(infil, "Air_Changes_Per_Hour", 0.0)),
+                'air_changes_per_hour': safe_float(getattr(infil, "Constant_Term_Coefficient", 0.0)),
                 'schedule': str(getattr(infil, "Schedule_Name", "")),
                 'raw_object': infil  # Store the raw object for parsers
             })
@@ -317,7 +317,7 @@ class DataLoader:
                     self._ventilation_cache[zone_name] = []
                     
                 self._ventilation_cache[zone_name].append({
-                    'air_changes_per_hour': safe_float(getattr(vent, "Air_Changes_Per_Hour", 0.0)),
+                    'air_changes_per_hour': safe_float(getattr(vent, "Delta_Temperature", 0.0)),
                     'schedule': str(getattr(vent, "Schedule_Name", "")),
                     'raw_object': vent  # Store the raw object for parsers
                 })
