@@ -3,6 +3,7 @@ Extracts and processes Schedule:Compact objects.
 Uses DataLoader for cached access to IDF data.
 """
 import re
+import datetime
 from typing import Dict, List, Any, Optional, Tuple, Union
 from utils.data_loader import DataLoader
 from utils.data_models import ScheduleData
@@ -61,6 +62,80 @@ class ScheduleExtractor:
         """
         return any(basic_type.lower() in schedule_type.lower()
                   for basic_type in BASIC_TYPES)
+
+    def _standardize_date_format(self, date_string: str) -> str:
+        """
+        Parse various date formats and standardize to DD/MM format.
+        Handles formats like:
+        - 31 Dec, 31 December -> 31/12
+        - 31 March -> 31/03
+        - 12/31 -> 31/12
+        - 4/1 -> 01/04
+        - 30 November -> 30/11
+
+        Args:
+            date_string: Original date string
+
+        Returns:
+            Standardized date string in DD/MM format
+        """
+        # Clean the input string - remove "Through:" prefix if present
+        date_string = date_string.strip()
+        if date_string.lower().startswith("through:"):
+            date_string = date_string[8:].strip().lower()
+            
+        # Month name to number mapping (both full and abbreviated)
+        month_names = {
+            "jan": 1, "january": 1,
+            "feb": 2, "february": 2,
+            "mar": 3, "march": 3,
+            "apr": 4, "april": 4,
+            "may": 5,
+            "jun": 6, "june": 6,
+            "jul": 7, "july": 7,
+            "aug": 8, "august": 8,
+            "sep": 9, "september": 9,
+            "oct": 10, "october": 10,
+            "nov": 11, "november": 11,
+            "dec": 12, "december": 12
+        }
+        
+        # Try to match "DD Month" pattern (like "31 Dec" or "31 March")
+        pattern1 = re.search(r'(\d{1,2})\s+([a-zA-Z]+)', date_string, re.IGNORECASE)
+        if pattern1:
+            day = int(pattern1.group(1))
+            month_name = pattern1.group(2).lower()
+            # Try to match the month name
+            for name, num in month_names.items():
+                if month_name.startswith(name):
+                    return f"{day:02d}/{num:02d}"  # Format as DD/MM
+        
+        # Try to match "MM/DD" or "DD/MM" pattern
+        pattern2 = re.search(r'(\d{1,2})/(\d{1,2})', date_string)
+        if pattern2:
+            first = int(pattern2.group(1))
+            second = int(pattern2.group(2))
+            
+            # If first number is clearly a month (1-12) and second is >12, it's MM/DD
+            if 1 <= first <= 12 and second > 12:
+                return f"{second:02d}/{first:02d}"  # Convert MM/DD to DD/MM
+            
+            # If second number is clearly a month (1-12) and first is >12, it's DD/MM
+            elif 1 <= second <= 12 and first > 12:
+                return f"{first:02d}/{second:02d}"  # Already DD/MM format
+            
+            # If both could be either day or month, assume MM/DD format as it's more common in IDF files
+            elif 1 <= first <= 12 and 1 <= second <= 12:
+                return f"{second:02d}/{first:02d}"  # Convert MM/DD to DD/MM
+        
+        # If we couldn't parse it, try to make it look like DD/MM format
+        # This is a fallback to at least make it look consistent
+        if date_string.isdigit():
+            # If it's just a number (like "31"), assume it's a day and add "/12" (December)
+            return f"{int(date_string):02d}/12"
+            
+        # Last resort - return original with a consistent format marker
+        return f"{date_string} -> ??/??"  # Add marker to show it couldn't be parsed
 
     def process_element(self, element_type: str, identifier: str,
                        data: List[str], current_zone_id: Optional[str] = None) -> None:
@@ -289,15 +364,15 @@ class ScheduleExtractor:
         Returns:
             List of dictionaries, where each dict represents a rule block:
             {
-                'through': str,
+                'through': str, # Date in standardized DD/MM format
                 'for_days': str,
                 'hourly_values': List[str] (24 values)
             }
         """
         rule_blocks = []
         current_block_rules = []
-        current_through = "Until: 31 Dec" # Default if not specified
-        current_for = "AllDays"       # Default if not specified
+        current_through = "31/12"  # Default if not specified, standardized format
+        current_for = "AllDays"   # Default if not specified
         i = 0
 
         while i < len(rule_fields):
@@ -309,14 +384,16 @@ class ScheduleExtractor:
                 if current_block_rules:
                     hourly_values = self._expand_rules_to_hourly(current_block_rules)
                     rule_blocks.append({
-                        'through': current_through,
+                        'through': current_through, # Standardized date format
                         'for_days': current_for,
                         'hourly_values': hourly_values
                     })
                     current_block_rules = [] # Reset for next block
 
-                current_through = field
+                # Extract the date part from the Through field and standardize it
+                current_through = self._standardize_date_format(field)
                 i += 1
+            
             elif field_lower.startswith("for:"):
                  # Handle 'For:' similarly, assuming it follows 'Through:'
                  current_for = field
@@ -345,7 +422,7 @@ class ScheduleExtractor:
         if current_block_rules:
             hourly_values = self._expand_rules_to_hourly(current_block_rules)
             rule_blocks.append({
-                'through': current_through,
+                'through': current_through, # Standardized date format
                 'for_days': current_for,
                 'hourly_values': hourly_values
             })

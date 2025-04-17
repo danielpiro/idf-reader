@@ -46,33 +46,27 @@ def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> T
     cell_style.alignment = 1 # Center
 
     for block in rule_blocks:
-        # Use cleaned 'Through:' field as the period identifier
-        period_text = block.get('through', '').replace('Through:', '').strip()
+        # Use the standardized date format directly - already processed by parser
+        period_text = block.get('through', 'N/A')
+        # Don't try to process it further - it should already be in DD/MM format
         hourly_values = block.get('hourly_values', [''] * num_hour_cols) # Ensure 24 values
 
         # Create row data with period identifier + 24 hourly values
-        # Using raw strings for simplicity as requested
         row_data = [period_text] + [str(val) if val is not None else '' for val in hourly_values]
         table_data.append(row_data)
 
-    # Create TableStyle - simplified to match reference structure (no background colors)
+    # Add left alignment for the date column to improve readability
     style = TableStyle([
-        # ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey), # REMOVED Header background
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),     # Header text color (keep)
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),     # Header text color
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),           # Center align all cells
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),          # Middle align all cells
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'), # Header font bold
         ('FONTSIZE', (0, 0), (-1, -1), 7),               # General font size
         ('BOTTOMPADDING', (0, 0), (-1, 0), 6),           # Header bottom padding
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),    # Grid lines (keep)
-        # ('BACKGROUND', (0, 1), (0, -1), colors.Color(red=(220/255), green=(240/255), blue=(220/255))), # REMOVED First column background
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),    # Grid lines
+        ('ALIGN', (0, 1), (0, -1), 'LEFT'),              # Left align date column 
+        ('LEFTPADDING', (0, 1), (0, -1), 6),             # Add padding for dates
     ])
-
-    # Remove alternating row color logic
-    # for i, row in enumerate(table_data):
-    #     if i % 2 == 0 and i != 0:
-    #          style.add('BACKGROUND', (0, i), (-1, i), colors.whitesmoke)
-
 
     # Create Table
     schedule_table = Table(table_data, colWidths=col_widths)
