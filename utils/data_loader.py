@@ -6,15 +6,11 @@ from typing import Dict, Optional, List, Any, Union
 from pathlib import Path
 import re
 from utils.eppy_handler import EppyHandler
-from utils.data_models import (
-    ZoneData, SurfaceData, ConstructionData,
-    ScheduleData, MaterialData
-)
-
 
 def safe_float(value: Any, default: float = 0.0) -> float:
     """
     Safely convert a value to float, returning a default if conversion fails.
+    Handles numpy float types by converting them to Python floats.
     
     Args:
         value: Value to convert to float
@@ -27,8 +23,11 @@ def safe_float(value: Any, default: float = 0.0) -> float:
         return default
         
     try:
+        # Handle numpy float types by converting to Python float
+        if hasattr(value, 'item'):  # Check if it's a numpy type
+            return float(value.item())
         return float(value)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, AttributeError):
         return default
 
 
@@ -49,7 +48,6 @@ class DataLoader:
         self._constructions_cache = {}
         self._schedules_cache = {}
         self._schedule_rules_cache = {}
-        self._zone_types_cache = {}
         self._people_cache = {}
         self._lights_cache = {}
         self._equipment_cache = {}
@@ -77,11 +75,11 @@ class DataLoader:
         
         # Pre-cache raw data
         print("Pre-caching IDF data...")
+        self._cache_schedules()
         self._cache_zones()
         self._cache_surfaces()
         self._cache_materials()
         self._cache_constructions()
-        self._cache_schedules()
         self._cache_loads()
         print("Basic IDF data cached successfully")
     
@@ -91,21 +89,31 @@ class DataLoader:
             return
             
         self._zones_cache.clear()
-        self._zone_types_cache.clear()
         
         for zone in self._idf.idfobjects['ZONE']:
             zone_id = str(zone.Name)
             
-            # Pre-calculate zone type
-            zone_type = "core" if any(
-                keyword in zone_id.lower() for keyword in ['core', 'corridor', 'stair']
-            ) else "regular"
-            self._zone_types_cache[zone_id] = zone_type
+            # Skip zones with 'core' in their ID
+            if "core" in zone_id.lower():
+                continue
+                
+            # Extract area_id
+            area_id = None
+            try:
+                split = zone_id.split(":", 1)
+                if len(split) > 1 and split[1]:
+                    if re.match(r"^\d{2}", split[1]):
+                        area_id = split[1][:2]  # Take first 2 chars if starts with digits
+                    else:
+                        area_id = split[1]  # Take whole string after colon
+            except Exception as e:
+                print(f"Warning: Could not extract area_id for zone '{zone_id}': {e}")
             
             # Cache raw zone data
             self._zones_cache[zone_id] = {
                 'id': zone_id,
                 'name': zone_id,
+                'area_id': area_id,
                 'floor_area': safe_float(getattr(zone, "Floor_Area", 0.0)),
                 'volume': safe_float(getattr(zone, "Volume", 0.0)),
                 'multiplier': int(safe_float(getattr(zone, "Multiplier", 1))),
@@ -122,20 +130,6 @@ class DataLoader:
         for surface in self._idf.idfobjects['BUILDINGSURFACE:DETAILED']:
             surface_id = str(surface.Name)
             
-            # Extract vertices
-            vertices = []
-            for i in range(1, 5):
-                prefix = f'Vertex_{i}_'
-                try:
-                    coords = [
-                        safe_float(getattr(surface, f'{prefix}{coord}coordinate', 0.0))
-                        for coord in ('X', 'Y', 'Z')
-                    ]
-                    if any(coords):  # Only add if we have non-zero coordinates
-                        vertices.append(tuple(coords))
-                except (AttributeError, ValueError):
-                    break
-            
             # Cache raw surface data
             self._surfaces_cache[surface_id] = {
                 'id': surface_id,
@@ -144,7 +138,7 @@ class DataLoader:
                 'construction_name': str(getattr(surface, "Construction_Name", "")),
                 'boundary_condition': str(getattr(surface, "Outside_Boundary_Condition", "")),
                 'zone_name': str(getattr(surface, "Zone_Name", "")),
-                'vertices': vertices,
+                'area': safe_float(getattr(surface, "area", 0.0)),  # Get area directly from the object
                 'raw_object': surface  # Store the raw object for parsers
             }
     
@@ -346,10 +340,6 @@ class DataLoader:
     def get_schedule_rules(self, schedule_id: str) -> List[str]:
         """Get cached rules for a specific schedule"""
         return self._schedule_rules_cache.get(schedule_id, [])
-    
-    def get_zone_type(self, zone_id: str) -> str:
-        """Get the cached type for a specific zone"""
-        return self._zone_types_cache.get(zone_id, "regular")
     
     def get_people_loads(self, zone_name: Optional[str] = None) -> Dict[str, List[Dict[str, Any]]]:
         """Get cached people loads, optionally filtered by zone"""

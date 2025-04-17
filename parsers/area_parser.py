@@ -2,7 +2,6 @@
 Extracts and processes area information including floor areas and material properties.
 """
 from typing import Dict, Any, List, Optional, Tuple
-import numpy as np
 import time
 import logging
 from utils.data_loader import DataLoader, safe_float
@@ -105,9 +104,8 @@ class AreaParser:
             construction_name = surface_data['construction_name']
             construction_props = self._get_construction_properties(construction_name)
             
-            # Calculate area from vertices
-            vertices = surface_data['vertices']
-            area = self._calculate_polygon_area(vertices)
+            # Get area directly from surface data
+            area = surface_data['area']
             conductivity = construction_props['conductivity']
             
             # Initialize construction group if not exists
@@ -132,21 +130,6 @@ class AreaParser:
             constr_group["elements"].append(element_data)
             constr_group["total_area"] += area
             constr_group["total_conductivity"] += area * conductivity
-    
-    def _calculate_polygon_area(self, vertices: List[tuple]) -> float:
-        """
-        Calculate area of polygon defined by vertices.
-        
-        Args:
-            vertices: List of (x,y,z) coordinate tuples
-            
-        Returns:
-            float: Calculated area of the polygon
-        """
-        points_2d = np.array([(x, y) for x, y, z in vertices])
-        x = points_2d[:, 0]
-        y = points_2d[:, 1]
-        return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
     
     def _get_construction_properties(self, construction_name: str) -> Dict[str, float]:
         """
