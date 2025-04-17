@@ -25,106 +25,87 @@ class MaterialsParser:
         self.materials = {}     # Processed materials indexed by ID
         self.constructions = {} # Processed constructions indexed by ID
         
-    def process_idf(self, idf) -> None:
+    def process_idf(self, idf) -> None: # idf parameter kept for compatibility, but not used directly
         """
-        Process materials and constructions with implementation moved from DataLoader.
+        Process materials and constructions using data from DataLoader.
         
         Args:
             idf: eppy IDF object (kept for compatibility)
         """
         if not self.data_loader:
-            print("Warning: MaterialsParser requires a DataLoader instance for efficient processing")
+            print("Error: MaterialsParser requires a DataLoader instance.")
             return
         
         try:
-            # Load materials first
-            self._load_materials()
-            
-            # Then load constructions which depend on materials
-            self._load_constructions()
-            
-            # Finally, process element data for report generation
+            # Clear previous processed data
+            self.materials.clear()
+            self.constructions.clear()
+            self.element_data.clear()
+
+            # --- Process Materials from DataLoader Cache ---
+            material_cache = self.data_loader.get_materials()
+            for material_id, raw_material_data in material_cache.items():
+                self.materials[material_id] = MaterialData(
+                    id=material_id,
+                    name=material_id,
+                    conductivity=raw_material_data['conductivity'],
+                    density=raw_material_data['density'],
+                    specific_heat=raw_material_data['specific_heat'],
+                    thickness=raw_material_data['thickness'],
+                    solar_absorptance=raw_material_data['solar_absorptance']
+                )
+
+            # --- Process Constructions from DataLoader Cache ---
+            construction_cache = self.data_loader.get_constructions()
+            for construction_id, raw_construction_data in construction_cache.items():
+                material_layers = raw_construction_data['material_layers']
+                
+                # Calculate total thickness using the already processed self.materials
+                total_thickness = 0.0
+                for layer_id in material_layers:
+                    if layer_id in self.materials:
+                        total_thickness += self.materials[layer_id].thickness
+                    else:
+                        # This case should ideally not happen if all materials are defined
+                        print(f"Warning: Material '{layer_id}' not found while calculating thickness for construction '{construction_id}'.")
+
+                self.constructions[construction_id] = ConstructionData(
+                    id=construction_id,
+                    name=construction_id,
+                    material_layers=material_layers,
+                    thickness=total_thickness
+                )
+
+            # --- Process Element Data (using populated self.materials and self.constructions) ---
             self._process_element_data()
-            
+
         except Exception as e:
             print(f"Error processing materials and constructions: {str(e)}")
-    
-    def _load_materials(self) -> None:
-        """
-        Load all materials from cached data.
-        Implementation moved from DataLoader.
-        """
-        self.materials.clear()
-        
-        # Get cached material data
-        material_cache = self.data_loader.get_materials()
-        
-        # Process each material
-        for material_id, material_data in material_cache.items():
-            # Create MaterialData object
-            self.materials[material_id] = MaterialData(
-                id=material_id,
-                name=material_id,
-                conductivity=material_data['conductivity'],
-                density=material_data['density'],
-                specific_heat=material_data['specific_heat'],
-                thickness=material_data['thickness'],
-                solar_absorptance=material_data['solar_absorptance']
-            )
-    
-    def _load_constructions(self) -> None:
-        """
-        Load all constructions from cached data.
-        Implementation moved from DataLoader.
-        """
-        self.constructions.clear()
-        
-        # Get cached construction data
-        construction_cache = self.data_loader.get_constructions()
-        
-        # Process each construction
-        for construction_id, construction_data in construction_cache.items():
-            # Get material layers
-            material_layers = construction_data['material_layers']
-            
-            # Calculate total thickness
-            total_thickness = 0.0
-            for layer_id in material_layers:
-                if layer_id in self.materials:
-                    total_thickness += self.materials[layer_id].thickness
-            
-            # Create ConstructionData object
-            self.constructions[construction_id] = ConstructionData(
-                id=construction_id,
-                name=construction_id,
-                material_layers=material_layers,
-                thickness=total_thickness
-            )
-    
+            # Optionally re-raise or handle more gracefully
+            import traceback
+            traceback.print_exc()
+
     def _process_element_data(self) -> None:
         """
         Process element data for report generation.
         This combines materials and constructions to create report data.
+        (This method remains largely the same, but ensure self.element_data is cleared beforehand)
         """
-        self.element_data.clear()
-        
-        # Get cached surface data
+        # Get cached surface data (still needed for element type)
         surfaces = self.data_loader.get_surfaces()
         
-        # Process each construction
+        # Process each construction (using the populated self.constructions)
         for construction_id, construction_data in self.constructions.items():
-            # Skip certain constructions if needed
             pattern = r'_(?:[Rr]ev|[Rr]eversed)$'
             if bool(re.search(pattern, construction_id)):
                 continue            
-            # Determine element type based on construction usage
             element_type = self._get_element_type(construction_id, surfaces)
             
             # Process each material layer in the construction
             for layer_id in construction_data.material_layers:
-                material_data = self.materials.get(layer_id)
+                # Use the populated self.materials dictionary
+                material_data = self.materials.get(layer_id) 
                 if material_data:
-                    # Create element data for reporting
                     thermal_resistance = (
                         material_data.thickness / material_data.conductivity 
                         if material_data.conductivity != 0 else 0.0
@@ -142,7 +123,10 @@ class MaterialsParser:
                         "solar_absorptance": material_data.solar_absorptance,
                         "specific_heat": material_data.specific_heat
                     })
-    
+                else:
+                    # This print remains important for debugging missing material definitions
+                    print(f"DEBUG:   Material data NOT FOUND for '{layer_id}' in self.materials - SKIPPING layer in report") 
+
     def _get_element_type(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]]) -> str:
         """
         Determine element type based on construction usage.

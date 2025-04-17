@@ -75,14 +75,12 @@ class DataLoader:
         self._loaded_sections = {'zones', 'surfaces', 'materials', 'constructions', 'schedules'}
         
         # Pre-cache raw data
-        print("Pre-caching IDF data...")
         self._cache_schedules()
         self._cache_zones()
         self._cache_surfaces()
         self._cache_materials()
         self._cache_constructions()
         self._cache_loads()
-        print("Basic IDF data cached successfully")
     
     def _cache_zones(self) -> None:
         """Cache raw zone data"""
@@ -109,7 +107,7 @@ class DataLoader:
                     else:
                         area_id = split[1]  # Take whole string after colon
             except Exception as e:
-                print(f"Warning: Could not extract area_id for zone '{zone_id}': {e}")
+                pass # Silently ignore if area_id extraction fails
             
             # Cache raw zone data
             self._zones_cache[zone_id] = {
@@ -183,6 +181,9 @@ class DataLoader:
                 for field in layer_fields
                 if getattr(construction, field, "") 
             ]
+            outside_layer = str(getattr(construction, "Outside_Layer", ""))
+            if outside_layer: # Only insert if the Outside_Layer exists and is not empty
+                material_layers.insert(0, outside_layer)  # Insert Outside_Layer at the beginning
             
             # Cache raw construction data
             self._constructions_cache[construction_id] = {
