@@ -43,6 +43,7 @@ class DataLoader:
         
         # Basic caches for raw IDF data
         self._zones_cache = {}
+        self._hvac_zones_cache = []
         self._surfaces_cache = {}
         self._materials_cache = {}
         self._constructions_cache = {}
@@ -93,10 +94,11 @@ class DataLoader:
         for zone in self._idf.idfobjects['ZONE']:
             zone_id = str(zone.Name)
             
-            # Skip zones with 'core' in their ID
-            if "core" in zone_id.lower():
-                continue
-                
+            
+            for schedule_id, schedule_data in self._schedules_cache.items():
+                if zone_id in schedule_id and 'Temperature' in schedule_data["type"] and ("heating" in schedule_data['name'].lower() or "cooling" in schedule_data['name'].lower()) and "setpoint" not in schedule_data['type'].lower():
+                    self._hvac_zones_cache.append(zone_id)
+                    break
             # Extract area_id
             area_id = None
             try:
@@ -321,6 +323,10 @@ class DataLoader:
     def get_zones(self) -> Dict[str, Dict[str, Any]]:
         """Get cached zone data"""
         return self._zones_cache
+    
+    def get_hvac_zones(self) -> List[str]:
+        """Get cached HVAC zone names"""
+        return self._hvac_zones_cache
     
     def get_surfaces(self) -> Dict[str, Dict[str, Any]]:
         """Get cached surface data"""

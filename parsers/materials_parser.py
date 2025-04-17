@@ -2,6 +2,7 @@
 Extracts and processes materials and constructions.
 Uses DataLoader for cached access to IDF data.
 """
+import re
 from typing import Dict, Any, Optional, List
 import numpy as np
 from utils.data_loader import DataLoader, safe_float
@@ -113,9 +114,9 @@ class MaterialsParser:
         # Process each construction
         for construction_id, construction_data in self.constructions.items():
             # Skip certain constructions if needed
-            if "rev" in construction_id.lower() and "reverse" not in construction_id.lower():
-                continue
-            
+            pattern = r'_(?:[Rr]ev|[Rr]eversed)$'
+            if bool(re.search(pattern, construction_id)):
+                continue            
             # Determine element type based on construction usage
             element_type = self._get_element_type(construction_id, surfaces)
             
@@ -173,9 +174,22 @@ class MaterialsParser:
         except (AttributeError, IndexError, KeyError):
             return ""
         
-        # Get zones to determine if zone is interior
-        zones = self.data_loader.get_zones()
-        is_zone_interior = surface['zone_name'] in zones
+        zones = self.data_loader.get_hvac_zones() # Assumes this returns a dict/set of zone names
+        
+        # Safely get the outside boundary object name
+        raw_object = surface.get('raw_object')
+        outside_boundary_obj_name = None
+        if isinstance(raw_object, dict):
+             outside_boundary_obj_name = raw_object['Outside_Boundary_Condition_Object']
+
+        # Process if the boundary object name is found and is a string
+        if isinstance(outside_boundary_obj_name, str) and outside_boundary_obj_name:
+            # Assuming the zone name is the first part if spaces exist
+            zone_name_candidate = outside_boundary_obj_name.split("_")[0].strip()
+            if zone_name_candidate:
+                 is_zone_interior = zone_name_candidate in zones
+            else:
+                is_zone_interior = False
         
         if s_type == "wall":
             if boundary == "outdoors":
