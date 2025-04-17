@@ -288,7 +288,7 @@ class SettingsExtractor:
             
         # Special handling for specific object types
         if obj_type == 'VERSION':
-            if hasattr(obj, 'Version'):
+            if hasattr(obj, 'Version_Identifier'):
                 self.extracted_settings['version']['energyplus'] = getattr(obj, 'Version_Identifier')
             return
             
@@ -342,7 +342,12 @@ class SettingsExtractor:
             ]
             temperature_dict = {}
             for month in months:
-                field = f'{month}_Ground_Temperature'
+                if "shallow" in obj_type.lower():
+                    field = f'{month}_Surface_Ground_Temperature'
+                elif "deep" in obj_type.lower():
+                    field = f'{month}_Deep_Ground_Temperature'
+                else:
+                    field = f'{month}_Ground_Temperature'
                 if hasattr(obj, field):
                     temperature_dict[month] = getattr(obj, field)
             
@@ -391,7 +396,7 @@ class SettingsExtractor:
             
         if obj_type == 'CONVERGENCELIMITS':
             if hasattr(obj, 'Minimum_System_Timestep'):
-                self.extracted_settings['simulation']['convergence_min_timestep'] = getattr(obj, 'Minimum_System_Time_Step')
+                self.extracted_settings['simulation']['convergence_min_timestep'] = getattr(obj, 'Minimum_System_Timestep')
             if hasattr(obj, 'Maximum_HVAC_Iterations'):
                 self.extracted_settings['simulation']['convergence_max_hvac_iterations'] = getattr(obj, 'Maximum_HVAC_Iterations')
             return
