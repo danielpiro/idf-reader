@@ -4,6 +4,7 @@ Generates reports for area-specific information extracted from IDF files.
 from typing import Dict, Any, List
 from pathlib import Path
 from collections import defaultdict
+import re
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import letter, landscape, A4
@@ -42,38 +43,80 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]], outp
         story.append(Paragraph(f"Area {area_id} - Thermal Properties Report", title_style))
         story.append(Spacer(1, 10))
         
-        # Header row for the table
-        headers = ["Zone", "Construction", "Element type", "Area", "Conductivity", 
-                   "Area * Conductivity", "Area loss"]
+        # Preprocess data to merge constructions with _Rev suffix
+        merged_data = merge_reversed_constructions(area_data)
+        
+        # Create cell styles for better formatting
+        cell_style = ParagraphStyle(
+            'CellStyle',
+            parent=styles['Normal'],
+            fontSize=9,  # Smaller font for better fit
+            leading=10,  # Reduced line spacing
+            spaceBefore=0,
+            spaceAfter=0
+        )
+        
+        header_style = ParagraphStyle(
+            'HeaderStyle',
+            parent=styles['Heading4'],
+            fontSize=10,
+            alignment=1,  # Center alignment
+            textColor=colors.whitesmoke
+        )
+        
+        # Header row for the table as Paragraphs for consistent styling
+        headers = [
+            Paragraph("Zone", header_style),
+            Paragraph("Construction", header_style),
+            Paragraph("Element type", header_style),
+            Paragraph("Area", header_style),
+            Paragraph("Conductivity", header_style),
+            Paragraph("Area * Conductivity", header_style),
+            Paragraph("Area loss", header_style)
+        ]
         
         # Prepare table data
         table_data = [headers]
         
         # Sort rows by zone and construction for better readability
-        sorted_rows = sorted(area_data, key=lambda x: (x['zone'], x['construction']))
+        sorted_rows = sorted(merged_data, key=lambda x: (x['zone'], x['construction']))
         
         # Format values and add to table
         for row in sorted_rows:
+            # Format construction name with line breaks
+            construction_text = format_construction_name(row['construction'])
+            
+            # Create Paragraph objects for text cells
+            zone_cell = Paragraph(row['zone'], cell_style)
+            construction_cell = Paragraph(construction_text, cell_style)
+            element_type_cell = Paragraph(row['element_type'], cell_style)
+            
+            # Format numeric values with proper alignment
+            area_value = f"{row['area']:.2f}"
+            conductivity_value = f"{row['conductivity']:.3f}"
+            area_conductivity_value = f"{row['area_conductivity']:.2f}"
+            area_loss_value = f"{row['area_loss']:.2f}"
+            
+            # Add all cells to row
             table_data.append([
-                row['zone'],
-                row['construction'],
-                row['element_type'],
-                f"{row['area']:.2f}",
-                f"{row['conductivity']:.3f}",
-                f"{row['area_conductivity']:.2f}",
-                f"{row['area_loss']:.2f}"
+                zone_cell,
+                construction_cell,
+                element_type_cell,
+                area_value,
+                conductivity_value,
+                area_conductivity_value,
+                area_loss_value
             ])
         
-        # Create the table
-        # Set relative column widths 
+        # Create the table with carefully adjusted column widths
         col_widths = [
-            4.0*cm,    # Zone
-            5.0*cm,    # Construction
-            3.0*cm,    # Element type
-            2.5*cm,    # Area
-            2.5*cm,    # Conductivity
-            3.0*cm,    # Area * Conductivity
-            2.5*cm     # Area loss
+            4.5*cm,     # Zone - increased for long zone names
+            7.0*cm,     # Construction - increased for long names with breaks
+            3.0*cm,     # Element type
+            2.3*cm,     # Area
+            2.3*cm,     # Conductivity
+            3.0*cm,     # Area * Conductivity
+            2.3*cm      # Area loss
         ]
         
         # Create table with data and column widths
@@ -86,20 +129,19 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]], outp
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            # Data rows
-            ('BACKGROUND', (0, 1), (-1, -1), colors.whitesmoke),
-            ('ALIGN', (0, 1), (2, -1), 'LEFT'),      # Text columns left-aligned
-            ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),    # Number columns right-aligned
+            # Data rows - numbers right aligned
+            ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),
             # Grid style
             ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-            # Cell padding
-            ('LEFTPADDING', (0, 0), (-1, -1), 4),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
-            ('TOPPADDING', (0, 0), (-1, -1), 3),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-            # Alternating row colors for better readability
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey])
+            # Enhanced cell padding for better spacing
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            # Alternating row colors
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
+            # Extra - adjust vertical alignment
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ])
         
         area_table.setStyle(table_style)
@@ -115,6 +157,102 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]], outp
         import traceback
         traceback.print_exc()
         return False
+
+def merge_reversed_constructions(area_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Merge constructions with _Rev suffix with their base construction.
+    
+    Args:
+        area_data: List of area data rows
+        
+    Returns:
+        List[Dict[str, Any]]: Merged area data
+    """
+    # Group data by zone and construction base name (without _Rev)
+    merged_dict = {}
+    
+    for row in area_data:
+        zone = row['zone']
+        construction = row['construction']
+        
+        # Check if construction has _Rev or _Reversed suffix
+        is_reversed = False
+        base_construction = construction
+        
+        rev_patterns = [r'_Rev$', r'_Reversed$', r'_rev$', r'_reversed$']
+        for pattern in rev_patterns:
+            if re.search(pattern, construction):
+                is_reversed = True
+                base_construction = re.sub(pattern, '', construction)
+                break
+        
+        # Create key to identify unique combinations
+        key = f"{zone}_{base_construction}"
+        
+        if key not in merged_dict:
+            # First time seeing this combination
+            merged_dict[key] = row.copy()
+            merged_dict[key]['construction'] = base_construction  # Use base name
+        else:
+            # Merge with existing entry
+            existing = merged_dict[key]
+            existing['area'] += row['area']
+            existing['area_conductivity'] += row['area_conductivity']
+            existing['area_loss'] += row['area_loss']
+    
+    # Convert back to list
+    return list(merged_dict.values())
+
+def format_construction_name(construction: str) -> str:
+    """
+    Format construction name for better display in the table.
+    Adds line breaks for better readability.
+    
+    Args:
+        construction: Construction name
+        
+    Returns:
+        str: Formatted construction name
+    """
+    # If the name is long, insert line breaks at meaningful places
+    if len(construction) > 18:  # Reduced threshold for breaking
+        # Try to break at spaces
+        parts = construction.split(' ')
+        if len(parts) > 1:
+            # Try to find optimal break points
+            result = ""
+            current_line = ""
+            
+            for i, part in enumerate(parts):
+                if len(current_line) + len(part) + 1 > 18:  # +1 for space
+                    if current_line:
+                        result += current_line + "<br/>"
+                        current_line = part
+                    else:
+                        # Single part too long
+                        result += part + "<br/>"
+                        current_line = ""
+                else:
+                    if current_line:
+                        current_line += " " + part
+                    else:
+                        current_line = part
+            
+            # Add the last line
+            if current_line:
+                result += current_line
+                
+            return result
+        else:
+            # No spaces, insert break every ~15 characters
+            result = ""
+            for i in range(0, len(construction), 15):
+                result += construction[i:min(i+15, len(construction))]
+                if i + 15 < len(construction):
+                    result += "<br/>"
+            return result
+    
+    return construction
 
 def generate_area_reports(areas_data, output_dir: str = "output/areas") -> bool:
     """
