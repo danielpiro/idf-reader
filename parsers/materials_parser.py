@@ -5,6 +5,7 @@ Uses DataLoader for cached access to IDF data.
 import re
 from typing import Dict, Any, Optional, List
 import numpy as np
+from colorama import Fore, Style
 from utils.data_loader import DataLoader, safe_float
 from utils.data_models import MaterialData, ConstructionData
 
@@ -33,7 +34,7 @@ class MaterialsParser:
             idf: eppy IDF object (kept for compatibility)
         """
         if not self.data_loader:
-            print("Error: MaterialsParser requires a DataLoader instance.")
+            print(f"{Fore.RED}Error: MaterialsParser requires a DataLoader instance.{Style.RESET_ALL}")
             return
         
         try:
@@ -67,7 +68,7 @@ class MaterialsParser:
                         total_thickness += self.materials[layer_id].thickness
                     else:
                         # This case should ideally not happen if all materials are defined
-                        print(f"Warning: Material '{layer_id}' not found while calculating thickness for construction '{construction_id}'.")
+                        print(f"{Fore.YELLOW}Warning: Material '{layer_id}' not found while calculating thickness for construction '{construction_id}'.{Style.RESET_ALL}")
 
                 self.constructions[construction_id] = ConstructionData(
                     id=construction_id,
@@ -80,7 +81,7 @@ class MaterialsParser:
             self._process_element_data()
 
         except Exception as e:
-            print(f"Error processing materials and constructions: {str(e)}")
+            print(f"{Fore.RED}Error processing materials and constructions: {str(e)}{Style.RESET_ALL}")
             # Optionally re-raise or handle more gracefully
             import traceback
             traceback.print_exc()
@@ -89,7 +90,6 @@ class MaterialsParser:
         """
         Process element data for report generation.
         This combines materials and constructions to create report data.
-        (This method remains largely the same, but ensure self.element_data is cleared beforehand)
         """
         # Get cached surface data (still needed for element type)
         surfaces = self.data_loader.get_surfaces()
@@ -123,9 +123,8 @@ class MaterialsParser:
                         "solar_absorptance": material_data.solar_absorptance,
                         "specific_heat": material_data.specific_heat
                     })
-                else:
-                    # This print remains important for debugging missing material definitions
-                    print(f"DEBUG:   Material data NOT FOUND for '{layer_id}' in self.materials - SKIPPING layer in report") 
+                # Missing materials are silently skipped for report generation
+                # No debug message needed here as warning was already shown during construction processing
 
     def _get_element_type(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]]) -> str:
         """

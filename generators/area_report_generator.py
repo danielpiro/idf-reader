@@ -5,11 +5,15 @@ from typing import Dict, Any, List
 from pathlib import Path
 from collections import defaultdict
 import re
+from colorama import Fore, Style, init
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import letter, landscape, A4
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+
+# Initialize colorama
+init(autoreset=True)
 
 def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]], 
                             output_filename: str, total_floor_area: float = 0.0) -> bool:
@@ -173,7 +177,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
         return True
         
     except Exception as e:
-        print(f"Error generating area report PDF for Area {area_id}: {e}")
+        print(f"{Fore.RED}Error generating area report PDF for Area {area_id}: {e}{Style.RESET_ALL}")
         import traceback
         traceback.print_exc()
         return False
@@ -308,6 +312,7 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas") -> bool:
                 materials_parser = MaterialsParser(data_loader)
                 materials_parser.process_idf(None)
         except Exception as e:
+            print(f"{Fore.YELLOW}Warning: Could not initialize MaterialsParser: {e}{Style.RESET_ALL}")
             materials_parser = None
         
         # Get surfaces if we have a data_loader
@@ -377,7 +382,7 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas") -> bool:
                         if materials_parser and surfaces:
                             try:
                                 element_type = materials_parser._get_element_type(construction_name, surfaces)
-                            except Exception as e:
+                            except Exception:
                                 pass
                         
                         # Check if this is a glazing construction if element_type is still None
@@ -427,9 +432,15 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas") -> bool:
             )
             successes.append(success)
             
+            if success:
+                print(f"{Fore.GREEN}Successfully generated area report for Area {area_id}: {output_file}{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.RED}Failed to generate report for Area {area_id}{Style.RESET_ALL}")
+            
         return all(successes)
         
     except Exception as e:
+        print(f"{Fore.RED}Error processing area data for reports: {e}{Style.RESET_ALL}")
         import traceback
         traceback.print_exc()
         return False
