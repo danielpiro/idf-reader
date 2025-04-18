@@ -127,7 +127,9 @@ class DataLoader:
             return
             
         self._surfaces_cache.clear()
+        self._windows_cache = {}  # Initialize windows cache
         
+        # Process regular surfaces
         for surface in self._idf.idfobjects['BUILDINGSURFACE:DETAILED']:
             surface_id = str(surface.Name)
             
@@ -142,6 +144,47 @@ class DataLoader:
                 'area': safe_float(getattr(surface, "area", 0.0)),  # Get area directly from the object
                 'raw_object': surface  # Store the raw object for parsers
             }
+        
+        # Process windows (fenestration surfaces)
+        if 'FENESTRATIONSURFACE:DETAILED' in self._idf.idfobjects:
+            for window in self._idf.idfobjects['FENESTRATIONSURFACE:DETAILED']:
+                window_id = str(window.Name)
+                base_surface = str(getattr(window, "Building_Surface_Name", ""))
+                zone_name = ""
+                
+                # Get the zone name from the base surface
+                if base_surface and base_surface in self._surfaces_cache:
+                    zone_name = self._surfaces_cache[base_surface]['zone_name']
+                
+                # Get construction name, preferring the shading version if available
+                construction_name = str(getattr(window, "Construction_with_Shading_Name", ""))
+                if not construction_name:
+                    construction_name = str(getattr(window, "Construction_Name", ""))
+                
+                # Cache window data
+                window_data = {
+                    'id': window_id,
+                    'name': window_id,
+                    'surface_type': 'Window',  # Windows are always of type "Window"
+                    'construction_name': construction_name,
+                    'base_surface': base_surface,
+                    'boundary_condition': 'Outdoors',  # Windows typically have outdoors boundary
+                    'zone_name': zone_name,
+                    'area': safe_float(getattr(window, "area", 0.0)),
+                    'is_glazing': True,
+                    'raw_object': window
+                }
+                
+                # Add to windows cache
+                self._windows_cache[window_id] = window_data
+                
+                # Also add to the general surfaces cache to handle it the same way as other surfaces
+                self._surfaces_cache[window_id] = window_data
+                
+                # Debug output
+                print(f"DEBUG: Added glazing surface {window_id} with construction {construction_name}")
+        else:
+            print("DEBUG: No FENESTRATIONSURFACE:DETAILED objects found in IDF file")
     
     def _cache_materials(self) -> None:
         """Cache raw material data"""

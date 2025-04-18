@@ -88,6 +88,12 @@ class AreaParser:
         # Get cached surface data
         surfaces = self.data_loader.get_surfaces()
         
+        print(f"DEBUG: Processing {len(surfaces)} surfaces")
+        
+        # Count by surface type for debugging
+        surface_types = {}
+        construction_names = set()
+        
         # Group surfaces by zone
         for surface_id, surface_data in surfaces.items():
             zone_name = surface_data['zone_name']
@@ -95,13 +101,26 @@ class AreaParser:
             # Skip if zone was filtered out
             if zone_name not in self.areas_by_zone:
                 continue
+            
+            # Track surface types for debugging
+            surface_type = surface_data['surface_type'].lower()
+            if surface_type not in surface_types:
+                surface_types[surface_type] = 0
+            surface_types[surface_type] += 1
                 
-            # Skip if not a floor surface
-            if surface_data['surface_type'].lower() != 'floor':
-                continue
+            # DEBUG: Previously we skipped if not a floor - now process all surface types
+            # if surface_data['surface_type'].lower() != 'floor':
+            #     continue
                 
             # Get construction properties
             construction_name = surface_data['construction_name']
+            construction_names.add(construction_name)
+            
+            # If this is a glazing/window surface, add extra debug info
+            is_glazing = surface_data.get('is_glazing', False)
+            if is_glazing:
+                print(f"DEBUG: Processing glazing surface {surface_id} with construction {construction_name}")
+            
             construction_props = self._get_construction_properties(construction_name)
             
             # Get area directly from surface data
@@ -120,7 +139,7 @@ class AreaParser:
             element_data = {
                 "zone": zone_name,
                 "surface_name": surface_id,
-                "element_type": "Floor",
+                "element_type": "Glazing" if is_glazing else surface_type.capitalize(),  # Mark glazing specifically
                 "area": area,
                 "conductivity": conductivity,
                 "area_conductivity": area * conductivity
@@ -130,6 +149,15 @@ class AreaParser:
             constr_group["elements"].append(element_data)
             constr_group["total_area"] += area
             constr_group["total_conductivity"] += area * conductivity
+        
+        # Print debug info
+        print(f"DEBUG: Surface types found: {surface_types}")
+        print(f"DEBUG: Number of unique constructions: {len(construction_names)}")
+        print(f"DEBUG: Construction names: {sorted(list(construction_names))}")
+        
+        # Debug zone construction counts
+        for zone_id, zone_data in self.areas_by_zone.items():
+            print(f"DEBUG: Zone {zone_id} has {len(zone_data.get('constructions', {}))} constructions")
     
     def _get_construction_properties(self, construction_name: str) -> Dict[str, float]:
         """
@@ -254,12 +282,16 @@ class AreaParser:
         Returns:
             Dict[str, List[Dict[str, Any]]]: Dictionary of area_id -> list of data rows
         """
+        print("\nDEBUG: Starting get_area_table_data...")
+        
         # Create a materials parser if not provided
         if materials_parser is None:
             try:
                 materials_parser = MaterialsParser(self.data_loader)
                 materials_parser.process_idf(None)  # Process data from DataLoader
+                print("DEBUG: Successfully created and processed materials parser")
             except Exception as e:
+                print(f"DEBUG: Error creating materials parser: {e}")
                 materials_parser = None
         
         # Get surface data for element type detection
@@ -271,6 +303,7 @@ class AreaParser:
         # Process all zones and their constructions, grouped by zone+construction
         for zone_id, zone_data in self.areas_by_zone.items():
             area_id = zone_data.get("area_id", "unknown")
+            print(f"\nDEBUG: Processing zone {zone_id} in area {area_id}")
             
             # Initialize area in results if not already
             if area_id not in result_by_area:
@@ -279,29 +312,45 @@ class AreaParser:
             # Dictionary to store zone+construction combinations
             zone_constructions = {}
             
+            # Debug: print all constructions for this zone
+            print(f"DEBUG: Zone {zone_id} has {len(zone_data.get('constructions', {}))} constructions:")
+            for c_name in zone_data.get("constructions", {}):
+                print(f"DEBUG:   - {c_name}")
+            
             for construction_name, construction_data in zone_data.get("constructions", {}).items():
                 # Get element type using materials_parser if available
-                element_type = "Floor"  # Default
+                element_type = "Unknown"  # Default
                 if materials_parser:
                     try:
                         element_type = materials_parser._get_element_type(construction_name, surfaces)
-                    except Exception:
-                        pass
+                        print(f"DEBUG:   Construction '{construction_name}' assigned element type: '{element_type}'")
+                    except Exception as e:
+                        print(f"DEBUG:   Error getting element type for '{construction_name}': {e}")
+                        # Try to get element type from first element
+                        if construction_data.get("elements") and len(construction_data["elements"]) > 0:
+                            element_type = construction_data["elements"][0].get("element_type", "Unknown")
+                            print(f"DEBUG:   Using fallback element type from first element: '{element_type}'")
                 
                 # Create a unique key for zone+construction combination 
                 zone_constr_key = f"{zone_id}_{construction_name}"
                 
                 # Sum areas for same construction+zone
                 if zone_constr_key not in zone_constructions:
+                    # Get conductivity from first element if available
+                    conductivity = 0.0
+                    if construction_data.get("elements") and len(construction_data["elements"]) > 0:
+                        conductivity = construction_data["elements"][0].get("conductivity", 0.0)
+                    
                     zone_constructions[zone_constr_key] = {
                         "zone": zone_id,
                         "construction": construction_name,
                         "element_type": element_type,
                         "area": 0.0,
-                        "conductivity": construction_data.get("elements", [{}])[0].get("conductivity", 0.0) if construction_data.get("elements") else 0.0,
+                        "conductivity": conductivity,
                         "area_conductivity": 0.0,
                         "area_loss": 0.0  # Placeholder as requested
                     }
+                    print(f"DEBUG:   Created new row for {zone_constr_key}")
                 
                 # Add area and area_conductivity
                 constr_sum = zone_constructions[zone_constr_key]
@@ -310,5 +359,10 @@ class AreaParser:
             
             # Add all zone+constructions to the area's result list
             result_by_area[area_id].extend(zone_constructions.values())
+            print(f"DEBUG: Added {len(zone_constructions)} rows for zone {zone_id}")
                 
+        # Print summary statistics
+        total_rows = sum(len(rows) for rows in result_by_area.values())
+        print(f"\nDEBUG: Final result has {len(result_by_area)} areas with {total_rows} total rows")
+        
         return result_by_area

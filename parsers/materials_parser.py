@@ -150,9 +150,13 @@ class MaterialsParser:
         
         if not construction_surfaces:
             return ""
+        
+        # Check if this is a glazing surface
+        surface = construction_surfaces[0]
+        if surface.get('is_glazing', False):
+            return "Glazing"
             
         try:
-            surface = construction_surfaces[0]
             s_type = surface['surface_type'].lower() if surface['surface_type'] else ""
             boundary = surface['boundary_condition'].lower() if surface['boundary_condition'] else ""
         except (AttributeError, IndexError, KeyError):
