@@ -217,33 +217,80 @@ class LoadExtractor:
             print("Warning: No schedule data available for processing temperature schedules")
             return
             
+        # First pass: Collect all temperature-related schedules by zone
+        zone_temp_schedules = {}
+        
         # Process each schedule
         for schedule_id, schedule in schedule_data.items():
             # Get schedule name and type
             schedule_name = schedule_id
             schedule_type = schedule.get('type', '')
-            
-            # Check if it's a temperature setpoint schedule
             schedule_name_lower = schedule_name.lower()
             
-            # Check for heating or cooling temperature schedules
-            if 'heating' in schedule_name_lower or 'cooling' in schedule_name_lower:
-                # Find corresponding zone by matching schedule name with zone name
-                for zone_name in self.loads_by_zone:
-                    zone_name_lower = zone_name.lower()
-                    if zone_name_lower in schedule_name_lower:
-                        # Determine if it's heating or cooling schedule
-                        schedule_rules = self.data_loader.get_schedule_rules(schedule_id)
-                        schedule_data = {
-                            "name": schedule_name,
-                            "type": schedule_type,
-                            "schedule_values": schedule_rules
+            is_heating = 'heating' in schedule_name_lower or 'heat' in schedule_name_lower and not 'availability' in schedule_name_lower
+            is_cooling = 'cooling' in schedule_name_lower or 'cool' in schedule_name_lower and not 'availability' in schedule_name_lower
+            is_setpoint = 'setpoint' in schedule_name_lower or 'sp' in schedule_name_lower
+            is_availability = 'availability' in schedule_name_lower or 'avail' in schedule_name_lower
+
+            # Extract zone name directly from the schedule name for better matching
+            zone_prefix = None
+            if ':' in schedule_name:  # Format like "00:01XLIVING"
+                zone_prefix = schedule_name.split(' ')[0]  # Take the part before the space
+                
+            # Check if it's a temperature-related schedule
+            if (is_heating or is_cooling) and zone_prefix:
+                # Direct exact zone name matching
+                if zone_prefix in self.loads_by_zone:
+                    zone_name = zone_prefix
+                    
+                    # Initialize zone in temp schedules dict if not present
+                    if zone_name not in zone_temp_schedules:
+                        zone_temp_schedules[zone_name] = {
+                            'heating_setpoint': None,
+                            'heating_availability': None,
+                            'cooling_setpoint': None,
+                            'cooling_availability': None
                         }
                         
-                        if 'heating' in schedule_name_lower:
-                            self.loads_by_zone[zone_name]["schedules"]["heating"] = schedule_data
-                        elif 'cooling' in schedule_name_lower:
-                            self.loads_by_zone[zone_name]["schedules"]["cooling"] = schedule_data
+                    # Create schedule data with rules
+                    schedule_rules = self.data_loader.get_schedule_rules(schedule_id)
+                    schedule_info = {
+                        "name": schedule_name,
+                        "type": schedule_type,
+                        "schedule_values": schedule_rules
+                    }
+                    
+                    # Store in appropriate slot
+                    if is_heating:
+                        if is_availability:
+                            zone_temp_schedules[zone_name]['heating_availability'] = schedule_info
+                        else:
+                            zone_temp_schedules[zone_name]['heating_setpoint'] = schedule_info
+                    elif is_cooling:
+                        if is_availability:
+                            zone_temp_schedules[zone_name]['cooling_availability'] = schedule_info
+                        else:
+                            zone_temp_schedules[zone_name]['cooling_setpoint'] = schedule_info
+        
+        # Second pass: Update zone data with all collected temperature schedules
+        for zone_name, temp_schedules in zone_temp_schedules.items():
+            # Update heating
+            if temp_schedules['heating_setpoint']:
+                # Create a copy of the setpoint schedule data
+                heating_data = temp_schedules['heating_setpoint'].copy()
+                # Add availability data if available
+                if temp_schedules['heating_availability']:
+                    heating_data['heating_availability'] = temp_schedules['heating_availability']
+                self.loads_by_zone[zone_name]["schedules"]["heating"] = heating_data
+                
+            # Update cooling
+            if temp_schedules['cooling_setpoint']:
+                # Create a copy of the setpoint schedule data
+                cooling_data = temp_schedules['cooling_setpoint'].copy()
+                # Add availability data if available
+                if temp_schedules['cooling_availability']:
+                    cooling_data['cooling_availability'] = temp_schedules['cooling_availability']
+                self.loads_by_zone[zone_name]["schedules"]["cooling"] = cooling_data
 
     def process_eppy_zone(self, zone_obj) -> None:
         """

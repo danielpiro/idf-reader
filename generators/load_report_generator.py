@@ -90,63 +90,184 @@ def create_hierarchical_table_style():
 
     return TableStyle(spans + style)
 
-def extract_setpoint(schedule_values, setpoint_type):
+def extract_setpoint(schedule_values, setpoint_type, zone_name=None, all_schedules=None):
     """
-    Extracts a specific setpoint value from Schedule:Compact data.
+    Extracts a specific setpoint value from Schedule:Compact data, considering availability.
+    
     Args:
         schedule_values (list): The list of values from the Schedule:Compact object.
         setpoint_type (str): 'work' or 'non_work'.
+        zone_name (str, optional): The name of the zone to get schedules for.
+        all_schedules (dict, optional): Dictionary containing all schedules for the zone.
+        
     Returns:
         str: The extracted setpoint value or '-' if not found/invalid.
     """
-    last_non_work_val = None
-    last_work_val = None
-    last_until = None
-
-    try:
-        for i, field in enumerate(schedule_values):
-            field_str = str(field).strip().lower()
-            if field_str.startswith("until:"):
-                last_until = field_str
-                # Look ahead for the value
-                if i + 1 < len(schedule_values):
-                    value_str = str(schedule_values[i+1]).strip()
-                    # Check if the value is numeric (handles integers and floats, including negative)
-                    is_numeric = False
-                    if value_str:
-                        if value_str.isdigit():
-                            is_numeric = True
-                        elif value_str.startswith('-') and value_str[1:].isdigit():
-                             is_numeric = True
-                        else:
-                            try:
-                                float(value_str)
-                                is_numeric = True
-                            except ValueError:
-                                is_numeric = False
-
-                    if is_numeric:
-                        if last_until == "until: 24:00":
-                            last_non_work_val = value_str
-                        else:
-                            last_work_val = value_str
-                    else:
-                         # If value after 'Until:' is not numeric, reset last_until
-                         last_until = None
-
-        if setpoint_type == 'non_work':
-            # Return last non-work value found, default '-'
-            return last_non_work_val if last_non_work_val is not None else '-'
-        elif setpoint_type == 'work':
-            # Return last work value found, or fallback to non-work if no specific work value found
-            return last_work_val if last_work_val is not None else (last_non_work_val if last_non_work_val is not None else '-')
-        else:
-            return '-'
-    except Exception as e:
-        # Log error during extraction if needed
-        # print(f"Error extracting setpoint: {e}")
+    # Check if schedule values available
+    if not schedule_values:
         return '-'
-
+        
+    if not all_schedules:
+        return '-'
+        
+    # Determine if we're working with heating or cooling setpoint
+    schedule_name = all_schedules.get('name', '')
+    
+    is_heating = False
+    is_cooling = False
+    
+    if 'heating' in schedule_name.lower() or 'heat' in schedule_name.lower():
+        is_heating = True
+    elif 'cooling' in schedule_name.lower() or 'cool' in schedule_name.lower() or 'sp sch' in schedule_name.lower():
+        is_cooling = True
+    
+    # Find availability key by checking each key in all_schedules
+    avail_key = None
+    for key in all_schedules:
+        if isinstance(key, str) and 'availability' in key.lower():
+            if (is_heating and 'heat' in key.lower()) or (is_cooling and 'cool' in key.lower()):
+                avail_key = key
+                break
+        
+    # Find the availability schedule
+    avail_schedule = None
+    active_periods = []
+    
+    if avail_key and avail_key in all_schedules:
+        avail_schedule = all_schedules[avail_key]
+            
+    # Process the availability schedule to find active periods
+    if avail_schedule and isinstance(avail_schedule, dict) and 'schedule_values' in avail_schedule:
+        avail_values = avail_schedule['schedule_values']
+        
+        # Track the current period being processed
+        current_period = None
+        for i, val in enumerate(avail_values):
+            val_str = str(val).strip().lower()
+            
+            # Find period start
+            if val_str.startswith('through:'):
+                current_period = val_str.replace('through:', '').strip()
+            # Find active value (1)
+            elif val_str == '1' and current_period:
+                # This is an active period
+                active_periods.append(current_period)
+    
+    # Process setpoint values
+    all_values = {}  # {period: {work: value, non_work: value}}
+    active_values = {}  # {period: {work: value, non_work: value}}
+    
+    # Track the current period
+    current_period = None
+    for i, val in enumerate(schedule_values):
+        val_str = str(val).strip().lower()
+        
+        # Find period start
+        if val_str.startswith('through:'):
+            current_period = val_str.replace('through:', '').strip()
+            if current_period not in all_values:
+                all_values[current_period] = {'work': None, 'non_work': None}
+            
+            # Check if this period is in the active periods list
+            is_active = current_period in active_periods
+            if is_active and current_period not in active_values:
+                active_values[current_period] = {'work': None, 'non_work': None}
+            
+        # Find setpoint value after 'until:'
+        elif current_period and val_str.startswith('until:'):
+            time_str = val_str.replace('until:', '').strip()
+            is_non_work = (time_str == '24:00')
+            
+            # Look for the temperature value (next item)
+            if i+1 < len(schedule_values):
+                try:
+                    temp_val = float(str(schedule_values[i+1]).strip())
+                    
+                    # Filter appropriate temperatures based on heating/cooling
+                    # For heating: keep if >= -10
+                    # For cooling: keep if < 100 and > 10
+                    is_valid_temp = False
+                    if is_heating and temp_val >= -10:
+                        is_valid_temp = True
+                    elif is_cooling and temp_val < 100 and temp_val > 10:
+                        is_valid_temp = True
+                    
+                    if is_valid_temp:
+                        if is_non_work:
+                            all_values[current_period]['non_work'] = temp_val
+                            if current_period in active_values:
+                                active_values[current_period]['non_work'] = temp_val
+                        else:
+                            all_values[current_period]['work'] = temp_val
+                            if current_period in active_values:
+                                active_values[current_period]['work'] = temp_val
+                except (ValueError, TypeError):
+                    pass
+    
+    # If we have active periods, use them for selection
+    if active_values:
+        # Collect all active work and non-work temps
+        work_temps = []
+        non_work_temps = []
+        
+        for period, temps in active_values.items():
+            if temps['work'] is not None:
+                work_temps.append(temps['work'])
+            if temps['non_work'] is not None:
+                non_work_temps.append(temps['non_work'])
+        
+        # For work setpoint (preferred)
+        if setpoint_type == 'work':
+            if work_temps:
+                # Choose based on heating or cooling mode
+                if is_heating:
+                    return str(max(work_temps))  # Highest heating setpoint
+                else:
+                    return str(min(work_temps))  # Lowest cooling setpoint
+            elif non_work_temps:
+                # Fallback to non-work temps if no work temps found
+                if is_heating:
+                    return str(max(non_work_temps))
+                else:
+                    return str(min(non_work_temps))
+        
+        # For non-work setpoint
+        elif setpoint_type == 'non_work' and non_work_temps:
+            if is_heating:
+                return str(max(non_work_temps))  # Highest heating setpoint
+            else:
+                return str(min(non_work_temps))  # Lowest cooling setpoint
+    
+    # If no active periods were found, fall back to using all temps
+    work_temps = []
+    non_work_temps = []
+    
+    for period, temps in all_values.items():
+        if temps['work'] is not None:
+            work_temps.append(temps['work'])
+        if temps['non_work'] is not None:
+            non_work_temps.append(temps['non_work'])
+    
+    # Select appropriate values based on mode
+    if setpoint_type == 'work':
+        if work_temps:
+            if is_heating:
+                return str(max(work_temps))
+            else:
+                return str(min(work_temps))
+        elif non_work_temps:
+            if is_heating:
+                return str(max(non_work_temps))
+            else:
+                return str(min(non_work_temps))
+    elif setpoint_type == 'non_work':
+        if non_work_temps:
+            if is_heating:
+                return str(max(non_work_temps))
+            else:
+                return str(min(non_work_temps))
+    
+    return '-'
 
 def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf"):
     """
@@ -267,14 +388,14 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf"):
             heating_schedule_obj = schedules.get('heating')
             heating_sched_name = heating_schedule_obj.get('name', '-') if isinstance(heating_schedule_obj, dict) else '-'
             heating_sched_values = heating_schedule_obj.get('schedule_values', []) if isinstance(heating_schedule_obj, dict) else []
-            heating_setpoint = extract_setpoint(heating_sched_values, 'work')
-            heating_setpoint_non_work = extract_setpoint(heating_sched_values, 'non_work')
+            heating_setpoint = extract_setpoint(heating_sched_values, 'work', zone_name, heating_schedule_obj)
+            heating_setpoint_non_work = extract_setpoint(heating_sched_values, 'non_work', zone_name, heating_schedule_obj)
 
             cooling_schedule_obj = schedules.get('cooling')
             cooling_sched_name = cooling_schedule_obj.get('name', '-') if isinstance(cooling_schedule_obj, dict) else '-'
             cooling_sched_values = cooling_schedule_obj.get('schedule_values', []) if isinstance(cooling_schedule_obj, dict) else []
-            cooling_setpoint = extract_setpoint(cooling_sched_values, 'work')
-            cooling_setpoint_non_work = extract_setpoint(cooling_sched_values, 'non_work')
+            cooling_setpoint = extract_setpoint(cooling_sched_values, 'work', zone_name, cooling_schedule_obj)
+            cooling_setpoint_non_work = extract_setpoint(cooling_sched_values, 'non_work', zone_name, cooling_schedule_obj)
 
             infil_rate = get_load_data('infiltration', 'rate_ach', 0.0)
             infil_sched = get_load_data('infiltration', 'schedule')
