@@ -180,11 +180,6 @@ class DataLoader:
                 
                 # Also add to the general surfaces cache to handle it the same way as other surfaces
                 self._surfaces_cache[window_id] = window_data
-                
-                # Debug output
-                print(f"DEBUG: Added glazing surface {window_id} with construction {construction_name}")
-        else:
-            print("DEBUG: No FENESTRATIONSURFACE:DETAILED objects found in IDF file")
     
     def _cache_materials(self) -> None:
         """Cache raw material data"""

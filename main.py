@@ -191,7 +191,9 @@ def main():
         print("  Processing Special Reports...")
         
         print("    Generating area reports...")
-        areas_success = generate_area_reports(parsers['dependent']['areas'].get_parsed_areas())
+        # Pass the full AreaParser instance instead of just the parsed data
+        # This ensures the DataLoader is available for element type detection
+        areas_success = generate_area_reports(parsers['dependent']['areas'])
         print(f"      Area reports generation {'successful' if areas_success else 'failed'}")
             
         # Print total execution time

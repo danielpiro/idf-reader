@@ -11,7 +11,8 @@ from reportlab.lib.pagesizes import letter, landscape, A4
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
-def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]], output_filename: str) -> bool:
+def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]], 
+                            output_filename: str, total_floor_area: float = 0.0) -> bool:
     """
     Generate a PDF report with area information in a consolidated table.
     
@@ -19,6 +20,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]], outp
         area_id: The area ID for the report
         area_data: List of area data rows for this area
         output_filename: Path where to save the PDF report
+        total_floor_area: The total floor area for this area, from zone floor areas
         
     Returns:
         bool: True if report generation was successful, False otherwise
@@ -41,10 +43,29 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]], outp
             spaceAfter=20
         )
         story.append(Paragraph(f"Area {area_id} - Thermal Properties Report", title_style))
-        story.append(Spacer(1, 10))
         
         # Preprocess data to merge constructions with _Rev suffix
         merged_data = merge_reversed_constructions(area_data)
+        
+        # Calculate wall mass (placeholder for now)
+        wall_mass = 0.0  # This will need actual wall mass calculation implementation later
+        
+        # Generate summary section
+        summary_style = ParagraphStyle(
+            'SummaryStyle',
+            parent=styles['Normal'],
+            fontSize=12,
+            spaceAfter=10
+        )
+        
+        summary_text = f"""
+        <b>Area Summary:</b>
+        <br/>Total Area: {total_floor_area:.2f} m²
+        <br/>Wall Mass: {wall_mass:.2f} kg
+        """
+        
+        story.append(Paragraph(summary_text, summary_style))
+        story.append(Spacer(1, 15))
         
         # Create cell styles for better formatting
         cell_style = ParagraphStyle(
@@ -149,7 +170,6 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]], outp
         
         # Build the document
         doc.build(story)
-        print(f"Successfully generated area report for Area {area_id}: {output_filename}")
         return True
         
     except Exception as e:
@@ -272,15 +292,65 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas") -> bool:
         
         # Get table data for each area
         from parsers.materials_parser import MaterialsParser
+        from utils.data_loader import DataLoader
+        
+        # Initialize materials parser if needed
+        materials_parser = None
+        data_loader = None
+        
+        # Get the data loader from the areas_data if possible
+        if hasattr(areas_data, 'data_loader'):
+            data_loader = areas_data.data_loader
+        
+        # Create a materials parser to identify element types
+        try:
+            if data_loader:
+                materials_parser = MaterialsParser(data_loader)
+                materials_parser.process_idf(None)
+        except Exception as e:
+            materials_parser = None
+        
+        # Get surfaces if we have a data_loader
+        surfaces = {}
+        zones = {}
+        if data_loader:
+            surfaces = data_loader.get_surfaces()
+            zones = data_loader.get_zones()
         
         # Convert the data to table rows by area
         area_table_data = {}
         
-        if hasattr(areas_data, 'get_area_table_data'):
-            # If we have the AreaParser instance
-            area_table_data = areas_data.get_area_table_data()
+        # Calculate total floor area for each area
+        area_floor_totals = {}
+        
+        # First, calculate total floor area by area ID
+        if hasattr(areas_data, 'get_area_totals'):
+            # If AreaParser is available, use its method
+            for zone_id, zone_data in areas_data.areas_by_zone.items():
+                area_id = zone_data.get("area_id", "unknown")
+                if area_id not in area_floor_totals:
+                    area_totals = areas_data.get_area_totals(area_id)
+                    area_floor_totals[area_id] = area_totals.get("total_floor_area", 0.0)
         else:
-            # Process manually from parsed areas dict
+            # Otherwise calculate from zones dictionary
+            for zone_id, zone_data in zones.items():
+                area_id = None
+                if hasattr(areas_data, 'get') and isinstance(areas_data.get(zone_id), dict):
+                    area_id = areas_data.get(zone_id, {}).get("area_id", "unknown")
+                
+                if area_id:
+                    if area_id not in area_floor_totals:
+                        area_floor_totals[area_id] = 0.0
+                    
+                    # Add zone's floor area to area total
+                    floor_area = zone_data.get("floor_area", 0.0)
+                    multiplier = zone_data.get("multiplier", 1)
+                    area_floor_totals[area_id] += floor_area * multiplier
+        
+        if hasattr(areas_data, 'get_area_table_data'):
+            # Pass the materials_parser to get_area_table_data
+            area_table_data = areas_data.get_area_table_data(materials_parser)
+        else:
             # Group zones by area and process reports
             areas_grouped = defaultdict(dict)
             for zone_id, zone_data in areas_data.items():
@@ -292,6 +362,7 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas") -> bool:
             # For each area, process all zone constructions
             for area_id, area_zones in areas_grouped.items():
                 rows = []
+                
                 for zone_id, zone_data in area_zones.items():
                     # Process constructions for this zone
                     for construction_name, construction_data in zone_data.get("constructions", {}).items():
@@ -299,10 +370,32 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas") -> bool:
                         total_area = construction_data.get("total_area", 0.0)
                         total_conductivity = construction_data.get("total_conductivity", 0.0)
                         
-                        # Get element type from first element
-                        element_type = "Floor"  # Default
-                        if construction_data.get("elements"):
-                            element_type = construction_data["elements"][0].get("element_type", "Floor")
+                        # Determine element type using proper detection
+                        element_type = None  # Initialize to None to track if detection succeeded
+                        
+                        # Try using MaterialsParser first for element type detection
+                        if materials_parser and surfaces:
+                            try:
+                                element_type = materials_parser._get_element_type(construction_name, surfaces)
+                            except Exception as e:
+                                pass
+                        
+                        # Check if this is a glazing construction if element_type is still None
+                        if not element_type:
+                            for element in construction_data.get("elements", []):
+                                surface_name = element.get("surface_name")
+                                if surface_name and surface_name in surfaces:
+                                    surface = surfaces[surface_name]
+                                    if surface.get('is_glazing', False):
+                                        element_type = "Glazing"
+                                        break
+                        
+                        # Fallback: only use if all other methods fail
+                        if not element_type and construction_data.get("elements"):
+                            fallback_type = construction_data["elements"][0].get("element_type", "Unknown")
+                            element_type = fallback_type
+                        elif not element_type:
+                            element_type = "Unknown"
                         
                         # Add row for this construction
                         row = {
@@ -322,16 +415,21 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas") -> bool:
         successes = []
         for area_id, rows in area_table_data.items():
             output_file = output_path / f"area_{area_id}.pdf"
-            success = generate_area_report_pdf(area_id, rows, str(output_file))
-            successes.append(success)
             
-            if not success:
-                print(f"Failed to generate report for Area {area_id}")
+            # Get the correct total floor area for the summary
+            total_floor_area = area_floor_totals.get(area_id, 0.0)
+            
+            success = generate_area_report_pdf(
+                area_id=area_id, 
+                area_data=rows, 
+                output_filename=str(output_file),
+                total_floor_area=total_floor_area
+            )
+            successes.append(success)
             
         return all(successes)
         
     except Exception as e:
-        print(f"Error processing area data for reports: {e}")
         import traceback
         traceback.print_exc()
         return False

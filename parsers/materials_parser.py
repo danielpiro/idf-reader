@@ -142,7 +142,7 @@ class MaterialsParser:
         # Find surfaces using this construction
         construction_surfaces = []
         for surface_id, surface in surfaces.items():
-            if surface['construction_name'] == construction_id:
+            if surface.get('construction_name') == construction_id:
                 construction_surfaces.append(surface)
                 # Break early once we have one surface (for efficiency)
                 if len(construction_surfaces) >= 1:
@@ -151,62 +151,72 @@ class MaterialsParser:
         if not construction_surfaces:
             return ""
         
-        # Check if this is a glazing surface
+        # Get the first surface using this construction
         surface = construction_surfaces[0]
+        
+        # Check if this is a glazing surface
         if surface.get('is_glazing', False):
             return "Glazing"
             
         try:
-            s_type = surface['surface_type'].lower() if surface['surface_type'] else ""
-            boundary = surface['boundary_condition'].lower() if surface['boundary_condition'] else ""
+            s_type = surface['surface_type'].lower() if surface.get('surface_type') else ""
+            boundary = surface['boundary_condition'].lower() if surface.get('boundary_condition') else ""
         except (AttributeError, IndexError, KeyError):
             return ""
         
-        zones = self.data_loader.get_hvac_zones() # Assumes this returns a dict/set of zone names
+        zones = self.data_loader.get_hvac_zones()
         
         # Safely get the outside boundary object name
         raw_object = surface.get('raw_object')
         outside_boundary_obj_name = None
-        if isinstance(raw_object, dict):
-             outside_boundary_obj_name = raw_object['Outside_Boundary_Condition_Object']
-
-        # Process if the boundary object name is found and is a string
-        if isinstance(outside_boundary_obj_name, str) and outside_boundary_obj_name:
-            # Assuming the zone name is the first part if spaces exist
-            zone_name_candidate = outside_boundary_obj_name.split("_")[0].strip()
-            if zone_name_candidate:
-                 is_zone_interior = zone_name_candidate in zones
-            else:
-                is_zone_interior = False
+        is_zone_interior = False
         
+        try:
+            if raw_object:
+                if hasattr(raw_object, 'Outside_Boundary_Condition_Object'):
+                    outside_boundary_obj_name = raw_object.Outside_Boundary_Condition_Object
+                elif isinstance(raw_object, dict) and 'Outside_Boundary_Condition_Object' in raw_object:
+                    outside_boundary_obj_name = raw_object['Outside_Boundary_Condition_Object']
+            
+            # Process if the boundary object name is found and is a string
+            if isinstance(outside_boundary_obj_name, str) and outside_boundary_obj_name:
+                # Assuming the zone name is the first part if spaces exist
+                zone_name_candidate = outside_boundary_obj_name.split("_")[0].strip()
+                if zone_name_candidate:
+                    is_zone_interior = zone_name_candidate in zones
+            
+        except Exception:
+            pass
+        
+        result = ""
         if s_type == "wall":
             if boundary == "outdoors":
-                return "External wall"
+                result = "External wall"
             elif boundary == "ground":
-                return "Ground wall"
+                result = "Ground wall"
             else:
-                return "Internal wall" if is_zone_interior else "Separation wall"
+                result = "Internal wall" if is_zone_interior else "Separation wall"
                 
-        if s_type == "floor":
+        elif s_type == "floor":
             if boundary == "outdoors":
-                return "External floor"
+                result = "External floor"
             elif boundary == "ground":
-                return "Ground floor"
+                result = "Ground floor"
             else:
-                return "Intermediate floor" if is_zone_interior else "Separation floor"
+                result = "Intermediate floor" if is_zone_interior else "Separation floor"
                 
-        if s_type == "ceiling":
+        elif s_type == "ceiling":
             if boundary == "ground":
-                return "Ground ceiling"
+                result = "Ground ceiling"
             elif boundary == "outdoors":
-                return "External ceiling"
+                result = "External ceiling"
             else:
-                return "Intermediate ceiling" if is_zone_interior else "Separation ceiling"
+                result = "Intermediate ceiling" if is_zone_interior else "Separation ceiling"
                 
-        if s_type == "roof":
-            return "Roof"
+        elif s_type == "roof":
+            result = "Roof"
             
-        return ""
+        return result
         
     def get_element_data(self) -> list:
         """
