@@ -5,6 +5,7 @@ from typing import Dict, Any, List, Optional, Tuple
 import time
 import logging
 from utils.data_loader import DataLoader
+from parsers.materials_parser import MaterialsParser  # Import MaterialsParser for element_type function
 
 logger = logging.getLogger(__name__)
 
@@ -242,3 +243,72 @@ class AreaParser:
         for zone_id, zone_data in self.areas_by_zone.items():
             all_constructions[zone_id] = zone_data.get("constructions", {})
         return all_constructions
+        
+    def get_area_table_data(self, materials_parser: Optional[MaterialsParser] = None) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Get all area data formatted for tables, grouped by area ID.
+        
+        Args:
+            materials_parser: Optional MaterialsParser instance for getting element types
+            
+        Returns:
+            Dict[str, List[Dict[str, Any]]]: Dictionary of area_id -> list of data rows
+        """
+        # Create a materials parser if not provided
+        if materials_parser is None:
+            try:
+                materials_parser = MaterialsParser(self.data_loader)
+                materials_parser.process_idf(None)  # Process data from DataLoader
+            except Exception as e:
+                materials_parser = None
+        
+        # Get surface data for element type detection
+        surfaces = self.data_loader.get_surfaces()
+        
+        # Group by area ID
+        result_by_area = {}
+        
+        # Process all zones and their constructions, grouped by zone+construction
+        for zone_id, zone_data in self.areas_by_zone.items():
+            area_id = zone_data.get("area_id", "unknown")
+            
+            # Initialize area in results if not already
+            if area_id not in result_by_area:
+                result_by_area[area_id] = []
+            
+            # Dictionary to store zone+construction combinations
+            zone_constructions = {}
+            
+            for construction_name, construction_data in zone_data.get("constructions", {}).items():
+                # Get element type using materials_parser if available
+                element_type = "Floor"  # Default
+                if materials_parser:
+                    try:
+                        element_type = materials_parser._get_element_type(construction_name, surfaces)
+                    except Exception:
+                        pass
+                
+                # Create a unique key for zone+construction combination 
+                zone_constr_key = f"{zone_id}_{construction_name}"
+                
+                # Sum areas for same construction+zone
+                if zone_constr_key not in zone_constructions:
+                    zone_constructions[zone_constr_key] = {
+                        "zone": zone_id,
+                        "construction": construction_name,
+                        "element_type": element_type,
+                        "area": 0.0,
+                        "conductivity": construction_data.get("elements", [{}])[0].get("conductivity", 0.0) if construction_data.get("elements") else 0.0,
+                        "area_conductivity": 0.0,
+                        "area_loss": 0.0  # Placeholder as requested
+                    }
+                
+                # Add area and area_conductivity
+                constr_sum = zone_constructions[zone_constr_key]
+                constr_sum["area"] += construction_data.get("total_area", 0.0)
+                constr_sum["area_conductivity"] += construction_data.get("total_conductivity", 0.0)
+            
+            # Add all zone+constructions to the area's result list
+            result_by_area[area_id].extend(zone_constructions.values())
+                
+        return result_by_area

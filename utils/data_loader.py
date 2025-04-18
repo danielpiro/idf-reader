@@ -117,7 +117,8 @@ class DataLoader:
                 'floor_area': safe_float(getattr(zone, "Floor_Area", 0.0)),
                 'volume': safe_float(getattr(zone, "Volume", 0.0)),
                 'multiplier': int(safe_float(getattr(zone, "Multiplier", 1))),
-                'raw_object': zone  # Store the raw object for parsers
+                'raw_object': zone,  # Store the raw object for parsers
+                'surfaces': zone.zonesurfaces  # Updated to include surfaces
             }
     
     def _cache_surfaces(self) -> None:
