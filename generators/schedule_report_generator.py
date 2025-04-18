@@ -5,8 +5,76 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import Paragraph, Table, TableStyle # Re-added Table, TableStyle
 from reportlab.lib import colors # Import colors module
 from reportlab.lib.colors import navy, black, grey, lightgrey, white # Removed unused colors
+import datetime
 
-# --- Helper Functions (Removed timeline helpers) ---
+# --- Helper Functions ---
+
+def parse_date_string(date_str):
+    """
+    Parse date string in "DD/MM" format to a datetime.date object.
+    For sorting purposes, assume current year.
+    """
+    try:
+        day, month = map(int, date_str.split('/'))
+        # Use a fixed year since we're just concerned with month/day order
+        return datetime.date(2000, month, day)
+    except (ValueError, AttributeError):
+        # Default value for invalid dates
+        return datetime.date(2000, 12, 31)
+
+def create_date_ranges(rule_blocks):
+    """
+    Process rule blocks to create date ranges.
+    
+    Transforms single dates like "31/12" into ranges like "01/01 -> 31/12"
+    and connects consecutive dates.
+    
+    Args:
+        rule_blocks: List of rule block dictionaries from the parser.
+        
+    Returns:
+        List of rule blocks with 'through' field replaced by 'date_range'
+    """
+    if not rule_blocks:
+        return []
+        
+    # Sort the blocks by their date
+    sorted_blocks = sorted(rule_blocks, key=lambda block: parse_date_string(block.get('through', '31/12')))
+    
+    # Add a special first block for 01/01 if needed
+    if sorted_blocks and sorted_blocks[0].get('through') != '01/01':
+        first_date = '01/01'
+    else:
+        first_date = None
+        
+    # Create the date ranges
+    result_blocks = []
+    prev_date = first_date
+    
+    for i, block in enumerate(sorted_blocks):
+        current_date = block.get('through', '31/12')
+        
+        # Skip if can't parse date properly
+        if '/' not in current_date:
+            continue
+            
+        # For the first block with a special start date
+        if i == 0 and first_date:
+            date_range = f"{first_date} -> {current_date}"
+        # For subsequent blocks, use previous block's date as start
+        elif i > 0:
+            prev_date = sorted_blocks[i-1].get('through', '31/12')
+            date_range = f"{prev_date} -> {current_date}"
+        # For first block without special start
+        else:
+            date_range = f"01/01 -> {current_date}"
+            
+        # Create a new block with date range
+        new_block = block.copy()
+        new_block['date_range'] = date_range
+        result_blocks.append(new_block)
+    
+    return result_blocks
 
 # --- Table Creation Function ---
 
@@ -25,9 +93,12 @@ def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> T
     if not rule_blocks:
         return None
 
+    # Process the rule blocks to create date ranges
+    rule_blocks_with_ranges = create_date_ranges(rule_blocks)
+    
     # Define column widths to match reference structure (Period + 24 hours)
     # Adjust column widths again for better fit, make first column wider
-    period_col_width = 3.5 * cm
+    period_col_width = 4.5 * cm  # Increased width for date ranges
     num_hour_cols = 24
     # Calculate width for each hourly column
     hour_col_width = (available_width - period_col_width) / num_hour_cols
@@ -37,7 +108,7 @@ def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> T
     # Prepare table data - matching reference structure
     # Using a placeholder "Period" label, actual content from 'For:' field
     # Update header to match reference (using double backslash for literal)
-    header = ["Months/Hours"] + [str(h+1) for h in range(num_hour_cols)] # Hours 1-24
+    header = ["Date Ranges/Hours"] + [str(h+1) for h in range(num_hour_cols)] # Hours 1-24
     table_data = [header]
 
     # Use a base style for cells, can be overridden by TableStyle
@@ -45,10 +116,9 @@ def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> T
     cell_style.fontSize = 7
     cell_style.alignment = 1 # Center
 
-    for block in rule_blocks:
-        # Use the standardized date format directly - already processed by parser
-        period_text = block.get('through', 'N/A')
-        # Don't try to process it further - it should already be in DD/MM format
+    for block in rule_blocks_with_ranges:
+        # Use the created date range instead of just 'through' date
+        period_text = block.get('date_range', 'N/A')
         hourly_values = block.get('hourly_values', [''] * num_hour_cols) # Ensure 24 values
 
         # Create row data with period identifier + 24 hourly values
