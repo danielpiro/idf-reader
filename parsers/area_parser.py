@@ -11,112 +11,115 @@ logger = logging.getLogger(__name__)
 
 class AreaParser:
     """
-    Extracts and processes area information from zone IDs.
-    Uses DataLoader for efficient data access and caching.
+    Processes area information from IDF files, including distribution of zones in areas.
+    Uses cached data from DataLoader for efficient access.
     """
-    def __init__(self, data_loader: DataLoader):
-        """
-        Initialize AreaParser with DataLoader instance.
-        
-        Args:
-            data_loader: DataLoader instance for accessing cached IDF data
-        """
+    def __init__(self, data_loader):
         self.data_loader = data_loader
-        self.areas_by_zone = {}  # {zone_id: {"area_id": str, "properties": {}, "constructions": {}}}
+        self.areas_by_zone = {}  # Dictionary to store area data by zone
+        self.processed = False
         
-    def process_idf(self, idf) -> None:
+    def process_idf(self, idf) -> None: # idf parameter kept for compatibility
         """
-        Process an entire IDF model to extract all area information.
-        Implementation details moved from DataLoader.
+        Extract area information.
         
         Args:
-            idf: eppy IDF object (kept for compatibility)
+            idf: eppy IDF object (not directly used)
         """
-        start_time = time.time()
-        
+        if not self.data_loader:
+            print("Error: AreaParser requires a DataLoader instance.")
+            return
+            
+        if self.processed:
+            # Skip if already processed
+            return
+            
         try:
-            # Process zones first to extract area IDs
+            # Process zones to initialize data structure
             self._process_zones()
             
-            # Then process surfaces for each zone
+            # Process surfaces to extract construction information
             self._process_surfaces()
             
-            end_time = time.time()
-            logger.info(f"Area processing completed in {end_time - start_time:.2f}s")
-            
+            self.processed = True
+        
         except Exception as e:
-            logger.error(f"Error during area processing: {str(e)}")
-            raise
+            print(f"Error extracting area information: {str(e)}")
+            import traceback
+            traceback.print_exc()
     
     def _process_zones(self) -> None:
         """
-        Process zones to extract area IDs.
-        Implementation details moved from DataLoader.
+        Process zones to initialize the data structure.
         """
-        # Get cached zone data
+        # Get zones with area information from DataLoader
         zones = self.data_loader.get_zones()
         
-        # Initialize zone data structure
+        # Process each zone to create data structure
         for zone_id, zone_data in zones.items():
-            # Extract area ID from zone ID
-            area_id = None
-            import re
-            area_match = re.search(r':(\d{2})', zone_id)
-            if area_match:
-                area_id = area_match.group(1)
+            # Extract the area ID from the zone name - it's the digits after the colon
+            area_id = "unknown"
             
-            # Skip zones without area ID
-            if not area_id:
-                continue
-                
-            # Initialize zone data structure
+            if zone_id and ":" in zone_id:
+                # Extract area ID after the colon
+                parts = zone_id.split(":")
+                if len(parts) > 1:
+                    # If we have at least 2 digits, take the first two
+                    if len(parts[1]) >= 2 and parts[1][:2].isdigit():
+                        area_id = parts[1][:2]
+                    # Otherwise use the entire part after the colon
+                    elif parts[1]:
+                        area_id = parts[1]
+            
+            # Create zone in areas_by_zone
             self.areas_by_zone[zone_id] = {
                 "area_id": area_id,
-                "properties": {
-                    "floor_area": zone_data['floor_area'],
-                    "volume": zone_data['volume'],
-                    "multiplier": zone_data['multiplier']
-                },
-                "constructions": {}  # Group elements by construction name
+                "floor_area": zone_data.get("floor_area", 0.0),
+                "multiplier": zone_data.get("multiplier", 1),
+                "constructions": {}  # Will be populated in _process_surfaces
             }
     
     def _process_surfaces(self) -> None:
         """
-        Process surfaces for all zones.
+        Process surfaces to extract construction and area information.
         Implementation details moved from DataLoader.
         """
         # Get cached surface data
         surfaces = self.data_loader.get_surfaces()
         
-        # Group surfaces by zone
-        for surface_id, surface_data in surfaces.items():
-            zone_name = surface_data['zone_name']
+        # Process each surface to extract construction and area information
+        for surface_id, surface in surfaces.items():
+            zone_name = surface.get("zone_name")
             
-            # Skip if zone was filtered out
-            if zone_name not in self.areas_by_zone:
+            # Skip if zone is missing
+            if not zone_name or zone_name not in self.areas_by_zone:
+                continue
+                
+            construction_name = surface.get("construction_name")
+            if not construction_name:
+                continue
+                
+            area = surface.get("area", 0.0)
+            if area <= 0.0:
                 continue
             
-            # Track surface types for debugging
-            surface_type = surface_data['surface_type'].lower()
-                
-            # Get construction properties
-            construction_name = surface_data['construction_name']
+            # Get properties for the construction
+            properties = self._get_construction_properties(construction_name)
+            thickness = properties.get("thickness", 0.0)
             
-            # Flag if this is a glazing/window surface
-            is_glazing = surface_data.get('is_glazing', False)
+            # Calculate U-Value using materials parser logic (1/R-value with film)
+            u_value = self._calculate_u_value(construction_name)
             
-            construction_props = self._get_construction_properties(construction_name)
+            # Get surface type and determine if glazing
+            surface_type = surface.get("surface_type", "wall")
+            is_glazing = surface.get("is_glazing", False)
             
-            # Get area directly from surface data
-            area = surface_data['area']
-            conductivity = construction_props['conductivity']
-            
-            # Initialize construction group if not exists
+            # Add construction to zone if not already present
             if construction_name not in self.areas_by_zone[zone_name]["constructions"]:
                 self.areas_by_zone[zone_name]["constructions"][construction_name] = {
                     "elements": [],
                     "total_area": 0.0,
-                    "total_conductivity": 0.0
+                    "total_u_value": 0.0
                 }
             
             # Add element data and update totals
@@ -125,15 +128,15 @@ class AreaParser:
                 "surface_name": surface_id,
                 "element_type": "Glazing" if is_glazing else surface_type.capitalize(),  # Mark glazing specifically
                 "area": area,
-                "conductivity": conductivity,
-                "area_conductivity": area * conductivity
+                "u_value": u_value,
+                "area_u_value": area * u_value
             }
             
             constr_group = self.areas_by_zone[zone_name]["constructions"][construction_name]
             constr_group["elements"].append(element_data)
             constr_group["total_area"] += area
-            constr_group["total_conductivity"] += area * conductivity
-    
+            constr_group["total_u_value"] += area * u_value
+            
     def _get_construction_properties(self, construction_name: str) -> Dict[str, float]:
         """
         Get properties for a specific construction.
@@ -177,106 +180,157 @@ class AreaParser:
             'conductivity': conductivity
         }
         
-    def get_parsed_areas(self) -> Dict[str, Any]:
+    def _calculate_u_value(self, construction_name: str) -> float:
         """
-        Returns the dictionary of parsed area information.
+        Calculate U-Value for a construction (1/R-value with film).
+        
+        Args:
+            construction_name: Name of the construction
+            
+        Returns:
+            float: U-Value
+        """
+        # Get cached construction and surface data
+        constructions = self.data_loader.get_constructions()
+        materials = self.data_loader.get_materials()
+        surfaces = self.data_loader.get_surfaces()
+        
+        if construction_name not in constructions:
+            return 0.0
+            
+        # Find surface using this construction to determine type and boundary
+        s_type = "wall"  # Default
+        boundary = "outdoors"  # Default
+        
+        for surface_id, surface in surfaces.items():
+            if surface.get('construction_name') == construction_name:
+                s_type = surface.get('surface_type', 'wall').lower()
+                boundary = surface.get('boundary_condition', 'outdoors').lower()
+                break
+                
+        # Calculate film resistance using MaterialsParser logic
+        film_resistance = self._get_surface_film_resistance(s_type, boundary)
+        
+        # Calculate material thermal resistance
+        construction_data = constructions[construction_name]
+        material_layers = construction_data['material_layers']
+        total_resistance = 0.0
+        
+        for layer_id in material_layers:
+            if layer_id in materials:
+                material_data = materials[layer_id]
+                thickness = material_data['thickness']
+                conductivity = material_data['conductivity']
+                
+                if conductivity > 0:
+                    total_resistance += thickness / conductivity
+        
+        # Total R-value with film
+        r_value_with_film = total_resistance + film_resistance
+        
+        # Calculate U-Value as 1 / R-Value with film
+        u_value = 1.0 / r_value_with_film if r_value_with_film > 0 else 0.0
+        
+        return u_value
+        
+    def _get_surface_film_resistance(self, s_type: str, boundary: str) -> float:
+        """
+        Determine the surface film resistance constant based on element type and boundary.
+        Duplicated from MaterialsParser for self-containment.
+        
+        Args:
+            s_type: Surface type (wall, floor, ceiling, roof)
+            boundary: Boundary condition (outdoors, ground, etc.)
+            
+        Returns:
+            float: Surface film resistance constant to add to R-Value
+        """
+        s_type = s_type.lower() if s_type else ""
+        boundary = boundary.lower() if boundary else ""
+        
+        if s_type == "wall":
+            return 0.17 if boundary == "outdoors" else 0.26
+        elif s_type == "ceiling" or s_type == "roof":
+            return 0.14 if boundary == "outdoors" else 0.20
+        elif s_type == "floor":
+            return 0.21 if boundary == "outdoors" else 0.34
+        else:
+            return 0.00  # Default case
+    
+    def get_areas_by_zone(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get the processed area data by zone.
         
         Returns:
-            dict: Dictionary of area information by zone
+            Dict[str, Dict[str, Any]]: Dictionary of area data by zone
         """
         return self.areas_by_zone
         
-    def get_zones_by_area(self, area_id: str) -> Dict[str, Any]:
-        """
-        Get all zones belonging to a specific area.
-        
-        Args:
-            area_id: The area identifier to filter by
-            
-        Returns:
-            dict: Dictionary of zones in the specified area
-        """
-        return {
-            zone_id: zone_data
-            for zone_id, zone_data in self.areas_by_zone.items()
-            if zone_data["area_id"] == area_id
-        }
-        
     def get_area_totals(self, area_id: str) -> Dict[str, float]:
         """
-        Calculate total properties for an area.
+        Get totals for a specific area.
         
         Args:
-            area_id: The area identifier to calculate totals for
+            area_id: ID of the area
             
         Returns:
-            dict: Dictionary with total floor area, volume, etc.
+            Dict[str, float]: Dictionary with area totals
         """
-        area_zones = self.get_zones_by_area(area_id)
-        
-        total_floor_area = 0.0
-        total_volume = 0.0
-        
-        for zone_data in area_zones.values():
-            multiplier = zone_data["properties"]["multiplier"]
-            total_floor_area += zone_data["properties"]["floor_area"] * multiplier
-            total_volume += zone_data["properties"]["volume"] * multiplier
-            
-        return {
-            "total_floor_area": total_floor_area,
-            "total_volume": total_volume,
-            "zone_count": len(area_zones)
+        result = {
+            "total_floor_area": 0.0,
+            "wall_area": 0.0,
+            "window_area": 0.0
         }
-            
-    def get_element_data(self, zone_id: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Get processed elements grouped by construction name.
         
-        Args:
-            zone_id: Optional zone ID to filter elements by
-            
-        Returns:
-            dict: Dictionary of elements grouped by construction name
-        """
-        if zone_id:
-            return self.areas_by_zone.get(zone_id, {}).get("constructions", {})
-        
-        # Return all constructions grouped by zone
-        all_constructions = {}
         for zone_id, zone_data in self.areas_by_zone.items():
-            all_constructions[zone_id] = zone_data.get("constructions", {})
-        return all_constructions
+            if zone_data.get("area_id") != area_id:
+                continue
+            
+            # Add floor area for this zone
+            result["total_floor_area"] += (
+                zone_data.get("floor_area", 0.0) * zone_data.get("multiplier", 1)
+            )
+            
+            # Process constructions
+            for construction_name, construction_data in zone_data.get("constructions", {}).items():
+                # Check if any element is glazing
+                is_glazing = False
+                for element in construction_data.get("elements", []):
+                    if element.get("element_type") == "Glazing":
+                        is_glazing = True
+                        break
+                
+                # Add to appropriate area total
+                if is_glazing:
+                    result["window_area"] += construction_data.get("total_area", 0.0)
+                elif "wall" in [e.get("element_type", "").lower() for e in construction_data.get("elements", [])]:
+                    result["wall_area"] += construction_data.get("total_area", 0.0)
+        
+        return result
         
     def get_area_table_data(self, materials_parser: Optional[MaterialsParser] = None) -> Dict[str, List[Dict[str, Any]]]:
         """
-        Get all area data formatted for tables, grouped by area ID.
+        Get data for area reports in table format.
         
         Args:
-            materials_parser: Optional MaterialsParser instance for getting element types
+            materials_parser: Optional MaterialsParser instance for better element type detection
             
         Returns:
-            Dict[str, List[Dict[str, Any]]]: Dictionary of area_id -> list of data rows
+            Dict[str, List[Dict[str, Any]]]: Dictionary of area table rows by area ID
         """
-        
-        # Create a materials parser if not provided
-        if materials_parser is None:
-            try:
-                from parsers.materials_parser import MaterialsParser
-                materials_parser = MaterialsParser(self.data_loader)
-                materials_parser.process_idf(None)  # Process data from DataLoader
-            except Exception as e:
-                materials_parser = None
-        
-        # Get surface data for element type detection
-        surfaces = self.data_loader.get_surfaces()
-        
-        # Group by area ID
         result_by_area = {}
         
-        # Process all zones and their constructions, grouped by zone+construction
+        # Get cached surfaces
+        surfaces = self.data_loader.get_surfaces()
+        
+        # Process each zone
         for zone_id, zone_data in self.areas_by_zone.items():
             area_id = zone_data.get("area_id", "unknown")
             
+            # Skip zones with "core" in their area ID
+            if "core" in area_id.lower():
+                continue
+                
             # Initialize area in results if not already
             if area_id not in result_by_area:
                 result_by_area[area_id] = []
@@ -318,25 +372,25 @@ class AreaParser:
                 
                 # Sum areas for same construction+zone
                 if zone_constr_key not in zone_constructions:
-                    # Get conductivity from first element if available
-                    conductivity = 0.0
+                    # Get u_value from first element if available
+                    u_value = 0.0
                     if construction_data.get("elements") and len(construction_data["elements"]) > 0:
-                        conductivity = construction_data["elements"][0].get("conductivity", 0.0)
+                        u_value = construction_data["elements"][0].get("u_value", 0.0)
                     
                     zone_constructions[zone_constr_key] = {
                         "zone": zone_id,
                         "construction": construction_name,
                         "element_type": element_type,
                         "area": 0.0,
-                        "conductivity": conductivity,
-                        "area_conductivity": 0.0,
+                        "u_value": u_value,
+                        "area_u_value": 0.0,
                         "area_loss": 0.0  # Placeholder as requested
                     }
                 
-                # Add area and area_conductivity
+                # Add area and area_u_value
                 constr_sum = zone_constructions[zone_constr_key]
                 constr_sum["area"] += construction_data.get("total_area", 0.0)
-                constr_sum["area_conductivity"] += construction_data.get("total_conductivity", 0.0)
+                constr_sum["area_u_value"] += construction_data.get("total_u_value", 0.0)
             
             # Add all zone+constructions to the area's result list
             result_by_area[area_id].extend(zone_constructions.values())

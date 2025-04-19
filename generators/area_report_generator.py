@@ -95,8 +95,8 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
             Paragraph("Construction", header_style),
             Paragraph("Element type", header_style),
             Paragraph("Area", header_style),
-            Paragraph("Conductivity", header_style),
-            Paragraph("Area * Conductivity", header_style),
+            Paragraph("U-Value", header_style),
+            Paragraph("Area * U-Value", header_style),
             Paragraph("Area loss", header_style)
         ]
         
@@ -126,8 +126,8 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
             
             # Format numeric values with proper alignment
             area_value = f"{row['area']:.2f}"
-            conductivity_value = f"{row['conductivity']:.3f}"
-            area_conductivity_value = f"{row['area_conductivity']:.2f}"
+            u_value = f"{row['u_value']:.3f}"
+            area_u_value = f"{row['area_u_value']:.2f}"
             area_loss_value = f"{row['area_loss']:.2f}"
             
             # Add all cells to row
@@ -136,8 +136,8 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
                 construction_cell,
                 element_type_cell,
                 area_value,
-                conductivity_value,
-                area_conductivity_value,
+                u_value,
+                area_u_value,
                 area_loss_value
             ])
         
@@ -147,8 +147,8 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
             7.0*cm,     # Construction - increased for long names with breaks
             3.0*cm,     # Element type
             2.3*cm,     # Area
-            2.3*cm,     # Conductivity
-            3.0*cm,     # Area * Conductivity
+            2.3*cm,     # U-Value
+            3.0*cm,     # Area * U-Value
             2.3*cm      # Area loss
         ]
         
@@ -229,7 +229,7 @@ def merge_reversed_constructions(area_data: List[Dict[str, Any]]) -> List[Dict[s
             # Merge with existing entry
             existing = merged_dict[key]
             existing['area'] += row['area']
-            existing['area_conductivity'] += row['area_conductivity']
+            existing['area_u_value'] += row['area_u_value']
             existing['area_loss'] += row['area_loss']
     
     # Convert back to list
@@ -337,8 +337,8 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas") -> bool:
         area_floor_totals = {}
         
         # First, calculate total floor area by area ID
-        if hasattr(areas_data, 'get_area_totals'):
-            # If AreaParser is available, use its method
+        if hasattr(areas_data, 'areas_by_zone'):
+            # If AreaParser is available, use its data structure
             for zone_id, zone_data in areas_data.areas_by_zone.items():
                 area_id = zone_data.get("area_id", "unknown")
                 if area_id not in area_floor_totals:
@@ -381,7 +381,7 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas") -> bool:
                     for construction_name, construction_data in zone_data.get("constructions", {}).items():
                         # Sum all elements for this construction
                         total_area = construction_data.get("total_area", 0.0)
-                        total_conductivity = construction_data.get("total_conductivity", 0.0)
+                        total_u_value = construction_data.get("total_u_value", 0.0)
                         
                         # Determine element type using proper detection
                         element_type = None  # Initialize to None to track if detection succeeded
@@ -416,8 +416,8 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas") -> bool:
                             "construction": construction_name,
                             "element_type": element_type,
                             "area": total_area,
-                            "conductivity": construction_data.get("elements", [{}])[0].get("conductivity", 0.0) if construction_data.get("elements") else 0.0,
-                            "area_conductivity": total_conductivity,
+                            "u_value": construction_data.get("elements", [{}])[0].get("u_value", 0.0) if construction_data.get("elements") else 0.0,
+                            "area_u_value": total_u_value,
                             "area_loss": 0.0
                         }
                         rows.append(row)
