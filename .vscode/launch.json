@@ -15,7 +15,7 @@
       "program": "${workspaceFolder}/main.py",
       "args": [
         // Directly reference the file in the workspace folder
-        "${workspaceFolder}/tests/in-small.idf"
+        "${workspaceFolder}/tests/in-test.idf"
         // Or change to: "${workspaceFolder}/in-big.idf" if needed
       ],
       "console": "integratedTerminal"

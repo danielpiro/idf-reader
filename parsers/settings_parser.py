@@ -317,10 +317,10 @@ class SettingsExtractor:
                 self.extracted_settings['simulation']['sizing_system'] = getattr(obj, 'Do_System_Sizing_Calculation')
             if hasattr(obj, 'Do_Plant_Sizing_Calculation'):
                 self.extracted_settings['simulation']['sizing_plant'] = getattr(obj, 'Do_Plant_Sizing_Calculation')
-            if hasattr(obj, 'Do_Design_Day_Calculation'):
-                self.extracted_settings['simulation']['design_day'] = getattr(obj, 'Do_Design_Day_Calculation')
-            if hasattr(obj, 'Do_Weather_File_Calculation'):
-                self.extracted_settings['simulation']['weather_file'] = getattr(obj, 'Do_Weather_File_Calculation')
+            if hasattr(obj, 'Run_Simulation_for_Sizing_Periods'):
+                self.extracted_settings['simulation']['design_day'] = getattr(obj, 'Run_Simulation_for_Sizing_Periods')
+            if hasattr(obj, 'Run_Simulation_for_Weather_File_Run_Periods'):
+                self.extracted_settings['simulation']['weather_file'] = getattr(obj, 'Run_Simulation_for_Weather_File_Run_Periods')
             return
             
         # Special handling for SIZINGPERIOD:DESIGNDAY
