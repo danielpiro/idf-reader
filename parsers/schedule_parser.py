@@ -3,7 +3,7 @@ Extracts and processes Schedule:Compact objects.
 Uses DataLoader for cached access to IDF data.
 """
 import re
-from typing import Dict, List, Any, Optional, Tuple, Union
+from typing import Dict, List, Any, Optional, Tuple
 from utils.data_loader import DataLoader
 from utils.data_models import ScheduleData
 

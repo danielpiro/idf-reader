@@ -2,7 +2,7 @@
 Extracts settings and simulation parameters from IDF files.
 Uses DataLoader for cached access to IDF data.
 """
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 from utils.data_loader import DataLoader
 
 class SettingsExtractor:

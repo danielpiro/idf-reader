@@ -3,10 +3,9 @@ Extracts and processes materials and constructions.
 Uses DataLoader for cached access to IDF data.
 """
 import re
-from typing import Dict, Any, Optional, List
-import numpy as np
+from typing import Dict, Any, Optional
 from colorama import Fore, Style
-from utils.data_loader import DataLoader, safe_float
+from utils.data_loader import DataLoader
 from utils.data_models import MaterialData, ConstructionData
 
 class MaterialsParser:
@@ -113,7 +112,7 @@ class MaterialsParser:
                     break
             
             # Get surface film resistance based on surface type and boundary
-            film_resistance = self._get_surface_film_resistance(s_type, boundary)
+            film_resistance = self._get_surface_film_resistance(element_type)
             
             # Process each material layer in the construction
             for layer_id in construction_data.material_layers:
@@ -234,7 +233,7 @@ class MaterialsParser:
             
         return result
 
-    def _get_surface_film_resistance(self, s_type: str, boundary: str) -> float:
+    def _get_surface_film_resistance(self, element_type: str) -> float:
         """
         Determine the surface film resistance constant based on element type and boundary.
         
@@ -245,17 +244,25 @@ class MaterialsParser:
         Returns:
             float: Surface film resistance constant to add to R-Value
         """
-        s_type = s_type.lower() if s_type else ""
-        boundary = boundary.lower() if boundary else ""
-        
-        if s_type == "wall":
-            return 0.17 if boundary == "outdoors" else 0.26
-        elif s_type == "ceiling" or s_type == "roof":
-            return 0.14 if boundary == "outdoors" else 0.20
-        elif s_type == "floor":
-            return 0.21 if boundary == "outdoors" else 0.34
+
+        element_type = element_type.lower()
+
+        if element_type in ["ground wall", "internal wall", "ground floor", "ground ceiling","intermediate ceiling"]:
+            return 0.0
+        if element_type == "external wall":
+            return 0.17
+        elif element_type == "separation wall":
+            return 0.26
+        elif element_type == "external floor":
+            return 0.21
+        elif element_type == "separation floor":
+            return 0.34
+        elif element_type == "external ceiling":
+            return 0.14
+        elif element_type == "separation ceiling":
+            return 0.2
         else:
-            return 0.00  # Default case
+            return 0.14
         
     def get_element_data(self) -> list:
         """

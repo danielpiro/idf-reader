@@ -2,9 +2,8 @@
 Extracts and processes zone loads and their associated schedules.
 Uses DataLoader for cached access to zone data.
 """
-from typing import Dict, Any, Optional, List
-from utils.data_loader import DataLoader, safe_float
-from utils.data_models import ZoneData
+from typing import Dict, Any, Optional
+from utils.data_loader import DataLoader
 
 class LoadExtractor:
     """

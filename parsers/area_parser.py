@@ -2,9 +2,7 @@
 Extracts and processes area information including floor areas and material properties.
 """
 from typing import Dict, Any, List, Optional, Tuple
-import time
 import logging
-from utils.data_loader import DataLoader
 from parsers.materials_parser import MaterialsParser  # Import MaterialsParser for element_type function
 
 logger = logging.getLogger(__name__)
@@ -197,19 +195,10 @@ class AreaParser:
         
         if construction_name not in constructions:
             return 0.0
-            
-        # Find surface using this construction to determine type and boundary
-        s_type = "wall"  # Default
-        boundary = "outdoors"  # Default
-        
-        for surface_id, surface in surfaces.items():
-            if surface.get('construction_name') == construction_name:
-                s_type = surface.get('surface_type', 'wall').lower()
-                boundary = surface.get('boundary_condition', 'outdoors').lower()
-                break
                 
         # Calculate film resistance using MaterialsParser logic
-        film_resistance = self._get_surface_film_resistance(s_type, boundary)
+        element_type = MaterialsParser._get_element_type(self , construction_name, surfaces)
+        film_resistance = MaterialsParser._get_surface_film_resistance(self,element_type)
         
         # Calculate material thermal resistance
         construction_data = constructions[construction_name]
@@ -232,37 +221,6 @@ class AreaParser:
         u_value = 1.0 / r_value_with_film if r_value_with_film > 0 else 0.0
         
         return u_value
-        
-    def _get_surface_film_resistance(self, s_type: str, boundary: str) -> float:
-        """
-        Determine the surface film resistance constant based on element type and boundary.
-        Delegates to the common implementation in MaterialsParser if available.
-        
-        Args:
-            s_type: Surface type (wall, floor, ceiling, roof)
-            boundary: Boundary condition (outdoors, ground, etc.)
-            
-        Returns:
-            float: Surface film resistance constant to add to R-Value
-        """
-        # Try to use the MaterialsParser implementation if available
-        try:
-            from parsers.materials_parser import MaterialsParser
-            materials_parser = MaterialsParser(self.data_loader)
-            return materials_parser._get_surface_film_resistance(s_type, boundary)
-        except ImportError:
-            # Fallback implementation if MaterialsParser is not available
-            s_type = s_type.lower() if s_type else ""
-            boundary = boundary.lower() if boundary else ""
-            
-            if s_type == "wall":
-                return 0.17 if boundary == "outdoors" else 0.26
-            elif s_type == "ceiling" or s_type == "roof":
-                return 0.14 if boundary == "outdoors" else 0.20
-            elif s_type == "floor":
-                return 0.21 if boundary == "outdoors" else 0.34
-            else:
-                return 0.00  # Default case
     
     def get_areas_by_zone(self) -> Dict[str, Dict[str, Any]]:
         """
