@@ -2,7 +2,7 @@
 DataLoader module for direct IDF data access.
 Provides simplified data loading and retrieval functionality.
 """
-from typing import Dict, Optional, List, Any, Union
+from typing import Dict, Optional, List, Any
 from pathlib import Path
 import re
 from utils.eppy_handler import EppyHandler
@@ -92,11 +92,14 @@ class DataLoader:
         for zone in self._idf.idfobjects['ZONE']:
             zone_id = str(zone.Name)
             
-            
             for schedule_id, schedule_data in self._schedules_cache.items():
-                if zone_id in schedule_id and 'Temperature' in schedule_data["type"] and ("heating" in schedule_data['name'].lower() or "cooling" in schedule_data['name'].lower()) and "setpoint" not in schedule_data['type'].lower():
+                if zone_id in schedule_id and 'Temperature' in schedule_data["type"] and (
+                    "heating" in schedule_data['name'].lower() or 
+                    "cooling" in schedule_data['name'].lower()
+                ) and "setpoint" not in schedule_data['type'].lower():
                     self._hvac_zones_cache.append(zone_id)
                     break
+                    
             # Extract area_id
             area_id = None
             try:
@@ -106,7 +109,7 @@ class DataLoader:
                         area_id = split[1][:2]  # Take first 2 chars if starts with digits
                     else:
                         area_id = split[1]  # Take whole string after colon
-            except Exception as e:
+            except:
                 pass # Silently ignore if area_id extraction fails
             
             # Cache raw zone data
@@ -221,7 +224,7 @@ class DataLoader:
                 if getattr(construction, field, "") 
             ]
             outside_layer = str(getattr(construction, "Outside_Layer", ""))
-            if outside_layer: # Only insert if the Outside_Layer exists and is not empty
+            if outside_layer:  # Only insert if the Outside_Layer exists and is not empty
                 material_layers.insert(0, outside_layer)  # Insert Outside_Layer at the beginning
             
             # Cache raw construction data
@@ -359,7 +362,7 @@ class DataLoader:
                     'raw_object': vent  # Store the raw object for parsers
                 })
     
-    # Simple getter methods for cached data
+    # Getter methods for cached data
     def get_zones(self) -> Dict[str, Dict[str, Any]]:
         """Get cached zone data"""
         return self._zones_cache

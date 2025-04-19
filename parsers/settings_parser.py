@@ -50,7 +50,6 @@ class SettingsExtractor:
             },
             'simulation': {
                 'north': None,
-                'algorithm': None,
                 'time_step': None,
                 'run_period': {
                     'location': None,
@@ -59,13 +58,10 @@ class SettingsExtractor:
                     'end_month': None,
                     'end_day': None,
                     'use_weather_file_holidays': None,
-                    'use_weather_file_daylight_saving': None,
-                    'apply_weekend_holiday_rule': None,
                     'use_weather_file_rain': None,
                     'use_weather_file_snow': None,
                     'treat_weather_as_actual': None
                 },
-                'daylight_saving': None,
                 'convergence_min_timestep': None,
                 'convergence_max_hvac_iterations': None,
                 'sizing_zone': None,
@@ -173,18 +169,12 @@ class SettingsExtractor:
                 'End_Month': ('simulation', 'run_period', 'end_month'),
                 'End_Day_of_Month': ('simulation', 'run_period', 'end_day'),
                 'Use_Weather_File_Holidays/Special_Days': ('simulation', 'run_period', 'use_weather_file_holidays'),
-                'Use_Weather_File_Daylight_Saving': ('simulation', 'run_period', 'use_weather_file_daylight_saving'),
-                'Apply_Weekend_Holiday_Rule': ('simulation', 'run_period', 'apply_weekend_holiday_rule'),
                 'Use_Weather_File_Rain_Indicators': ('simulation', 'run_period', 'use_weather_file_rain'),
                 'Use_Weather_File_Snow_Indicators': ('simulation', 'run_period', 'use_weather_file_snow'),
                 'Treat_Weather_as_Actual': ('simulation', 'run_period', 'treat_weather_as_actual')
             },
             'TIMESTEP': {
                 'Number_of_Timesteps_per_Hour': ('simulation', 'time_step')
-            },
-            'RUNPERIODCONTROL:DAYLIGHTSAVINGTIME': {
-                'Start_Date': ('simulation', 'daylight_saving'),
-                'End_Date': ('simulation', 'daylight_saving')
             },
             'CONVERGENCELIMITS': {
                 'Minimum_System_Time_Step': ('simulation', 'convergence_min_timestep'),
@@ -261,9 +251,6 @@ class SettingsExtractor:
             if 'SITE:GROUNDREFLECTANCE:SNOWMODIFIER' in idf.idfobjects:
                 for obj in idf.idfobjects['SITE:GROUNDREFLECTANCE:SNOWMODIFIER']:
                     self.process_eppy_object('SITE:GROUNDREFLECTANCE:SNOWMODIFIER', obj)
-            if 'RUNPERIODCONTROL:DAYLIGHTSAVINGTIME' in idf.idfobjects:
-                for obj in idf.idfobjects['RUNPERIODCONTROL:DAYLIGHTSAVINGTIME']:
-                    self.process_eppy_object('RUNPERIODCONTROL:DAYLIGHTSAVINGTIME', obj)
             if 'CONVERGENCELIMITS' in idf.idfobjects:
                 for obj in idf.idfobjects['CONVERGENCELIMITS']:
                     self.process_eppy_object('CONVERGENCELIMITS', obj)
@@ -301,8 +288,6 @@ class SettingsExtractor:
             
             # Weather options
             self.extracted_settings['simulation']['run_period']['use_weather_file_holidays_and_special_days'] = getattr(obj, 'Use_Weather_File_Holidays_and_Special_Days', None) if hasattr(obj, 'Use_Weather_File_Holidays_and_Special_Days') else None
-            self.extracted_settings['simulation']['run_period']['use_weather_file_daylight_saving'] = getattr(obj, 'Use_Weather_File_Daylight_Saving_Period', None) if hasattr(obj, 'Use_Weather_File_Daylight_Saving_Period') else None
-            self.extracted_settings['simulation']['run_period']['apply_weekend_holiday_rule'] = getattr(obj, 'Apply_Weekend_Holiday_Rule', None) if hasattr(obj, 'Apply_Weekend_Holiday_Rule') else None
             self.extracted_settings['simulation']['run_period']['use_weather_file_rain'] = getattr(obj, 'Use_Weather_File_Rain_Indicators', None) if hasattr(obj, 'Use_Weather_File_Rain_Indicators') else None
             self.extracted_settings['simulation']['run_period']['use_weather_file_snow'] = getattr(obj, 'Use_Weather_File_Snow_Indicators', None) if hasattr(obj, 'Use_Weather_File_Snow_Indicators') else None
             self.extracted_settings['simulation']['run_period']['treat_weather_as_actual'] = getattr(obj, 'Treat_Weather_as_Actual', None) if hasattr(obj, 'Treat_Weather_as_Actual') else None
@@ -382,15 +367,6 @@ class SettingsExtractor:
             if hasattr(obj, 'Daylighting_Ground_Reflected_Solar_Modifier'):
                 snow_dict['daylighting'] = getattr(obj, 'Daylighting_Ground_Reflected_Solar_Modifier')
             self.extracted_settings['site']['ground_reflectance_snow_modifier'] = snow_dict
-            return
-            
-        if obj_type == 'RUNPERIODCONTROL:DAYLIGHTSAVINGTIME':
-            daylight_dict = {}
-            if hasattr(obj, 'Start_Date'):
-                daylight_dict['start'] = getattr(obj, 'Start_Date')
-            if hasattr(obj, 'End_Date'):
-                daylight_dict['end'] = getattr(obj, 'End_Date')
-            self.extracted_settings['simulation']['daylight_saving'] = daylight_dict
             return
             
         if obj_type == 'CONVERGENCELIMITS':

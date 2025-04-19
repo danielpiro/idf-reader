@@ -1,7 +1,6 @@
 """
 Handles eppy IDF model loading, initialization and common operations.
 """
-from pathlib import Path
 from typing import Optional
 import os
 
