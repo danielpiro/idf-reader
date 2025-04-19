@@ -56,6 +56,13 @@ class DataLoader:
         self._ventilation_cache = {}
         self._windows_cache = {}
         
+        # Window-related material caches
+        self._window_glazing_cache = {}
+        self._window_gas_cache = {}
+        self._window_shade_cache = {}
+        self._window_simple_glazing_cache = {}
+        self._window_shading_control_cache = {}
+        
     def load_file(self, idf_path: str, idd_path: Optional[str] = None) -> None:
         """
         Load IDF file and cache raw data.
@@ -81,6 +88,7 @@ class DataLoader:
         self._cache_materials()
         self._cache_constructions()
         self._cache_loads()
+        self._cache_window_shading_controls()
     
     def _cache_zones(self) -> None:
         """Cache raw zone data"""
@@ -190,7 +198,12 @@ class DataLoader:
             return
             
         self._materials_cache.clear()
+        self._window_glazing_cache.clear()
+        self._window_gas_cache.clear()
+        self._window_shade_cache.clear()
+        self._window_simple_glazing_cache.clear()
         
+        # Cache standard materials
         for material in self._idf.idfobjects['MATERIAL']:
             material_id = str(material.Name)
             
@@ -205,6 +218,63 @@ class DataLoader:
                 'solar_absorptance': safe_float(getattr(material, "Solar_Absorptance", 0.0)),
                 'raw_object': material  # Store the raw object for parsers
             }
+        
+        # Cache WindowMaterial:Glazing
+        if 'WINDOWMATERIAL:GLAZING' in self._idf.idfobjects:
+            for glazing in self._idf.idfobjects['WINDOWMATERIAL:GLAZING']:
+                material_id = str(glazing.Name)
+                
+                self._window_glazing_cache[material_id] = {
+                    'id': material_id,
+                    'name': material_id,
+                    'thickness': safe_float(getattr(glazing, "Thickness", 0.0)),
+                    'solar_transmittance': safe_float(getattr(glazing, "Solar_Transmittance_at_Normal_Incidence", 0.0)),
+                    'visible_transmittance': safe_float(getattr(glazing, "Visible_Transmittance_at_Normal_Incidence", 0.0)),
+                    'conductivity': safe_float(getattr(glazing, "Conductivity", 0.0)),
+                    'u_factor': safe_float(getattr(glazing, "Conductivity", 0.0)) / safe_float(getattr(glazing, "Thickness", 1.0)),
+                    'raw_object': glazing
+                }
+        
+        # Cache WindowMaterial:Gas
+        if 'WINDOWMATERIAL:GAS' in self._idf.idfobjects:
+            for gas in self._idf.idfobjects['WINDOWMATERIAL:GAS']:
+                material_id = str(gas.Name)
+                
+                self._window_gas_cache[material_id] = {
+                    'id': material_id,
+                    'name': material_id,
+                    'gas_type': str(getattr(gas, "Gas_Type", "")),
+                    'thickness': safe_float(getattr(gas, "Thickness", 0.0)),
+                    'raw_object': gas
+                }
+        
+        # Cache WindowMaterial:Shade
+        if 'WINDOWMATERIAL:SHADE' in self._idf.idfobjects:
+            for shade in self._idf.idfobjects['WINDOWMATERIAL:SHADE']:
+                material_id = str(shade.Name)
+                
+                self._window_shade_cache[material_id] = {
+                    'id': material_id,
+                    'name': material_id,
+                    'solar_transmittance': safe_float(getattr(shade, "Solar_Transmittance", 0.0)),
+                    'visible_transmittance': safe_float(getattr(shade, "Visible_Transmittance", 0.0)),
+                    'thermal_resistance': safe_float(getattr(shade, "Thermal_Resistance", 0.0)),
+                    'raw_object': shade
+                }
+        
+        # Cache WindowMaterial:SimpleGlazingSystem
+        if 'WINDOWMATERIAL:SIMPLEGLAZINGSYSTEM' in self._idf.idfobjects:
+            for simple_glazing in self._idf.idfobjects['WINDOWMATERIAL:SIMPLEGLAZINGSYSTEM']:
+                material_id = str(simple_glazing.Name)
+                
+                self._window_simple_glazing_cache[material_id] = {
+                    'id': material_id,
+                    'name': material_id,
+                    'u_factor': safe_float(getattr(simple_glazing, "U_Factor", 0.0)),
+                    'shgc': safe_float(getattr(simple_glazing, "Solar_Heat_Gain_Coefficient", 0.0)),
+                    'visible_transmittance': safe_float(getattr(simple_glazing, "Visible_Transmittance", 0.0)),
+                    'raw_object': simple_glazing
+                }
     
     def _cache_constructions(self) -> None:
         """Cache raw construction data"""
@@ -362,6 +432,40 @@ class DataLoader:
                     'raw_object': vent  # Store the raw object for parsers
                 })
     
+    def _cache_window_shading_controls(self) -> None:
+        """Cache window shading control data"""
+        if not self._idf:
+            return
+            
+        self._window_shading_control_cache.clear()
+        
+        # Cache WindowShadingControl objects
+        if 'WINDOWSHADINGCONTROL' in self._idf.idfobjects:
+            for shading_control in self._idf.idfobjects['WINDOWSHADINGCONTROL']:
+                control_id = str(shading_control.Name)
+                
+                # Get the list of fenestration surfaces controlled by this shading control
+                window_names = []
+                fenestration_fields = [f for f in shading_control.fieldnames 
+                                     if f.startswith('Fenestration_Surface_') and f.endswith('_Name')]
+                
+                for field in fenestration_fields:
+                    window_name = str(getattr(shading_control, field, ""))
+                    if window_name:
+                        window_names.append(window_name)
+                
+                # Cache shading control data
+                self._window_shading_control_cache[control_id] = {
+                    'id': control_id,
+                    'name': control_id,
+                    'shading_type': str(getattr(shading_control, "Shading_Type", "")),
+                    'shading_control_type': str(getattr(shading_control, "Shading_Control_Type", "")),
+                    'schedule_name': str(getattr(shading_control, "Schedule_Name", "")),
+                    'setpoint': safe_float(getattr(shading_control, "Setpoint", 0.0)),
+                    'window_names': window_names,
+                    'raw_object': shading_control
+                }
+    
     # Getter methods for cached data
     def get_zones(self) -> Dict[str, Dict[str, Any]]:
         """Get cached zone data"""
@@ -420,6 +524,30 @@ class DataLoader:
         if zone_name:
             return {zone_name: self._ventilation_cache.get(zone_name, [])} if zone_name in self._ventilation_cache else {}
         return self._ventilation_cache
+    
+    def get_windows(self) -> Dict[str, Dict[str, Any]]:
+        """Get cached window data"""
+        return self._windows_cache
+        
+    def get_window_glazing_materials(self) -> Dict[str, Dict[str, Any]]:
+        """Get cached window glazing materials"""
+        return self._window_glazing_cache
+        
+    def get_window_gas_materials(self) -> Dict[str, Dict[str, Any]]:
+        """Get cached window gas materials"""
+        return self._window_gas_cache
+        
+    def get_window_shade_materials(self) -> Dict[str, Dict[str, Any]]:
+        """Get cached window shade materials"""
+        return self._window_shade_cache
+        
+    def get_window_simple_glazing_materials(self) -> Dict[str, Dict[str, Any]]:
+        """Get cached window simple glazing systems"""
+        return self._window_simple_glazing_cache
+        
+    def get_window_shading_controls(self) -> Dict[str, Dict[str, Any]]:
+        """Get cached window shading controls"""
+        return self._window_shading_control_cache
     
     def get_cache_status(self) -> Dict[str, bool]:
         """Get the loading status of cache sections (maintained for compatibility)"""
