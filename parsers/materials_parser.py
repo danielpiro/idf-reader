@@ -114,6 +114,9 @@ class MaterialsParser:
             # Get surface film resistance based on surface type and boundary
             film_resistance = self._get_surface_film_resistance(element_type)
             
+            # Flag to track if we've found a material with conductivity < 0.2 in this construction
+            found_low_conductivity = False
+            
             # Process each material layer in the construction
             for layer_id in construction_data.material_layers:
                 # Use the populated self.materials dictionary
@@ -122,7 +125,16 @@ class MaterialsParser:
                     thermal_resistance = (
                         material_data.thickness / material_data.conductivity 
                         if material_data.conductivity != 0 else 0.0
-                    )                      
+                    )
+                    
+                    # Calculate mass - divide it if we haven't found a low conductivity material yet
+                    mass = material_data.density * material_data.thickness
+                    if not found_low_conductivity and element_type.lower() == "external wall":
+                        if material_data.conductivity < 0.2:
+                            # We found a material with conductivity < 0.2
+                            found_low_conductivity = True
+                            # Divide the mass for this material
+                            mass = mass / 2
                     
                     self.element_data.append({
                         "element_type": element_type,
@@ -131,7 +143,7 @@ class MaterialsParser:
                         "thickness": material_data.thickness,
                         "conductivity": material_data.conductivity,
                         "density": material_data.density,
-                        "mass": material_data.density * material_data.thickness,
+                        "mass": mass,
                         "thermal_resistance": thermal_resistance,
                         "solar_absorptance": material_data.solar_absorptance,
                         "specific_heat": material_data.specific_heat,
