@@ -122,7 +122,7 @@ class MaterialsParser:
                     thermal_resistance = (
                         material_data.thickness / material_data.conductivity 
                         if material_data.conductivity != 0 else 0.0
-                    )
+                    )                      
                     
                     self.element_data.append({
                         "element_type": element_type,

@@ -239,9 +239,6 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
         total_rows = []
         row_index = 1  # Start after header
         
-        current_element_type = None
-        current_element_name = None
-        
         for group in grouped_data:
             element_type = group["element_type"]
             element_name = group["element_name"]
@@ -253,8 +250,6 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
                     elem_type_cell = element_type
                     elem_name_cell = element_name
                     # Update tracking variables
-                    current_element_type = element_type
-                    current_element_name = element_name
                 else:
                     # Empty cells to avoid repetition
                     elem_type_cell = ""

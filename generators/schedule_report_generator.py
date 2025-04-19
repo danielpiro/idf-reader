@@ -224,7 +224,24 @@ def generate_schedules_report_pdf(schedule_data, output_filename="output/schedul
             rule_blocks = schedule.get('rule_blocks', []) # Get the parsed hourly data
 
             # Draw Schedule Name and Type
-            name_text = f"Schedule: {schedule_type}" # Include original name
+            schedule_name = None
+            if "activity" in schedule_type.lower() or "clothing" in schedule_type.lower() or "occupancy" in schedule_type.lower():
+                schedule_name = "People"
+            elif "heating" in schedule_type.lower() or "cooling" in schedule_type.lower():
+                schedule_name = "Temperature"
+            elif "ventilation" in schedule_type.lower():
+                schedule_name = "Ventilation"
+            elif "lighting" in schedule_type.lower():
+                schedule_name = "Lighting"
+            elif "shading" in schedule_type.lower():
+                schedule_name = "Shading"
+            elif "equipment" in schedule_type.lower():
+                schedule_name = "Equipment"
+            
+            if schedule_name is not None:
+                name_text = f"{schedule_type} [{schedule_name}]"
+            else:
+                name_text = f"{schedule_type}"
             p_sched_name = Paragraph(name_text, schedule_name_style)
             p_sched_name.wrapOn(c, content_width, margin_y)
             name_height = p_sched_name.height
