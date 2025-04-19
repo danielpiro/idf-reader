@@ -101,6 +101,20 @@ class MaterialsParser:
                 continue            
             element_type = self._get_element_type(construction_id, surfaces)
             
+            # Determine surface type and boundary condition for film resistance calculation
+            s_type = ""
+            boundary = ""
+            
+            # Find a surface using this construction to get its type and boundary
+            for surface_id, surface in surfaces.items():
+                if surface.get('construction_name') == construction_id:
+                    s_type = surface.get('surface_type', '').lower()
+                    boundary = surface.get('boundary_condition', '').lower()
+                    break
+            
+            # Get surface film resistance based on surface type and boundary
+            film_resistance = self._get_surface_film_resistance(s_type, boundary)
+            
             # Process each material layer in the construction
             for layer_id in construction_data.material_layers:
                 # Use the populated self.materials dictionary
@@ -121,7 +135,10 @@ class MaterialsParser:
                         "mass": material_data.density * material_data.thickness,
                         "thermal_resistance": thermal_resistance,
                         "solar_absorptance": material_data.solar_absorptance,
-                        "specific_heat": material_data.specific_heat
+                        "specific_heat": material_data.specific_heat,
+                        "surface_film_resistance": film_resistance,
+                        "surface_type": s_type,
+                        "boundary_condition": boundary
                     })
                 # Missing materials are silently skipped for report generation
                 # No debug message needed here as warning was already shown during construction processing
@@ -216,6 +233,29 @@ class MaterialsParser:
             result = "Roof"
             
         return result
+
+    def _get_surface_film_resistance(self, s_type: str, boundary: str) -> float:
+        """
+        Determine the surface film resistance constant based on element type and boundary.
+        
+        Args:
+            s_type: Surface type (wall, floor, ceiling, roof)
+            boundary: Boundary condition (outdoors, ground, etc.)
+            
+        Returns:
+            float: Surface film resistance constant to add to R-Value
+        """
+        s_type = s_type.lower() if s_type else ""
+        boundary = boundary.lower() if boundary else ""
+        
+        if s_type == "wall":
+            return 0.17 if boundary == "outdoors" else 0.26
+        elif s_type == "ceiling" or s_type == "roof":
+            return 0.14 if boundary == "outdoors" else 0.20
+        elif s_type == "floor":
+            return 0.21 if boundary == "outdoors" else 0.34
+        else:
+            return 0.00  # Default case
         
     def get_element_data(self) -> list:
         """

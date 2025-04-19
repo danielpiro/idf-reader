@@ -3,7 +3,6 @@ Extracts and processes Schedule:Compact objects.
 Uses DataLoader for cached access to IDF data.
 """
 import re
-import datetime
 from typing import Dict, List, Any, Optional, Tuple, Union
 from utils.data_loader import DataLoader
 from utils.data_models import ScheduleData
@@ -60,6 +59,9 @@ class ScheduleExtractor:
         Returns:
             bool: True if schedule should be filtered out
         """
+        if "24/7" in schedule_type.lower() or "shading" in schedule_type.lower() or "ventilation" in schedule_type.lower():
+            # Special case for 24/7 schedules
+            return False
         return any(basic_type.lower() in schedule_type.lower()
                   for basic_type in BASIC_TYPES)
 

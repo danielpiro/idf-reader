@@ -74,13 +74,29 @@ def group_element_data(element_data):
                     total_mass = sum(float(g.get('mass', 0)) for g in current_group)
                     total_resistance = sum(float(g.get('thermal_resistance', 0)) for g in current_group)
                     
+                    # Get surface film resistance from the first item in group (all items in group have same value)
+                    film_resistance = float(current_group[0].get('surface_film_resistance', 0))
+                    
+                    # R-Value is the total thermal resistance of materials
+                    r_value = total_resistance
+                    
+                    # Add surface film resistance to calculate R-Value with film
+                    r_value_with_film = r_value + film_resistance
+                    
+                    # Calculate U-Value as 1 / R-Value with film
+                    u_value = 1.0 / r_value_with_film if r_value_with_film > 0 else 0.0
+                    
                     grouped_data.append({
                         'element_type': current_key[0],
                         'element_name': current_key[1],
                         'layers': current_group,
                         'total_thickness': total_thickness,
                         'total_mass': total_mass,
-                        'total_resistance': total_resistance
+                        'total_resistance': total_resistance,
+                        'film_resistance': film_resistance,
+                        'r_value': r_value,
+                        'r_value_with_film': r_value_with_film,
+                        'u_value': u_value
                     })
                 current_key = key
                 current_group = [item]
@@ -92,13 +108,29 @@ def group_element_data(element_data):
             total_mass = sum(float(g.get('mass', 0)) for g in current_group)
             total_resistance = sum(float(g.get('thermal_resistance', 0)) for g in current_group)
             
+            # Get surface film resistance from the first item in group (all items in group have same value)
+            film_resistance = float(current_group[0].get('surface_film_resistance', 0))
+            
+            # R-Value is the total thermal resistance of materials
+            r_value = total_resistance
+            
+            # Add surface film resistance to calculate R-Value with film
+            r_value_with_film = r_value + film_resistance
+            
+            # Calculate U-Value as 1 / R-Value with film
+            u_value = 1.0 / r_value_with_film if r_value_with_film > 0 else 0.0
+            
             grouped_data.append({
                 'element_type': current_key[0],
                 'element_name': current_key[1],
                 'layers': current_group,
                 'total_thickness': total_thickness,
                 'total_mass': total_mass,
-                'total_resistance': total_resistance
+                'total_resistance': total_resistance,
+                'film_resistance': film_resistance,
+                'r_value': r_value,
+                'r_value_with_film': r_value_with_film,
+                'u_value': u_value
             })
         
         return grouped_data
@@ -177,23 +209,27 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
             "Mass\n(kg/m²)",
             "Thermal\nResistance\n(m²K/W)",
             "Solar\nAbsorptance",
-            "Specific\nHeat (J/kg-K)"
+            "Specific\nHeat (J/kg-K)",
+            "R-Value\n(m²K/W)",
+            "U-Value\n(W/m²K)"
         ]
 
         headers_row = [wrap_text(h, header_cell_style) for h in headers]
         
         # Optimized column widths - adjusted based on content needs
         col_widths = [
-            content_width * 0.1,   # Element Type - reduced width
-            content_width * 0.14,  # Element Name - slightly larger for longer names
-            content_width * 0.16,  # Material Name - increased for longer material names
-            content_width * 0.07,  # Thickness
-            content_width * 0.08,  # Conductivity
-            content_width * 0.08,  # Density
-            content_width * 0.08,  # Mass
-            content_width * 0.09,  # Thermal Resistance
-            content_width * 0.08,  # Solar Absorptance
-            content_width * 0.12   # Specific Heat - increased slightly
+            content_width * 0.09,   # Element Type - reduced width
+            content_width * 0.12,  # Element Name - slightly larger for longer names
+            content_width * 0.14,  # Material Name - increased for longer material names
+            content_width * 0.06,  # Thickness
+            content_width * 0.07,  # Conductivity
+            content_width * 0.07,  # Density
+            content_width * 0.07,  # Mass
+            content_width * 0.08,  # Thermal Resistance
+            content_width * 0.07,  # Solar Absorptance
+            content_width * 0.09,  # Specific Heat
+            content_width * 0.07,  # R-Value
+            content_width * 0.07   # U-Value
         ]
 
         # Build the data rows for the table
@@ -235,7 +271,9 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
                     wrap_text(f"{float(layer.get('mass', 0)):.1f}", cell_style),
                     wrap_text(f"{float(layer.get('thermal_resistance', 0)):.3f}", cell_style),
                     wrap_text(f"{float(layer.get('solar_absorptance', 0)):.3f}", cell_style),
-                    wrap_text(f"{float(layer.get('specific_heat', 0)):.1f}", cell_style)
+                    wrap_text(f"{float(layer.get('specific_heat', 0)):.1f}", cell_style),
+                    wrap_text("", cell_style),  # Empty cell for R-Value (element level only)
+                    wrap_text("", cell_style)   # Empty cell for U-Value (element level only)
                 ]
                 table_data.append(row)
                 row_index += 1
@@ -249,9 +287,11 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
                 wrap_text("", cell_style),
                 wrap_text("", cell_style),
                 wrap_text(f"{group['total_mass']:.1f}", total_style),
-                wrap_text(f"{group['total_resistance']:.3f}", total_style),
+                wrap_text(f"{group['total_resistance']:.3f}", total_style),  # Keep original thermal resistance
                 wrap_text("", cell_style),
-                wrap_text("", cell_style)
+                wrap_text("", cell_style),
+                wrap_text(f"{group['r_value_with_film']:.3f}", total_style),  # R-Value with film resistance
+                wrap_text(f"{group['u_value']:.3f}", total_style)  # U-Value based on R-Value with film
             ]
             table_data.append(totals_row)
             total_rows.append(row_index)
@@ -272,6 +312,8 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
                 table_style.add('FONTNAME', (3, i), (3, i), 'Helvetica-Bold')  # Total thickness
                 table_style.add('FONTNAME', (6, i), (6, i), 'Helvetica-Bold')  # Total mass
                 table_style.add('FONTNAME', (7, i), (7, i), 'Helvetica-Bold')  # Total resistance
+                table_style.add('FONTNAME', (10, i), (10, i), 'Helvetica-Bold')  # R-Value
+                table_style.add('FONTNAME', (11, i), (11, i), 'Helvetica-Bold')  # U-Value
         
         # Apply style to table
         materials_table.setStyle(table_style)
