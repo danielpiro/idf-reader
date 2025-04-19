@@ -106,13 +106,21 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
         # Sort rows by zone and construction for better readability
         sorted_rows = sorted(merged_data, key=lambda x: (x['zone'], x['construction']))
         
+        # Track the last zone seen to avoid duplication
+        last_zone = None
+        
         # Format values and add to table
         for row in sorted_rows:
             # Format construction name with line breaks
             construction_text = format_construction_name(row['construction'])
             
-            # Create Paragraph objects for text cells
-            zone_cell = Paragraph(row['zone'], cell_style)
+            # Create zone cell - only show zone if different from previous row
+            if row['zone'] != last_zone:
+                zone_cell = Paragraph(row['zone'], cell_style)
+                last_zone = row['zone']
+            else:
+                zone_cell = ""  # Empty cell if same zone as previous row
+                
             construction_cell = Paragraph(construction_text, cell_style)
             element_type_cell = Paragraph(row['element_type'], cell_style)
             
