@@ -97,10 +97,10 @@ def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> T
     rule_blocks_with_ranges = create_date_ranges(rule_blocks)
     
     # Define column widths to match reference structure (Period + 24 hours)
-    # Adjust column widths again for better fit, make first column wider
-    period_col_width = 4.5 * cm  # Increased width for date ranges
+    # Adjust column widths for better fit
+    period_col_width = 3.5 * cm  # Reduced width for date ranges to give more space to hour cells
     num_hour_cols = 24
-    # Calculate width for each hourly column
+    # Calculate width for each hourly column with more space for values
     hour_col_width = (available_width - period_col_width) / num_hour_cols
 
     col_widths = [period_col_width] + [hour_col_width] * num_hour_cols
@@ -136,6 +136,10 @@ def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> T
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),    # Grid lines
         ('ALIGN', (0, 1), (0, -1), 'LEFT'),              # Left align date column 
         ('LEFTPADDING', (0, 1), (0, -1), 6),             # Add padding for dates
+        ('TOPPADDING', (1, 1), (-1, -1), 4),             # Add top padding for hour cells
+        ('BOTTOMPADDING', (1, 1), (-1, -1), 4),          # Add bottom padding for hour cells
+        ('LEFTPADDING', (1, 1), (-1, -1), 3),            # Add left padding for hour cells
+        ('RIGHTPADDING', (1, 1), (-1, -1), 3),           # Add right padding for hour cells
     ])
 
     # Create Table
