@@ -292,36 +292,6 @@ class LoadExtractor:
                     cooling_data['cooling_availability'] = temp_schedules['cooling_availability']
                 self.loads_by_zone[zone_name]["schedules"]["cooling"] = cooling_data
 
-    def process_eppy_zone(self, zone_obj) -> None:
-        """
-        Process a Zone object from eppy directly.
-        
-        Args:
-            zone_obj: An eppy Zone object
-        """
-        zone_name = str(zone_obj.Name)
-        if zone_name not in self.loads_by_zone:
-            # Initialize with zone data from the object
-            self.loads_by_zone[zone_name] = {
-                "properties": {
-                    "area": safe_float(getattr(zone_obj, "Floor_Area", 0.0)),
-                    "volume": safe_float(getattr(zone_obj, "Volume", 0.0)),
-                    "multiplier": int(safe_float(getattr(zone_obj, "Multiplier", 1)))
-                },
-                "loads": {
-                    "people": {"people_per_area": 0.0, "activity_schedule": None, "schedule": None},
-                    "lights": {"watts_per_area": 0.0, "schedule": None},
-                    "non_fixed_equipment": {"watts_per_area": 0.0, "schedule": None},
-                    "fixed_equipment": {"watts_per_area": 0.0, "schedule": None},
-                    "infiltration": {"rate_ach": 0.0, "schedule": None},
-                    "ventilation": {"rate_ach": 0.0, "schedule": None}
-                },
-                "schedules": {
-                    "heating": None,
-                    "cooling": None
-                }
-            }
-
     def get_parsed_zone_loads(self, include_core: bool = False) -> Dict[str, Any]:
         """
         Returns the dictionary of parsed zone loads, optionally filtering out core zones.

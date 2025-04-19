@@ -236,7 +236,7 @@ class AreaParser:
     def _get_surface_film_resistance(self, s_type: str, boundary: str) -> float:
         """
         Determine the surface film resistance constant based on element type and boundary.
-        Duplicated from MaterialsParser for self-containment.
+        Delegates to the common implementation in MaterialsParser if available.
         
         Args:
             s_type: Surface type (wall, floor, ceiling, roof)
@@ -245,17 +245,24 @@ class AreaParser:
         Returns:
             float: Surface film resistance constant to add to R-Value
         """
-        s_type = s_type.lower() if s_type else ""
-        boundary = boundary.lower() if boundary else ""
-        
-        if s_type == "wall":
-            return 0.17 if boundary == "outdoors" else 0.26
-        elif s_type == "ceiling" or s_type == "roof":
-            return 0.14 if boundary == "outdoors" else 0.20
-        elif s_type == "floor":
-            return 0.21 if boundary == "outdoors" else 0.34
-        else:
-            return 0.00  # Default case
+        # Try to use the MaterialsParser implementation if available
+        try:
+            from parsers.materials_parser import MaterialsParser
+            materials_parser = MaterialsParser(self.data_loader)
+            return materials_parser._get_surface_film_resistance(s_type, boundary)
+        except ImportError:
+            # Fallback implementation if MaterialsParser is not available
+            s_type = s_type.lower() if s_type else ""
+            boundary = boundary.lower() if boundary else ""
+            
+            if s_type == "wall":
+                return 0.17 if boundary == "outdoors" else 0.26
+            elif s_type == "ceiling" or s_type == "roof":
+                return 0.14 if boundary == "outdoors" else 0.20
+            elif s_type == "floor":
+                return 0.21 if boundary == "outdoors" else 0.34
+            else:
+                return 0.00  # Default case
     
     def get_areas_by_zone(self) -> Dict[str, Dict[str, Any]]:
         """

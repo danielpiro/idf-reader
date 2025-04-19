@@ -62,6 +62,8 @@ class ScheduleExtractor:
         if "24/7" in schedule_type.lower() or "shading" in schedule_type.lower() or "ventilation" in schedule_type.lower():
             # Special case for 24/7 schedules
             return False
+            
+        # Inline the _normalize_schedule_type logic here instead of using a separate method
         return any(basic_type.lower() in schedule_type.lower()
                   for basic_type in BASIC_TYPES)
 
@@ -214,33 +216,6 @@ class ScheduleExtractor:
             
             # Create ScheduleData objects for other parsers to use
             self._create_schedule_data(schedule_id, schedule_type, rule_fields)
-
-    def _normalize_schedule_type(self, type_: str) -> str:
-        """
-        Normalize schedule type by removing:
-        - Numeric parts
-        - Time/zone prefixes (e.g. "02:01", "XX:XX")
-        - Zone identifiers
-        
-        Args:
-            type_: Original schedule type
-            
-        Returns:
-            str: Normalized schedule type
-        """
-        # Split on space
-        parts = type_.split()
-        
-        # Remove time/zone prefix patterns (e.g. "02:01", "XX:XX")
-        parts = [part for part in parts if not (
-            # Skip parts that look like time codes or zone prefixes
-            ':' in part or
-            part.isdigit() or
-            # Skip parts that are all uppercase (likely zone identifiers)
-            (part.isupper() and len(part) > 1)
-        )]
-        
-        return ' '.join(parts).strip()
 
     def _expand_rules_to_hourly(self, time_value_pairs: List[Dict[str, str]]) -> List[Optional[str]]:
         """
@@ -496,7 +471,11 @@ class ScheduleExtractor:
         rule_tuple = tuple(rule_fields)
         
         # Normalize the schedule type
-        normalized_type = self._normalize_schedule_type(type_)
+        normalized_type = ' '.join(part for part in type_.split() if not (
+            ':' in part or
+            part.isdigit() or
+            (part.isupper() and len(part) > 1)
+        )).strip()
 
         # Initialize dict for this normalized type if not seen before
         if normalized_type not in self.schedules_by_type:

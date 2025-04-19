@@ -21,7 +21,6 @@ class SettingsExtractor:
         self.extracted_settings = {}
         self.initialize_settings()
         self._setup_mappings()
-        self._cached_settings = {}  # Cache for settings data
         
     def initialize_settings(self) -> None:
         """
@@ -495,11 +494,11 @@ class SettingsExtractor:
         """
         return self.extracted_settings.get('simulation', {})
         
-    def get_design_days(self) -> List[Dict[str, Any]]:
+    def get_design_days(self) -> Dict[str, Any]:
         """
-        Get all design days.
+        Get design day data.
         
         Returns:
-            List[Dict[str, Any]]: List of design day data
+            Dict[str, Any]: Design day data dictionary
         """
-        return self.extracted_settings.get('simulation', {}).get('design_day', [])
+        return self.extracted_settings.get('simulation', {}).get('design_day', {})

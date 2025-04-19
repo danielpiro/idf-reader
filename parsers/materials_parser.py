@@ -284,30 +284,6 @@ class MaterialsParser:
         """
         return self.constructions
     
-    def get_material(self, material_id: str) -> Optional[MaterialData]:
-        """
-        Get a specific material by ID.
-        
-        Args:
-            material_id: ID of the material to retrieve
-            
-        Returns:
-            Optional[MaterialData]: Material data if found, None otherwise
-        """
-        return self.materials.get(material_id)
-    
-    def get_construction(self, construction_id: str) -> Optional[ConstructionData]:
-        """
-        Get a specific construction by ID.
-        
-        Args:
-            construction_id: ID of the construction to retrieve
-            
-        Returns:
-            Optional[ConstructionData]: Construction data if found, None otherwise
-        """
-        return self.constructions.get(construction_id)
-    
     def calculate_construction_properties(self, construction_id: str) -> Dict[str, float]:
         """
         Calculate properties for a specific construction.
