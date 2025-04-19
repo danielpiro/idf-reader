@@ -208,13 +208,11 @@ def merge_reversed_constructions(area_data: List[Dict[str, Any]]) -> List[Dict[s
         construction = row['construction']
         
         # Check if construction has _Rev or _Reversed suffix
-        is_reversed = False
         base_construction = construction
         
         rev_patterns = [r'_Rev$', r'_Reversed$', r'_rev$', r'_reversed$']
         for pattern in rev_patterns:
             if re.search(pattern, construction):
-                is_reversed = True
                 base_construction = re.sub(pattern, '', construction)
                 break
         
