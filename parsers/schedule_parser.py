@@ -311,10 +311,23 @@ class ScheduleExtractor:
                 last_known_value = hourly_values[i]
             elif hourly_values[i] is None:
                  hourly_values[i] = last_known_value
-                 
-        # Attempt to round numeric values to 2 decimal places
+
+        # Post-processing: Adjust for "one hour before" rule
+        # Iterate from the second hour onwards (index 1)
+        processed_values = list(hourly_values) # Create a copy to modify
+        for h in range(1, 24):
+            # If the value at hour 'h' is different from the previous hour 'h-1'
+            if hourly_values[h] != hourly_values[h-1]:
+                # Apply the value of hour 'h' to the previous hour 'h-1'
+                processed_values[h-1] = hourly_values[h]
+
+        # Handle wrap-around change from hour 23 to hour 0
+        if hourly_values[0] != hourly_values[23]:
+             processed_values[23] = hourly_values[0] # Apply hour 0's value to hour 23
+
+        # Attempt to round numeric values to 2 decimal places using the processed values
         formatted_hourly_values = []
-        for val in hourly_values:
+        for val in processed_values: # Use the adjusted list
             try:
                 # Try converting to float and rounding
                 num_val = float(val)
