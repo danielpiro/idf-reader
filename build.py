@@ -1,6 +1,4 @@
 import PyInstaller.__main__
-import sys
-import os
 
 def build_exe():
     # PyInstaller command-line arguments
