@@ -443,6 +443,7 @@ class DataLoader:
         if 'WINDOWSHADINGCONTROL' in self._idf.idfobjects:
             for shading_control in self._idf.idfobjects['WINDOWSHADINGCONTROL']:
                 control_id = str(shading_control.Name)
+                zone_name = str(getattr(shading_control, "Zone_Name", ""))
                 
                 # Get the list of fenestration surfaces controlled by this shading control
                 window_names = []
@@ -454,14 +455,25 @@ class DataLoader:
                     if window_name:
                         window_names.append(window_name)
                 
-                # Cache shading control data
+                # Cache shading control data with all relevant fields
                 self._window_shading_control_cache[control_id] = {
                     'id': control_id,
                     'name': control_id,
+                    'zone_name': zone_name,
+                    'shading_control_sequence_number': safe_float(getattr(shading_control, "Shading_Control_Sequence_Number", 0)),
                     'shading_type': str(getattr(shading_control, "Shading_Type", "")),
+                    'construction_with_shading_name': str(getattr(shading_control, "Construction_with_Shading_Name", "")),
                     'shading_control_type': str(getattr(shading_control, "Shading_Control_Type", "")),
                     'schedule_name': str(getattr(shading_control, "Schedule_Name", "")),
                     'setpoint': safe_float(getattr(shading_control, "Setpoint", 0.0)),
+                    'is_scheduled': str(getattr(shading_control, "Shading_Control_Is_Scheduled", "")).lower() == "yes",
+                    'glare_control_is_active': str(getattr(shading_control, "Glare_Control_Is_Active", "")).lower() == "yes",
+                    'shading_device_material_name': str(getattr(shading_control, "Shading_Device_Material_Name", "")),
+                    'type_of_slat_angle_control': str(getattr(shading_control, "Type_of_Slat_Angle_Control", "")),
+                    'slat_angle_schedule_name': str(getattr(shading_control, "Slat_Angle_Schedule_Name", "")),
+                    'setpoint_2': safe_float(getattr(shading_control, "Setpoint_2", 0.0)),
+                    'daylighting_controls_object_name': str(getattr(shading_control, "Daylighting_Controls_Object_Name", "")),
+                    'multiple_surface_control_type': str(getattr(shading_control, "Multiple_Surface_Control_Type", "")),
                     'window_names': window_names,
                     'raw_object': shading_control
                 }

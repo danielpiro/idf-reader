@@ -84,7 +84,7 @@ def main():
         print(f"{Fore.CYAN}  Initializing parsers...{Style.RESET_ALL}")
         parsers = {
             'core': {
-                'settings': SettingsExtractor(data_loader),
+                'settings': SettingsExtractor(data_loader, idf_file_path=idf_file_path), # Pass the IDF file path
                 'materials': MaterialsParser(data_loader),
             },
             'dependent': {

@@ -1,6 +1,6 @@
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import cm
+from reportlab.lib.units import cm, inch # Import inch
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
@@ -151,6 +151,67 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
         # Default formatting for other dictionary values
         return "<br/>".join([f"{k}: {v}" for k, v in value_dict.items()])
 
+# --- Add DesignBuilder Metadata Section ---
+    if 'designbuilder' in settings_data:
+        designbuilder_data = settings_data.pop('designbuilder') # Extract and remove
+        if designbuilder_data and any(designbuilder_data.values()):
+            story.append(Paragraph("DesignBuilder Metadata", ParagraphStyle(name='CategoryHeader', parent=styles['Heading2'], fontSize=14, textColor=colors.darkblue, spaceBefore=0.5*cm, spaceAfter=0.3*cm)))
+
+            db_table_data = [
+                [Paragraph('Parameter', header_style), Paragraph('Value', header_style)]
+            ]
+            db_param_map = {
+                'version': "DesignBuilder Version",
+                'date': "File Generation Date",
+                'time': "File Generation Time",
+                'geometry_convention': "Geometry Convention",
+                'zone_geometry_surface_areas': "Zone Geometry Surface Areas",
+                'zone_volume_calculation': "Zone Volume Calculation",
+                'zone_floor_area_calculation': "Zone Floor Area Calculation",
+                'window_wall_ratio': "Window to Wall Ratio Method"
+            }
+
+            for key, display_name in db_param_map.items():
+                value = designbuilder_data.get(key)
+                if value is not None and value != '':
+                    db_table_data.append([
+                        Paragraph(display_name, key_cell_style),
+                        Paragraph(str(value), value_cell_style)
+                    ])
+
+            if len(db_table_data) > 1: # Only add table if there's data
+                db_col_widths = [doc.width * 0.30, doc.width * 0.70]
+                db_table_style = TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                    ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                    ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                    ('TOPPADDING', (0, 0), (-1, 0), 8),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                    ('VALIGN', (0, 1), (-1, -1), 'TOP'),
+                    ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
+                    ('LEFTPADDING', (0, 1), (-1, -1), 6),
+                    ('RIGHTPADDING', (0, 1), (-1, -1), 6),
+                    ('TOPPADDING', (0, 1), (-1, -1), 4),
+                    ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('BOX', (0, 0), (-1, -1), 1, colors.black),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.whitesmoke])
+                ])
+                db_table = Table(db_table_data, colWidths=db_col_widths, repeatRows=1)
+                db_table.setStyle(db_table_style)
+                story.append(db_table)
+                story.append(Spacer(1, 0.8*cm))
+            else:
+                 story.append(Paragraph("No DesignBuilder metadata found.", value_cell_style))
+                 story.append(Spacer(1, 0.8*cm))
+        else:
+            story.append(Paragraph("No DesignBuilder metadata found.", value_cell_style))
+            story.append(Spacer(1, 0.8*cm))
+    # --- End DesignBuilder Metadata Section ---
     # Process each category
     for category_name, settings in settings_data.items():
         # Capitalize category name for display
