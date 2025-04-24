@@ -62,6 +62,7 @@ class DataLoader:
         self._window_shade_cache = {}
         self._window_simple_glazing_cache = {}
         self._window_shading_control_cache = {}
+        self._frame_divider_cache = {} # Added cache for FrameAndDivider
         
     def load_file(self, idf_path: str, idd_path: Optional[str] = None) -> None:
         """
@@ -89,6 +90,7 @@ class DataLoader:
         self._cache_constructions()
         self._cache_loads()
         self._cache_window_shading_controls()
+        self._cache_frame_dividers() # Added call to cache frame/dividers
     
     def _cache_zones(self) -> None:
         """Cache raw zone data"""
@@ -477,6 +479,30 @@ class DataLoader:
                     'window_names': window_names,
                     'raw_object': shading_control
                 }
+
+    def _cache_frame_dividers(self) -> None:
+        """Cache raw WindowProperty:FrameAndDivider data"""
+        if not self._idf:
+            return
+
+        self._frame_divider_cache.clear()
+
+        if 'WINDOWPROPERTY:FRAMEANDDIVIDER' in self._idf.idfobjects:
+            for frame_divider in self._idf.idfobjects['WINDOWPROPERTY:FRAMEANDDIVIDER']:
+                fd_id = str(frame_divider.Name)
+
+                self._frame_divider_cache[fd_id] = {
+                    'id': fd_id,
+                    'name': fd_id,
+                    'frame_width': safe_float(getattr(frame_divider, "Frame_Width", 0.0)),
+                    'frame_conductance': safe_float(getattr(frame_divider, "Frame_Conductance", 0.0)),
+                    'frame_solar_absorptance': safe_float(getattr(frame_divider, "Frame_Solar_Absorptance", 0.0)),
+                    'frame_visible_absorptance': safe_float(getattr(frame_divider, "Frame_Visible_Absorptance", 0.0)),
+                    'divider_type': str(getattr(frame_divider, "Divider_Type", "")),
+                    'divider_width': safe_float(getattr(frame_divider, "Divider_Width", 0.0)),
+                    # Add other relevant fields as needed
+                    'raw_object': frame_divider
+                }
     
     # Getter methods for cached data
     def get_zones(self) -> Dict[str, Dict[str, Any]]:
@@ -560,6 +586,10 @@ class DataLoader:
     def get_window_shading_controls(self) -> Dict[str, Dict[str, Any]]:
         """Get cached window shading controls"""
         return self._window_shading_control_cache
+
+    def get_frame_dividers(self) -> Dict[str, Dict[str, Any]]:
+        """Get cached WindowProperty:FrameAndDivider data"""
+        return self._frame_divider_cache
     
     def get_cache_status(self) -> Dict[str, bool]:
         """Get the loading status of cache sections (maintained for compatibility)"""
