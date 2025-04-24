@@ -9,46 +9,19 @@ from eppy.modeleditor import IDF
 class EppyHandler:
     """Handles eppy IDF model loading and provides utility functions."""
     
-    def __init__(self, idd_path: Optional[str] = None):
+    def __init__(self, idd_path: str):
         """
         Initialize the EppyHandler.
-        
-        Args:
-            idd_path: Path to the Energy+.idd file. If None, will look in common locations.
-        """
-        self.idd_path = self._find_idd_file(idd_path)
-        if not self.idd_path:
-            raise FileNotFoundError(
-                "Energy+.idd file not found. Please provide path to IDD file or place it in the project root."
-            )
-        self._initialize_eppy()
 
-    def _find_idd_file(self, idd_path: Optional[str] = None) -> Optional[str]:
-        """
-        Find the Energy+.idd file.
-        
         Args:
-            idd_path: Optional path to IDD file.
-            
-        Returns:
-            Path to IDD file if found, None otherwise.
+            idd_path: Path to the Energy+.idd file.
         """
-        if idd_path and os.path.isfile(idd_path):
-            return idd_path
-            
-        # System installation path and common locations
-        search_paths = [
-            r"C:\EnergyPlusV9-4-0\Energy+.idd",  # System installation path
-            "Energy+.idd",  # Current directory
-            "tests/Energy+.idd",  # Tests directory
-            "../Energy+.idd",  # Parent directory
-        ]
-        
-        for path in search_paths:
-            if os.path.isfile(path):
-                return path
-                
-        return None
+        if not idd_path or not os.path.isfile(idd_path):
+            raise FileNotFoundError(
+                f"Energy+.idd file not found at the specified path: {idd_path}"
+            )
+        self.idd_path = idd_path
+        self._initialize_eppy()
 
     def _initialize_eppy(self) -> None:
         """Initialize eppy with the IDD file."""
