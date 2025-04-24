@@ -14,9 +14,13 @@
       "request": "launch",
       "program": "${workspaceFolder}/main.py",
       "args": [
-        // Directly reference the file in the workspace folder
-        "${workspaceFolder}/tests/in-test.idf"
-        // Or change to: "${workspaceFolder}/in-big.idf" if needed
+        // Provide the positional IDF file argument
+        "${workspaceFolder}/tests/in-test.idf",
+        // Provide the required --idd argument
+        "--idd",
+        "C:/EnergyPlusV9-4-0/Energy+.idd" // Assuming this path based on settings.json. Adjust if needed.
+        // Optionally add --output argument if needed:
+        // "--output", "${workspaceFolder}/debug_output"
       ],
       "console": "integratedTerminal"
     }
