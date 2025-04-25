@@ -39,6 +39,7 @@ class DataLoader:
     def __init__(self):
         self._idf = None
         self._eppy_handler = None
+        self._idf_path = None # Store the path
         self._loaded_sections = set()
         
         # Basic caches for raw IDF data
@@ -80,6 +81,7 @@ class DataLoader:
             raise FileNotFoundError(f"IDF file not found at '{idf_path}'")
             
         self._eppy_handler = EppyHandler(idd_path)
+        self._idf_path = idf_path # Store the path
         self._idf = self._eppy_handler.load_idf(idf_path)
         self._loaded_sections = {'zones', 'surfaces', 'materials', 'constructions', 'schedules'}
         
@@ -665,3 +667,7 @@ class DataLoader:
         This is a fallback for parsers that need direct access.
         """
         return self._idf
+
+    def get_idf_path(self) -> Optional[str]:
+        """Get the path of the loaded IDF file"""
+        return self._idf_path

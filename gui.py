@@ -82,8 +82,8 @@ class ProcessingManager:
             self.update_status("Initializing parsers...")
 
             # Initialize parsers
-            # Pass data_loader AND input_file (for comment parsing)
-            settings_extractor = SettingsExtractor(data_loader, idf_file_path=input_file)
+            # Pass only data_loader (it contains the path and idf object)
+            settings_extractor = SettingsExtractor(data_loader)
             schedule_extractor = ScheduleExtractor(data_loader)
             load_extractor = LoadExtractor(data_loader)
             materials_extractor = MaterialsParser(data_loader)
@@ -103,8 +103,8 @@ class ProcessingManager:
             self.update_progress(0.3)
             self.update_status("Processing settings...")
 
-            # Call the extractor's own process_idf method
-            settings_extractor.process_idf(idf)
+            # Call the extractor's own process_idf method (it gets idf from data_loader)
+            settings_extractor.process_idf()
             # Remove the manual loop below:
             # settings_objects = eppy_handler.get_settings_objects(idf)
             # for obj_type, objects in settings_objects.items():

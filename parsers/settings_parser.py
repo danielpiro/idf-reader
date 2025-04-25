@@ -8,16 +8,17 @@ class SettingsExtractor:
     Extracts settings and simulation parameters from IDF files.
     Implementation details moved from DataLoader.
     """
-    def __init__(self, data_loader: Optional[DataLoader] = None, idf_file_path: Optional[str] = None):
+    def __init__(self, data_loader: DataLoader):
         """
         Initialize the SettingsExtractor.
 
         Args:
-            data_loader: Optional DataLoader instance for accessing cached data
-            idf_file_path: Optional path to the IDF file for comment parsing
+            data_loader: DataLoader instance for accessing cached IDF data and path.
         """
+        if not data_loader:
+            raise ValueError("DataLoader instance is required.")
         self.data_loader = data_loader
-        self.idf_file_path = idf_file_path # Store the file path
+        # self.idf_file_path is no longer needed, get path from data_loader
         self.extracted_settings = {}
         self.initialize_settings()
         self._setup_mappings()
@@ -196,12 +197,13 @@ class SettingsExtractor:
         """
         Parse DesignBuilder metadata comments from the beginning of the IDF file.
         """
-        if not self.idf_file_path:
-            print("Warning: IDF file path not provided for comment parsing.")
+        idf_file_path = self.data_loader.get_idf_path()
+        if not idf_file_path:
+            print("Warning: IDF file path not available from DataLoader for comment parsing.")
             return
 
         try:
-            with open(self.idf_file_path, 'r', encoding='utf-8') as f:
+            with open(idf_file_path, 'r', encoding='utf-8') as f:
                 # Read only the first few lines, assuming comments are at the top
                 lines_to_check = 20
                 lines = [f.readline() for _ in range(lines_to_check)]
@@ -244,24 +246,22 @@ class SettingsExtractor:
                         db_settings['window_wall_ratio'] = value
 
         except FileNotFoundError:
-            print(f"Error: IDF file not found at {self.idf_file_path} for comment parsing.")
+            print(f"Error: IDF file not found at {idf_file_path} for comment parsing.")
         except Exception as e:
-            print(f"Error parsing DesignBuilder comments: {str(e)}")
+            print(f"Error parsing DesignBuilder comments from {idf_file_path}: {str(e)}")
 
 
-    def process_idf(self, idf) -> None:
+    def process_idf(self) -> None:
         """
-        Process an entire IDF model to extract settings.
+        Process the loaded IDF model from DataLoader to extract settings.
         This process will extract settings from various objects in the IDF file.
-
-        Args:
-            idf: eppy IDF object (kept for compatibility)
         """
-        # Parse DesignBuilder comments first
+        # Parse DesignBuilder comments first (uses data_loader for path)
         self._parse_designbuilder_comments()
 
+        idf = self.data_loader.get_idf()
         if not idf:
-            print("Warning: No IDF object provided to process settings")
+            print("Warning: No IDF object available from DataLoader to process settings.")
             return
 
         try:
