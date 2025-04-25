@@ -84,6 +84,7 @@ class DataLoader:
         self._loaded_sections = {'zones', 'surfaces', 'materials', 'constructions', 'schedules'}
         
         # Pre-cache raw data
+        self._check_output()
         self._cache_schedules()
         self._cache_zones()
         self._cache_surfaces()
@@ -93,6 +94,24 @@ class DataLoader:
         self._cache_window_shading_controls()
         self._cache_frame_dividers()
         self._filter_constructions_glazing()
+
+    def _check_output(self) -> None:
+        """Check if the IDF file is loaded and output is available"""
+        if not self._idf:
+            return
+            
+        # Check if output is available
+        if 'OUTPUT:VARIABLE' not in self._idf.idfobjects:
+            output_variable = self._idf.newidfobject('OUTPUT:VARIABLE')
+            output_variable.Key_Value = '*'
+            output_variable.Variable_Name = 'Zone Ideal Loads Supply Air Total Cooling Energy'
+            output_variable.Reporting_Frequency = 'RunPeriod'
+            output_variable = self._idf.newidfobject('OUTPUT:VARIABLE')
+            output_variable.Key_Value = '*'
+            output_variable.Variable_Name = 'Zone Ideal Loads Supply Air Total Heating Energy'
+            output_variable.Reporting_Frequency = 'RunPeriod'
+        else:
+            pass
     
     def _cache_zones(self) -> None:
         """Cache raw zone data"""
@@ -315,6 +334,7 @@ class DataLoader:
             if safe_float(getattr(construction, "heatcapacity", 0.0)) == 0.0:
                 self._constructions_glazing_cache[construction_id] = {
                     'id': construction_id,
+                    'type' : 'simple' if 'simple' in construction_id.lower() else 'detailed',
                     'name': construction_id,
                     'material_layers': material_layers,
                     'raw_object': construction  # Store the raw object for parsers
@@ -516,12 +536,21 @@ class DataLoader:
         """Filter constructions to only include glazing-related ones"""
         if not self._idf:
             return
+        
 
-        constructions_glazing = {}
-        for id, value in self._constructions_glazing_cache.items():
-            id = 'Simple ' + id
-            if self.get_window_simple_glazing_materials().get(id):
-                constructions_glazing[id] = value
+        for construction_id, construction_data in self._constructions_glazing_cache.items():
+            if construction_data['type'] == 'simple':
+                # TODO need to filter simple by some rule
+                id = ('Simple ' + construction_id)
+                if id in self._window_simple_glazing_cache.keys():
+                    construction_data['data'] = self._window_simple_glazing_cache[id]
+                else:
+                    pass
+                    #help me in here
+            else:
+                continue
+                   
+        
     
     # Getter methods for cached data
     def get_zones(self) -> Dict[str, Dict[str, Any]]:
