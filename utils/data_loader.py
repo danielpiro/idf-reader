@@ -537,19 +537,43 @@ class DataLoader:
         if not self._idf:
             return
         
-
         for construction_id, construction_data in self._constructions_glazing_cache.items():
             if construction_data['type'] == 'simple':
-                # TODO need to filter simple by some rule
-                id = ('Simple ' + construction_id)
+                id = 'Simple ' + construction_id
                 if id in self._window_simple_glazing_cache.keys():
-                    construction_data['data'] = self._window_simple_glazing_cache[id]
+                    construction_data['data'] = {
+                        'u_factor': self._window_simple_glazing_cache[id]['u_factor'],
+                        'shgc': self._window_simple_glazing_cache[id]['shgc'],
+                        'visible_transmittance': self._window_simple_glazing_cache[id]['visible_transmittance']
+                    }
                 else:
-                    pass
-                    #help me in here
+                    construction_data['data'] = None
             else:
-                continue
-                   
+                pass
+
+        shades = []
+        for construction_id, construction_data in self._constructions_glazing_cache.items():
+            if construction_data['type'] == 'simple' and construction_data['data'] is None:
+                for shade in construction_data['material_layers']:
+                    #TODO assume the id is at the end of shade list
+                    if shade in self._window_shade_cache.keys():
+                       shades.append(shade)
+                    else:
+                        self._constructions_glazing_cache[" ".join(shade.split(" ")[1:])]['shades'] = shades
+                        break
+            else:
+                pass
+        
+        keys_to_delete = []
+        for construction_id, construction_data in self._constructions_glazing_cache.items():
+            if construction_data.get('type') == 'simple' and construction_data.get('data') is None:
+            # Mark this key for deletion
+                keys_to_delete.append(construction_id)
+
+        # Now, delete the marked keys outside the loop
+        for key in keys_to_delete:
+            del self._constructions_glazing_cache[key]
+        print("Filtered constructions glazing cache:")
         
     
     # Getter methods for cached data
