@@ -4,6 +4,7 @@ Extracts and processes area information including floor areas and material prope
 from typing import Dict, Any, List, Optional, Tuple
 import logging
 from parsers.materials_parser import MaterialsParser  # Import MaterialsParser for element_type function
+from utils.data_loader import safe_float # Import safe_float
 
 logger = logging.getLogger(__name__)
 
@@ -180,46 +181,143 @@ class AreaParser:
         
     def _calculate_u_value(self, construction_name: str) -> float:
         """
-        Calculate U-Value for a construction (1/R-value with film).
-        
+        Calculate U-Value for a construction.
+        Retrieves direct U-Factor for simple glazing systems, otherwise calculates
+        based on layer resistance (1/R-value with film). Includes detailed debugging.
+
         Args:
             construction_name: Name of the construction
-            
+
         Returns:
             float: U-Value
         """
-        # Get cached construction and surface data
-        constructions = self.data_loader.get_constructions()
-        materials = self.data_loader.get_materials()
+        logger.debug(f"--- Calculating U-Value for construction: '{construction_name}' ---")
+        # Get cached data - MERGE both construction caches
+        constructions_opaque = self.data_loader.get_constructions()
+        constructions_glazing = self.data_loader.get_constructions_glazing()
+        all_constructions = {**constructions_opaque, **constructions_glazing} # Merge dicts
+
+        materials = self.data_loader.get_materials() # Should contain all material types
         surfaces = self.data_loader.get_surfaces()
-        
-        if construction_name not in constructions:
+
+        # Check merged dictionary
+        if construction_name not in all_constructions:
+            logger.warning(f"Construction '{construction_name}' not found in combined cached construction data. Returning U=0.")
             return 0.0
-                
+
+        construction_data = all_constructions[construction_name] # Use merged dict
+        material_layers = construction_data.get('material_layers', [])
+        logger.debug(f"  Material layers: {material_layers}")
+
+        # --- Check for Simple Glazing System ---
+        simple_glazing_found = False
+        for layer_id in material_layers:
+            logger.debug(f"  Checking layer: '{layer_id}'")
+            if layer_id in materials:
+                material_data = materials[layer_id]
+                mat_type = material_data.get('type')
+                # Log the relevant parts of material_data for clarity
+                log_mat_data = {k: v for k, v in material_data.items() if k in ['id', 'name', 'type', 'u_factor', 'thickness', 'conductivity', 'thermal_resistance']}
+                logger.debug(f"    Material data (relevant): {log_mat_data}")
+                logger.debug(f"    Material type: '{mat_type}'")
+
+                # Adjust 'WindowMaterial:SimpleGlazingSystem' if the actual type name differs
+                expected_simple_glazing_type = 'WindowMaterial:SimpleGlazingSystem'
+                if mat_type == expected_simple_glazing_type:
+                    logger.debug(f"    MATCH! Found '{expected_simple_glazing_type}'. Attempting to use direct U-Factor.")
+                    simple_glazing_found = True
+                    # Retrieve the U-Factor directly. Adjust key 'u_factor' if needed.
+                    u_factor = material_data.get('u_factor') # Key confirmed from DataLoader cache logic
+                    logger.debug(f"    Retrieved 'u_factor' from material data: {u_factor} (type: {type(u_factor)})")
+                    if u_factor is not None:
+                        try:
+                            # Use safe_float for robust conversion
+                            u_value_float = safe_float(u_factor, -1.0) # Use -1 default to indicate conversion failure vs actual 0
+                            if u_value_float != -1.0:
+                                logger.debug(f"    Successfully converted U-Factor. Returning direct U-Value: {u_value_float}")
+                                return u_value_float
+                            else:
+                                logger.error(f"    safe_float conversion failed for U-Factor '{u_factor}'. Falling back.")
+                        except Exception as e: # Catch any unexpected error during conversion
+                             logger.error(f"    Error converting U-Factor '{u_factor}' to float for material '{layer_id}': {e}. Falling back.")
+                    else:
+                        logger.warning(f"    Simple glazing material '{layer_id}' has 'u_factor' key but value is None. Falling back.")
+                    # If U-factor is None or conversion fails, fall through to resistance calculation
+                    break # Stop checking layers if simple glazing type found but no valid U-factor obtained
+
+            else:
+                 logger.warning(f"  Layer '{layer_id}' not found in cached materials.")
+
+        # --- Fallback: Calculate U-Value based on layer resistance ---
+        if not simple_glazing_found:
+             logger.debug(f"  No simple glazing found. Falling back to resistance calculation for '{construction_name}'.")
+        else: # simple_glazing_found is True, but we fell through
+             logger.debug(f"  Simple glazing found but failed to get valid U-factor. Falling back to resistance calculation for '{construction_name}'.")
+
         # Calculate film resistance using MaterialsParser logic
-        element_type = MaterialsParser._get_element_type(self , construction_name, surfaces)
-        film_resistance = MaterialsParser._get_surface_film_resistance(self,element_type)
-        
+        film_resistance = 0.0 # Initialize
+        try:
+            element_type = "Wall" # Default assumption
+            is_window = any(s.get('is_glazing', False) for s_id, s in surfaces.items() if s.get('construction_name') == construction_name)
+            if is_window:
+                element_type = "Window"
+            logger.debug(f"    Determined element type for film resistance: '{element_type}'")
+
+            # Ensure MaterialsParser._get_surface_film_resistance exists and is callable
+            if hasattr(MaterialsParser, '_get_surface_film_resistance') and callable(getattr(MaterialsParser, '_get_surface_film_resistance')):
+                 film_resistance = MaterialsParser._get_surface_film_resistance(self, element_type) # Assuming static call works or is adapted
+                 logger.debug(f"    Calculated film resistance: {film_resistance}")
+            else:
+                 logger.warning(f"    MaterialsParser._get_surface_film_resistance not found or not callable. Using film_resistance=0.")
+
+        except Exception as e:
+             logger.warning(f"    Error calculating film resistance for {construction_name}: {e}. Using default 0.")
+             film_resistance = 0.0
+
         # Calculate material thermal resistance
-        construction_data = constructions[construction_name]
-        material_layers = construction_data['material_layers']
         total_resistance = 0.0
-        
+        logger.debug(f"    Calculating total material resistance...")
         for layer_id in material_layers:
             if layer_id in materials:
                 material_data = materials[layer_id]
-                thickness = material_data['thickness']
-                conductivity = material_data['conductivity']
-                
-                if conductivity > 0:
-                    total_resistance += thickness / conductivity
-        
+                # Log relevant properties for resistance calculation
+                thickness = material_data.get('thickness')
+                conductivity = material_data.get('conductivity')
+                resistance = material_data.get('thermal_resistance') # Direct R-value
+                logger.debug(f"      Layer '{layer_id}': Thickness={thickness}, Conductivity={conductivity}, Resistance={resistance}")
+
+                layer_r = 0.0
+                # Use safe_float for robustness
+                thickness_f = safe_float(thickness, -1.0)
+                conductivity_f = safe_float(conductivity, -1.0)
+                resistance_f = safe_float(resistance, -1.0)
+
+                if thickness_f != -1.0 and conductivity_f > 0: # Check conductivity > 0 strictly
+                    layer_r = thickness_f / conductivity_f
+                    logger.debug(f"        R = Thickness / Conductivity = {thickness_f} / {conductivity_f} = {layer_r}")
+                elif resistance_f != -1.0: # Check if direct resistance is valid
+                     layer_r = resistance_f
+                     logger.debug(f"        R = {layer_r} (from direct thermal_resistance)")
+                else:
+                     logger.warning(f"        Layer '{layer_id}': No valid thickness/conductivity or resistance found. R=0 for this layer.")
+
+                total_resistance += layer_r
+            # else: logger already warned above if layer_id not in materials
+
+        logger.debug(f"    Total material resistance (sum of layer R): {total_resistance}")
+
         # Total R-value with film
         r_value_with_film = total_resistance + film_resistance
-        
+        logger.debug(f"    Total R-value (material + film): {total_resistance} + {film_resistance} = {r_value_with_film}")
+
         # Calculate U-Value as 1 / R-Value with film
-        u_value = 1.0 / r_value_with_film if r_value_with_film > 0 else 0.0
-        
+        u_value = 0.0 # Default
+        if r_value_with_film > 0:
+            u_value = 1.0 / r_value_with_film
+            logger.debug(f"  Calculated fallback U-Value for '{construction_name}': 1.0 / {r_value_with_film} = {u_value}")
+        else:
+             logger.warning(f"  Resulting U-Value is 0 for '{construction_name}' because total R-value (material + film) is <= 0.")
+
         return u_value
     
     def get_areas_by_zone(self) -> Dict[str, Dict[str, Any]]:
@@ -275,89 +373,111 @@ class AreaParser:
         
     def get_area_table_data(self, materials_parser: Optional[MaterialsParser] = None) -> Dict[str, List[Dict[str, Any]]]:
         """
-        Get data for area reports in table format.
-        
+        Get data for area reports in table format, aggregating glazing constructions.
+
         Args:
             materials_parser: Optional MaterialsParser instance for better element type detection
-            
+
         Returns:
             Dict[str, List[Dict[str, Any]]]: Dictionary of area table rows by area ID
         """
         result_by_area = {}
-        
+
         # Get cached surfaces
         surfaces = self.data_loader.get_surfaces()
-        
+
         # Process each zone
         for zone_id, zone_data in self.areas_by_zone.items():
             area_id = zone_data.get("area_id", "unknown")
-            
+
             # Skip zones with "core" in their area ID
             if "core" in area_id.lower():
                 continue
-                
+
             # Initialize area in results if not already
             if area_id not in result_by_area:
                 result_by_area[area_id] = []
-            
-            # Dictionary to store zone+construction combinations
-            zone_constructions = {}
-            
+
+            # Dictionary to store aggregated zone+construction combinations
+            zone_constructions_aggregated = {}
+
             for construction_name, construction_data in zone_data.get("constructions", {}).items():
-                # Default element type
+                # Determine element type and if it's glazing
                 element_type = "Unknown"
-                
-                # First try to determine element type from surfaces
-                matched_surface = None
-                for surface_id, surface in surfaces.items():
-                    if surface.get('construction_name') == construction_name:
-                        matched_surface = surface
-                        break
-                
-                # If we found a surface using this construction, use it to determine element type
+                is_glazing_construction = False
+
+                # Prioritize checking surface properties if available
+                # Find a surface in *this zone* that uses this construction
+                matched_surface = next((s for s_id, s in surfaces.items()
+                                        if s.get('construction_name') == construction_name and s.get('zone_name') == zone_id), None)
+
                 if matched_surface:
-                    # Check if this is a glazing surface first
                     if matched_surface.get('is_glazing', False):
                         element_type = "Glazing"
+                        is_glazing_construction = True
                     elif materials_parser:
-                        # Use materials parser for accurate element type detection
                         try:
+                            # Pass self if needed by the method signature in MaterialsParser
                             element_type = materials_parser._get_element_type(construction_name, surfaces)
                         except Exception as e:
-                            pass
-                
-                # If still unknown, try to infer from elements
-                if element_type == "Unknown":
-                    # Try to get element type from first element as a fallback
-                    if construction_data.get("elements") and len(construction_data["elements"]) > 0:
-                        element_type = construction_data["elements"][0].get("element_type", "Unknown")
-                
-                # Create a unique key for zone+construction combination 
-                zone_constr_key = f"{zone_id}_{construction_name}"
-                
-                # Sum areas for same construction+zone
-                if zone_constr_key not in zone_constructions:
-                    # Get u_value from first element if available
+                            logger.warning(f"Could not determine element type via MaterialsParser for {construction_name}: {e}")
+                            # Fallback below if still Unknown
+                    else: # No materials_parser, use surface_type from matched surface
+                         element_type = matched_surface.get("surface_type", "Unknown").capitalize()
+
+                # Fallback: Infer from first element if type is still Unknown
+                if element_type == "Unknown" and construction_data.get("elements"):
+                    first_element = construction_data["elements"][0]
+                    element_type = first_element.get("element_type", "Unknown")
+                    if element_type == "Glazing":
+                        is_glazing_construction = True
+
+                # --- Modifications for Glazing Aggregation and Values ---
+                cleaned_construction_name = construction_name
+                display_element_type = element_type
+
+                if is_glazing_construction:
+                    display_element_type = "Outside Glazing"  # Set display type for report
+                    # Clean the name: remove trailing " - " and digits
+                    parts = construction_name.split(' - ')
+                    if len(parts) > 1 and parts[-1].strip().isdigit():
+                        cleaned_construction_name = ' - '.join(parts[:-1]).strip()
+                    # Example: "6+6+6 - 1001" -> "6+6+6"
+
+                # Create a unique key for zone + cleaned_construction_name + display_element_type combination
+                zone_constr_key = f"{zone_id}_{cleaned_construction_name}_{display_element_type}"
+
+                # Aggregate data based on the key
+                if zone_constr_key not in zone_constructions_aggregated:
+                    # Get u_value from first element (should be consistent for the construction)
                     u_value = 0.0
-                    if construction_data.get("elements") and len(construction_data["elements"]) > 0:
+                    if construction_data.get("elements"):
                         u_value = construction_data["elements"][0].get("u_value", 0.0)
-                    
-                    zone_constructions[zone_constr_key] = {
+
+                    zone_constructions_aggregated[zone_constr_key] = {
                         "zone": zone_id,
-                        "construction": construction_name,
-                        "element_type": element_type,
+                        "construction": cleaned_construction_name,  # Use cleaned name
+                        "element_type": display_element_type,  # Use adjusted display type
                         "area": 0.0,
-                        "u_value": u_value,
-                        "area_u_value": 0.0,
-                        "area_loss": 0.0  # Placeholder as requested
+                        "u_value": u_value,  # U-value per construction
+                        "area_u_value": 0.0,  # Sum of (element area * element u_value)
+                        "area_loss": 0.0  # Initialize area loss
                     }
-                
-                # Add area and area_u_value
-                constr_sum = zone_constructions[zone_constr_key]
-                constr_sum["area"] += construction_data.get("total_area", 0.0)
-                constr_sum["area_u_value"] += construction_data.get("total_u_value", 0.0)
-            
-            # Add all zone+constructions to the area's result list
-            result_by_area[area_id].extend(zone_constructions.values())
-                
+
+                # Add area and area_u_value to the aggregated entry
+                constr_agg = zone_constructions_aggregated[zone_constr_key]
+                current_total_area = construction_data.get("total_area", 0.0)
+                # total_u_value in construction_data is already sum(area*u_value) for that specific original construction
+                current_total_area_u_value = construction_data.get("total_u_value", 0.0)
+
+                constr_agg["area"] += current_total_area
+                constr_agg["area_u_value"] += current_total_area_u_value
+
+                # Calculate area_loss = aggregated sum(area * u_value)
+                # This matches the user's example where area_loss = area * u_value
+                constr_agg["area_loss"] = constr_agg["area_u_value"]
+
+            # Add all aggregated zone+constructions to the area's result list
+            result_by_area[area_id].extend(zone_constructions_aggregated.values())
+
         return result_by_area

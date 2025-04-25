@@ -549,8 +549,31 @@ class DataLoader:
         return self._surfaces_cache
     
     def get_materials(self) -> Dict[str, Dict[str, Any]]:
-        """Get cached material data"""
-        return self._materials_cache
+        """Get cached material data, merging all material types."""
+        # Merge all relevant material caches into one dictionary
+        merged_materials = {
+            **self._materials_cache,
+            **self._window_glazing_cache,
+            **self._window_gas_cache,
+            **self._window_shade_cache,
+            **self._window_simple_glazing_cache
+            # Add other window material caches if they exist and are needed
+        }
+        # Add type information to each material for easier identification in parsers
+        for mat_id, mat_data in merged_materials.items():
+            if mat_id in self._materials_cache:
+                mat_data['type'] = 'Material'
+            elif mat_id in self._window_glazing_cache:
+                mat_data['type'] = 'WindowMaterial:Glazing'
+            elif mat_id in self._window_gas_cache:
+                mat_data['type'] = 'WindowMaterial:Gas'
+            elif mat_id in self._window_shade_cache:
+                mat_data['type'] = 'WindowMaterial:Shade'
+            elif mat_id in self._window_simple_glazing_cache:
+                mat_data['type'] = 'WindowMaterial:SimpleGlazingSystem'
+            # Add elif for other types if necessary
+
+        return merged_materials
     
     def get_constructions(self) -> Dict[str, Dict[str, Any]]:
         """Get cached construction data"""
