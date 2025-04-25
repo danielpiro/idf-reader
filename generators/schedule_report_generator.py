@@ -151,13 +151,16 @@ def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> T
 
 # --- Main PDF Generation Function ---
 
-def generate_schedules_report_pdf(schedule_data, output_filename="output/schedules.pdf"):
+def generate_schedules_report_pdf(schedule_data, output_filename="output/schedules.pdf",
+                                  project_name: str = "N/A", run_id: str = "N/A"):
     """
-    Generates a PDF report containing schedule definitions visualized as hourly tables.
+    Generates a PDF report containing schedule definitions, including a header.
 
     Args:
         schedule_data (list): List of unique parsed schedule dictionaries.
         output_filename (str): The name of the output PDF file.
+        project_name (str): Name of the project.
+        run_id (str): Identifier for the current run.
     """
     if canvas is None:
         print("Cannot generate PDF because reportlab is not installed.")
@@ -185,6 +188,28 @@ def generate_schedules_report_pdf(schedule_data, output_filename="output/schedul
         name='NotFound', parent=styles['Normal'], fontName='Helvetica-Oblique',
         textColor=grey, leftIndent=0.5*cm, spaceAfter=0.4*cm
     )
+    header_info_style = ParagraphStyle(
+        'HeaderInfo',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=colors.black, # Changed from darkgrey to black
+        alignment=2 # Right aligned
+    )
+
+    # --- Header ---
+    now = datetime.datetime.now()
+    header_text = f"""
+    Project: {project_name}<br/>
+    Run ID: {run_id}<br/>
+    Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
+    Report: Unique Schedule Definitions
+    """
+    p_header = Paragraph(header_text, header_info_style)
+    header_width, header_height = p_header.wrapOn(c, content_width, margin_y)
+    p_header.drawOn(c, width - margin_x - header_width, height - margin_y - header_height)
+    # Adjust starting Y position slightly below the header
+    current_y -= (header_height + 0.2*cm)
+
 
     # --- Title ---
     title_text = "IDF Unique Schedule Definitions"

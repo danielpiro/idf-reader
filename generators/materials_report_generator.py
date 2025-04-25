@@ -8,6 +8,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import Paragraph, Table, TableStyle, SimpleDocTemplate, Spacer
 from reportlab.lib.colors import navy, black, grey, lightgrey, white
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
+import datetime # Add datetime import
 
 def wrap_text(text, style):
     """Helper function to create wrapped text in a cell."""
@@ -143,13 +144,16 @@ def safe_value(value, default=""):
     """Safely convert a value to string, handling None."""
     return str(value) if value is not None else default
 
-def generate_materials_report_pdf(element_data, output_filename="output/materials.pdf"):
+def generate_materials_report_pdf(element_data, output_filename="output/materials.pdf",
+                                  project_name: str = "N/A", run_id: str = "N/A"):
     """
-    Generates a PDF report containing materials thermal properties in a table format.
+    Generates a PDF report containing materials thermal properties, including a header.
 
     Args:
-        element_data (list): List of dictionaries containing element data and calculated properties.
+        element_data (list): List of dictionaries containing element data.
         output_filename (str): The name of the output PDF file.
+        project_name (str): Name of the project.
+        run_id (str): Identifier for the current run.
     """
     if not element_data:
         print("Warning: No element data provided for report generation")
@@ -192,6 +196,24 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
         cell_style = create_cell_style(styles)
         header_cell_style = create_cell_style(styles, is_header=True)
         total_style = create_cell_style(styles, total_row=True)
+        header_info_style = ParagraphStyle(
+            'HeaderInfo',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=black, # Changed from grey to black
+            alignment=2 # Right aligned
+        )
+
+        # --- Header ---
+        now = datetime.datetime.now()
+        header_text = f"""
+        Project: {project_name}<br/>
+        Run ID: {run_id}<br/>
+        Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
+        Report: Building Elements Materials Properties
+        """
+        story.append(Paragraph(header_text, header_info_style))
+        story.append(Spacer(1, 5)) # Add some space after header
 
         # Add title
         title_text = "Building Elements Materials Properties Report"

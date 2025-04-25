@@ -4,6 +4,7 @@ from reportlab.lib.units import cm, inch # Import inch
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
+import datetime # Add datetime import
 
 def wrap_text(text, style):
     """Helper function to wrap text for proper display in cells"""
@@ -27,14 +28,16 @@ def wrap_text(text, style):
     modified_text = str(text).replace('\n', '<br/>')
     return Paragraph(modified_text, style)
 
-def generate_settings_report_pdf(settings_data, output_filename="output/settings.pdf"):
+def generate_settings_report_pdf(settings_data, output_filename="output/settings.pdf",
+                                 project_name: str = "N/A", run_id: str = "N/A"):
     """
-    Generates a PDF report showing all extracted settings organized by category.
+    Generates a PDF report showing all extracted settings, including a header.
 
     Args:
-        settings_data (dict): Dictionary of settings organized by category
-                            {category: {setting_key: value}}
+        settings_data (dict): Dictionary of settings organized by category.
         output_filename (str): The name of the output PDF file.
+        project_name (str): Name of the project.
+        run_id (str): Identifier for the current run.
     """
     # Use landscape orientation for more width to display tables
     doc = SimpleDocTemplate(output_filename, 
@@ -46,6 +49,24 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
     
     styles = getSampleStyleSheet()
     story = []
+
+    # Header Information
+    now = datetime.datetime.now()
+    header_style = ParagraphStyle(
+        'HeaderInfo',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=colors.black, # Changed from darkgrey to black
+        alignment=2 # Right aligned
+    )
+    header_text = f"""
+    Project: {project_name}<br/>
+    Run ID: {run_id}<br/>
+    Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
+    Report: Settings Summary
+    """
+    story.append(Paragraph(header_text, header_style))
+    story.append(Spacer(1, 5)) # Add some space after header
 
     # Add title with improved styling
     title_style = ParagraphStyle(

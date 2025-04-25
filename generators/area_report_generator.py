@@ -5,6 +5,7 @@ from typing import Dict, Any, List
 from pathlib import Path
 from collections import defaultdict
 import re
+import datetime
 from colorama import Fore, Style, init
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -15,19 +16,22 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 # Initialize colorama
 init(autoreset=True)
 
-def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]], 
-                            output_filename: str, total_floor_area: float = 0.0) -> bool:
+def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
+                             output_filename: str, total_floor_area: float = 0.0,
+                             project_name: str = "N/A", run_id: str = "N/A") -> bool:
     """
-    Generate a PDF report with area information in a consolidated table.
+    Generate a PDF report with area information, including a header.
     
     Args:
-        area_id: The area ID for the report
-        area_data: List of area data rows for this area
-        output_filename: Path where to save the PDF report
-        total_floor_area: The total floor area for this area, from zone floor areas
-        
+        area_id (str): The area ID for the report.
+        area_data (List[Dict[str, Any]]): List of area data rows for this area.
+        output_filename (str): Path where to save the PDF report.
+        total_floor_area (float): The total floor area for this area.
+        project_name (str): Name of the project.
+        run_id (str): Identifier for the current run.
+
     Returns:
-        bool: True if report generation was successful, False otherwise
+        bool: True if report generation was successful, False otherwise.
     """
     try:
         # Ensure output directory exists
@@ -39,6 +43,24 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
         styles = getSampleStyleSheet()
         story = []
         
+        # Header Information
+        now = datetime.datetime.now()
+        header_style = ParagraphStyle(
+            'HeaderInfo',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.black, # Changed from darkgrey to black
+            alignment=2 # Right aligned
+        )
+        header_text = f"""
+        Project: {project_name}<br/>
+        Run ID: {run_id}<br/>
+        Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
+        Report: Area {area_id} - Thermal Properties
+        """
+        story.append(Paragraph(header_text, header_style))
+        story.append(Spacer(1, 5)) # Add some space after header
+
         # Title
         title_style = ParagraphStyle(
             'CustomTitle',
@@ -284,16 +306,19 @@ def format_construction_name(construction: str) -> str:
     
     return construction
 
-def generate_area_reports(areas_data, output_dir: str = "output/areas") -> bool:
+def generate_area_reports(areas_data, output_dir: str = "output/areas",
+                          project_name: str = "N/A", run_id: str = "N/A") -> bool:
     """
-    Generate individual reports for each area with area data in a table format.
+    Generate individual reports for each area, including header information.
     
     Args:
-        areas_data: AreaParser instance or dictionary of area information by zone
-        output_dir: Directory for output files
-        
+        areas_data: AreaParser instance or dictionary of area information by zone.
+        output_dir (str): Directory for output files.
+        project_name (str): Name of the project.
+        run_id (str): Identifier for the current run.
+
     Returns:
-        bool: True if all report generation was successful, False otherwise
+        bool: True if all report generation was successful, False otherwise.
     """
     try:
         # Create output directory
@@ -432,9 +457,11 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas") -> bool:
             
             success = generate_area_report_pdf(
                 area_id=area_id, 
-                area_data=rows, 
+                area_data=rows,
                 output_filename=str(output_file),
-                total_floor_area=total_floor_area
+                total_floor_area=total_floor_area,
+                project_name=project_name,
+                run_id=run_id
             )
             successes.append(success)
             

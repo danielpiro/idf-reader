@@ -7,6 +7,7 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
 from reportlab.lib.colors import navy, black, grey, lightgrey, white
 import pandas as pd # Keep pandas for potential internal use if needed, but output is PDF
+import datetime # Add datetime import
 
 # --- Reportlab Helper Functions (similar to other generators) ---
 
@@ -71,14 +72,19 @@ def format_value(value, precision=3, na_rep='-'):
 class GlazingReportGenerator:
     """Generates a PDF report summarizing glazing constructions using ReportLab."""
 
-    def __init__(self, parsed_glazing_data: Dict[str, Dict[str, Any]]):
+    def __init__(self, parsed_glazing_data: Dict[str, Dict[str, Any]],
+                 project_name: str = "N/A", run_id: str = "N/A"):
         """
-        Initializes the generator with parsed glazing data.
+        Initializes the generator with parsed glazing data and header info.
 
         Args:
             parsed_glazing_data: The output dictionary from GlazingParser.parse_glazing_data().
+            project_name (str): Name of the project.
+            run_id (str): Identifier for the current run.
         """
         self.glazing_data = parsed_glazing_data
+        self.project_name = project_name
+        self.run_id = run_id
         self.styles = getSampleStyleSheet()
         self.cell_style = create_cell_style(self.styles)
         self.header_style = create_cell_style(self.styles, is_header=True, align=TA_CENTER)
@@ -105,6 +111,24 @@ class GlazingReportGenerator:
                                     leftMargin=1.5*cm, rightMargin=1.5*cm,
                                     topMargin=1.5*cm, bottomMargin=1.5*cm)
             story = []
+
+            # --- Header ---
+            now = datetime.datetime.now()
+            header_info_style = ParagraphStyle(
+                'HeaderInfo',
+                parent=self.styles['Normal'],
+                fontSize=9,
+                textColor=black,
+                alignment=2 # Right aligned
+            )
+            header_text = f"""
+            Project: {self.project_name}<br/>
+            Run ID: {self.run_id}<br/>
+            Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
+            Report: Glazing Constructions
+            """
+            story.append(Paragraph(header_text, header_info_style))
+            story.append(Spacer(1, 5)) # Add some space after header
 
             # Title (using h3 for smaller size)
             title_style = self.styles['h3'] # Changed from h2 to h3
@@ -280,15 +304,18 @@ class GlazingReportGenerator:
         return table
 
 # --- Standalone Function for PDF Generation (called from outside) ---
-def generate_glazing_report_pdf(parsed_glazing_data: Dict[str, Dict[str, Any]], output_filename: str):
+def generate_glazing_report_pdf(parsed_glazing_data: Dict[str, Dict[str, Any]], output_filename: str,
+                                project_name: str = "N/A", run_id: str = "N/A"):
     """
     Convenience function to instantiate the generator and create the PDF report.
 
     Args:
         parsed_glazing_data: The data obtained from GlazingParser.
         output_filename: The path where the PDF report should be saved.
+        project_name (str): Name of the project.
+        run_id (str): Identifier for the current run.
     """
-    generator = GlazingReportGenerator(parsed_glazing_data)
+    generator = GlazingReportGenerator(parsed_glazing_data, project_name=project_name, run_id=run_id)
     return generator.generate_report_pdf(output_filename)
 
 

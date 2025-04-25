@@ -6,9 +6,10 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, 
 from reportlab.lib.pagesizes import A4, landscape, A3
 from reportlab.lib.units import cm, inch
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.colors import navy, black, grey, lightgrey, white
+from reportlab.lib.colors import navy, black, grey, lightgrey, white , darkgray
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import ast # Add import for literal_eval
+import datetime # Add datetime import
 
 def wrap_text(text, style):
     """Helper function to create wrapped text in a cell."""
@@ -269,13 +270,16 @@ def extract_setpoint(schedule_values, setpoint_type, zone_name=None, all_schedul
     
     return '-'
 
-def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf"):
+def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf",
+                              project_name: str = "N/A", run_id: str = "N/A"):
     """
-    Generates a PDF report containing zone loads in a table format.
+    Generates a PDF report containing zone loads, including a header.
 
     Args:
         zone_data (dict): Dictionary of zone loads and schedules.
         output_filename (str): The name of the output PDF file.
+        project_name (str): Name of the project.
+        run_id (str): Identifier for the current run.
     """
     # Use SimpleDocTemplate for automatic page layout
     # Use A3 Landscape with minimal margins to maximize table space
@@ -307,6 +311,24 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf"):
         fontSize=10, # Slightly larger for zone names
         spaceBefore = 0.4*cm, spaceAfter=0.1*cm
     )
+    header_info_style = ParagraphStyle(
+        'HeaderInfo',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=black, # Changed from darkgray to black
+        alignment=2 # Right aligned
+    )
+
+    # --- Header ---
+    now = datetime.datetime.now()
+    header_text = f"""
+    Project: {project_name}<br/>
+    Run ID: {run_id}<br/>
+    Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
+    Report: Zone Loads Summary
+    """
+    story.append(Paragraph(header_text, header_info_style))
+    story.append(Spacer(1, 5)) # Add some space after header
 
     # --- Title ---
     title_text = "IDF Zone Loads Report"

@@ -48,6 +48,10 @@ class ProcessingManager:
     # Added idd_path parameter, output_dir remains
     def process_idf(self, input_file: str, idd_path: str, output_dir: str) -> bool:
         try:
+            # Generate project name and run ID
+            project_name = Path(input_file).stem
+            run_id = datetime.now().strftime('%Y%m%d_%H%M%S')
+
             # Initialize progress
             self.update_progress(0.0)
             self.update_status("Initializing...")
@@ -150,37 +154,67 @@ class ProcessingManager:
 
             # Generate reports
             self.update_status("Generating Settings report...")
-            generate_settings_report_pdf(extracted_settings, settings_pdf_path)
+            generate_settings_report_pdf(
+                extracted_settings,
+                settings_pdf_path,
+                project_name=project_name,
+                run_id=run_id
+            )
             self.update_status("Settings report generation attempted.")
             self.update_progress(0.75)
 
             self.update_status("Generating Schedules report...")
-            generate_schedules_report_pdf(extracted_schedules, schedules_pdf_path)
+            generate_schedules_report_pdf(
+                extracted_schedules,
+                schedules_pdf_path,
+                project_name=project_name,
+                run_id=run_id
+            )
             self.update_status("Schedules report generation attempted.")
             self.update_progress(0.8)
 
             self.update_status("Generating Loads report...")
-            generate_loads_report_pdf(extracted_loads, loads_pdf_path)
+            generate_loads_report_pdf(
+                extracted_loads,
+                loads_pdf_path,
+                project_name=project_name,
+                run_id=run_id
+            )
             self.update_status("Loads report generation attempted.")
             self.update_progress(0.85)
 
             self.update_status("Generating Materials report...")
-            generate_materials_report_pdf(extracted_element_data, materials_pdf_path)
+            generate_materials_report_pdf(
+                extracted_element_data,
+                materials_pdf_path,
+                project_name=project_name,
+                run_id=run_id
+            )
             self.update_status("Materials report generation attempted.")
             self.update_progress(0.9)
 
             # Pass the area_parser instance and the specific zones output directory
             self.update_status("Generating Area reports...")
             zones_output_dir = os.path.join(base_output, "zones") # Create path for zones subfolder
-            generate_area_reports(area_parser, output_dir=zones_output_dir) # Pass the new path
+            generate_area_reports(
+                area_parser,
+                output_dir=zones_output_dir,
+                project_name=project_name,
+                run_id=run_id
+            ) # Pass the new path and header info
             self.update_status("Area reports generation attempted.")
             self.update_progress(0.95) # Adjust progress
 
             # Generate Glazing PDF report
             self.update_status("Generating Glazing report (PDF)...")
             try:
-                # Call the standalone PDF generation function
-                success_glazing = generate_glazing_report_pdf(extracted_glazing_data, glazing_pdf_path)
+                # Call the standalone PDF generation function with header info
+                success_glazing = generate_glazing_report_pdf(
+                    extracted_glazing_data,
+                    glazing_pdf_path,
+                    project_name=project_name,
+                    run_id=run_id
+                )
                 if success_glazing:
                     self.update_status("Glazing report generated successfully.")
                 else:
