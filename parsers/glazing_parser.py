@@ -188,6 +188,122 @@ class GlazingParser:
         print(f"DEBUG: Finished parsing CSV. Found properties for {len(self._sim_properties)} constructions.")
 
 
+    # --- Helper method for transferring shades ---
+    def _transfer_shades_based_on_naming(self, processed_data: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+        """
+        Identifies pairs of constructions (base vs. shaded) based on naming convention,
+        transfers shading layers to the base, and removes the shaded version.
+        Example pairs: 'xxx - 1001' (base) and 'xxx - 2001' (shaded)
+                       'yyy - 4444' (base) and 'yyy - 6666' (shaded)
+        """
+        # This is now Step 4 in the main parse method
+        print("\n--- DEBUG: Processing Step 4 (Transferring Shades) ---")
+
+        # Add try-except around the main logic of the transfer method
+        try:
+            # Correct indentation for the entire method body
+            constructions_with_shades = {
+                cid: data for cid, data in processed_data.items() if data.get('shading_layers')
+            }
+            constructions_without_shades = {
+                cid: data for cid, data in processed_data.items() if not data.get('shading_layers')
+            }
+
+            keys_to_remove = set() # Track shaded constructions to remove after transfer
+
+            # Iterate through base candidates (those without shades initially)
+            for base_id, base_data in constructions_without_shades.items():
+                try:
+                    # Extract prefix assuming format "Prefix - Suffix"
+                    base_prefix, base_suffix = base_id.rsplit(' - ', 1)
+                except ValueError:
+                    # Cannot split, likely not following the pattern
+                    continue
+
+                # Look for a corresponding construction with shades and the same prefix
+                found_match = False
+                for shade_id, shade_data in constructions_with_shades.items():
+                    # Skip if already marked for removal or if it's the same ID
+                    if shade_id in keys_to_remove or shade_id == base_id:
+                        continue
+
+                    try:
+                        shade_prefix, shade_suffix = shade_id.rsplit(' - ', 1)
+                    except ValueError:
+                        continue
+
+                    # Check if prefixes match AND suffixes follow the 1xxx/2xxx pattern
+                    if base_prefix == shade_prefix:
+                        try:
+                            # Check if base suffix starts with '1' and shade suffix starts with '2'
+                            # and both are 4-digit numbers
+                            is_base_pattern = base_suffix.startswith('1') and len(base_suffix) == 4 and base_suffix.isdigit()
+                            is_shade_pattern = shade_suffix.startswith('2') and len(shade_suffix) == 4 and shade_suffix.isdigit()
+
+                            if is_base_pattern and is_shade_pattern:
+                                # Prefixes match AND suffixes follow the 1xxx/2xxx pattern
+                                print(f"DEBUG:   Pattern match found: Base='{base_id}', Shade='{shade_id}'") # DEBUG
+                                # Transfer shading layers
+                            else:
+                                # Prefixes match, but suffixes don't follow the 1xxx/2xxx pattern
+                                # print(f"DEBUG:   Prefix match for '{base_id}' and '{shade_id}', but suffixes ('{base_suffix}', '{shade_suffix}') don't match 1xxx/2xxx pattern.")
+                                continue # Skip to the next potential shade_id
+
+                        except Exception as suffix_check_error:
+                            print(f"DEBUG:   Error checking suffix pattern for '{base_id}'/'{shade_id}': {suffix_check_error}")
+                            continue # Skip to the next potential shade_id
+
+                        # --- Transfer logic starts here (only runs if pattern matched) ---
+                        shades_to_transfer = shade_data.get('shading_layers', [])
+                        if shades_to_transfer:
+                            # Ensure base_data has the key
+                            if 'shading_layers' not in base_data:
+                                 base_data['shading_layers'] = []
+
+                            # Add shades (avoid duplicates just in case)
+                            existing_base_shades = {s['Name'] for s in base_data['shading_layers']}
+                            added_count = 0
+                            for shade_info in shades_to_transfer:
+                                 if shade_info['Name'] not in existing_base_shades:
+                                     base_data['shading_layers'].append(shade_info)
+                                     added_count += 1
+
+                            if added_count > 0:
+                                print(f"DEBUG:   Transferred {added_count} shade(s) (e.g., '{shades_to_transfer[0]['Name']}') from '{shade_id}' to '{base_id}'.")
+                                # Mark the shaded version for removal
+                                keys_to_remove.add(shade_id)
+                                found_match = True
+                                break # Stop searching for other matches for this base_id
+                        else:
+                             # Should not happen based on constructions_with_shades filter, but good check
+                             print(f"DEBUG:   Potential match '{shade_id}' found for '{base_id}', but it has no shades to transfer.")
+
+                # if not found_match:
+                #     print(f"DEBUG:   No corresponding shaded construction found for base '{base_id}'.")
+
+
+            # Remove the redundant shaded constructions from the original processed_data
+            final_data = processed_data.copy() # Work on a copy
+            removed_count = 0
+            for key in keys_to_remove:
+                if key in final_data:
+                    del final_data[key]
+                    removed_count += 1
+
+            print(f"DEBUG: Keys marked for removal in Step 4: {keys_to_remove}") # DEBUG
+            print(f"DEBUG: Keys marked for removal in Step 4: {keys_to_remove}") # DEBUG
+            print(f"DEBUG: Keys marked for removal in Step 4: {keys_to_remove}") # DEBUG
+            print(f"DEBUG: Finished transferring shades. Removed {removed_count} redundant shaded constructions.")
+            return final_data # Correct indentation
+
+        except Exception as e_transfer:
+            print(f"ERROR: Exception inside _transfer_shades_based_on_naming: {e_transfer}")
+            import traceback
+            traceback.print_exc()
+            return processed_data # Return original data on error within transfer logic
+    # --- End Helper method ---
+
+
     def parse_glazing_data(self) -> Dict[str, Dict[str, Any]]:
         """
         Processes the cached glazing constructions to extract detailed data,
@@ -223,6 +339,10 @@ class GlazingParser:
                         'raw_object': construction_data.get('raw_object')
                     }
                 # else: It might be a shade control definition, handle later
+
+        # --- DEBUG: Print keys after Step 1 ---
+        print(f"DEBUG: Keys after Step 1 (Simple Glazing): {list(processed_data.keys())}")
+        # ---
 
         # --- Step 2: Process Detailed Glazing Constructions ---
         for construction_id, construction_data in self._constructions_glazing_cache.items():
@@ -376,32 +496,56 @@ class GlazingParser:
         #         del processed_data[key]
 
 
-        # --- Step 4: Filter out detailed constructions missing simulation properties ---
-        print(f"\n--- DEBUG: Processing Step 4: Filtering Results ---")
-        print(f"DEBUG: Pre-filter count: {len(processed_data)} constructions.")
+        # --- NEW Step 4: Transfer shades based on naming convention ---
+        print(f"\nDEBUG: Calling Step 4 (Transferring Shades). Data size before: {len(processed_data)}") # DEBUG
+        # Perform transfer *before* filtering based on missing sim properties
+        try:
+            processed_data_after_transfer = self._transfer_shades_based_on_naming(processed_data)
+            print(f"DEBUG: Returned from Step 4 (Transferring Shades). Data size after: {len(processed_data_after_transfer)}") # DEBUG
+        except Exception as e:
+             print(f"ERROR: Exception during Step 4 (Transferring Shades): {e}")
+             import traceback
+             traceback.print_exc()
+             processed_data_after_transfer = processed_data # Fallback to pre-transfer data on error
+        # --- End NEW Step 4 ---
+
+
+        # --- Step 5 (was Step 4): Filter out detailed constructions missing simulation properties ---
+        print(f"\n--- DEBUG: Processing Step 5 (Filtering Results) ---") # Update step number
+        # Use the data *after* transfer for filtering
+        print(f"DEBUG: Keys before Step 5 (Filtering): {list(processed_data_after_transfer.keys())}") # DEBUG
+        print(f"DEBUG: Pre-filter count (Step 5): {len(processed_data_after_transfer)} constructions.") # Clarify step
         constructions_to_remove = []
-        for construction_id, data in processed_data.items():
-            # Check if it's a detailed construction
-            is_detailed = data.get('type') == 'Detailed' # Check the type field added earlier
+        # Iterate through the data *after* transfer
+        for construction_id, data in processed_data_after_transfer.items():
+            is_detailed = data.get('type') == 'Detailed'
             if is_detailed:
                 system_details = data.get('system_details', {})
                 u_value = system_details.get('U-Value')
                 shgc = system_details.get('SHGC')
                 vt = system_details.get('VT')
-                # Check if any simulation property is missing (is None)
-                if u_value is None or shgc is None or vt is None:
+
+                # Check if any simulation property is missing (is None) AND it has NO shading layers
+                # Check the 'shading_layers' status *after* potential transfer
+                has_shading = bool(data.get('shading_layers'))
+                if (u_value is None or shgc is None or vt is None) and not has_shading:
                     constructions_to_remove.append(construction_id)
-                    print(f"DEBUG: Marking detailed construction '{construction_id}' for removal (missing sim properties: U={u_value}, SHGC={shgc}, VT={vt}).")
+                    print(f"DEBUG: Marking detailed construction '{construction_id}' for removal (missing sim properties AND no shading layers: U={u_value}, SHGC={shgc}, VT={vt}).")
+                elif (u_value is None or shgc is None or vt is None) and has_shading:
+                     print(f"DEBUG: Keeping detailed construction '{construction_id}' despite missing sim properties because it has shading layers.")
 
+        # Remove from the data *after* transfer
+        final_filtered_data = processed_data_after_transfer.copy()
         for construction_id in constructions_to_remove:
-            del processed_data[construction_id]
+            if construction_id in final_filtered_data: # Check existence before deleting
+                 del final_filtered_data[construction_id]
 
-        print(f"DEBUG: Post-filter count: {len(processed_data)} constructions.")
-        # --- End Filtering ---
+        print(f"DEBUG: Post-filter count: {len(final_filtered_data)} constructions.")
+        print(f"DEBUG: Keys after Step 5 (Filtering): {list(final_filtered_data.keys())}") # DEBUG
+        # --- End Step 5 (Filtering) ---
 
-
-        self.parsed_glazing_data = processed_data # Assign the filtered data
-        return self.parsed_glazing_data
+        self.parsed_glazing_data = final_filtered_data # Assign the final filtered data
+        return self.parsed_glazing_data # Correct indentation
 
     # Removed update_system_properties_from_eio method as properties are now read from eplustbl.csv
 
