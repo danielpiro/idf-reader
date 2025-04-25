@@ -279,7 +279,7 @@ class DataLoader:
                 self._window_simple_glazing_cache[material_id] = {
                     'id': material_id,
                     'name': material_id,
-                    'u_factor': safe_float(getattr(simple_glazing, "U_Factor", 0.0)),
+                    'u_factor': safe_float(getattr(simple_glazing, "UFactor", 0.0)),
                     'shgc': safe_float(getattr(simple_glazing, "Solar_Heat_Gain_Coefficient", 0.0)),
                     'visible_transmittance': safe_float(getattr(simple_glazing, "Visible_Transmittance", 0.0)),
                     'raw_object': simple_glazing
@@ -469,20 +469,12 @@ class DataLoader:
                     'id': control_id,
                     'name': control_id,
                     'zone_name': zone_name,
-                    'shading_control_sequence_number': safe_float(getattr(shading_control, "Shading_Control_Sequence_Number", 0)),
                     'shading_type': str(getattr(shading_control, "Shading_Type", "")),
                     'construction_with_shading_name': str(getattr(shading_control, "Construction_with_Shading_Name", "")),
                     'shading_control_type': str(getattr(shading_control, "Shading_Control_Type", "")),
                     'schedule_name': str(getattr(shading_control, "Schedule_Name", "")),
-                    'setpoint': safe_float(getattr(shading_control, "Setpoint", 0.0)),
                     'is_scheduled': str(getattr(shading_control, "Shading_Control_Is_Scheduled", "")).lower() == "yes",
                     'glare_control_is_active': str(getattr(shading_control, "Glare_Control_Is_Active", "")).lower() == "yes",
-                    'shading_device_material_name': str(getattr(shading_control, "Shading_Device_Material_Name", "")),
-                    'type_of_slat_angle_control': str(getattr(shading_control, "Type_of_Slat_Angle_Control", "")),
-                    'slat_angle_schedule_name': str(getattr(shading_control, "Slat_Angle_Schedule_Name", "")),
-                    'setpoint_2': safe_float(getattr(shading_control, "Setpoint_2", 0.0)),
-                    'daylighting_controls_object_name': str(getattr(shading_control, "Daylighting_Controls_Object_Name", "")),
-                    'multiple_surface_control_type': str(getattr(shading_control, "Multiple_Surface_Control_Type", "")),
                     'window_names': window_names,
                     'raw_object': shading_control
                 }
@@ -503,11 +495,6 @@ class DataLoader:
                     'name': fd_id,
                     'frame_width': safe_float(getattr(frame_divider, "Frame_Width", 0.0)),
                     'frame_conductance': safe_float(getattr(frame_divider, "Frame_Conductance", 0.0)),
-                    'frame_solar_absorptance': safe_float(getattr(frame_divider, "Frame_Solar_Absorptance", 0.0)),
-                    'frame_visible_absorptance': safe_float(getattr(frame_divider, "Frame_Visible_Absorptance", 0.0)),
-                    'divider_type': str(getattr(frame_divider, "Divider_Type", "")),
-                    'divider_width': safe_float(getattr(frame_divider, "Divider_Width", 0.0)),
-                    # Add other relevant fields as needed
                     'raw_object': frame_divider
                 }
     
