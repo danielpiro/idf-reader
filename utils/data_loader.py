@@ -258,8 +258,15 @@ class DataLoader:
                 self._window_shade_cache[material_id] = {
                     'id': material_id,
                     'name': material_id,
+                    'thickness': safe_float(getattr(shade, "Thickness", 0.0)),
+                    'conductivity': safe_float(getattr(shade, "Conductivity", 0.0)),
+                    'visible_reflectance': safe_float(getattr(shade, "Visible_Reflectance", 0.0)),
+                    'solar_reflectance': safe_float(getattr(shade, "Solar_Reflectance", 0.0)),
                     'solar_transmittance': safe_float(getattr(shade, "Solar_Transmittance", 0.0)),
                     'visible_transmittance': safe_float(getattr(shade, "Visible_Transmittance", 0.0)),
+                    'shade_to_glass_distance': safe_float(getattr(shade, "Shade_to_Glass_Distance", 0.0)),
+                    'infrared_transmittance': safe_float(getattr(shade, "Infrared_Transmittance", 0.0)),
+                    'infrared_hemispheric_emissivity': safe_float(getattr(shade, "Infrared_Hemispherical_Emissivity", 0.0)),
                     'thermal_resistance': safe_float(getattr(shade, "Thermal_Resistance", 0.0)),
                     'raw_object': shade
                 }
