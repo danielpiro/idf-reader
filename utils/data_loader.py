@@ -93,7 +93,7 @@ class DataLoader:
         self._cache_loads()
         self._cache_window_shading_controls()
         self._cache_frame_dividers()
-        self._filter_constructions_glazing()
+        # self._filter_constructions_glazing() # Moved to glazing_parser
 
     def _check_output(self) -> None:
         """Check if the IDF file is loaded and output is available"""
@@ -532,50 +532,9 @@ class DataLoader:
                     'raw_object': frame_divider
                 }
 
-    def _filter_constructions_glazing(self) -> None:
-        """Filter constructions to only include glazing-related ones"""
-        if not self._idf:
-            return
-        
-        for construction_id, construction_data in self._constructions_glazing_cache.items():
-            if construction_data['type'] == 'simple':
-                id = 'Simple ' + construction_id
-                if id in self._window_simple_glazing_cache.keys():
-                    construction_data['data'] = {
-                        'u_factor': self._window_simple_glazing_cache[id]['u_factor'],
-                        'shgc': self._window_simple_glazing_cache[id]['shgc'],
-                        'visible_transmittance': self._window_simple_glazing_cache[id]['visible_transmittance']
-                    }
-                else:
-                    construction_data['data'] = None
-            else:
-                pass
+    # _filter_constructions_glazing moved to parsers/glazing_parser.py
 
-        shades = []
-        for construction_id, construction_data in self._constructions_glazing_cache.items():
-            if construction_data['type'] == 'simple' and construction_data['data'] is None:
-                for shade in construction_data['material_layers']:
-                    #TODO assume the id is at the end of shade list
-                    if shade in self._window_shade_cache.keys():
-                       shades.append(shade)
-                    else:
-                        self._constructions_glazing_cache[" ".join(shade.split(" ")[1:])]['shades'] = shades
-                        break
-            else:
-                pass
-        
-        keys_to_delete = []
-        for construction_id, construction_data in self._constructions_glazing_cache.items():
-            if construction_data.get('type') == 'simple' and construction_data.get('data') is None:
-            # Mark this key for deletion
-                keys_to_delete.append(construction_id)
 
-        # Now, delete the marked keys outside the loop
-        for key in keys_to_delete:
-            del self._constructions_glazing_cache[key]
-        print("Filtered constructions glazing cache:")
-        
-    
     # Getter methods for cached data
     def get_zones(self) -> Dict[str, Dict[str, Any]]:
         """Get cached zone data"""

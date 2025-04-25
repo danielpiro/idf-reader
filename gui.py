@@ -14,11 +14,15 @@ from generators.schedule_report_generator import generate_schedules_report_pdf
 from generators.load_report_generator import generate_loads_report_pdf
 from generators.area_report_generator import generate_area_reports
 from generators.materials_report_generator import generate_materials_report_pdf
+# Import new glazing components PDF function
+from generators.glazing_report_generator import generate_glazing_report_pdf
 from parsers.schedule_parser import ScheduleExtractor
 from parsers.settings_parser import SettingsExtractor
 from parsers.load_parser import LoadExtractor
 from parsers.materials_parser import MaterialsParser
 from parsers.area_parser import AreaParser
+# Import new glazing components
+from parsers.glazing_parser import GlazingParser
 
 class ProcessingManager:
     # Removed energyplus_dir from init
@@ -54,10 +58,12 @@ class ProcessingManager:
             schedules_pdf_path = os.path.join(base_output, "schedules.pdf")
             loads_pdf_path = os.path.join(base_output, "loads.pdf")
             materials_pdf_path = os.path.join(base_output, "materials.pdf")
+            # Add path for glazing PDF report
+            glazing_pdf_path = os.path.join(base_output, "glazing_report.pdf") # Changed to PDF
 
             # Create output directories
             for path in [settings_pdf_path, schedules_pdf_path, loads_pdf_path,
-                        materials_pdf_path]:
+                        materials_pdf_path, glazing_pdf_path]: # Add glazing PDF path
                 self.ensure_directory_exists(path)
 
             self.update_progress(0.1)
@@ -82,6 +88,14 @@ class ProcessingManager:
             load_extractor = LoadExtractor(data_loader)
             materials_extractor = MaterialsParser(data_loader)
             area_parser = AreaParser(data_loader)
+            # Initialize GlazingParser - needs relevant caches from data_loader
+            glazing_parser = GlazingParser(
+                constructions_glazing_cache=data_loader._constructions_glazing_cache,
+                window_simple_glazing_cache=data_loader._window_simple_glazing_cache,
+                window_glazing_cache=data_loader._window_glazing_cache,
+                window_gas_cache=data_loader._window_gas_cache,
+                window_shade_cache=data_loader._window_shade_cache
+            )
 
             if self.is_cancelled:
                 return False
@@ -114,6 +128,8 @@ class ProcessingManager:
             load_extractor.process_idf(idf)
             materials_extractor.process_idf(idf)
             area_parser.process_idf(idf)
+            # Parse glazing data
+            glazing_parser.parse_glazing_data()
 
             self.update_progress(0.6)
             self.update_status("Extracting processed data...")
@@ -124,6 +140,7 @@ class ProcessingManager:
             extracted_loads = load_extractor.get_parsed_zone_loads()
             extracted_element_data = materials_extractor.get_element_data()
             # extracted_areas = area_parser.get_parsed_areas() # Incorrect method call removed
+            extracted_glazing_data = glazing_parser.parsed_glazing_data # Get parsed data
 
             if self.is_cancelled:
                 return False
@@ -157,7 +174,21 @@ class ProcessingManager:
             zones_output_dir = os.path.join(base_output, "zones") # Create path for zones subfolder
             generate_area_reports(area_parser, output_dir=zones_output_dir) # Pass the new path
             self.update_status("Area reports generation attempted.")
-            self.update_progress(1)
+            self.update_progress(0.95) # Adjust progress
+
+            # Generate Glazing PDF report
+            self.update_status("Generating Glazing report (PDF)...")
+            try:
+                # Call the standalone PDF generation function
+                success_glazing = generate_glazing_report_pdf(extracted_glazing_data, glazing_pdf_path)
+                if success_glazing:
+                    self.update_status("Glazing report generated successfully.")
+                else:
+                    # The function itself prints errors, but we can add a status here
+                    self.update_status("Glazing report generation failed (check console for details).")
+            except Exception as e:
+                 self.update_status(f"Error generating Glazing PDF report: {e}")
+            self.update_progress(1.0) # Final progress
 
             self.update_status("Processing completed successfully!")
             return True
