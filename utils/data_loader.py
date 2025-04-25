@@ -47,6 +47,7 @@ class DataLoader:
         self._surfaces_cache = {}
         self._materials_cache = {}
         self._constructions_cache = {}
+        self._constructions_glazing_cache = {}
         self._schedules_cache = {}
         self._schedule_rules_cache = {}
         self._people_cache = {}
@@ -90,7 +91,8 @@ class DataLoader:
         self._cache_constructions()
         self._cache_loads()
         self._cache_window_shading_controls()
-        self._cache_frame_dividers() # Added call to cache frame/dividers
+        self._cache_frame_dividers()
+        self._filter_constructions_glazing()
     
     def _cache_zones(self) -> None:
         """Cache raw zone data"""
@@ -306,6 +308,18 @@ class DataLoader:
             if outside_layer:  # Only insert if the Outside_Layer exists and is not empty
                 material_layers.insert(0, outside_layer)  # Insert Outside_Layer at the beginning
             
+            if construction_id == 'LinearBridgingConstruction' or construction_id == 'IRTSurface':
+                # Skip these special constructions
+                continue
+
+            if safe_float(getattr(construction, "heatcapacity", 0.0)) == 0.0:
+                self._constructions_glazing_cache[construction_id] = {
+                    'id': construction_id,
+                    'name': construction_id,
+                    'material_layers': material_layers,
+                    'raw_object': construction  # Store the raw object for parsers
+                }
+                continue
             # Cache raw construction data
             self._constructions_cache[construction_id] = {
                 'id': construction_id,
@@ -497,6 +511,18 @@ class DataLoader:
                     'frame_conductance': safe_float(getattr(frame_divider, "Frame_Conductance", 0.0)),
                     'raw_object': frame_divider
                 }
+
+    def _filter_constructions_glazing(self) -> None:
+        """Filter constructions to only include glazing-related ones"""
+        if not self._idf:
+            return
+
+        constructions_glazing = {}
+        for construction in self._constructions_glazing_cache.items():
+            construction_id, construction_data = construction
+            if 'Window' in construction_id or 'Glazing' in construction_id:
+                constructions_glazing[construction_id] = construction_data
+        self._constructions_glazing_cache = constructions_glazing
     
     # Getter methods for cached data
     def get_zones(self) -> Dict[str, Dict[str, Any]]:
@@ -584,6 +610,10 @@ class DataLoader:
     def get_frame_dividers(self) -> Dict[str, Dict[str, Any]]:
         """Get cached WindowProperty:FrameAndDivider data"""
         return self._frame_divider_cache
+    
+    def get_constructions_glazing(self) -> Dict[str, Dict[str, Any]]:
+        """Get cached construction glazing data"""
+        return self._constructions_glazing_cache
     
     def get_cache_status(self) -> Dict[str, bool]:
         """Get the loading status of cache sections (maintained for compatibility)"""
