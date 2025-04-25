@@ -518,11 +518,10 @@ class DataLoader:
             return
 
         constructions_glazing = {}
-        for construction in self._constructions_glazing_cache.items():
-            construction_id, construction_data = construction
-            if 'Window' in construction_id or 'Glazing' in construction_id:
-                constructions_glazing[construction_id] = construction_data
-        self._constructions_glazing_cache = constructions_glazing
+        for id, value in self._constructions_glazing_cache.items():
+            id = 'Simple ' + id
+            if self.get_window_simple_glazing_materials().get(id):
+                constructions_glazing[id] = value
     
     # Getter methods for cached data
     def get_zones(self) -> Dict[str, Dict[str, Any]]:
