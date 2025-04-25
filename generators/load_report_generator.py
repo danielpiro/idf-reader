@@ -431,11 +431,11 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf"):
                 wrap_text(to_str(fixed_sched), cell_style),
                 # Heating
                 wrap_text(to_str(heating_setpoint), cell_style),
-                wrap_text(to_str(heating_setpoint_non_work), cell_style),
+                wrap_text('-', cell_style), # Always display '-' for non-work heating setpoint
                 wrap_text(to_str(heating_sched_name), cell_style),
                 # Cooling
                 wrap_text(to_str(cooling_setpoint), cell_style),
-                wrap_text(to_str(cooling_setpoint_non_work), cell_style),
+                wrap_text('-', cell_style), # Always display '-' for non-work cooling setpoint
                 wrap_text(to_str(cooling_sched_name), cell_style),
                 # Infiltration
                 wrap_text(to_str(infil_rate, 2), cell_style),
