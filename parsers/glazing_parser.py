@@ -1,4 +1,6 @@
 # parsers/glazing_parser.py
+import csv
+import os
 from typing import Dict, Any, List
 
 def safe_float(value: Any, default: float = 0.0) -> float:
@@ -33,9 +35,10 @@ class GlazingParser:
                  window_glazing_cache: Dict[str, Dict[str, Any]],
                  window_gas_cache: Dict[str, Dict[str, Any]],
                  window_shade_cache: Dict[str, Dict[str, Any]],
-                 idf_objects: Any = None): # Pass relevant parts of idf if needed, or None
+                 simulation_output_csv: str = None, # Added parameter for CSV path
+                 idf_objects: Any = None):
         """
-        Initializes the parser with necessary data caches.
+        Initializes the parser with necessary data caches and simulation output path.
 
         Args:
             constructions_glazing_cache: Cache containing pre-filtered glazing constructions.
@@ -43,6 +46,7 @@ class GlazingParser:
             window_glazing_cache: Cache for window glazing materials.
             window_gas_cache: Cache for window gas materials.
             window_shade_cache: Cache for window shade materials.
+            simulation_output_csv: Path to the eplustbl.csv file from simulation (optional).
             idf_objects: Raw IDF objects if direct access is needed (optional).
         """
         self._constructions_glazing_cache = constructions_glazing_cache
@@ -50,18 +54,153 @@ class GlazingParser:
         self._window_glazing_cache = window_glazing_cache
         self._window_gas_cache = window_gas_cache
         self._window_shade_cache = window_shade_cache
+        self._simulation_output_csv = simulation_output_csv # Store the path
+        self._sim_properties = {} # Dictionary to store properties read from CSV
         self._idf = idf_objects # Store if needed
         self.parsed_glazing_data = {} # Store results here
 
+    def _parse_simulation_output_csv(self):
+        """Parses the eplustbl.csv file to extract window properties from the 'Exterior Fenestration' table."""
+        if not self._simulation_output_csv or not os.path.exists(self._simulation_output_csv):
+            print(f"DEBUG: Simulation output CSV not found or not provided: {self._simulation_output_csv}")
+            return # No file to parse
+
+        print(f"DEBUG: Parsing simulation output CSV: {self._simulation_output_csv}")
+        self._sim_properties = {} # Reset properties before parsing
+        try:
+            with open(self._simulation_output_csv, 'r', encoding='utf-8', errors='ignore') as csvfile:
+                reader = csv.reader(csvfile)
+                in_target_table = False
+                headers_found = False
+                # Define expected headers and their indices based on the sample CSV
+                header_map = {
+                    "construction": 1, # Actual construction name is in the *second* data column (index 2 in row)
+                    "glass u-factor [w/m2-k]": 7,
+                    "glass shgc": 8,
+                    "glass visible transmittance": 9
+                }
+                col_indices = {}
+
+                for row in reader:
+                    if not row or not any(field.strip() for field in row): continue # Skip empty/blank rows
+
+                    # Check for start of table title
+                    if not in_target_table and row[0].strip().lower() == "exterior fenestration":
+                        in_target_table = True
+                        headers_found = False # Reset header flag for this table
+                        col_indices = {} # Reset indices
+                        print(f"DEBUG: Found target table title: 'Exterior Fenestration'")
+                        continue # Skip the table title row itself
+
+                    if in_target_table:
+                        # --- Header Row Search ---
+                        if not headers_found:
+                            current_headers_norm = [h.strip().lower() for h in row]
+                            # Check if this row looks like the header row (contains key elements)
+                            if "construction" in current_headers_norm and "glass u-factor [w/m2-k]" in current_headers_norm:
+                                print(f"DEBUG: Potential header row found: {current_headers_norm}")
+                                try:
+                                    # Validate and map expected headers to their actual indices
+                                    for key, _ in header_map.items(): # Don't need expected_index here
+                                        if key in current_headers_norm:
+                                            actual_index = current_headers_norm.index(key)
+                                            col_indices[key] = actual_index
+                                            # print(f"DEBUG: Mapped '{key}' to column index {actual_index}") # Less verbose
+                                        else:
+                                            # Fallback for 'construction' might not be needed if it's always present
+                                            raise ValueError(f"Missing required header: '{key}'")
+
+                                    # Check if all required headers were found
+                                    if len(col_indices) != len(header_map):
+                                        missing = set(header_map.keys()) - set(col_indices.keys())
+                                        raise ValueError(f"Missing required headers: {missing}")
+
+                                    headers_found = True
+                                    print(f"DEBUG: Successfully validated headers. Indices: {col_indices}")
+                                except ValueError as e:
+                                    print(f"DEBUG: Error validating required headers: {e}. Headers found: {current_headers_norm}")
+                                    in_target_table = False # Abort if headers invalid
+                                continue # Skip the header row once processed/validated
+                            else:
+                                # This row is between title and header (e.g., blank), skip it
+                                print(f"DEBUG: Skipping row before header: {row}")
+                                continue
+                        # --- End Header Row Search ---
+
+                        # --- Data Row Processing or Table End Check ---
+                        else: # headers_found is True
+                            # Refined End Condition Check:
+                            # End if:
+                            # 1. First cell contains "total or average" (case-insensitive)
+                            # 2. OR First cell is empty AND (row has < 2 cells OR second cell is also empty)
+                            is_total_row = row[0].strip().lower().endswith("total or average")
+                            is_blank_data_row = not row[0].strip() and (len(row) < 2 or not row[1].strip())
+
+                            if is_total_row or is_blank_data_row:
+                                print(f"DEBUG: End of data rows detected (found '{row[0].strip()}', is_total={is_total_row}, is_blank={is_blank_data_row}).")
+                                in_target_table = False # Stop processing this table
+                                continue # Skip this end/total/blank row
+
+                            # Process data row (if not end condition)
+                            max_index = max(col_indices.values()) if col_indices else -1
+                            if max_index == -1: # Should not happen if headers were found
+                                print("DEBUG: Error - Headers marked found but col_indices is empty.")
+                                in_target_table = False
+                                continue
+
+                            if len(row) > max_index:
+                                try:
+                                    # Extract data using mapped indices
+                                    construction_name = row[col_indices["construction"]].strip()
+                                    u_value = safe_float(row[col_indices["glass u-factor [w/m2-k]"]])
+                                    shgc = safe_float(row[col_indices["glass shgc"]])
+                                    vt = safe_float(row[col_indices["glass visible transmittance"]])
+
+                                    if construction_name:
+                                        # Store properties using the construction name as the key
+                                        if construction_name not in self._sim_properties: # Use first found
+                                            self._sim_properties[construction_name] = {
+                                                'U-Value': u_value,
+                                                'SHGC': shgc,
+                                                'VT': vt
+                                            }
+                                            # print(f"DEBUG: Stored props for '{construction_name}': U={u_value}, SHGC={shgc}, VT={vt}")
+                                        # else: # Less verbose logging for duplicates
+                                            # print(f"DEBUG: Duplicate construction '{construction_name}' found, using first entry.")
+                                except IndexError:
+                                    print(f"DEBUG: Skipping row due to IndexError (mismatched length?): {row}")
+                                except KeyError as e:
+                                     print(f"DEBUG: Skipping row due to KeyError (header mapping issue?): {e} | Row: {row}")
+                                except Exception as e:
+                                    print(f"DEBUG: Error processing data row: {e} | Row: {row}")
+                            else:
+                                 print(f"DEBUG: Skipping short data row: {row}")
+                        # --- End Data Row Processing ---
+
+
+        except FileNotFoundError:
+            print(f"DEBUG: Error - Simulation output CSV file not found at: {self._simulation_output_csv}")
+        except Exception as e:
+            print(f"DEBUG: Error reading or parsing simulation output CSV: {e}")
+            import traceback
+            traceback.print_exc() # Print full traceback for debugging CSV errors
+
+        print(f"DEBUG: Finished parsing CSV. Found properties for {len(self._sim_properties)} constructions.")
+
+
     def parse_glazing_data(self) -> Dict[str, Dict[str, Any]]:
         """
-        Processes the cached glazing constructions to extract detailed data.
-        Adapts logic previously in DataLoader._filter_constructions_glazing.
-        Populates self.parsed_glazing_data instead of modifying cache in place.
+        Processes the cached glazing constructions to extract detailed data,
+        incorporating properties from the simulation output CSV if available.
+        Populates self.parsed_glazing_data.
         """
+        # --- Parse Simulation Output First ---
+        self._parse_simulation_output_csv() # Populate self._sim_properties
+
         processed_data = {}
 
         # --- Step 1: Process Simple Glazing Systems ---
+        # Simple glazing systems already have U/SHGC/VT defined in the IDF object
         for construction_id, construction_data in self._constructions_glazing_cache.items():
             if construction_data.get('type') == 'simple':
                 simple_glazing_key = 'Simple ' + construction_id
@@ -137,24 +276,31 @@ class GlazingParser:
 
             # Only add if it contains glazing or gas layers (is actually a window/glazing construction)
             if glazing_layers_details:
+                 # --- Get properties from simulation output if available ---
+                 sim_props = self._sim_properties.get(construction_id, {})
+                 # if not sim_props: # Removed debug print for no match
+                 #     print(f"DEBUG:   -> No match found in sim properties for '{construction_id}'")
+                 u_value_sim = sim_props.get('U-Value')
+                 shgc_sim = sim_props.get('SHGC')
+                 vt_sim = sim_props.get('VT')
+                 # ---
+
                  processed_data[construction_id] = {
                     'id': construction_id,
                     'name': construction_id,
                     'type': 'Detailed',
-                    'system_details': { # Placeholder for detailed system values
+                    'system_details': {
                         'Name': construction_id,
                         'Type': 'Detailed Glazing',
                         'Thickness': total_thickness if total_thickness > 0 else None,
-                        'U-Value': None, # Requires calculation
-                        'VT': None,      # Requires calculation
-                        'SHGC': None     # Requires calculation
+                        'U-Value': u_value_sim, # Use value from simulation
+                        'VT': vt_sim,           # Use value from simulation
+                        'SHGC': shgc_sim        # Use value from simulation
                     },
                     'glazing_layers': glazing_layers_details,
                     'shading_layers': shading_layers_details, # Store associated shades if any
                     'raw_object': construction_data.get('raw_object'),
-                    # NOTE: System U-Value, VT, SHGC for detailed constructions are complex to calculate
-                    # from layers alone and require simulation or dedicated tools (e.g., WINDOW).
-                    # They are intentionally left as None here.
+                    # NOTE: U-Value, VT, SHGC are now sourced from simulation output (eplustbl.csv)
                 }
 
         # --- Step 3: Link Shades defined via separate constructions (like Construction:WithShading) ---
@@ -230,36 +376,34 @@ class GlazingParser:
         #         del processed_data[key]
 
 
-        self.parsed_glazing_data = processed_data
+        # --- Step 4: Filter out detailed constructions missing simulation properties ---
+        print(f"\n--- DEBUG: Processing Step 4: Filtering Results ---")
+        print(f"DEBUG: Pre-filter count: {len(processed_data)} constructions.")
+        constructions_to_remove = []
+        for construction_id, data in processed_data.items():
+            # Check if it's a detailed construction
+            is_detailed = data.get('type') == 'Detailed' # Check the type field added earlier
+            if is_detailed:
+                system_details = data.get('system_details', {})
+                u_value = system_details.get('U-Value')
+                shgc = system_details.get('SHGC')
+                vt = system_details.get('VT')
+                # Check if any simulation property is missing (is None)
+                if u_value is None or shgc is None or vt is None:
+                    constructions_to_remove.append(construction_id)
+                    print(f"DEBUG: Marking detailed construction '{construction_id}' for removal (missing sim properties: U={u_value}, SHGC={shgc}, VT={vt}).")
+
+        for construction_id in constructions_to_remove:
+            del processed_data[construction_id]
+
+        print(f"DEBUG: Post-filter count: {len(processed_data)} constructions.")
+        # --- End Filtering ---
+
+
+        self.parsed_glazing_data = processed_data # Assign the filtered data
         return self.parsed_glazing_data
 
-    def update_system_properties_from_eio(self, eio_properties: Dict[str, Dict[str, float]]):
-        """
-        Updates the parsed_glazing_data with U-Value, SHGC, VT from EIO output.
-
-        Args:
-            eio_properties: Dictionary returned by parse_eio_for_window_properties.
-        """
-        if not eio_properties:
-            print("DEBUG: No EIO properties provided to update GlazingParser data.")
-            return
-
-        updated_count = 0
-        for construction_id, data in self.parsed_glazing_data.items():
-            if construction_id in eio_properties:
-                props = eio_properties[construction_id]
-                # Update system_details, especially for detailed constructions
-                if 'system_details' in data:
-                    data['system_details']['U-Value'] = props.get('U-Value')
-                    data['system_details']['SHGC'] = props.get('SHGC')
-                    data['system_details']['VT'] = props.get('VT')
-                    updated_count += 1
-                    # print(f"DEBUG: Updated system properties for '{construction_id}' from EIO.") # Optional Debug
-                else:
-                     print(f"DEBUG: Warning - '{construction_id}' found in EIO but no 'system_details' in parser data.")
-            # else: Construction not found in EIO report (might be opaque, etc.)
-
-        print(f"DEBUG: Updated system properties for {updated_count} constructions from EIO data.")
+    # Removed update_system_properties_from_eio method as properties are now read from eplustbl.csv
 
 
 # Example Usage (if run directly or for testing)

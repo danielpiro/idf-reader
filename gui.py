@@ -26,11 +26,12 @@ from parsers.glazing_parser import GlazingParser
 
 class ProcessingManager:
     # Removed energyplus_dir from init
-    def __init__(self, status_callback=None, progress_callback=None):
+    # Added simulation_output_csv parameter
+    def __init__(self, status_callback=None, progress_callback=None, simulation_output_csv=None):
         self.status_callback = status_callback
         self.progress_callback = progress_callback
-        # self.energyplus_dir = energyplus_dir # Removed
         self.is_cancelled = False
+        self.simulation_output_csv = simulation_output_csv # Store the path
 
     def update_status(self, message):
         if self.status_callback:
@@ -98,7 +99,8 @@ class ProcessingManager:
                 window_simple_glazing_cache=data_loader._window_simple_glazing_cache,
                 window_glazing_cache=data_loader._window_glazing_cache,
                 window_gas_cache=data_loader._window_gas_cache,
-                window_shade_cache=data_loader._window_shade_cache
+                window_shade_cache=data_loader._window_shade_cache,
+                simulation_output_csv=self.simulation_output_csv # Pass the CSV path
             )
 
             if self.is_cancelled:
@@ -488,87 +490,143 @@ class IDFProcessorGUI(ctk.CTk):
         self.process_thread.start()
 
     def process_file(self):
+        simulation_successful = False
+        output_csv_path = None
+        processor = None # Initialize processor to None
         try:
+            # --- Get Initial Paths ---
             input_file = self.input_file.get()
             output_dir = self.output_dir.get()
             energyplus_dir = self.energyplus_dir.get()
-            idd_path = os.path.join(energyplus_dir, "Energy+.idd") # Construct idd_path here
+            idd_path = os.path.join(energyplus_dir, "Energy+.idd")
+            weather_file_path = self.weather_file.get()
+            energyplus_exe = os.path.join(energyplus_dir, "energyplus.exe")
 
-            # Initialize processing manager (no energyplus_dir needed)
-            processor = ProcessingManager(
-                status_callback=self.show_status,
-                progress_callback=lambda x: (
-                    self.progress_var.set(x),
-                    self.progress_bar.set(x),
-                    self.update_idletasks()
+            # --- Simulation Output Directory ---
+            # Create a dedicated subdirectory for simulation output (can be outside 'reports')
+            simulation_output_dir = os.path.join(output_dir, "simulation_output")
+            os.makedirs(simulation_output_dir, exist_ok=True)
+
+            # --- Run EnergyPlus Simulation First ---
+            self.show_status("Starting EnergyPlus simulation...")
+            self.progress_bar.configure(mode='indeterminate') # Indicate busy state
+            self.progress_bar.start()
+            self.update_idletasks()
+
+            try:
+                # Run simulation, capture output for better error reporting
+                sim_result = subprocess.run(
+                    [energyplus_exe, "-w", weather_file_path, "-r", "-d", simulation_output_dir, input_file],
+                    check=True, capture_output=True, text=True, encoding='utf-8', errors='ignore'
                 )
-                # energyplus_dir=energyplus_dir # Removed
-            )
+                print("--- EnergyPlus Output ---")
+                print(sim_result.stdout)
+                print("-------------------------")
 
-            # Start processing
-            self.show_status("Starting file processing...")
+                # Check for the specific output file needed
+                output_csv_path = os.path.join(simulation_output_dir, "eplustbl.csv")
+                if os.path.exists(output_csv_path):
+                    self.show_status(f"EnergyPlus simulation successful. Output CSV: {output_csv_path}")
+                    simulation_successful = True
+                    # Optional: Basic check if file is readable
+                    try:
+                        with open(output_csv_path, 'r', encoding='utf-8') as f:
+                            f.readline() # Try reading the first line
+                        print(f"Successfully opened and read header from {output_csv_path}.")
+                    except Exception as read_err:
+                        print(f"Warning: Could not read output file {output_csv_path}: {read_err}")
+                        self.show_status(f"Simulation output file generated but may be corrupted: {read_err}")
+                        # simulation_successful = False # Decide if this is critical
 
-            # Call process_idf with input_file, idd_path, and output_dir
-            success = processor.process_idf(input_file, idd_path, output_dir)
-            
-            # --- Run EnergyPlus Simulation ---
-            if success and self.is_processing: # Only run if report generation was okay
-                self.show_status("Starting EnergyPlus simulation...")
-                energyplus_exe = os.path.join(energyplus_dir, "energyplus.exe")
-                weather_file_path = self.weather_file.get() # Get weather file path
-                
-                # Define the output directory for EnergyPlus results inside the reports folder
-                # Note: base_output is defined earlier as os.path.join(output_dir, "reports")
-                # We need to ensure base_output is accessible here or redefine it.
-                # Assuming base_output is accessible or we redefine it based on output_dir
-                base_output_dir = os.path.join(output_dir, "reports") # Define base reports dir
-                simulation_output_dir = os.path.join(base_output_dir, "simulation")
-                os.makedirs(simulation_output_dir, exist_ok=True) # Ensure simulation dir exists
+                else:
+                    self.show_status(f"Simulation finished, but required output file not found: {output_csv_path}")
+                    simulation_successful = False
 
-                # Switch progress bar to indeterminate mode for simulation
-                self.progress_bar.configure(mode='indeterminate')
-                self.progress_bar.start()
-                self.update_idletasks() # Ensure GUI updates
-
-                try:
-                    # Use simulation_output_dir for the -d argument
-                    subprocess.run([energyplus_exe, "-w", weather_file_path, "-r", "-d", simulation_output_dir, input_file], check=True)
-                    self.show_status("EnergyPlus simulation completed successfully.")
-                except subprocess.CalledProcessError as e:
-                    self.show_status(f"EnergyPlus simulation failed: {e}", tag="error")
-                    success = False # Mark overall process as failed if simulation fails
-                except FileNotFoundError:
-                    self.show_status(f"Error: energyplus.exe not found at {energyplus_exe}", tag="error")
-                    success = False
-                finally:
-                    # Stop indeterminate mode and switch back to determinate
-                    self.progress_bar.stop()
-                    self.progress_bar.configure(mode='determinate')
-                    # Optionally set progress back to 1 if simulation was part of the overall progress
-                    # self.progress_bar.set(1.0) # Or leave it, as the main finally block resets it
-                    self.update_idletasks() # Ensure GUI updates
+            except subprocess.CalledProcessError as e:
+                self.show_status(f"EnergyPlus simulation failed (return code {e.returncode}).")
+                print("--- EnergyPlus Error Output ---")
+                print(e.stderr) # Print stderr for debugging
+                print("-----------------------------")
+                # Try to show a relevant part of the error message
+                last_error_line = e.stderr.strip().splitlines()[-1] if e.stderr else "No error output captured."
+                self.show_status(f"EnergyPlus Error: {last_error_line}")
+                simulation_successful = False
+            except FileNotFoundError:
+                self.show_status(f"Error: energyplus.exe not found at {energyplus_exe}")
+                simulation_successful = False
+            except Exception as sim_e: # Catch other potential errors
+                 self.show_status(f"Error during simulation phase: {sim_e}")
+                 simulation_successful = False
+            finally:
+                # Stop indeterminate mode and reset progress for potential IDF processing
+                self.progress_bar.stop()
+                self.progress_bar.configure(mode='determinate')
+                self.progress_bar.set(0)
+                self.update_idletasks()
             # --- End EnergyPlus Simulation ---
 
-            if success and self.is_processing:
-                messagebox.showinfo("Success", "File processing completed! Reports have been generated in the output directory.")
-            elif not success and self.is_processing:
-                messagebox.showerror("Error", "Processing was not completed successfully.")
-                
-        except FileNotFoundError as e:
-            # Display the actual error message from the exception
-            error_msg = f"Error: File not found - {str(e)}"
+
+            # --- Process IDF File (only if simulation was successful and not cancelled) ---
+            if simulation_successful and self.is_processing:
+                self.show_status("Simulation complete. Starting IDF processing and report generation...")
+
+                # Initialize processing manager, passing the simulation output path
+                processor = ProcessingManager(
+                    status_callback=self.show_status,
+                    progress_callback=lambda x: (
+                        # self.progress_var.set(x), # progress_var seems unused, remove?
+                        self.progress_bar.set(x),
+                        self.update_idletasks()
+                    ),
+                    simulation_output_csv=output_csv_path # Pass the path here
+                )
+
+                # The path is now available within the processor instance (processor.simulation_output_csv)
+                # It needs to be passed down further to GlazingParser within process_idf
+
+                # Call process_idf
+                idf_processing_success = processor.process_idf(input_file, idd_path, output_dir)
+
+                # Check for cancellation during IDF processing
+                if processor and processor.is_cancelled: # Check if processor exists
+                     self.show_status("Processing cancelled during IDF stage.")
+                     idf_processing_success = False
+
+                # Final status based on IDF processing outcome
+                if idf_processing_success and self.is_processing:
+                    self.show_status("IDF processing and report generation completed successfully!")
+                    messagebox.showinfo("Success", "Processing completed! Reports generated.")
+                elif not (processor and processor.is_cancelled) and self.is_processing: # Avoid double message if cancelled
+                     self.show_status("IDF processing failed. Check messages above.")
+                     messagebox.showerror("Error", "IDF Processing failed.")
+
+            elif not simulation_successful and self.is_processing:
+                 self.show_status("Skipping IDF processing due to simulation failure.")
+                 messagebox.showerror("Error", "Simulation failed. Cannot proceed.")
+            elif not self.is_processing:
+                 # Already cancelled before or during simulation
+                 self.show_status("Processing was cancelled.")
+            # --- End IDF Processing ---
+
+        except FileNotFoundError as e: # Catch FileNotFoundError earlier if needed
+            error_msg = f"Error: Required file not found - {str(e)}"
             self.show_status(error_msg)
             messagebox.showerror("File Not Found Error", error_msg)
-        except Exception as e:
-            self.show_status(f"Error during processing: {str(e)}")
-            messagebox.showerror("Error", f"An error occurred during processing: {str(e)}")
-        
+        except Exception as e: # General catch-all for unexpected errors
+            self.show_status(f"An unexpected error occurred: {str(e)}")
+            import traceback
+            traceback.print_exc() # Log detailed traceback to console
+            messagebox.showerror("Error", f"An unexpected error occurred: {str(e)}")
+
         finally:
-            self.is_processing = False
+            # --- Final Cleanup ---
+            self.is_processing = False # Ensure processing flag is reset
             self.process_button.configure(state="normal")
             self.cancel_button.configure(state="disabled")
-            if not self.is_processing:
-                self.progress_bar.set(0)
+            # Reset progress bar in the finally block to ensure it happens
+            self.progress_bar.configure(mode='determinate')
+            self.progress_bar.set(0)
+            self.update_idletasks()
 
     def cancel_processing(self):
         self.is_processing = False
