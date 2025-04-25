@@ -48,11 +48,12 @@ class MaterialsParser:
                 self.materials[material_id] = MaterialData(
                     id=material_id,
                     name=material_id,
-                    conductivity=raw_material_data['conductivity'],
-                    density=raw_material_data['density'],
-                    specific_heat=raw_material_data['specific_heat'],
-                    thickness=raw_material_data['thickness'],
-                    solar_absorptance=raw_material_data['solar_absorptance']
+                    # Use .get() with default 0.0 for potentially missing properties
+                    conductivity=raw_material_data.get('conductivity', 0.0),
+                    density=raw_material_data.get('density', 0.0),
+                    specific_heat=raw_material_data.get('specific_heat', 0.0),
+                    thickness=raw_material_data.get('thickness', 0.0),
+                    solar_absorptance=raw_material_data.get('solar_absorptance', 0.0)
                 )
 
             # --- Process Constructions from DataLoader Cache ---

@@ -300,15 +300,15 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
                 wrap_text("", cell_style),
                 wrap_text("", cell_style),
                 wrap_text("TOTALS", total_style),
-                wrap_text(f"{group['total_thickness']:.3f}", total_style),
-                wrap_text("", cell_style),
-                wrap_text("", cell_style),
-                wrap_text(f"{group['total_mass']:.1f}", total_style),
-                wrap_text(f"{group['total_resistance']:.3f}", total_style),  # Keep original thermal resistance
-                wrap_text("", cell_style),
-                wrap_text("", cell_style),
-                wrap_text(f"{group['r_value_with_film']:.3f}", total_style),  # R-Value with film resistance
-                wrap_text(f"{group['u_value']:.3f}", total_style)  # U-Value based on R-Value with film
+                wrap_text(f"{group['total_thickness']:.3f} m", total_style),
+                wrap_text("", cell_style), # Conductivity - No total
+                wrap_text("", cell_style), # Density - No total
+                wrap_text(f"{group['total_mass']:.1f} kg/m²", total_style),
+                wrap_text(f"{group['total_resistance']:.3f} m²K/W", total_style),  # Keep original thermal resistance
+                wrap_text("", cell_style), # Solar Absorptance - No total
+                wrap_text("", cell_style), # Specific Heat - No total
+                wrap_text(f"{group['r_value_with_film']:.3f} m²K/W", total_style),  # R-Value with film resistance
+                wrap_text(f"{group['u_value']:.3f} W/m²K", total_style)  # U-Value based on R-Value with film
             ]
             table_data.append(totals_row)
             total_rows.append(row_index)

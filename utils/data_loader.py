@@ -7,6 +7,9 @@ from pathlib import Path
 import re
 from utils.eppy_handler import EppyHandler
 
+# Pre-compile regex for area_id extraction
+AREA_ID_REGEX = re.compile(r"^\d{2}")
+
 def safe_float(value: Any, default: float = 0.0) -> float:
     """
     Safely convert a value to float, returning a default if conversion fails.
@@ -125,20 +128,18 @@ class DataLoader:
         for zone in self._idf.idfobjects['ZONE']:
             zone_id = str(zone.Name)
             
+            # Check against pre-calculated flags in schedules
             for schedule_id, schedule_data in self._schedules_cache.items():
-                if zone_id in schedule_id and 'Temperature' in schedule_data["type"] and (
-                    "heating" in schedule_data['name'].lower() or 
-                    "cooling" in schedule_data['name'].lower()
-                ) and "setpoint" not in schedule_data['type'].lower():
+                if schedule_data['is_hvac_indicator'] and zone_id in schedule_id:
                     self._hvac_zones_cache.append(zone_id)
-                    break
+                    break # Found one, no need to check other schedules for this zone
                     
             # Extract area_id
             area_id = None
             try:
                 split = zone_id.split(":", 1)
                 if len(split) > 1 and split[1]:
-                    if re.match(r"^\d{2}", split[1]):
+                    if AREA_ID_REGEX.match(split[1]):
                         area_id = split[1][:2]  # Take first 2 chars if starts with digits
                     else:
                         area_id = split[1]  # Take whole string after colon
@@ -368,14 +369,24 @@ class DataLoader:
                 if field.strip():
                     rule_fields.append(str(field))
             
+            # Determine if schedule indicates HVAC zone (based on type/name)
+            schedule_name_lower = schedule_id.lower()
+            schedule_type_lower = schedule_type.lower()
+            is_hvac_indicator = (
+                'temperature' in schedule_type_lower and
+                ('heating' in schedule_name_lower or 'cooling' in schedule_name_lower) and
+                'setpoint' not in schedule_type_lower
+            )
+
             # Cache raw schedule data
             self._schedules_cache[schedule_id] = {
                 'id': schedule_id,
                 'name': schedule_id,
                 'type': schedule_type,
+                'is_hvac_indicator': is_hvac_indicator, # Add the pre-calculated flag
                 'raw_object': schedule  # Store the raw object for parsers
             }
-            
+
             # Cache rules separately
             self._schedule_rules_cache[schedule_id] = rule_fields
     
@@ -422,13 +433,11 @@ class DataLoader:
         # Cache equipment loads
         self._equipment_cache.clear()
         for equip_type in ['ELECTRICEQUIPMENT', 'OTHEREQUIPMENT']:
-            if equip_type not in self._idf.idfobjects:
-                continue
-                
-            for equip in self._idf.idfobjects[equip_type]:
+            # Use .get() to safely iterate over equipment types, defaulting to empty list if type doesn't exist
+            for equip in self._idf.idfobjects.get(equip_type, []):
                 zone_name = str(getattr(equip, "Zone_or_ZoneList_Name", ""))
                 if not zone_name:
-                    continue
+                    continue # Skip if zone name is missing
                     
                 if zone_name not in self._equipment_cache:
                     self._equipment_cache[zone_name] = []
