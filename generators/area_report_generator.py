@@ -76,23 +76,41 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
         # Calculate wall mass (placeholder for now)
         wall_mass = 0.0  # This will need actual wall mass calculation implementation later
         
-        # Generate summary section
-        summary_style = ParagraphStyle(
-            'SummaryStyle',
+        # Generate summary section as a card (Table)
+        summary_content_style = ParagraphStyle(
+            'SummaryContent',
             parent=styles['Normal'],
-            fontSize=12,
-            spaceAfter=10
+            fontSize=10,
+            leading=12
         )
         
         summary_text = f"""
-        <b>Area Summary:</b>
-        <br/>Total Area: {total_floor_area:.2f} m²
-        <br/>Wall Mass: {wall_mass:.2f} kg
+        <b>Area Summary:</b><br/>
+        ------------------------------------<br/>
+        <b>Area Name:</b> {area_id}<br/>
+        <b>Total Area:</b> {total_floor_area:.2f} m²<br/>
+        <b>Location:</b> Unknown<br/>
+        <b>Directions:</b> N, S, E, W<br/>
+        <b>Wall Mass:</b> {wall_mass:.2f} kg
         """
         
-        story.append(Paragraph(summary_text, summary_style))
-        story.append(Spacer(1, 15))
+        summary_paragraph = Paragraph(summary_text, summary_content_style)
         
+        # Create a table to act as a card with a border
+        summary_table_data = [[summary_paragraph]]
+        summary_table = Table(summary_table_data, colWidths=[doc.width - 2*cm]) # Adjust width as needed
+        
+        summary_table_style = TableStyle([
+            ('BOX', (0, 0), (-1, -1), 1, colors.black), # Border around the cell
+            ('PADDING', (0, 0), (-1, -1), 10),         # Padding inside the cell
+            ('BACKGROUND', (0, 0), (-1, -1), colors.whitesmoke) # Optional background color
+        ])
+        
+        summary_table.setStyle(summary_table_style)
+        
+        story.append(summary_table)
+        story.append(Spacer(1, 15))
+
         # Create cell styles for better formatting
         cell_style = ParagraphStyle(
             'CellStyle',
