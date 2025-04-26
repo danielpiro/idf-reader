@@ -208,6 +208,26 @@ class GlazingReportGenerator:
                     story.append(outer_table)
                     story.append(Spacer(1, 0.4*cm))
 
+                # --- 4. Frame Table ---
+                frame_table = self._create_frame_table(data.get('frame_details')) # Pass frame_details dict
+                if frame_table:
+                    # Place title and table side-by-side
+                    title_p = Paragraph("Frame", self.styles['h3'])
+                    outer_data = [[title_p, frame_table]]
+                    title_col_width = 3.5*cm # Consistent width
+                    outer_table = Table(outer_data, colWidths=[title_col_width, None])
+                    outer_style = TableStyle([
+                        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                        ('LEFTPADDING', (0, 0), (0, 0), 0),
+                        ('RIGHTPADDING', (0, 0), (0, 0), 0.2*cm),
+                        ('LEFTPADDING', (1, 0), (1, 0), 0),
+                        ('RIGHTPADDING', (1, 0), (1, 0), 0),
+                    ])
+                    outer_table.setStyle(outer_style)
+                    story.append(outer_table)
+                    story.append(Spacer(1, 0.4*cm))
+
+
                 # Add a separator line or larger spacer between constructions
                 story.append(Spacer(1, 0.6*cm)) # Larger spacer
 
@@ -297,6 +317,30 @@ class GlazingReportGenerator:
 
         # Define column widths (adjust as needed)
         col_widths = [4*cm, 2.5*cm, 3*cm, 2.5*cm, 2.5*cm, 2.5*cm] # Example widths
+
+        table = Table(data, colWidths=col_widths)
+        style = create_base_table_style()
+        apply_header_style(style)
+        table.setStyle(style)
+        return table
+
+    def _create_frame_table(self, frame_details: Dict[str, Any] | None) -> Table | None:
+        """Creates the ReportLab Table for Frame details."""
+        if not frame_details:
+            return None # No frame associated with this construction
+
+        headers = ["ID", "Width (m)", "Conductance (W/mK)"]
+        data = [
+            [wrap_text(h, self.header_style) for h in headers],
+            [
+                wrap_text(frame_details.get('id', '-'), self.cell_style),
+                wrap_text(format_value(frame_details.get('frame_width'), precision=4), self.cell_style),
+                wrap_text(format_value(frame_details.get('frame_conductance')), self.cell_style)
+            ]
+        ]
+
+        # Define column widths (adjust as needed)
+        col_widths = [4*cm, 3*cm, 3*cm] # Example widths
 
         table = Table(data, colWidths=col_widths)
         style = create_base_table_style()

@@ -106,7 +106,10 @@ class ProcessingManager:
                 # --- ADDED ---
                 windows_cache=data_loader.get_raw_windows_cache(), # Pass the raw windows cache
                 # -------------
-                simulation_output_csv=self.simulation_output_csv # Pass the CSV path
+                simulation_output_csv=self.simulation_output_csv, # Pass the CSV path
+                # --- ADDED ---
+                frame_divider_cache=data_loader._frame_divider_cache # Pass the frame cache
+                # -------------
             )
             # Parse glazing data *before* initializing AreaParser
             parsed_glazing = glazing_parser.parse_glazing_data()

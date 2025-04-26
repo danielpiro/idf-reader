@@ -42,36 +42,41 @@ class GlazingParser:
                  windows_cache: Dict[str, Dict[str, Any]], # Add windows cache parameter
                  # -------------
                  simulation_output_csv: str = None, # Added parameter for CSV path
-                 idf_objects: Any = None):
-        """
-        Initializes the parser with necessary data caches and simulation output path.
+                 idf_objects: Any = None,
+                 frame_divider_cache: Dict[str, Dict[str, Any]] = None): # Added frame cache
+       """
+       Initializes the parser with necessary data caches and simulation output path.
 
-        Args:
-            constructions_glazing_cache: Cache containing pre-filtered glazing constructions.
-            window_simple_glazing_cache: Cache for simple glazing system materials.
-            window_glazing_cache: Cache for window glazing materials.
-            window_gas_cache: Cache for window gas materials.
-            window_shade_cache: Cache for window shade materials.
-            window_shading_control_cache: Cache for window shading control objects. # Add docstring
-            windows_cache: Cache for raw window objects (FenestrationSurface:Detailed). # Add docstring
-            simulation_output_csv: Path to the eplustbl.csv file from simulation (optional).
-            idf_objects: Raw IDF objects if direct access is needed (optional).
-        """
-        self._constructions_glazing_cache = constructions_glazing_cache
-        self._window_simple_glazing_cache = window_simple_glazing_cache
-        self._window_glazing_cache = window_glazing_cache
-        self._window_gas_cache = window_gas_cache
-        self._window_shade_cache = window_shade_cache
-        # --- ADDED ---
-        self._window_shading_control_cache = window_shading_control_cache # Store the cache
-        # -------------
-        # --- ADDED ---
-        self._windows_cache = windows_cache # Store the windows cache
-        # -------------
-        self._simulation_output_csv = simulation_output_csv # Store the path
-        self._sim_properties = {} # Dictionary to store properties read from CSV
-        self._idf = idf_objects # Store if needed
-        self.parsed_glazing_data = {} # Store results here
+       Args:
+           constructions_glazing_cache: Cache containing pre-filtered glazing constructions.
+           window_simple_glazing_cache: Cache for simple glazing system materials.
+           window_glazing_cache: Cache for window glazing materials.
+           window_gas_cache: Cache for window gas materials.
+           window_shade_cache: Cache for window shade materials.
+           window_shading_control_cache: Cache for window shading control objects. # Add docstring
+           windows_cache: Cache for raw window objects (FenestrationSurface:Detailed). # Add docstring
+           simulation_output_csv: Path to the eplustbl.csv file from simulation (optional).
+           idf_objects: Raw IDF objects if direct access is needed (optional).
+           frame_divider_cache: Cache for FrameAndDivider objects. # Added docstring
+       """
+       self._constructions_glazing_cache = constructions_glazing_cache
+       self._window_simple_glazing_cache = window_simple_glazing_cache
+       self._window_glazing_cache = window_glazing_cache
+       self._window_gas_cache = window_gas_cache
+       self._window_shade_cache = window_shade_cache
+       # --- ADDED ---
+       self._window_shading_control_cache = window_shading_control_cache # Store the cache
+       # -------------
+       # --- ADDED ---
+       self._windows_cache = windows_cache # Store the windows cache
+       # -------------
+       # --- ADDED ---
+       self._frame_divider_cache = frame_divider_cache if frame_divider_cache is not None else {} # Store frame cache
+       # -------------
+       self._simulation_output_csv = simulation_output_csv # Store the path
+       self._sim_properties = {} # Dictionary to store properties read from CSV
+       self._idf = idf_objects # Store if needed
+       self.parsed_glazing_data = {} # Store results here
 
     def _parse_simulation_output_csv(self):
         """Parses the eplustbl.csv file to extract window properties from the 'Exterior Fenestration' table."""
@@ -582,6 +587,53 @@ class GlazingParser:
                  del final_filtered_data[construction_id]
 
         # --- End Step 6 (Filtering) ---
+
+        # --- Step 7: Add Frame and Divider Info (after filtering) ---
+        # print("\n--- DEBUG: Processing Step 7: Adding Frame Info ---")
+        for construction_id, data in final_filtered_data.items(): # Iterate over the filtered data
+            data['frame_details'] = None # Initialize frame details as None
+
+            # Determine potential shaded counterpart name (e.g., "xxx - 1xxx" -> "xxx - 2xxx")
+            potential_shaded_id = None
+            try:
+                prefix, suffix = construction_id.rsplit(' - ', 1)
+                if suffix.startswith('1') and len(suffix) == 4 and suffix.isdigit():
+                    shaded_suffix = '2' + suffix[1:]
+                    potential_shaded_id = f"{prefix} - {shaded_suffix}"
+                    # Also need to check if this potential shaded ID existed *before* filtering
+                    # This requires checking the original _constructions_glazing_cache
+                    if potential_shaded_id not in self._constructions_glazing_cache:
+                        potential_shaded_id = None # Reset if the shaded version wasn't in the original IDF
+            except ValueError:
+                pass # Not following the pattern
+
+            # Find the first window using this construction OR its shaded counterpart to get frame info
+            found_frame = False
+            for window_id, window_data in self._windows_cache.items():
+                window_construction_name = window_data.get('construction_name')
+
+                # Check if window uses the base ID or the potential shaded ID
+                if window_construction_name == construction_id or \
+                   (potential_shaded_id and window_construction_name == potential_shaded_id):
+
+                    window_obj = window_data.get('raw_object')
+                    if not window_obj: continue
+
+                    frame_divider_name = getattr(window_obj, 'Frame_and_Divider_Name', None)
+                    if frame_divider_name and frame_divider_name in self._frame_divider_cache:
+                        frame_data = self._frame_divider_cache[frame_divider_name]
+                        data['frame_details'] = {
+                            'id': frame_divider_name,
+                            'frame_width': frame_data.get('frame_width'),
+                            'frame_conductance': frame_data.get('frame_conductance')
+                        }
+                        # print(f"DEBUG:   Added Frame '{frame_divider_name}' to construction '{construction_id}' (found via window using '{window_construction_name}')")
+                        found_frame = True
+                        break # Found frame info for this construction, stop checking windows
+            # if not found_frame:
+                # print(f"DEBUG:   No frame found for construction '{construction_id}' (checked base and potential shaded '{potential_shaded_id}')")
+        # --- End Step 7 ---
+
 
         self.parsed_glazing_data = final_filtered_data # Assign the final filtered data
         # print(f"\n--- DEBUG: Final Parsed Glazing Data Keys: {list(self.parsed_glazing_data.keys())} ---")
