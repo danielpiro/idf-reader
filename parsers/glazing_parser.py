@@ -300,6 +300,7 @@ class GlazingParser:
         """
         # --- Parse Simulation Output First ---
         self._parse_simulation_output_csv() # Populate self._sim_properties
+        print(f"DEBUG: Initial _sim_properties: {self._sim_properties}") # DEBUG ADDED
 
         processed_data = {}
 
@@ -328,8 +329,12 @@ class GlazingParser:
                     }
                 # else: It might be a shade control definition, handle later
 
+        # else: It might be a shade control definition, handle later
+
         # --- DEBUG: Print keys after Step 1 ---
+        print(f"\n--- DEBUG: Processed Data after Step 1 (Simple Glazing): {list(processed_data.keys())} ---") # DEBUG ADDED
         # --- Step 2: Process Detailed Glazing Constructions ---
+        print("\n--- DEBUG: Processing Step 2 (Detailed Glazing) ---") # DEBUG ADDED
         for construction_id, construction_data in self._constructions_glazing_cache.items():
              # Skip simple ones already processed or potential shade controls
             if construction_data.get('type') == 'simple':
@@ -381,8 +386,10 @@ class GlazingParser:
 
             # Only add if it contains glazing or gas layers (is actually a window/glazing construction)
             if glazing_layers_details:
+                 print(f"DEBUG:   Processing Detailed Construction ID: '{construction_id}'") # DEBUG ADDED
                  # --- Get properties from simulation output if available ---
                  sim_props = self._sim_properties.get(construction_id, {})
+                 print(f"DEBUG:     -> Retrieved sim_props: {sim_props}") # DEBUG ADDED
                  # if not sim_props: # Removed debug print for no match
                  #     print(f"DEBUG:   -> No match found in sim properties for '{construction_id}'")
                  u_value_sim = sim_props.get('U-Value')
@@ -407,6 +414,9 @@ class GlazingParser:
                     'raw_object': construction_data.get('raw_object'),
                     # NOTE: U-Value, VT, SHGC are now sourced from simulation output (eplustbl.csv)
                 }
+
+        # --- DEBUG: Print after Step 2 ---
+        print(f"\n--- DEBUG: Processed Data after Step 2 (Detailed Glazing): {list(processed_data.keys())} ---") # DEBUG ADDED
 
         # --- Step 3: Link Shades defined via separate constructions (like Construction:WithShading) ---
         # This part assumes constructions marked 'simple' with no 'data' link shades
@@ -477,6 +487,7 @@ class GlazingParser:
         # Perform transfer *before* filtering based on missing sim properties
         try:
             processed_data_after_transfer = self._transfer_shades_based_on_naming(processed_data)
+            print(f"DEBUG: Data size after Step 4 (Transferring Shades): {len(processed_data_after_transfer)}") # DEBUG ADDED
         except Exception as e:
              print(f"ERROR: Exception during Step 4 (Transferring Shades): {e}")
              import traceback
@@ -491,6 +502,7 @@ class GlazingParser:
         constructions_to_remove = []
         # Iterate through the data *after* transfer
         for construction_id, data in processed_data_after_transfer.items():
+            print(f"DEBUG:   Filtering check for ID: '{construction_id}'") # DEBUG ADDED
             is_detailed = data.get('type') == 'Detailed'
             if is_detailed:
                 system_details = data.get('system_details', {})
@@ -502,9 +514,14 @@ class GlazingParser:
                 # Check the 'shading_layers' status *after* potential transfer
                 has_shading = bool(data.get('shading_layers'))
                 if (u_value is None or shgc is None or vt is None) and not has_shading:
+                    print(f"DEBUG:     -> Marking for removal (Missing props, no shades): {construction_id}") # DEBUG ADDED
                     constructions_to_remove.append(construction_id)
                 elif (u_value is None or shgc is None or vt is None) and has_shading:
+                    print(f"DEBUG:     -> Keeping (Missing props, but has shades): {construction_id}") # DEBUG ADDED
                     pass
+                else:
+                    print(f"DEBUG:     -> Keeping (Has props or is Simple): {construction_id}") # DEBUG ADDED
+
 
         # Remove from the data *after* transfer
         final_filtered_data = processed_data_after_transfer.copy()
@@ -515,6 +532,7 @@ class GlazingParser:
         # --- End Step 5 (Filtering) ---
 
         self.parsed_glazing_data = final_filtered_data # Assign the final filtered data
+        print(f"\n--- DEBUG: Final Parsed Glazing Data Keys: {list(self.parsed_glazing_data.keys())} ---") # DEBUG ADDED
         return self.parsed_glazing_data # Correct indentation
 
     # Removed update_system_properties_from_eio method as properties are now read from eplustbl.csv

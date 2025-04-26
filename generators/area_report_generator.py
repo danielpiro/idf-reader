@@ -153,7 +153,13 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
         for row in sorted_rows:
             # Format construction name with line breaks
             construction_text = format_construction_name(row['construction'])
-            
+
+            # --- DEBUG PRINT ADDED ---
+            # Check for the specific construction name after cleaning/merging
+            if row.get('construction') == "6+6+6":
+                print(f"\nDEBUG REPORT GEN: Data for '6+6+6' row before formatting:\n{row}\n")
+            # --- END DEBUG PRINT ---
+
             # Create zone cell - only show zone if different from previous row
             if row['zone'] != last_zone:
                 zone_cell = Paragraph(row['zone'], cell_style)
@@ -166,7 +172,9 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
             
             # Format numeric values with proper alignment
             area_value = f"{row['area']:.2f}"
-            u_value = f"{row['u_value']:.3f}"
+            # Use weighted_u_value if available (for aggregated glazing), otherwise fallback to u_value
+            u_value_to_format = row.get('weighted_u_value', row.get('u_value', 0.0))
+            u_value = f"{u_value_to_format:.3f}"
             area_u_value = f"{row['area_u_value']:.2f}"
             area_loss_value = f"{row['area_loss']:.2f}"
             
@@ -269,9 +277,33 @@ def merge_reversed_constructions(area_data: List[Dict[str, Any]]) -> List[Dict[s
             existing['area'] += row['area']
             existing['area_u_value'] += row['area_u_value']
             existing['area_loss'] += row['area_loss']
-    
+            # Also merge weighted_u_value if present, recalculate later
+            if 'weighted_u_value' in row:
+                 # Temporarily store the sum, will divide by total area later
+                 existing['weighted_u_value'] = existing.get('weighted_u_value', 0.0) * (existing['area'] - row['area']) + row['weighted_u_value'] * row['area']
+
+
+    # --- Recalculate weighted U-value after merging ---
+    final_list = []
+    for key, merged_row in merged_dict.items():
+        total_area = merged_row.get('area', 0.0)
+        # Check if weighted_u_value was summed during merge
+        if 'weighted_u_value' in merged_row and total_area > 0:
+             # If it looks like a sum (product of area*uvalue), divide by total area
+             # This assumes the temporary value stored was the sum of area*weighted_u_value
+             # A better approach might be to recalculate from area_u_value / area
+             merged_row['weighted_u_value'] = merged_row['area_u_value'] / total_area
+        elif 'weighted_u_value' not in merged_row and total_area > 0:
+             # If weighted_u_value wasn't present initially, calculate it now
+             merged_row['weighted_u_value'] = merged_row['area_u_value'] / total_area
+        elif 'weighted_u_value' not in merged_row:
+             merged_row['weighted_u_value'] = 0.0 # Ensure field exists
+
+        final_list.append(merged_row)
+
+
     # Convert back to list
-    return list(merged_dict.values())
+    return final_list
 
 def format_construction_name(construction: str) -> str:
     """

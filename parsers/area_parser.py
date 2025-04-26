@@ -7,17 +7,21 @@ from parsers.materials_parser import MaterialsParser  # Import MaterialsParser f
 from utils.data_loader import safe_float # Import safe_float
 
 logger = logging.getLogger(__name__)
+# --- Explicitly set logging level for this module ---
+# logger.setLevel(logging.DEBUG) # Keep or remove as needed
+# ---
 
 class AreaParser:
     """
     Processes area information from IDF files, including distribution of zones in areas.
     Uses cached data from DataLoader for efficient access.
     """
-    def __init__(self, data_loader):
+    def __init__(self, data_loader, parsed_glazing_data: Dict[str, Dict[str, Any]]): # Added parsed_glazing_data
         self.data_loader = data_loader
+        self.parsed_glazing_data = parsed_glazing_data # Store glazing data
         self.areas_by_zone = {}  # Dictionary to store area data by zone
         self.processed = False
-        
+
     def process_idf(self, idf) -> None: # idf parameter kept for compatibility
         """
         Extract area information.
@@ -101,13 +105,35 @@ class AreaParser:
             area = surface.get("area", 0.0)
             if area <= 0.0:
                 continue
-            
-            # Get properties for the construction
-            properties = self._get_construction_properties(construction_name)
-            
-            # Calculate U-Value using materials parser logic (1/R-value with film)
-            u_value = self._calculate_u_value(construction_name)
-            
+
+            # --- Determine U-Value ---
+            u_value = 0.0
+            is_glazing = surface.get("is_glazing", False) # Check if surface is marked as glazing
+
+            # Check if this construction exists in the parsed glazing data
+            if construction_name in self.parsed_glazing_data:
+                glazing_details = self.parsed_glazing_data[construction_name].get('system_details', {})
+                u_value_from_glazing = glazing_details.get('U-Value')
+
+                if u_value_from_glazing is not None:
+                    u_value = safe_float(u_value_from_glazing, 0.0)
+                    # logger.debug(f"Using U-Value from GlazingParser for '{construction_name}': {u_value}")
+                else:
+                    # Glazing construction found, but U-Value is missing in parsed data - fallback? Log warning?
+                    logger.warning(f"Glazing construction '{construction_name}' found in parsed data, but U-Value is missing. Falling back to calculation.")
+                    # Decide if fallback calculation is appropriate here or just use 0.0
+                    u_value = self._calculate_u_value(construction_name) # Or set u_value = 0.0
+
+                # Ensure is_glazing flag is consistent
+                is_glazing = True # If it's in parsed_glazing_data, treat as glazing
+
+            else:
+                # Not found in glazing data, assume opaque and calculate
+                u_value = self._calculate_u_value(construction_name)
+                # logger.debug(f"Calculating U-Value for opaque construction '{construction_name}': {u_value}")
+            # --- End Determine U-Value ---
+
+
             # Get surface type and determine if glazing
             surface_type = surface.get("surface_type", "wall")
             is_glazing = surface.get("is_glazing", False)
@@ -124,17 +150,17 @@ class AreaParser:
             element_data = {
                 "zone": zone_name,
                 "surface_name": surface_id,
-                "element_type": "Glazing" if is_glazing else surface_type.capitalize(),  # Mark glazing specifically
+                "element_type": "Glazing" if is_glazing else surface_type.capitalize(),
                 "area": area,
-                "u_value": u_value,
+                "u_value": u_value, # Use the determined u_value
                 "area_u_value": area * u_value
             }
-            
+
             constr_group = self.areas_by_zone[zone_name]["constructions"][construction_name]
             constr_group["elements"].append(element_data)
             constr_group["total_area"] += area
-            constr_group["total_u_value"] += area * u_value
-            
+            constr_group["total_u_value"] += area * u_value # Use determined u_value here too
+
     def _get_construction_properties(self, construction_name: str) -> Dict[str, float]:
         """
         Get properties for a specific construction.
@@ -180,7 +206,7 @@ class AreaParser:
         
     def _calculate_u_value(self, construction_name: str) -> float:
         """
-        Calculate U-Value for a construction.
+        Calculate U-Value for a construction (NOW PRIMARILY FOR OPAQUE).
         Retrieves direct U-Factor for simple glazing systems, otherwise calculates
         based on layer resistance (1/R-value with film). Includes detailed debugging.
 
@@ -190,7 +216,11 @@ class AreaParser:
         Returns:
             float: U-Value
         """
-        logger.debug(f"--- Calculating U-Value for construction: '{construction_name}' ---")
+        # NOTE: This function should ideally only be called for opaque constructions now.
+        # The simple glazing check might be redundant if AreaParser relies on GlazingParser data.
+        # Consider simplifying or removing glazing-specific logic here if it's fully handled above.
+
+        logger.debug(f"--- Calculating U-Value (Fallback/Opaque) for construction: '{construction_name}' ---")
         # Get cached data - MERGE both construction caches
         constructions_opaque = self.data_loader.get_constructions()
         constructions_glazing = self.data_loader.get_constructions_glazing()
@@ -232,7 +262,7 @@ class AreaParser:
                             # Use safe_float for robust conversion
                             u_value_float = safe_float(u_factor, -1.0) # Use -1 default to indicate conversion failure vs actual 0
                             if u_value_float != -1.0:
-                                logger.debug(f"    Successfully converted U-Factor. Returning direct U-Value: {u_value_float}")
+                                # logger.info(f"    RETURNING Simple Glazing U-Value for '{construction_name}': {u_value_float}") # REMOVED INFO LOG
                                 return u_value_float
                             else:
                                 logger.error(f"    safe_float conversion failed for U-Factor '{u_factor}'. Falling back.")
@@ -449,8 +479,15 @@ class AreaParser:
                 if zone_constr_key not in zone_constructions_aggregated:
                     # Get u_value from first element (should be consistent for the construction)
                     u_value = 0.0
+                    # --- DEBUG: Check U-value source ---
                     if construction_data.get("elements"):
-                        u_value = construction_data["elements"][0].get("u_value", 0.0)
+                        first_element_u_value = construction_data["elements"][0].get("u_value", 0.0)
+                        u_value = first_element_u_value
+                        if cleaned_construction_name == "6+6+6":
+                             logger.debug(f"      AGGREGATION START for '{zone_constr_key}': Using U-Value from first element: {u_value}")
+                    elif cleaned_construction_name == "6+6+6":
+                         logger.debug(f"      AGGREGATION START for '{zone_constr_key}': No elements found, U-Value=0.0")
+                    # --- END DEBUG ---
 
                     zone_constructions_aggregated[zone_constr_key] = {
                         "zone": zone_id,
@@ -468,12 +505,32 @@ class AreaParser:
                 # total_u_value in construction_data is already sum(area*u_value) for that specific original construction
                 current_total_area_u_value = construction_data.get("total_u_value", 0.0)
 
+                # --- DEBUG: Check aggregation values ---
+                if cleaned_construction_name == "6+6+6":
+                    logger.debug(f"      AGGREGATING for '{zone_constr_key}':")
+                    logger.debug(f"         Adding Area: {current_total_area}")
+                    logger.debug(f"         Adding Area*U-Value: {current_total_area_u_value}")
+                    logger.debug(f"         Current Agg Area: {constr_agg['area']}")
+                    logger.debug(f"         Current Agg Area*U: {constr_agg['area_u_value']}")
+                # --- END DEBUG ---
+
                 constr_agg["area"] += current_total_area
                 constr_agg["area_u_value"] += current_total_area_u_value
+
 
                 # Calculate area_loss = aggregated sum(area * u_value)
                 # This matches the user's example where area_loss = area * u_value
                 constr_agg["area_loss"] = constr_agg["area_u_value"]
+
+            # --- Post-aggregation processing ---
+            # Calculate weighted average U-value for each aggregated entry
+            for key, agg_data in zone_constructions_aggregated.items():
+                total_area = agg_data.get("area", 0.0)
+                total_area_u_value = agg_data.get("area_u_value", 0.0)
+                weighted_u_value = 0.0
+                if total_area > 0:
+                    weighted_u_value = total_area_u_value / total_area
+                agg_data["weighted_u_value"] = weighted_u_value # Add the calculated weighted U-value
 
             # Add all aggregated zone+constructions to the area's result list
             result_by_area[area_id].extend(zone_constructions_aggregated.values())

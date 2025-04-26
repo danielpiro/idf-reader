@@ -92,7 +92,7 @@ class ProcessingManager:
             schedule_extractor = ScheduleExtractor(data_loader)
             load_extractor = LoadExtractor(data_loader)
             materials_extractor = MaterialsParser(data_loader)
-            area_parser = AreaParser(data_loader)
+            # area_parser = AreaParser(data_loader) # Moved after GlazingParser
             # Initialize GlazingParser - needs relevant caches from data_loader
             glazing_parser = GlazingParser(
                 constructions_glazing_cache=data_loader._constructions_glazing_cache,
@@ -102,6 +102,12 @@ class ProcessingManager:
                 window_shade_cache=data_loader._window_shade_cache,
                 simulation_output_csv=self.simulation_output_csv # Pass the CSV path
             )
+            # Parse glazing data *before* initializing AreaParser
+            parsed_glazing = glazing_parser.parse_glazing_data()
+
+            # Now initialize AreaParser, passing the parsed glazing data
+            area_parser = AreaParser(data_loader, parsed_glazing)
+
 
             if self.is_cancelled:
                 return False
