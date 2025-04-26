@@ -157,7 +157,8 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
             # --- DEBUG PRINT ADDED ---
             # Check for the specific construction name after cleaning/merging
             if row.get('construction') == "6+6+6":
-                print(f"\nDEBUG REPORT GEN: Data for '6+6+6' row before formatting:\n{row}\n")
+                # print(f"\nDEBUG REPORT GEN: Data for '6+6+6' row before formatting:\n{row}\n")
+                pass
             # --- END DEBUG PRINT ---
 
             # Create zone cell - only show zone if different from previous row

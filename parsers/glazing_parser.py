@@ -62,10 +62,10 @@ class GlazingParser:
     def _parse_simulation_output_csv(self):
         """Parses the eplustbl.csv file to extract window properties from the 'Exterior Fenestration' table."""
         if not self._simulation_output_csv or not os.path.exists(self._simulation_output_csv):
-            print(f"DEBUG: Simulation output CSV not found or not provided: {self._simulation_output_csv}")
+            # print(f"DEBUG: Simulation output CSV not found or not provided: {self._simulation_output_csv}")
             return # No file to parse
 
-        print(f"DEBUG: Parsing simulation output CSV: {self._simulation_output_csv}")
+        # print(f"DEBUG: Parsing simulation output CSV: {self._simulation_output_csv}")
         self._sim_properties = {} # Reset properties before parsing
         try:
             with open(self._simulation_output_csv, 'r', encoding='utf-8', errors='ignore') as csvfile:
@@ -103,7 +103,7 @@ class GlazingParser:
                                         if key in current_headers_norm:
                                             actual_index = current_headers_norm.index(key)
                                             col_indices[key] = actual_index
-                                            # print(f"DEBUG: Mapped '{key}' to column index {actual_index}") # Less verbose
+                                            # # print(f"DEBUG: Mapped '{key}' to column index {actual_index}") # Less verbose
                                         else:
                                             # Fallback for 'construction' might not be needed if it's always present
                                             raise ValueError(f"Missing required header: '{key}'")
@@ -157,29 +157,32 @@ class GlazingParser:
                                                 'SHGC': shgc,
                                                 'VT': vt
                                             }
-                                            # print(f"DEBUG: Stored props for '{construction_name}': U={u_value}, SHGC={shgc}, VT={vt}")
+                                            # # print(f"DEBUG: Stored props for '{construction_name}': U={u_value}, SHGC={shgc}, VT={vt}")
                                         # else: # Less verbose logging for duplicates
-                                            # print(f"DEBUG: Duplicate construction '{construction_name}' found, using first entry.")
+                                            # # print(f"DEBUG: Duplicate construction '{construction_name}' found, using first entry.")
                                 except IndexError:
-                                    print(f"DEBUG: Skipping row due to IndexError (mismatched length?): {row}")
+                                    # print(f"DEBUG: Skipping row due to IndexError (mismatched length?): {row}")
+                                    pass # Or log differently
                                 except KeyError as e:
-                                     print(f"DEBUG: Skipping row due to KeyError (header mapping issue?): {e} | Row: {row}")
+                                     # print(f"DEBUG: Skipping row due to KeyError (header mapping issue?): {e} | Row: {row}")
+                                     pass # Or log differently
                                 except Exception as e:
-                                    print(f"DEBUG: Error processing data row: {e} | Row: {row}")
+                                    # print(f"DEBUG: Error processing data row: {e} | Row: {row}")
+                                    pass # Or log differently
                             else:
-                                 print(f"DEBUG: Skipping short data row: {row}")
+                                 # print(f"DEBUG: Skipping short data row: {row}")
+                                 pass # Or log differently
                         # --- End Data Row Processing ---
 
-
         except FileNotFoundError:
-            print(f"DEBUG: Error - Simulation output CSV file not found at: {self._simulation_output_csv}")
+            # print(f"DEBUG: Error - Simulation output CSV file not found at: {self._simulation_output_csv}")
+            pass # Or log error differently
         except Exception as e:
-            print(f"DEBUG: Error reading or parsing simulation output CSV: {e}")
+            # print(f"DEBUG: Error reading or parsing simulation output CSV: {e}")
             import traceback
             traceback.print_exc() # Print full traceback for debugging CSV errors
 
-        print(f"DEBUG: Finished parsing CSV. Found properties for {len(self._sim_properties)} constructions.")
-
+        # print(f"DEBUG: Finished parsing CSV. Found properties for {len(self._sim_properties)} constructions.")
 
     # --- Helper method for transferring shades ---
     def _transfer_shades_based_on_naming(self, processed_data: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
@@ -190,7 +193,7 @@ class GlazingParser:
                        'yyy - 4444' (base) and 'yyy - 6666' (shaded)
         """
         # This is now Step 4 in the main parse method
-        print("\n--- DEBUG: Processing Step 4 (Transferring Shades) ---")
+        # print("\n--- DEBUG: Processing Step 4 (Transferring Shades) ---")
 
         # Add try-except around the main logic of the transfer method
         try:
@@ -235,15 +238,16 @@ class GlazingParser:
 
                             if is_base_pattern and is_shade_pattern:
                                 # Prefixes match AND suffixes follow the 1xxx/2xxx pattern
-                                print(f"DEBUG:   Pattern match found: Base='{base_id}', Shade='{shade_id}'") # DEBUG
+                                # print(f"DEBUG:   Pattern match found: Base='{base_id}', Shade='{shade_id}'") # DEBUG
                                 # Transfer shading layers
+                                pass # Placeholder
                             else:
                                 # Prefixes match, but suffixes don't follow the 1xxx/2xxx pattern
-                                # print(f"DEBUG:   Prefix match for '{base_id}' and '{shade_id}', but suffixes ('{base_suffix}', '{shade_suffix}') don't match 1xxx/2xxx pattern.")
+                                # # print(f"DEBUG:   Prefix match for '{base_id}' and '{shade_id}', but suffixes ('{base_suffix}', '{shade_suffix}') don't match 1xxx/2xxx pattern.")
                                 continue # Skip to the next potential shade_id
 
                         except Exception as suffix_check_error:
-                            print(f"DEBUG:   Error checking suffix pattern for '{base_id}'/'{shade_id}': {suffix_check_error}")
+                            # print(f"DEBUG:   Error checking suffix pattern for '{base_id}'/'{shade_id}': {suffix_check_error}")
                             continue # Skip to the next potential shade_id
 
                         # --- Transfer logic starts here (only runs if pattern matched) ---
@@ -262,17 +266,18 @@ class GlazingParser:
                                      added_count += 1
 
                             if added_count > 0:
-                                print(f"DEBUG:   Transferred {added_count} shade(s) (e.g., '{shades_to_transfer[0]['Name']}') from '{shade_id}' to '{base_id}'.")
+                                # print(f"DEBUG:   Transferred {added_count} shade(s) (e.g., '{shades_to_transfer[0]['Name']}') from '{shade_id}' to '{base_id}'.")
                                 # Mark the shaded version for removal
                                 keys_to_remove.add(shade_id)
                                 break # Stop searching for other matches for this base_id
                         else:
                              # Should not happen based on constructions_with_shades filter, but good check
-                             print(f"DEBUG:   Potential match '{shade_id}' found for '{base_id}', but it has no shades to transfer.")
+                             # print(f"DEBUG:   Potential match '{shade_id}' found for '{base_id}', but it has no shades to transfer.")
+                             pass
 
                 # if not found_match:
-                #     print(f"DEBUG:   No corresponding shaded construction found for base '{base_id}'.")
-
+                #     # print(f"DEBUG:   No corresponding shaded construction found for base '{base_id}'.")
+                #     pass
 
             # Remove the redundant shaded constructions from the original processed_data
             final_data = processed_data.copy() # Work on a copy
@@ -291,7 +296,6 @@ class GlazingParser:
             return processed_data # Return original data on error within transfer logic
     # --- End Helper method ---
 
-
     def parse_glazing_data(self) -> Dict[str, Dict[str, Any]]:
         """
         Processes the cached glazing constructions to extract detailed data,
@@ -300,7 +304,7 @@ class GlazingParser:
         """
         # --- Parse Simulation Output First ---
         self._parse_simulation_output_csv() # Populate self._sim_properties
-        print(f"DEBUG: Initial _sim_properties: {self._sim_properties}") # DEBUG ADDED
+        # print(f"DEBUG: Initial _sim_properties: {self._sim_properties}") # DEBUG ADDED
 
         processed_data = {}
 
@@ -332,9 +336,9 @@ class GlazingParser:
         # else: It might be a shade control definition, handle later
 
         # --- DEBUG: Print keys after Step 1 ---
-        print(f"\n--- DEBUG: Processed Data after Step 1 (Simple Glazing): {list(processed_data.keys())} ---") # DEBUG ADDED
+        # print(f"\n--- DEBUG: Processed Data after Step 1 (Simple Glazing): {list(processed_data.keys())} ---") # DEBUG ADDED
         # --- Step 2: Process Detailed Glazing Constructions ---
-        print("\n--- DEBUG: Processing Step 2 (Detailed Glazing) ---") # DEBUG ADDED
+        # print("\n--- DEBUG: Processing Step 2 (Detailed Glazing) ---") # DEBUG ADDED
         for construction_id, construction_data in self._constructions_glazing_cache.items():
              # Skip simple ones already processed or potential shade controls
             if construction_data.get('type') == 'simple':
@@ -386,12 +390,13 @@ class GlazingParser:
 
             # Only add if it contains glazing or gas layers (is actually a window/glazing construction)
             if glazing_layers_details:
-                 print(f"DEBUG:   Processing Detailed Construction ID: '{construction_id}'") # DEBUG ADDED
+                 # print(f"DEBUG:   Processing Detailed Construction ID: '{construction_id}'") # DEBUG ADDED
                  # --- Get properties from simulation output if available ---
                  sim_props = self._sim_properties.get(construction_id, {})
-                 print(f"DEBUG:     -> Retrieved sim_props: {sim_props}") # DEBUG ADDED
+                 # print(f"DEBUG:     -> Retrieved sim_props: {sim_props}") # DEBUG ADDED
                  # if not sim_props: # Removed debug print for no match
-                 #     print(f"DEBUG:   -> No match found in sim properties for '{construction_id}'")
+                 #     # print(f"DEBUG:   -> No match found in sim properties for '{construction_id}'")
+                 #     pass
                  u_value_sim = sim_props.get('U-Value')
                  shgc_sim = sim_props.get('SHGC')
                  vt_sim = sim_props.get('VT')
@@ -416,11 +421,11 @@ class GlazingParser:
                 }
 
         # --- DEBUG: Print after Step 2 ---
-        print(f"\n--- DEBUG: Processed Data after Step 2 (Detailed Glazing): {list(processed_data.keys())} ---") # DEBUG ADDED
+        # print(f"\n--- DEBUG: Processed Data after Step 2 (Detailed Glazing): {list(processed_data.keys())} ---") # DEBUG ADDED
 
         # --- Step 3: Link Shades defined via separate constructions (like Construction:WithShading) ---
         # This part assumes constructions marked 'simple' with no 'data' link shades
-        print("\n--- DEBUG: Processing Step 3: Linking Shades ---") # DEBUG PRINT
+        # print("\n--- DEBUG: Processing Step 3: Linking Shades ---") # DEBUG PRINT
         keys_to_delete = [] # Track shade-defining constructions to remove later
         for construction_id, construction_data in self._constructions_glazing_cache.items():
             # Check if it's a 'simple' type construction NOT already processed as a simple glazing system itself
@@ -459,11 +464,11 @@ class GlazingParser:
                             break # Assume first non-shade is the base
                         else:
                              # Layer is not a shade and didn't match a processed construction directly or via derivation
-                             print(f"DEBUG:   Layer '{layer_name}' is not a shade and did not match a processed construction (derived: '{potential_base_id_derived}').") # DEBUG PRINT
-
+                             # print(f"DEBUG:   Layer '{layer_name}' is not a shade and did not match a processed construction (derived: '{potential_base_id_derived}').") # DEBUG PRINT
+                             pass
 
                 if base_construction_id and current_shades_info:
-                    print(f"DEBUG:   Attempting to link shades { [s['Name'] for s in current_shades_info] } to base: {base_construction_id}") # DEBUG PRINT
+                    # print(f"DEBUG:   Attempting to link shades { [s['Name'] for s in current_shades_info] } to base: {base_construction_id}") # DEBUG PRINT
                     # Add/Update shading layers in the base construction
                     if base_construction_id in processed_data:
                         # Merge shades, avoiding duplicates if necessary
@@ -474,20 +479,18 @@ class GlazingParser:
                         # Mark this shade-defining construction for removal
                         keys_to_delete.append(construction_id)
 
-
         # Clean up: Remove the constructions that only defined shades
         # (We could keep them if needed, but they aren't glazing systems themselves)
         # for key in keys_to_delete:
         #     if key in processed_data: # Should not happen based on logic, but safe check
         #         del processed_data[key]
 
-
         # --- NEW Step 4: Transfer shades based on naming convention ---
-        print(f"\nDEBUG: Calling Step 4 (Transferring Shades). Data size before: {len(processed_data)}") # DEBUG
+        # print(f"\nDEBUG: Calling Step 4 (Transferring Shades). Data size before: {len(processed_data)}") # DEBUG
         # Perform transfer *before* filtering based on missing sim properties
         try:
             processed_data_after_transfer = self._transfer_shades_based_on_naming(processed_data)
-            print(f"DEBUG: Data size after Step 4 (Transferring Shades): {len(processed_data_after_transfer)}") # DEBUG ADDED
+            # print(f"DEBUG: Data size after Step 4 (Transferring Shades): {len(processed_data_after_transfer)}") # DEBUG ADDED
         except Exception as e:
              print(f"ERROR: Exception during Step 4 (Transferring Shades): {e}")
              import traceback
@@ -495,14 +498,13 @@ class GlazingParser:
              processed_data_after_transfer = processed_data # Fallback to pre-transfer data on error
         # --- End NEW Step 4 ---
 
-
         # --- Step 5 (was Step 4): Filter out detailed constructions missing simulation properties ---
-        print(f"\n--- DEBUG: Processing Step 5 (Filtering Results) ---") # Update step number
+        # print(f"\n--- DEBUG: Processing Step 5 (Filtering Results) ---") # Update step number
         # Use the data *after* transfer for filtering
         constructions_to_remove = []
         # Iterate through the data *after* transfer
         for construction_id, data in processed_data_after_transfer.items():
-            print(f"DEBUG:   Filtering check for ID: '{construction_id}'") # DEBUG ADDED
+            # print(f"DEBUG:   Filtering check for ID: '{construction_id}'") # DEBUG ADDED
             is_detailed = data.get('type') == 'Detailed'
             if is_detailed:
                 system_details = data.get('system_details', {})
@@ -514,14 +516,14 @@ class GlazingParser:
                 # Check the 'shading_layers' status *after* potential transfer
                 has_shading = bool(data.get('shading_layers'))
                 if (u_value is None or shgc is None or vt is None) and not has_shading:
-                    print(f"DEBUG:     -> Marking for removal (Missing props, no shades): {construction_id}") # DEBUG ADDED
+                    # print(f"DEBUG:     -> Marking for removal (Missing props, no shades): {construction_id}") # DEBUG ADDED
                     constructions_to_remove.append(construction_id)
                 elif (u_value is None or shgc is None or vt is None) and has_shading:
-                    print(f"DEBUG:     -> Keeping (Missing props, but has shades): {construction_id}") # DEBUG ADDED
+                    # print(f"DEBUG:     -> Keeping (Missing props, but has shades): {construction_id}") # DEBUG ADDED
                     pass
                 else:
-                    print(f"DEBUG:     -> Keeping (Has props or is Simple): {construction_id}") # DEBUG ADDED
-
+                    # print(f"DEBUG:     -> Keeping (Has props or is Simple): {construction_id}") # DEBUG ADDED
+                    pass
 
         # Remove from the data *after* transfer
         final_filtered_data = processed_data_after_transfer.copy()
@@ -532,11 +534,10 @@ class GlazingParser:
         # --- End Step 5 (Filtering) ---
 
         self.parsed_glazing_data = final_filtered_data # Assign the final filtered data
-        print(f"\n--- DEBUG: Final Parsed Glazing Data Keys: {list(self.parsed_glazing_data.keys())} ---") # DEBUG ADDED
+        # print(f"\n--- DEBUG: Final Parsed Glazing Data Keys: {list(self.parsed_glazing_data.keys())} ---") # DEBUG ADDED
         return self.parsed_glazing_data # Correct indentation
 
     # Removed update_system_properties_from_eio method as properties are now read from eplustbl.csv
-
 
 # Example Usage (if run directly or for testing)
 if __name__ == '__main__':

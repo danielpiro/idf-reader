@@ -405,7 +405,7 @@ class ScheduleExtractor:
                     i += 1
             else:
                 # Unknown field, skip it
-                # print(f"Info: Skipping unrecognized field in schedule rules: '{field}'")
+                # Info: Skipping unrecognized field in schedule rules: '{field}'
                 i += 1
 
         # Process the last block after the loop finishes
