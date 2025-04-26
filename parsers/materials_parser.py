@@ -304,6 +304,33 @@ class MaterialsParser:
         """
         return self.constructions
     
+    def calculate_construction_mass_per_area(self, construction_id: str) -> float:
+        """
+        Calculate the total mass per square meter for a given construction.
+
+        Args:
+            construction_id: The ID of the construction.
+
+        Returns:
+            float: The total mass per square meter (kg/m²).
+        """
+        construction = self.constructions.get(construction_id)
+        if not construction:
+            print(f"{Fore.YELLOW}Warning: Construction '{construction_id}' not found for mass calculation.{Style.RESET_ALL}")
+            return 0.0
+
+        total_mass_per_area = 0.0
+        for layer_id in construction.material_layers:
+            material = self.materials.get(layer_id)
+            if material:
+                # Mass per area for this layer = density * thickness
+                layer_mass = material.density * material.thickness
+                total_mass_per_area += layer_mass
+            else:
+                # This warning should ideally not appear if process_idf ran correctly
+                print(f"{Fore.YELLOW}Warning: Material '{layer_id}' not found while calculating mass for construction '{construction_id}'.{Style.RESET_ALL}")
+
+        return total_mass_per_area
     def calculate_construction_properties(self, construction_id: str) -> Dict[str, float]:
         """
         Calculate properties for a specific construction.

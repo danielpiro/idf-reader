@@ -18,10 +18,11 @@ init(autoreset=True)
 
 def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
                              output_filename: str, total_floor_area: float = 0.0,
-                             project_name: str = "N/A", run_id: str = "N/A") -> bool:
+                             project_name: str = "N/A", run_id: str = "N/A",
+                             wall_mass_per_area: float = 0.0) -> bool: # Changed parameter name
     """
     Generate a PDF report with area information, including a header.
-    
+
     Args:
         area_id (str): The area ID for the report.
         area_data (List[Dict[str, Any]]): List of area data rows for this area.
@@ -29,6 +30,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
         total_floor_area (float): The total floor area for this area.
         project_name (str): Name of the project.
         run_id (str): Identifier for the current run.
+        wall_mass_per_area (float): Mass per area (kg/m²) of the largest external wall's construction.
 
     Returns:
         bool: True if report generation was successful, False otherwise.
@@ -70,11 +72,11 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
         )
         story.append(Paragraph(f"Area {area_id} - Thermal Properties Report", title_style))
         
-        # Preprocess data to merge constructions with _Rev suffix
-        merged_data = merge_reversed_constructions(area_data)
+        # Data is now pre-merged before calling this function
+        merged_data = area_data # Use the pre-merged data passed in
         
-        # Calculate wall mass (placeholder for now)
-        wall_mass = 0.0  # This will need actual wall mass calculation implementation later
+        # Wall mass is now calculated and passed in
+        # wall_mass = 0.0 # Removed placeholder calculation
         
         # Generate summary section as a card (Table)
         summary_content_style = ParagraphStyle(
@@ -91,7 +93,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
         <b>Total Area:</b> {total_floor_area:.2f} m²<br/>
         <b>Location:</b> Unknown<br/>
         <b>Directions:</b> N, S, E, W<br/>
-        <b>Wall Mass:</b> {wall_mass:.2f} kg
+        <b>Largest Ext. Wall Mass:</b> {wall_mass_per_area:.2f} kg/m²
         """
         
         summary_paragraph = Paragraph(summary_text, summary_content_style)
@@ -136,8 +138,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
             Paragraph("Element type", header_style),
             Paragraph("Area", header_style),
             Paragraph("U-Value", header_style),
-            Paragraph("Area * U-Value", header_style),
-            Paragraph("Area loss", header_style)
+            Paragraph("Area * U-Value", header_style)
         ]
         
         # Prepare table data
@@ -177,7 +178,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
             u_value_to_format = row.get('weighted_u_value', row.get('u_value', 0.0))
             u_value = f"{u_value_to_format:.3f}"
             area_u_value = f"{row['area_u_value']:.2f}"
-            area_loss_value = f"{row['area_loss']:.2f}"
+            # area_loss_value = f"{row['area_loss']:.2f}" # Removed as area_loss is no longer used
             
             # Add all cells to row
             table_data.append([
@@ -186,8 +187,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
                 element_type_cell,
                 area_value,
                 u_value,
-                area_u_value,
-                area_loss_value
+                area_u_value
             ])
         
         # Create the table with carefully adjusted column widths
@@ -197,8 +197,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
             3.0*cm,     # Element type
             2.3*cm,     # Area
             2.3*cm,     # U-Value
-            3.0*cm,     # Area * U-Value
-            2.3*cm      # Area loss
+            3.0*cm      # Area * U-Value
         ]
         
         # Create table with data and column widths
@@ -239,71 +238,115 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
         traceback.print_exc()
         return False
 
-def merge_reversed_constructions(area_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+from typing import Optional # Add Optional for type hinting
+
+def merge_reversed_constructions(area_data: List[Dict[str, Any]],
+                                 materials_parser: Optional[Any] = None, # Use 'Any' to avoid circular import
+                                 surfaces: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """
     Merge constructions with _Rev suffix with their base construction.
-    
+    Skips merging for glazing elements if materials_parser and surfaces are provided.
+
     Args:
-        area_data: List of area data rows
-        
+        area_data: List of area data rows.
+        materials_parser: Instance of MaterialsParser to determine element type (optional).
+        surfaces: Dictionary of surface data (optional, required if materials_parser is provided).
+
     Returns:
-        List[Dict[str, Any]]: Merged area data
+        List[Dict[str, Any]]: Merged area data.
     """
-    # Group data by zone and construction base name (without _Rev)
+    if not materials_parser or not surfaces:
+        print(f"{Fore.YELLOW}Warning: MaterialsParser or surfaces not provided to merge_reversed_constructions. Glazing check skipped.{Style.RESET_ALL}")
+
     merged_dict = {}
-    
+
     for row in area_data:
         zone = row['zone']
         construction = row['construction']
-        
-        # Check if construction has _Rev or _Reversed suffix
+        element_type = row.get('element_type', 'Unknown') # Get existing type if available
+
+        # Determine base construction name
         base_construction = construction
-        
+        is_reversed = False
         rev_patterns = [r'_Rev$', r'_Reversed$', r'_rev$', r'_reversed$']
         for pattern in rev_patterns:
             if re.search(pattern, construction):
                 base_construction = re.sub(pattern, '', construction)
+                is_reversed = True
                 break
-        
-        # Create key to identify unique combinations
-        key = f"{zone}_{base_construction}"
-        
+
+        # --- Skip merging for Glazing if parser available ---
+        should_merge = True
+        if materials_parser and surfaces:
+            try:
+                # Determine element type accurately using the parser
+                # Ensure materials_parser is not None before calling its method
+                current_element_type = materials_parser._get_element_type(construction, surfaces)
+                if current_element_type == "Glazing":
+                    should_merge = False
+                    # Use original construction name if not merging glazing
+                    base_construction = construction
+                    is_reversed = False # Treat as non-reversed if not merging
+            except Exception as e:
+                print(f"{Fore.YELLOW}Warning: Error checking element type for '{construction}' in merge: {e}{Style.RESET_ALL}")
+        # --- End Glazing Check ---
+
+        # Create key based on whether we are merging or not
+        # If not merging (glazing), use the original construction name in the key
+        key_construction = base_construction if (should_merge and is_reversed) else construction
+        key = f"{zone}_{key_construction}"
+
         if key not in merged_dict:
-            # First time seeing this combination
+            # First time seeing this combination (or it's glazing we're not merging)
             merged_dict[key] = row.copy()
-            merged_dict[key]['construction'] = base_construction  # Use base name
-        else:
-            # Merge with existing entry
+            # Ensure the construction name in the stored dict is the one used for the key
+            merged_dict[key]['construction'] = key_construction
+            # Remove area_loss if it exists
+            merged_dict[key].pop('area_loss', None)
+        elif should_merge and is_reversed:
+            # Merge with existing entry (only if it's a reversed non-glazing construction)
             existing = merged_dict[key]
             existing['area'] += row['area']
             existing['area_u_value'] += row['area_u_value']
-            existing['area_loss'] += row['area_loss']
-            # Also merge weighted_u_value if present, recalculate later
-            if 'weighted_u_value' in row:
-                 # Temporarily store the sum, will divide by total area later
-                 existing['weighted_u_value'] = existing.get('weighted_u_value', 0.0) * (existing['area'] - row['area']) + row['weighted_u_value'] * row['area']
+            # Area loss is being removed, so no need to merge it.
+            # existing['area_loss'] += row['area_loss'] # Removed
+
+            # Recalculate weighted U-value based on merged area and area*U-value
+            # Note: This assumes 'u_value' or 'weighted_u_value' exists in the row.
+            # A simple weighted average calculation:
+            current_u = row.get('weighted_u_value', row.get('u_value', 0.0))
+            existing_u = existing.get('weighted_u_value', existing.get('u_value', 0.0))
+            new_total_area = existing['area'] # Area already updated above
+            # Update area_u_value first
+            # existing['area_u_value'] += row['area_u_value'] # Already done above
+
+            # Weighted U-value calculation needs care. Let's recalculate from total area_u_value / total_area later.
+            # For now, just ensure the field exists if either input had it.
+            if 'weighted_u_value' in row or 'weighted_u_value' in existing:
+                 existing['weighted_u_value'] = existing.get('weighted_u_value', 0.0) # Placeholder, recalculated below
+            # Remove area_loss if it exists
+            existing.pop('area_loss', None)
 
 
-    # --- Recalculate weighted U-value after merging ---
+    # --- Final processing and U-value recalculation ---
     final_list = []
     for key, merged_row in merged_dict.items():
         total_area = merged_row.get('area', 0.0)
-        # Check if weighted_u_value was summed during merge
-        if 'weighted_u_value' in merged_row and total_area > 0:
-             # If it looks like a sum (product of area*uvalue), divide by total area
-             # This assumes the temporary value stored was the sum of area*weighted_u_value
-             # A better approach might be to recalculate from area_u_value / area
-             merged_row['weighted_u_value'] = merged_row['area_u_value'] / total_area
-        elif 'weighted_u_value' not in merged_row and total_area > 0:
-             # If weighted_u_value wasn't present initially, calculate it now
-             merged_row['weighted_u_value'] = merged_row['area_u_value'] / total_area
-        elif 'weighted_u_value' not in merged_row:
+        total_area_u_value = merged_row.get('area_u_value', 0.0)
+
+        # Recalculate weighted U-value accurately
+        if total_area > 0:
+            merged_row['weighted_u_value'] = total_area_u_value / total_area
+        elif 'u_value' in merged_row: # Fallback if area is somehow zero
+             merged_row['weighted_u_value'] = merged_row['u_value']
+        else:
              merged_row['weighted_u_value'] = 0.0 # Ensure field exists
+
+        # Remove area_loss just in case it slipped through
+        merged_row.pop('area_loss', None)
 
         final_list.append(merged_row)
 
-
-    # Convert back to list
     return final_list
 
 def format_construction_name(construction: str) -> str:
@@ -498,24 +541,82 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                 
                 area_table_data[area_id] = rows
         
-        # Generate a report for each area
-        successes = []
+        # --- Merge reversed constructions (excluding glazing) ---
+        merged_area_table_data = {}
         for area_id, rows in area_table_data.items():
-            output_file = output_path / f"area_{area_id}.pdf"
-            
-            # Get the correct total floor area for the summary
+            if materials_parser and surfaces:
+                 merged_area_table_data[area_id] = merge_reversed_constructions(rows, materials_parser, surfaces)
+            else:
+                 # Fallback if parser/surfaces not available
+                 merged_area_table_data[area_id] = merge_reversed_constructions(rows)
+
+
+        # --- Generate a report for each area ---
+        successes = []
+        for area_id, merged_rows in merged_area_table_data.items():
+            # Get total floor area for this area
             total_floor_area = area_floor_totals.get(area_id, 0.0)
-            
+
+            # --- Calculate Wall Mass Per Area ---
+            wall_mass_per_area = 0.0 # Initialize mass per area
+            largest_ext_wall_area = 0.0
+            largest_ext_wall_construction = None
+
+            # Find the largest external wall in this area's data
+            for row in merged_rows:
+                # Ensure element_type exists and is checked case-insensitively
+                element_type = row.get('element_type', '').lower()
+                if element_type == 'external wall':
+                    current_area = row.get('area', 0.0)
+                    if current_area > largest_ext_wall_area:
+                        largest_ext_wall_area = current_area # Keep track of largest area for identification
+                        largest_ext_wall_construction = row.get('construction')
+
+            # Calculate mass per area if the largest wall was found and parser is available
+            if largest_ext_wall_construction and materials_parser:
+                try:
+                    # Replicate the mass calculation logic here, including the conductivity check
+                    construction_data = materials_parser.constructions.get(largest_ext_wall_construction)
+                    if construction_data:
+                        calculated_mass_per_area = 0.0
+                        found_low_conductivity = False # Flag for the conductivity rule
+                        for layer_id in construction_data.material_layers:
+                            material_data = materials_parser.materials.get(layer_id)
+                            if material_data:
+                                layer_mass = material_data.density * material_data.thickness
+                                # Apply the conductivity rule specifically for external walls
+                                if not found_low_conductivity: # Only apply to the first low-conductivity layer found
+                                    if material_data.conductivity < 0.2 and material_data.conductivity != 0: # Check conductivity is < 0.2 but not zero
+                                        layer_mass /= 2
+                                        found_low_conductivity = True # Set flag so rule is only applied once per construction
+                                calculated_mass_per_area += layer_mass
+                        wall_mass_per_area = calculated_mass_per_area
+                    else:
+                         print(f"{Fore.YELLOW}Warning: Construction data not found for '{largest_ext_wall_construction}' during mass calculation.{Style.RESET_ALL}")
+
+                except Exception as e:
+                    print(f"{Fore.YELLOW}Warning: Could not calculate wall mass per area for area {area_id}, construction '{largest_ext_wall_construction}': {e}{Style.RESET_ALL}")
+                    import traceback
+                    traceback.print_exc() # Add traceback for debugging calculation errors
+            elif largest_ext_wall_construction:
+                 print(f"{Fore.YELLOW}Warning: MaterialsParser not available to calculate wall mass per area for area {area_id}.{Style.RESET_ALL}")
+            # --- End Wall Mass Per Area Calculation ---
+
+            # Define output filename
+            output_file = output_path / f"area_{area_id}.pdf"
+
+            # Generate the PDF report for this area, passing the calculated wall_mass_per_area
             success = generate_area_report_pdf(
-                area_id=area_id, 
-                area_data=rows,
+                area_id=area_id,
+                area_data=merged_rows, # Use merged rows
                 output_filename=str(output_file),
                 total_floor_area=total_floor_area,
                 project_name=project_name,
-                run_id=run_id
+                run_id=run_id,
+                wall_mass_per_area=wall_mass_per_area # Pass calculated mass per area
             )
             successes.append(success)
-            
+
             if success:
                 print(f"{Fore.GREEN}Successfully generated area report for Area {area_id}: {output_file}{Style.RESET_ALL}")
             else:
