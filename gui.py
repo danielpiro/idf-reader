@@ -146,8 +146,7 @@ class ProcessingManager:
             load_extractor.process_idf(idf)
             materials_extractor.process_idf(idf)
             area_parser.process_idf(idf)
-            # Parse glazing data
-            glazing_parser.parse_glazing_data()
+            # Glazing data was already parsed before AreaParser initialization
 
             self.update_progress(0.6)
             self.update_status("Extracting processed data...")

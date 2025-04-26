@@ -315,41 +315,54 @@ class DataLoader:
             return
             
         self._constructions_cache.clear()
-        
+        self._constructions_glazing_cache.clear() # Clear glazing cache too
+
         for construction in self._idf.idfobjects['CONSTRUCTION']:
             construction_id = str(construction.Name)
-            
+
             # Get material layers
             layer_fields = [f for f in construction.fieldnames if f.startswith('Layer_')]
             material_layers = [
                 str(getattr(construction, field, ""))
                 for field in layer_fields
-                if getattr(construction, field, "") 
+                if getattr(construction, field, "")
             ]
             outside_layer = str(getattr(construction, "Outside_Layer", ""))
-            if outside_layer:  # Only insert if the Outside_Layer exists and is not empty
-                material_layers.insert(0, outside_layer)  # Insert Outside_Layer at the beginning
-            
+            if outside_layer:
+                material_layers.insert(0, outside_layer)
+
             if construction_id == 'LinearBridgingConstruction' or construction_id == 'IRTSurface':
-                # Skip these special constructions
                 continue
 
-            if safe_float(getattr(construction, "heatcapacity", 0.0)) == 0.0:
+            # Check if the construction uses any window-specific materials
+            is_glazing_construction = False
+            for layer_name in material_layers:
+                if (layer_name in self._window_glazing_cache or
+                    layer_name in self._window_gas_cache or
+                    layer_name in self._window_shade_cache or
+                    layer_name in self._window_simple_glazing_cache):
+                    is_glazing_construction = True
+                    break
+
+            if is_glazing_construction:
+                 # Add to glazing cache; type will be determined by the GlazingParser
                 self._constructions_glazing_cache[construction_id] = {
                     'id': construction_id,
-                    'type' : 'simple' if 'simple' in construction_id.lower() else 'detailed',
                     'name': construction_id,
                     'material_layers': material_layers,
-                    'raw_object': construction  # Store the raw object for parsers
+                    'raw_object': construction
+                    # 'type' key removed
                 }
+                # Continue to ensure it's only in the glazing cache, not the general one
                 continue
-            # Cache raw construction data
-            self._constructions_cache[construction_id] = {
-                'id': construction_id,
-                'name': construction_id,
-                'material_layers': material_layers,
-                'raw_object': construction  # Store the raw object for parsers
-            }
+            else:
+                # Cache raw non-glazing construction data
+                self._constructions_cache[construction_id] = {
+                    'id': construction_id,
+                    'name': construction_id,
+                    'material_layers': material_layers,
+                    'raw_object': construction
+                }
     
     def _cache_schedules(self) -> None:
         """Cache raw schedule data"""

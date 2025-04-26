@@ -323,281 +323,244 @@ class GlazingParser:
         processed_data = {}
 
         # --- Step 1: Process Simple Glazing Systems ---
-        # Simple glazing systems already have U/SHGC/VT defined in the IDF object
+        # Identify constructions whose primary layer is a SimpleGlazingSystem material
         for construction_id, construction_data in self._constructions_glazing_cache.items():
-            if construction_data.get('type') == 'simple':
-                simple_glazing_key = 'Simple ' + construction_id
-                if simple_glazing_key in self._window_simple_glazing_cache:
-                    simple_data = self._window_simple_glazing_cache[simple_glazing_key]
-                    processed_data[construction_id] = {
-                        'id': construction_id,
-                        'name': construction_id,
-                        'type': 'Simple',
-                        'system_details': {
-                            'Name': construction_id,
-                            'Type': 'Simple Glazing',
-                            'Thickness': None, # Not available for simple glazing
-                            'U-Value': simple_data.get('u_factor'),
-                            'VT': simple_data.get('visible_transmittance'),
-                            'SHGC': simple_data.get('shgc')
-                        },
-                        'glazing_layers': [],
-                        'shading_layers': [],
-                        'raw_object': construction_data.get('raw_object')
-                    }
-                # else: It might be a shade control definition, handle later
+            material_layers = construction_data.get('material_layers', [])
+            if not material_layers:
+                continue # Skip constructions with no layers
 
-        # else: It might be a shade control definition, handle later
+            first_layer_name = material_layers[0]
+            if first_layer_name in self._window_simple_glazing_cache:
+                simple_data = self._window_simple_glazing_cache[first_layer_name]
+                processed_data[construction_id] = {
+                    'id': construction_id,
+                    'name': construction_id,
+                    'type': 'Simple', # Assign type here
+                    'system_details': {
+                        'Name': construction_id,
+                        'Type': 'Simple Glazing',
+                        'Thickness': None, # Not available for simple glazing
+                        'U-Value': simple_data.get('u_factor'),
+                        'VT': simple_data.get('visible_transmittance'),
+                        'SHGC': simple_data.get('shgc')
+                    },
+                    'glazing_layers': [], # Simple systems don't list layers
+                    'shading_layers': [], # Shades handled later if present
+                    'raw_object': construction_data.get('raw_object')
+                }
 
         # --- DEBUG: Print keys after Step 1 ---
-        # print(f"\n--- DEBUG: Processed Data after Step 1 (Simple Glazing): {list(processed_data.keys())} ---") # DEBUG ADDED
-        # --- Step 2: Process Detailed Glazing Constructions ---
-        # print("\n--- DEBUG: Processing Step 2 (Detailed Glazing) ---") # DEBUG ADDED
-        for construction_id, construction_data in self._constructions_glazing_cache.items():
-             # Skip simple ones already processed or potential shade controls
-            if construction_data.get('type') == 'simple':
-                 continue
+        # print(f"\n--- DEBUG: Processed Data after Step 1 (Simple Glazing): {list(processed_data.keys())} ---")
 
+        # --- Step 2: Process Detailed Glazing Constructions ---
+        # Process constructions not already identified as Simple
+        # print("\n--- DEBUG: Processing Step 2 (Detailed Glazing) ---")
+        for construction_id, construction_data in self._constructions_glazing_cache.items():
+            # Skip if already processed as Simple
+            if construction_id in processed_data:
+                continue
+
+            material_layers = construction_data.get('material_layers', [])
             glazing_layers_details = []
             shading_layers_details = []
             total_thickness = 0.0
-            # Note: Calculating U-Value, VT, SHGC for detailed constructions requires complex physics
-            # For now, we'll extract layer info but leave system values as None/TBD
+            has_glazing_or_gas = False # Flag to check if it's a detailed glazing construction
 
-            for layer_name in construction_data.get('material_layers', []):
+            for layer_name in material_layers:
                 if layer_name in self._window_glazing_cache:
                     glazing = self._window_glazing_cache[layer_name]
                     thickness = safe_float(glazing.get('thickness'))
                     total_thickness += thickness
                     glazing_layers_details.append({
-                        'Name': layer_name,
-                        'Type': 'Glazing',
-                        'Thickness': thickness,
+                        'Name': layer_name, 'Type': 'Glazing', 'Thickness': thickness,
                         'Conductivity': safe_float(glazing.get('conductivity')),
                         'VT': safe_float(glazing.get('visible_transmittance')),
-                        'ST': safe_float(glazing.get('solar_transmittance')) # Solar Transmittance
+                        'ST': safe_float(glazing.get('solar_transmittance'))
                     })
+                    has_glazing_or_gas = True
                 elif layer_name in self._window_gas_cache:
                     gas = self._window_gas_cache[layer_name]
                     thickness = safe_float(gas.get('thickness'))
                     total_thickness += thickness
                     glazing_layers_details.append({
-                        'Name': layer_name,
-                        'Type': f'Gas ({gas.get("gas_type", "Unknown")})',
-                        'Thickness': thickness,
-                        'Conductivity': None, # Gas conductivity is complex
-                        'VT': None,
-                        'ST': None
+                        'Name': layer_name, 'Type': f'Gas ({gas.get("gas_type", "Unknown")})',
+                        'Thickness': thickness, 'Conductivity': None, 'VT': None, 'ST': None
                     })
+                    has_glazing_or_gas = True
                 elif layer_name in self._window_shade_cache:
                     shade = self._window_shade_cache[layer_name]
                     thickness = safe_float(shade.get('thickness'))
-                    # Note: Shades contribute to overall system but aren't typically part of thickness calc
                     shading_layers_details.append({
-                        'Name': layer_name,
-                        'Thickness': thickness,
+                        'Name': layer_name, 'Thickness': thickness,
                         'Conductivity': safe_float(shade.get('conductivity')),
                         'Transmittance': safe_float(shade.get('solar_transmittance')),
                         'Reflectivity': safe_float(shade.get('solar_reflectance'))
-                        # Position will be added later from control cache
-                     })
+                        # Position added later
+                    })
+                # else: It's some other material type, ignore for glazing details
 
-            # Only add if it contains glazing or gas layers (is actually a window/glazing construction)
-            if glazing_layers_details:
-                 # print(f"DEBUG:   Processing Detailed Construction ID: '{construction_id}'") # DEBUG ADDED
-                 # --- Get properties from simulation output if available ---
-                 sim_props = self._sim_properties.get(construction_id, {})
-                 # print(f"DEBUG:     -> Retrieved sim_props: {sim_props}") # DEBUG ADDED
-                 # if not sim_props: # Removed debug print for no match
-                 #     # print(f"DEBUG:   -> No match found in sim properties for '{construction_id}'")
-                 #     pass
-                 u_value_sim = sim_props.get('U-Value')
-                 shgc_sim = sim_props.get('SHGC')
-                 vt_sim = sim_props.get('VT')
-                 # ---
+            # Only add if it contains actual glazing or gas layers
+            if has_glazing_or_gas:
+                # print(f"DEBUG:   Processing Detailed Construction ID: '{construction_id}'")
+                sim_props = self._sim_properties.get(construction_id, {})
+                u_value_sim = sim_props.get('U-Value')
+                shgc_sim = sim_props.get('SHGC')
+                vt_sim = sim_props.get('VT')
 
-                 processed_data[construction_id] = {
+                processed_data[construction_id] = {
                     'id': construction_id,
                     'name': construction_id,
-                    'type': 'Detailed',
+                    'type': 'Detailed', # Assign type here
                     'system_details': {
                         'Name': construction_id,
                         'Type': 'Detailed Glazing',
                         'Thickness': total_thickness if total_thickness > 0 else None,
-                        'U-Value': u_value_sim, # Use value from simulation
-                        'VT': vt_sim,           # Use value from simulation
-                        'SHGC': shgc_sim        # Use value from simulation
+                        'U-Value': u_value_sim,
+                        'VT': vt_sim,
+                        'SHGC': shgc_sim
                     },
                     'glazing_layers': glazing_layers_details,
-                    'shading_layers': shading_layers_details, # Store associated shades if any
-                    'raw_object': construction_data.get('raw_object'),
-                    # NOTE: U-Value, VT, SHGC are now sourced from simulation output (eplustbl.csv)
+                    'shading_layers': shading_layers_details,
+                    'raw_object': construction_data.get('raw_object')
                 }
 
         # --- DEBUG: Print after Step 2 ---
-        # print(f"\n--- DEBUG: Processed Data after Step 2 (Detailed Glazing): {list(processed_data.keys())} ---") # DEBUG ADDED
+        # print(f"\n--- DEBUG: Processed Data after Step 2 (Detailed Glazing): {list(processed_data.keys())} ---")
 
-        # --- Step 3: Link Shades defined via separate constructions (like Construction:WithShading) ---
-        # This part assumes constructions marked 'simple' with no 'data' link shades
-        # print("\n--- DEBUG: Processing Step 3: Linking Shades ---") # DEBUG PRINT
+        # --- Step 3: Link Shades from separate constructions ---
+        # Identify constructions NOT processed yet (likely shade-only definitions)
+        # print("\n--- DEBUG: Processing Step 3: Linking Shades ---")
         keys_to_delete = [] # Track shade-defining constructions to remove later
         for construction_id, construction_data in self._constructions_glazing_cache.items():
-            # Check if it's a 'simple' type construction NOT already processed as a simple glazing system itself
-            if construction_data.get('type') == 'simple' and construction_id not in processed_data:
-                # This might be a construction defining shades for another construction
-                current_shades_info = []
-                base_construction_id = None
-                material_layers = construction_data.get('material_layers', [])
+            # Skip if already processed as Simple or Detailed
+            if construction_id in processed_data:
+                continue
 
-                for layer_name in material_layers:
-                    if layer_name in self._window_shade_cache:
-                        shade = self._window_shade_cache[layer_name]
-                        current_shades_info.append({
-                            'Name': layer_name,
-                            'Thickness': safe_float(shade.get('thickness')),
-                            'Conductivity': safe_float(shade.get('conductivity')),
-                            'Transmittance': safe_float(shade.get('solar_transmittance')),
-                            'Reflectivity': safe_float(shade.get('solar_reflectance'))
-                            # Position will be added later from control cache
-                         })
-                    # Check if layer is a known base construction (simple OR detailed)
-                    else:
-                        # Attempt to derive base construction ID from material name
-                        # Assumes construction name = material name without "Simple " prefix
-                        potential_base_id_derived = None
-                        if layer_name.startswith("Simple "):
-                            potential_base_id_derived = layer_name[len("Simple "):]
+            # This might be a construction defining shades for another construction
+            current_shades_info = []
+            base_construction_id = None
+            material_layers = construction_data.get('material_layers', [])
+            potential_base_layer = None
 
-                        if potential_base_id_derived and potential_base_id_derived in processed_data:
-                            # Found base construction via derived ID
-                            base_construction_id = potential_base_id_derived
-                            break # Assume first non-shade is the base
-                        elif layer_name in processed_data:
-                            # Found base construction directly by layer name (e.g., for detailed constructions)
-                            base_construction_id = layer_name
-                            break # Assume first non-shade is the base
-                        else:
-                             # Layer is not a shade and didn't match a processed construction directly or via derivation
-                             # print(f"DEBUG:   Layer '{layer_name}' is not a shade and did not match a processed construction (derived: '{potential_base_id_derived}').") # DEBUG PRINT
-                             pass
+            for layer_name in material_layers:
+                if layer_name in self._window_shade_cache:
+                    shade = self._window_shade_cache[layer_name]
+                    current_shades_info.append({
+                        'Name': layer_name,
+                        'Thickness': safe_float(shade.get('thickness')),
+                        'Conductivity': safe_float(shade.get('conductivity')),
+                        'Transmittance': safe_float(shade.get('solar_transmittance')),
+                        'Reflectivity': safe_float(shade.get('solar_reflectance'))
+                        # Position added later
+                    })
+                elif not potential_base_layer: # Assume first non-shade is the base
+                    potential_base_layer = layer_name
 
-                if base_construction_id and current_shades_info:
-                    # print(f"DEBUG:   Attempting to link shades { [s['Name'] for s in current_shades_info] } to base: {base_construction_id}") # DEBUG PRINT
-                    # Add/Update shading layers in the base construction
-                    if base_construction_id in processed_data:
-                        # Merge shades, avoiding duplicates if necessary
-                        existing_shades = {s['Name'] for s in processed_data[base_construction_id]['shading_layers']}
-                        for shade_info in current_shades_info:
-                            if shade_info['Name'] not in existing_shades:
-                                processed_data[base_construction_id]['shading_layers'].append(shade_info)
-                        # Mark this shade-defining construction for removal
-                        keys_to_delete.append(construction_id)
+            # Now, try to link the potential base layer to an existing processed construction
+            if potential_base_layer:
+                # Check if the potential base layer name directly matches a processed construction ID
+                if potential_base_layer in processed_data:
+                    base_construction_id = potential_base_layer
+                else:
+                    # Attempt to derive base construction ID (e.g., from "Simple X" material to "X" construction)
+                    potential_base_id_derived = None
+                    if potential_base_layer.startswith("Simple "):
+                         potential_base_id_derived = potential_base_layer[len("Simple "):]
+                    if potential_base_id_derived and potential_base_id_derived in processed_data:
+                        base_construction_id = potential_base_id_derived
 
-        # Clean up: Remove the constructions that only defined shades
-        # (We could keep them if needed, but they aren't glazing systems themselves)
+            # If we found a base and have shades, link them
+            if base_construction_id and current_shades_info:
+                # print(f"DEBUG:   Linking shades { [s['Name'] for s in current_shades_info] } from '{construction_id}' to base: '{base_construction_id}'")
+                if base_construction_id in processed_data:
+                    # Ensure 'shading_layers' key exists
+                    if 'shading_layers' not in processed_data[base_construction_id]:
+                        processed_data[base_construction_id]['shading_layers'] = []
+                    # Merge shades, avoiding duplicates
+                    existing_shades = {s['Name'] for s in processed_data[base_construction_id]['shading_layers']}
+                    for shade_info in current_shades_info:
+                        if shade_info['Name'] not in existing_shades:
+                            processed_data[base_construction_id]['shading_layers'].append(shade_info)
+                    # Mark this shade-defining construction for removal from the final dict if desired
+                    # keys_to_delete.append(construction_id) # Optional cleanup
+
+        # Optional: Clean up shade-defining constructions from processed_data
         # for key in keys_to_delete:
-        #     if key in processed_data: # Should not happen based on logic, but safe check
+        #     if key in processed_data:
         #         del processed_data[key]
 
-        # --- NEW Step 4: Transfer shades based on naming convention ---
-        # print(f"\nDEBUG: Calling Step 4 (Transferring Shades). Data size before: {len(processed_data)}") # DEBUG
-        # Perform transfer *before* filtering based on missing sim properties
+        # --- Step 4: Transfer shades based on naming convention ---
+        # print(f"\nDEBUG: Calling Step 4 (Transferring Shades). Data size before: {len(processed_data)}")
         try:
-            processed_data_after_transfer = self._transfer_shades_based_on_naming(processed_data)
-            # print(f"DEBUG: Data size after Step 4 (Transferring Shades): {len(processed_data_after_transfer)}") # DEBUG ADDED
+            # Modify processed_data in place or reassign
+            processed_data = self._transfer_shades_based_on_naming(processed_data)
+            # print(f"DEBUG: Data size after Step 4 (Transferring Shades): {len(processed_data)}")
         except Exception as e:
              print(f"ERROR: Exception during Step 4 (Transferring Shades): {e}")
              import traceback
              traceback.print_exc()
-             processed_data_after_transfer = processed_data # Fallback to pre-transfer data on error
-        # --- End NEW Step 4 ---
+             # Fallback: continue with potentially unchanged data
+        # --- End Step 4 ---
 
-        # --- NEW Step 5: Update Shading Position via Window Control Link ---
-        # print("\n--- DEBUG: Entering Step 5: Updating Shade Positions (New Logic) ---")
-        # print(f"--- DEBUG: Window Shading Control Cache Content: {list(self._window_shading_control_cache.keys())}") # Print keys only for brevity
-        # print(f"--- DEBUG: Windows Cache Content: {list(self._windows_cache.keys())}") # Print keys only for brevity
+        # --- Step 5: Update Shading Position via Window Control Link ---
+        # print("\n--- DEBUG: Entering Step 5: Updating Shade Positions ---")
         try:
-            # Keep track of constructions whose shades have been updated to avoid redundant work
             updated_constructions = set()
-
-            # Iterate through control objects as the source of position info
             for control_key, control_data in self._window_shading_control_cache.items():
-                shade_position = control_data.get('shading_type')
+                shade_position = control_data.get('shading_type') # e.g., 'InteriorShade'
                 window_names = control_data.get('window_names', [])
 
                 if not shade_position or not window_names:
-                    # print(f"--- DEBUG: Skipping control '{control_key}': Missing position ('{shade_position}') or window names ('{window_names}').")
                     continue
 
                 # print(f"--- DEBUG: Processing Control '{control_key}': Position='{shade_position}', Windows='{window_names}'")
 
-                # Process each window controlled by this object
                 for window_name in window_names:
                     window_data = self._windows_cache.get(window_name)
                     if not window_data:
-                        # print(f"--- DEBUG:   Window '{window_name}' (from control '{control_key}') not found in windows cache. Skipping.")
                         continue
 
-                    # Get the construction used by this window (could be base or shaded version)
                     window_construction_name = window_data.get('construction_name')
                     if not window_construction_name:
-                        # print(f"--- DEBUG:   Window '{window_name}' has no construction name. Skipping.")
                         continue
 
-                    # print(f"--- DEBUG:   Window '{window_name}' uses construction '{window_construction_name}'.")
-
-                    # Determine the corresponding base construction ID
-                    base_construction_id = None
+                    # Determine the base construction ID (handles cases where window uses "xxx - 2xxx")
+                    base_construction_id = window_construction_name # Default assumption
                     try:
-                        # Check if it follows the shaded pattern (e.g., "xxx - 2xxx")
                         prefix, suffix = window_construction_name.rsplit(' - ', 1)
                         if suffix.startswith('2') and len(suffix) == 4 and suffix.isdigit():
-                            # Derive base ID (e.g., "xxx - 1xxx")
                             base_suffix = '1' + suffix[1:]
-                            base_construction_id = f"{prefix} - {base_suffix}"
-                            # print(f"--- DEBUG:     Derived base construction ID '{base_construction_id}' from shaded '{window_construction_name}'.")
-                        else:
-                            # Assume window uses the base construction directly
-                            base_construction_id = window_construction_name
-                            # print(f"--- DEBUG:     Assuming '{window_construction_name}' is the base construction ID.")
+                            potential_base_id = f"{prefix} - {base_suffix}"
+                            # Check if this derived base ID actually exists in our processed data
+                            if potential_base_id in processed_data:
+                                base_construction_id = potential_base_id
+                            # else: stick with the original window_construction_name as base
                     except ValueError:
-                        # Doesn't follow "Prefix - Suffix" pattern, assume it's the base ID
-                        base_construction_id = window_construction_name
-                        # print(f"--- DEBUG:     Assuming '{window_construction_name}' (no suffix pattern) is the base construction ID.")
+                        pass # No " - " pattern, stick with original name
 
-                    # Check if this base construction exists in our processed data and hasn't been updated yet
-                    if base_construction_id in processed_data_after_transfer and base_construction_id not in updated_constructions:
-                        target_construction_data = processed_data_after_transfer[base_construction_id]
+                    # Update the position in the identified base construction
+                    if base_construction_id in processed_data and base_construction_id not in updated_constructions:
+                        target_construction_data = processed_data[base_construction_id]
                         if target_construction_data.get('shading_layers'):
-                            # print(f"--- DEBUG:     Updating position for shades in base construction '{base_construction_id}' to '{shade_position}'.")
-                            # Update position for ALL shade layers in this construction
+                            # print(f"--- DEBUG:     Updating position for shades in base '{base_construction_id}' to '{shade_position}'.")
                             for shade_layer in target_construction_data['shading_layers']:
-                                shade_layer['Position'] = shade_position
-                            updated_constructions.add(base_construction_id) # Mark as updated
-                        # else:
-                            # print(f"--- DEBUG:     Base construction '{base_construction_id}' found, but has no shading layers to update.")
-                    # elif base_construction_id in updated_constructions:
-                        # print(f"--- DEBUG:     Base construction '{base_construction_id}' already updated by another control. Skipping redundant update.")
-                    # else:
-                        # print(f"--- DEBUG:     Derived/Assumed base construction ID '{base_construction_id}' not found in processed data. Cannot update position.")
-
-            # print(f"--- DEBUG: Finished Step 5. Updated positions for constructions: {updated_constructions}")
+                                # Only update if not already set or is default
+                                if 'Position' not in shade_layer or shade_layer.get('Position') in [None, '-', 'Unknown']:
+                                     shade_layer['Position'] = shade_position
+                            updated_constructions.add(base_construction_id)
 
         except Exception as e_pos:
-            print(f"ERROR: Exception during Step 5 (Updating Shade Positions - New Logic): {e_pos}")
+            print(f"ERROR: Exception during Step 5 (Updating Shade Positions): {e_pos}")
             import traceback
             traceback.print_exc()
-            # Continue with potentially incomplete positions
+        # --- End Step 5 ---
 
-        # --- End NEW Step 5 ---
-
-        # --- Step 6 (was Step 5): Filter out detailed constructions missing simulation properties ---
-        # print(f"\n--- DEBUG: Processing Step 6 (Filtering Results) ---") # Update step number
-        # Use the data *after* transfer and position update for filtering
+        # --- Step 6: Filter out detailed constructions missing simulation properties ---
+        # print(f"\n--- DEBUG: Processing Step 6 (Filtering Results) ---")
         constructions_to_remove = []
-        # Iterate through the data *after* transfer and position update
-        for construction_id, data in processed_data_after_transfer.items():
-            # print(f"DEBUG:   Filtering check for ID: '{construction_id}'") # DEBUG ADDED
+        # Iterate through the potentially modified processed_data
+        for construction_id, data in processed_data.items():
+            # print(f"DEBUG:   Filtering check for ID: '{construction_id}'")
             is_detailed = data.get('type') == 'Detailed'
             if is_detailed:
                 system_details = data.get('system_details', {})
@@ -606,28 +569,23 @@ class GlazingParser:
                 vt = system_details.get('VT')
 
                 # Check if any simulation property is missing (is None) AND it has NO shading layers
-                # Check the 'shading_layers' status *after* potential transfer
                 has_shading = bool(data.get('shading_layers'))
                 if (u_value is None or shgc is None or vt is None) and not has_shading:
-                    # print(f"DEBUG:     -> Marking for removal (Missing props, no shades): {construction_id}") # DEBUG ADDED
+                    # print(f"DEBUG:     -> Marking for removal (Missing props, no shades): {construction_id}")
                     constructions_to_remove.append(construction_id)
-                elif (u_value is None or shgc is None or vt is None) and has_shading:
-                    # print(f"DEBUG:     -> Keeping (Missing props, but has shades): {construction_id}") # DEBUG ADDED
-                    pass
-                else:
-                    # print(f"DEBUG:     -> Keeping (Has props or is Simple): {construction_id}") # DEBUG ADDED
-                    pass
+                # else: Keep if props exist OR if it has shades (even if props missing)
 
-        # Remove from the data *after* transfer and position update
-        final_filtered_data = processed_data_after_transfer.copy()
+        # Remove marked constructions
+        final_filtered_data = processed_data.copy()
         for construction_id in constructions_to_remove:
-            if construction_id in final_filtered_data: # Check existence before deleting
+            if construction_id in final_filtered_data:
                  del final_filtered_data[construction_id]
 
         # --- End Step 6 (Filtering) ---
 
         self.parsed_glazing_data = final_filtered_data # Assign the final filtered data
-        # print(f"\n--- DEBUG: Final Parsed Glazing Data Keys: {list(self.parsed_glazing_data.keys())} ---") # DEBUG ADDED
+        # print(f"\n--- DEBUG: Final Parsed Glazing Data Keys: {list(self.parsed_glazing_data.keys())} ---")
+        # print(f"--- DEBUG: Final Parsed Glazing Data Count: {len(self.parsed_glazing_data)} ---")
         return self.parsed_glazing_data # Correct indentation
 
     # Removed update_system_properties_from_eio method as properties are now read from eplustbl.csv
