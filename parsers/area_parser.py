@@ -104,7 +104,6 @@ class AreaParser:
             
             # Get properties for the construction
             properties = self._get_construction_properties(construction_name)
-            thickness = properties.get("thickness", 0.0)
             
             # Calculate U-Value using materials parser logic (1/R-value with film)
             u_value = self._calculate_u_value(construction_name)
@@ -212,7 +211,6 @@ class AreaParser:
         # --- Check for Simple Glazing System ---
         simple_glazing_found = False
         for layer_id in material_layers:
-            logger.debug(f"  Checking layer: '{layer_id}'")
             if layer_id in materials:
                 material_data = materials[layer_id]
                 mat_type = material_data.get('type')

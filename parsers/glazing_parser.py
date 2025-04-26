@@ -89,7 +89,6 @@ class GlazingParser:
                         in_target_table = True
                         headers_found = False # Reset header flag for this table
                         col_indices = {} # Reset indices
-                        print(f"DEBUG: Found target table title: 'Exterior Fenestration'")
                         continue # Skip the table title row itself
 
                     if in_target_table:
@@ -98,7 +97,6 @@ class GlazingParser:
                             current_headers_norm = [h.strip().lower() for h in row]
                             # Check if this row looks like the header row (contains key elements)
                             if "construction" in current_headers_norm and "glass u-factor [w/m2-k]" in current_headers_norm:
-                                print(f"DEBUG: Potential header row found: {current_headers_norm}")
                                 try:
                                     # Validate and map expected headers to their actual indices
                                     for key, _ in header_map.items(): # Don't need expected_index here
@@ -116,14 +114,11 @@ class GlazingParser:
                                         raise ValueError(f"Missing required headers: {missing}")
 
                                     headers_found = True
-                                    print(f"DEBUG: Successfully validated headers. Indices: {col_indices}")
                                 except ValueError as e:
-                                    print(f"DEBUG: Error validating required headers: {e}. Headers found: {current_headers_norm}")
                                     in_target_table = False # Abort if headers invalid
                                 continue # Skip the header row once processed/validated
                             else:
                                 # This row is between title and header (e.g., blank), skip it
-                                print(f"DEBUG: Skipping row before header: {row}")
                                 continue
                         # --- End Header Row Search ---
 
@@ -137,14 +132,12 @@ class GlazingParser:
                             is_blank_data_row = not row[0].strip() and (len(row) < 2 or not row[1].strip())
 
                             if is_total_row or is_blank_data_row:
-                                print(f"DEBUG: End of data rows detected (found '{row[0].strip()}', is_total={is_total_row}, is_blank={is_blank_data_row}).")
                                 in_target_table = False # Stop processing this table
                                 continue # Skip this end/total/blank row
 
                             # Process data row (if not end condition)
                             max_index = max(col_indices.values()) if col_indices else -1
                             if max_index == -1: # Should not happen if headers were found
-                                print("DEBUG: Error - Headers marked found but col_indices is empty.")
                                 in_target_table = False
                                 continue
 
@@ -272,7 +265,6 @@ class GlazingParser:
                                 print(f"DEBUG:   Transferred {added_count} shade(s) (e.g., '{shades_to_transfer[0]['Name']}') from '{shade_id}' to '{base_id}'.")
                                 # Mark the shaded version for removal
                                 keys_to_remove.add(shade_id)
-                                found_match = True
                                 break # Stop searching for other matches for this base_id
                         else:
                              # Should not happen based on constructions_with_shades filter, but good check
@@ -289,11 +281,7 @@ class GlazingParser:
                 if key in final_data:
                     del final_data[key]
                     removed_count += 1
-
-            print(f"DEBUG: Keys marked for removal in Step 4: {keys_to_remove}") # DEBUG
-            print(f"DEBUG: Keys marked for removal in Step 4: {keys_to_remove}") # DEBUG
-            print(f"DEBUG: Keys marked for removal in Step 4: {keys_to_remove}") # DEBUG
-            print(f"DEBUG: Finished transferring shades. Removed {removed_count} redundant shaded constructions.")
+                    
             return final_data # Correct indentation
 
         except Exception as e_transfer:
@@ -341,9 +329,6 @@ class GlazingParser:
                 # else: It might be a shade control definition, handle later
 
         # --- DEBUG: Print keys after Step 1 ---
-        print(f"DEBUG: Keys after Step 1 (Simple Glazing): {list(processed_data.keys())}")
-        # ---
-
         # --- Step 2: Process Detailed Glazing Constructions ---
         for construction_id, construction_data in self._constructions_glazing_cache.items():
              # Skip simple ones already processed or potential shade controls
@@ -430,12 +415,10 @@ class GlazingParser:
         for construction_id, construction_data in self._constructions_glazing_cache.items():
             # Check if it's a 'simple' type construction NOT already processed as a simple glazing system itself
             if construction_data.get('type') == 'simple' and construction_id not in processed_data:
-                print(f"DEBUG: Checking potential shade definition: {construction_id}") # DEBUG PRINT
                 # This might be a construction defining shades for another construction
                 current_shades_info = []
                 base_construction_id = None
                 material_layers = construction_data.get('material_layers', [])
-                print(f"DEBUG:   Layers: {material_layers}") # DEBUG PRINT
 
                 for layer_name in material_layers:
                     if layer_name in self._window_shade_cache:
@@ -459,12 +442,10 @@ class GlazingParser:
                         if potential_base_id_derived and potential_base_id_derived in processed_data:
                             # Found base construction via derived ID
                             base_construction_id = potential_base_id_derived
-                            print(f"DEBUG:   Found potential base construction '{base_construction_id}' from material '{layer_name}' (derived)") # DEBUG PRINT
                             break # Assume first non-shade is the base
                         elif layer_name in processed_data:
                             # Found base construction directly by layer name (e.g., for detailed constructions)
                             base_construction_id = layer_name
-                            print(f"DEBUG:   Found potential base construction '{base_construction_id}' directly from layer name") # DEBUG PRINT
                             break # Assume first non-shade is the base
                         else:
                              # Layer is not a shade and didn't match a processed construction directly or via derivation
@@ -480,13 +461,8 @@ class GlazingParser:
                         for shade_info in current_shades_info:
                             if shade_info['Name'] not in existing_shades:
                                 processed_data[base_construction_id]['shading_layers'].append(shade_info)
-                                print(f"DEBUG:     Added shade '{shade_info['Name']}' to '{base_construction_id}'") # DEBUG PRINT
                         # Mark this shade-defining construction for removal
                         keys_to_delete.append(construction_id)
-                    else:
-                        print(f"DEBUG:   WARNING - Base construction '{base_construction_id}' not found in processed_data.") # DEBUG PRINT
-                elif current_shades_info:
-                     print(f"DEBUG:   WARNING - Found shades but no base construction identified for '{construction_id}'.") # DEBUG PRINT
 
 
         # Clean up: Remove the constructions that only defined shades
@@ -501,7 +477,6 @@ class GlazingParser:
         # Perform transfer *before* filtering based on missing sim properties
         try:
             processed_data_after_transfer = self._transfer_shades_based_on_naming(processed_data)
-            print(f"DEBUG: Returned from Step 4 (Transferring Shades). Data size after: {len(processed_data_after_transfer)}") # DEBUG
         except Exception as e:
              print(f"ERROR: Exception during Step 4 (Transferring Shades): {e}")
              import traceback
@@ -513,8 +488,6 @@ class GlazingParser:
         # --- Step 5 (was Step 4): Filter out detailed constructions missing simulation properties ---
         print(f"\n--- DEBUG: Processing Step 5 (Filtering Results) ---") # Update step number
         # Use the data *after* transfer for filtering
-        print(f"DEBUG: Keys before Step 5 (Filtering): {list(processed_data_after_transfer.keys())}") # DEBUG
-        print(f"DEBUG: Pre-filter count (Step 5): {len(processed_data_after_transfer)} constructions.") # Clarify step
         constructions_to_remove = []
         # Iterate through the data *after* transfer
         for construction_id, data in processed_data_after_transfer.items():
@@ -530,9 +503,8 @@ class GlazingParser:
                 has_shading = bool(data.get('shading_layers'))
                 if (u_value is None or shgc is None or vt is None) and not has_shading:
                     constructions_to_remove.append(construction_id)
-                    print(f"DEBUG: Marking detailed construction '{construction_id}' for removal (missing sim properties AND no shading layers: U={u_value}, SHGC={shgc}, VT={vt}).")
                 elif (u_value is None or shgc is None or vt is None) and has_shading:
-                     print(f"DEBUG: Keeping detailed construction '{construction_id}' despite missing sim properties because it has shading layers.")
+                    pass
 
         # Remove from the data *after* transfer
         final_filtered_data = processed_data_after_transfer.copy()
@@ -540,8 +512,6 @@ class GlazingParser:
             if construction_id in final_filtered_data: # Check existence before deleting
                  del final_filtered_data[construction_id]
 
-        print(f"DEBUG: Post-filter count: {len(final_filtered_data)} constructions.")
-        print(f"DEBUG: Keys after Step 5 (Filtering): {list(final_filtered_data.keys())}") # DEBUG
         # --- End Step 5 (Filtering) ---
 
         self.parsed_glazing_data = final_filtered_data # Assign the final filtered data
