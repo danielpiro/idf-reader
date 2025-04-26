@@ -100,6 +100,12 @@ class ProcessingManager:
                 window_glazing_cache=data_loader._window_glazing_cache,
                 window_gas_cache=data_loader._window_gas_cache,
                 window_shade_cache=data_loader._window_shade_cache,
+                # --- ADDED ---
+                window_shading_control_cache=data_loader._window_shading_control_cache, # Pass the control cache
+                # -------------
+                # --- ADDED ---
+                windows_cache=data_loader.get_raw_windows_cache(), # Pass the raw windows cache
+                # -------------
                 simulation_output_csv=self.simulation_output_csv # Pass the CSV path
             )
             # Parse glazing data *before* initializing AreaParser

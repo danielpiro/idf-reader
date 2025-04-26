@@ -35,6 +35,12 @@ class GlazingParser:
                  window_glazing_cache: Dict[str, Dict[str, Any]],
                  window_gas_cache: Dict[str, Dict[str, Any]],
                  window_shade_cache: Dict[str, Dict[str, Any]],
+                 # --- ADDED ---
+                 window_shading_control_cache: Dict[str, Dict[str, Any]], # Add the new cache
+                 # -------------
+                 # --- ADDED ---
+                 windows_cache: Dict[str, Dict[str, Any]], # Add windows cache parameter
+                 # -------------
                  simulation_output_csv: str = None, # Added parameter for CSV path
                  idf_objects: Any = None):
         """
@@ -46,6 +52,8 @@ class GlazingParser:
             window_glazing_cache: Cache for window glazing materials.
             window_gas_cache: Cache for window gas materials.
             window_shade_cache: Cache for window shade materials.
+            window_shading_control_cache: Cache for window shading control objects. # Add docstring
+            windows_cache: Cache for raw window objects (FenestrationSurface:Detailed). # Add docstring
             simulation_output_csv: Path to the eplustbl.csv file from simulation (optional).
             idf_objects: Raw IDF objects if direct access is needed (optional).
         """
@@ -54,6 +62,12 @@ class GlazingParser:
         self._window_glazing_cache = window_glazing_cache
         self._window_gas_cache = window_gas_cache
         self._window_shade_cache = window_shade_cache
+        # --- ADDED ---
+        self._window_shading_control_cache = window_shading_control_cache # Store the cache
+        # -------------
+        # --- ADDED ---
+        self._windows_cache = windows_cache # Store the windows cache
+        # -------------
         self._simulation_output_csv = simulation_output_csv # Store the path
         self._sim_properties = {} # Dictionary to store properties read from CSV
         self._idf = idf_objects # Store if needed
@@ -384,9 +398,9 @@ class GlazingParser:
                         'Thickness': thickness,
                         'Conductivity': safe_float(shade.get('conductivity')),
                         'Transmittance': safe_float(shade.get('solar_transmittance')),
-                        'Reflectivity': safe_float(shade.get('solar_reflectance')),
-                        'Position': 'Unknown' # Position needs context from WindowShadingControl
-                    })
+                        'Reflectivity': safe_float(shade.get('solar_reflectance'))
+                        # Position will be added later from control cache
+                     })
 
             # Only add if it contains glazing or gas layers (is actually a window/glazing construction)
             if glazing_layers_details:
@@ -443,9 +457,9 @@ class GlazingParser:
                             'Thickness': safe_float(shade.get('thickness')),
                             'Conductivity': safe_float(shade.get('conductivity')),
                             'Transmittance': safe_float(shade.get('solar_transmittance')),
-                            'Reflectivity': safe_float(shade.get('solar_reflectance')),
-                            'Position': 'Unknown' # Position needs context
-                        })
+                            'Reflectivity': safe_float(shade.get('solar_reflectance'))
+                            # Position will be added later from control cache
+                         })
                     # Check if layer is a known base construction (simple OR detailed)
                     else:
                         # Attempt to derive base construction ID from material name
@@ -498,11 +512,90 @@ class GlazingParser:
              processed_data_after_transfer = processed_data # Fallback to pre-transfer data on error
         # --- End NEW Step 4 ---
 
-        # --- Step 5 (was Step 4): Filter out detailed constructions missing simulation properties ---
-        # print(f"\n--- DEBUG: Processing Step 5 (Filtering Results) ---") # Update step number
-        # Use the data *after* transfer for filtering
+        # --- NEW Step 5: Update Shading Position via Window Control Link ---
+        # print("\n--- DEBUG: Entering Step 5: Updating Shade Positions (New Logic) ---")
+        # print(f"--- DEBUG: Window Shading Control Cache Content: {list(self._window_shading_control_cache.keys())}") # Print keys only for brevity
+        # print(f"--- DEBUG: Windows Cache Content: {list(self._windows_cache.keys())}") # Print keys only for brevity
+        try:
+            # Keep track of constructions whose shades have been updated to avoid redundant work
+            updated_constructions = set()
+
+            # Iterate through control objects as the source of position info
+            for control_key, control_data in self._window_shading_control_cache.items():
+                shade_position = control_data.get('shading_type')
+                window_names = control_data.get('window_names', [])
+
+                if not shade_position or not window_names:
+                    # print(f"--- DEBUG: Skipping control '{control_key}': Missing position ('{shade_position}') or window names ('{window_names}').")
+                    continue
+
+                # print(f"--- DEBUG: Processing Control '{control_key}': Position='{shade_position}', Windows='{window_names}'")
+
+                # Process each window controlled by this object
+                for window_name in window_names:
+                    window_data = self._windows_cache.get(window_name)
+                    if not window_data:
+                        # print(f"--- DEBUG:   Window '{window_name}' (from control '{control_key}') not found in windows cache. Skipping.")
+                        continue
+
+                    # Get the construction used by this window (could be base or shaded version)
+                    window_construction_name = window_data.get('construction_name')
+                    if not window_construction_name:
+                        # print(f"--- DEBUG:   Window '{window_name}' has no construction name. Skipping.")
+                        continue
+
+                    # print(f"--- DEBUG:   Window '{window_name}' uses construction '{window_construction_name}'.")
+
+                    # Determine the corresponding base construction ID
+                    base_construction_id = None
+                    try:
+                        # Check if it follows the shaded pattern (e.g., "xxx - 2xxx")
+                        prefix, suffix = window_construction_name.rsplit(' - ', 1)
+                        if suffix.startswith('2') and len(suffix) == 4 and suffix.isdigit():
+                            # Derive base ID (e.g., "xxx - 1xxx")
+                            base_suffix = '1' + suffix[1:]
+                            base_construction_id = f"{prefix} - {base_suffix}"
+                            # print(f"--- DEBUG:     Derived base construction ID '{base_construction_id}' from shaded '{window_construction_name}'.")
+                        else:
+                            # Assume window uses the base construction directly
+                            base_construction_id = window_construction_name
+                            # print(f"--- DEBUG:     Assuming '{window_construction_name}' is the base construction ID.")
+                    except ValueError:
+                        # Doesn't follow "Prefix - Suffix" pattern, assume it's the base ID
+                        base_construction_id = window_construction_name
+                        # print(f"--- DEBUG:     Assuming '{window_construction_name}' (no suffix pattern) is the base construction ID.")
+
+                    # Check if this base construction exists in our processed data and hasn't been updated yet
+                    if base_construction_id in processed_data_after_transfer and base_construction_id not in updated_constructions:
+                        target_construction_data = processed_data_after_transfer[base_construction_id]
+                        if target_construction_data.get('shading_layers'):
+                            # print(f"--- DEBUG:     Updating position for shades in base construction '{base_construction_id}' to '{shade_position}'.")
+                            # Update position for ALL shade layers in this construction
+                            for shade_layer in target_construction_data['shading_layers']:
+                                shade_layer['Position'] = shade_position
+                            updated_constructions.add(base_construction_id) # Mark as updated
+                        # else:
+                            # print(f"--- DEBUG:     Base construction '{base_construction_id}' found, but has no shading layers to update.")
+                    # elif base_construction_id in updated_constructions:
+                        # print(f"--- DEBUG:     Base construction '{base_construction_id}' already updated by another control. Skipping redundant update.")
+                    # else:
+                        # print(f"--- DEBUG:     Derived/Assumed base construction ID '{base_construction_id}' not found in processed data. Cannot update position.")
+
+            # print(f"--- DEBUG: Finished Step 5. Updated positions for constructions: {updated_constructions}")
+
+        except Exception as e_pos:
+            print(f"ERROR: Exception during Step 5 (Updating Shade Positions - New Logic): {e_pos}")
+            import traceback
+            traceback.print_exc()
+            # Continue with potentially incomplete positions
+
+        # --- End NEW Step 5 ---
+
+        # --- Step 6 (was Step 5): Filter out detailed constructions missing simulation properties ---
+        # print(f"\n--- DEBUG: Processing Step 6 (Filtering Results) ---") # Update step number
+        # Use the data *after* transfer and position update for filtering
         constructions_to_remove = []
-        # Iterate through the data *after* transfer
+        # Iterate through the data *after* transfer and position update
         for construction_id, data in processed_data_after_transfer.items():
             # print(f"DEBUG:   Filtering check for ID: '{construction_id}'") # DEBUG ADDED
             is_detailed = data.get('type') == 'Detailed'
@@ -525,13 +618,13 @@ class GlazingParser:
                     # print(f"DEBUG:     -> Keeping (Has props or is Simple): {construction_id}") # DEBUG ADDED
                     pass
 
-        # Remove from the data *after* transfer
+        # Remove from the data *after* transfer and position update
         final_filtered_data = processed_data_after_transfer.copy()
         for construction_id in constructions_to_remove:
             if construction_id in final_filtered_data: # Check existence before deleting
                  del final_filtered_data[construction_id]
 
-        # --- End Step 5 (Filtering) ---
+        # --- End Step 6 (Filtering) ---
 
         self.parsed_glazing_data = final_filtered_data # Assign the final filtered data
         # print(f"\n--- DEBUG: Final Parsed Glazing Data Keys: {list(self.parsed_glazing_data.keys())} ---") # DEBUG ADDED

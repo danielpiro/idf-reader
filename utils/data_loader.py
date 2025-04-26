@@ -631,7 +631,13 @@ class DataLoader:
     def get_windows(self) -> Dict[str, Dict[str, Any]]:
         """Get cached window data"""
         return self._windows_cache
-        
+
+    def get_raw_windows_cache(self) -> Dict[str, Dict[str, Any]]:
+        """Get the raw windows cache (FenestrationSurface:Detailed objects)."""
+        # This is the same as get_windows() currently, but provides a clearer name
+        # for accessing the raw window objects if needed separately later.
+        return self._windows_cache
+
     def get_window_glazing_materials(self) -> Dict[str, Dict[str, Any]]:
         """Get cached window glazing materials"""
         return self._window_glazing_cache

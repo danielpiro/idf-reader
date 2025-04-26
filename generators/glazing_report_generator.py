@@ -291,7 +291,8 @@ class GlazingReportGenerator:
                 wrap_text(format_value(layer.get('Conductivity')), self.cell_style),
                 wrap_text(format_value(layer.get('Transmittance')), self.cell_style),
                 wrap_text(format_value(layer.get('Reflectivity')), self.cell_style),
-                wrap_text(layer.get('Position', 'Unknown'), self.cell_style)
+                # Use the 'Position' key from the parser, fallback to '-' if missing/empty
+                wrap_text(layer.get('Position') or '-', self.cell_style)
             ])
 
         # Define column widths (adjust as needed)
