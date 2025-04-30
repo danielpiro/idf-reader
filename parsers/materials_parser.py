@@ -99,8 +99,16 @@ class MaterialsParser:
             pattern = r'_(?:[Rr]ev|[Rr]eversed)$'
             if bool(re.search(pattern, construction_id)):
                 continue            
-            element_type = self._get_element_type(construction_id, surfaces)
+            element_types, dont_use = self._get_element_type(construction_id, surfaces)
             
+            # Skip this construction if dont_use flag is True
+            if dont_use:
+                continue
+                
+            # If no element types were found, skip this construction
+            if not element_types:
+                continue
+                
             # Determine surface type and boundary condition for film resistance calculation
             s_type = ""
             boundary = ""
@@ -112,12 +120,6 @@ class MaterialsParser:
                     boundary = surface.get('boundary_condition', '').lower()
                     break
             
-            # Get surface film resistance based on surface type and boundary
-            film_resistance = self._get_surface_film_resistance(element_type)
-            
-            # Flag to track if we've found a material with conductivity < 0.2 in this construction
-            found_low_conductivity = False
-            
             # Process each material layer in the construction
             for layer_id in construction_data.material_layers:
                 # Use the populated self.materials dictionary
@@ -128,34 +130,41 @@ class MaterialsParser:
                         if material_data.conductivity != 0 else 0.0
                     )
                     
-                    # Calculate mass - divide it if we haven't found a low conductivity material yet
-                    mass = material_data.density * material_data.thickness
-                    if not found_low_conductivity and element_type.lower() == "external wall":
-                        if material_data.conductivity < 0.2:
-                            # We found a material with conductivity < 0.2
-                            found_low_conductivity = True
-                            # Divide the mass for this material
+                    # For each element type, create an entry in element_data
+                    for element_type in element_types:
+                        # Get surface film resistance based on element type
+                        film_resistance = self._get_surface_film_resistance(element_type)
+                        
+                        # Calculate mass - divide it if element type is external wall and 
+                        # this is the first low conductivity material
+                        mass = material_data.density * material_data.thickness
+                        found_low_conductivity = False
+                        
+                        # Apply the external wall special case for mass calculation
+                        if element_type.lower() == "external wall" and material_data.conductivity < 0.2:
+                            # Divide mass for the external wall case with low conductivity
                             mass = mass / 2
-                    
-                    self.element_data.append({
-                        "element_type": element_type,
-                        "element_name": construction_id,
-                        "material_name": layer_id,
-                        "thickness": material_data.thickness,
-                        "conductivity": material_data.conductivity,
-                        "density": material_data.density,
-                        "mass": mass,
-                        "thermal_resistance": thermal_resistance,
-                        "solar_absorptance": material_data.solar_absorptance,
-                        "specific_heat": material_data.specific_heat,
-                        "surface_film_resistance": film_resistance,
-                        "surface_type": s_type,
-                        "boundary_condition": boundary
-                    })
+                            found_low_conductivity = True
+                        
+                        self.element_data.append({
+                            "element_type": element_type,
+                            "element_name": construction_id,
+                            "material_name": layer_id,
+                            "thickness": material_data.thickness,
+                            "conductivity": material_data.conductivity,
+                            "density": material_data.density,
+                            "mass": mass,
+                            "thermal_resistance": thermal_resistance,
+                            "solar_absorptance": material_data.solar_absorptance,
+                            "specific_heat": material_data.specific_heat,
+                            "surface_film_resistance": film_resistance,
+                            "surface_type": s_type,
+                            "boundary_condition": boundary
+                        })
                 # Missing materials are silently skipped for report generation
                 # No debug message needed here as warning was already shown during construction processing
 
-    def _get_element_type(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]]) -> str:
+    def _get_element_type(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]]) -> tuple:
         """
         Determine element type based on construction usage.
         Implementation moved from DataLoader.
@@ -165,86 +174,103 @@ class MaterialsParser:
             surfaces: Dictionary of surface data from cache
             
         Returns:
-            str: Element type description
+            tuple: (element_types, dont_use) where:
+                  - element_types: list - List of element type descriptions
+                  - dont_use: bool - Flag indicating if this construction should be excluded from output
         """
         # Find surfaces using this construction
         construction_surfaces = []
         for surface_id, surface in surfaces.items():
             if surface.get('construction_name') == construction_id:
                 construction_surfaces.append(surface)
-                # Break early once we have one surface (for efficiency)
-                if len(construction_surfaces) >= 1:
-                    break
         
         if not construction_surfaces:
-            return ""
+            return [], False
         
-        # Get the first surface using this construction
-        surface = construction_surfaces[0]
-        
-        # Check if this is a glazing surface
-        if surface.get('is_glazing', False):
-            return "Glazing"
-            
-        try:
-            s_type = surface['surface_type'].lower() if surface.get('surface_type') else ""
-            boundary = surface['boundary_condition'].lower() if surface.get('boundary_condition') else ""
-        except (AttributeError, IndexError, KeyError):
-            return ""
-        
+        element_types = set()  # Use a set to avoid duplicate element types
+        is_zone_interior = False
+        dont_use = False
         zones = self.data_loader.get_hvac_zones()
         
-        # Safely get the outside boundary object name
-        raw_object = surface.get('raw_object')
-        outside_boundary_obj_name = None
-        is_zone_interior = False
+        # Process each surface using this construction
+        for surface in construction_surfaces:
+            # Check if this is a glazing surface
+            if surface.get('is_glazing', False):
+                element_types.add("Glazing")
+                continue
+                
+            try:
+                s_type = surface['surface_type'].lower() if surface.get('surface_type') else ""
+                boundary = surface['boundary_condition'].lower() if surface.get('boundary_condition') else ""
+            except (AttributeError, IndexError, KeyError):
+                continue
+            
+            # Safely get the outside boundary object name
+            raw_object = surface.get('raw_object')
+            outside_boundary_obj_name = None
+            is_zone_interior = False
+            surface_dont_use = False
+            
+            try:
+                if raw_object:
+                    if hasattr(raw_object, 'Outside_Boundary_Condition_Object'):
+                        outside_boundary_obj_name = raw_object.Outside_Boundary_Condition_Object
+                    elif isinstance(raw_object, dict) and 'Outside_Boundary_Condition_Object' in raw_object:
+                        outside_boundary_obj_name = raw_object['Outside_Boundary_Condition_Object']
+                
+                # Process if the boundary object name is found and is a string
+                if isinstance(outside_boundary_obj_name, str) and outside_boundary_obj_name:
+                    # Assuming the zone name is the first part if spaces exist
+                    zone_name_candidate = outside_boundary_obj_name.split("_")[0].strip()
+                    if zone_name_candidate:
+                        construction_zone = raw_object.Name.split("_")[0].strip()
+                        is_hvac_inside = construction_zone in zones
+                        is_hvac_outside = zone_name_candidate in zones
+                        if not is_hvac_inside and not is_hvac_outside:
+                            surface_dont_use = True
+                        else:
+                            is_zone_interior = is_hvac_inside and is_hvac_outside
+                
+            except Exception:
+                pass
+            
+            # If any surface using this construction should not be used, set the flag
+            if surface_dont_use:
+                dont_use = True
+            
+            # Determine element type for this surface
+            element_type = ""
+            if s_type == "wall":
+                if boundary == "outdoors":
+                    element_type = "External wall"
+                elif boundary == "ground":
+                    element_type = "Ground wall"
+                else:
+                    element_type = "Internal wall" if is_zone_interior else "Separation wall"
+                    
+            elif s_type == "floor":
+                if boundary == "outdoors":
+                    element_type = "External floor"
+                elif boundary == "ground":
+                    element_type = "Ground floor"
+                else:
+                    element_type = "Intermediate floor" if is_zone_interior else "Separation floor"
+                    
+            elif s_type == "ceiling":
+                if boundary == "ground":
+                    element_type = "Ground ceiling"
+                elif boundary == "outdoors":
+                    element_type = "External ceiling"
+                else:
+                    element_type = "Intermediate ceiling" if is_zone_interior else "Separation ceiling"
+                    
+            elif s_type == "roof":
+                element_type = "Roof"
+                
+            if element_type:
+                element_types.add(element_type)
         
-        try:
-            if raw_object:
-                if hasattr(raw_object, 'Outside_Boundary_Condition_Object'):
-                    outside_boundary_obj_name = raw_object.Outside_Boundary_Condition_Object
-                elif isinstance(raw_object, dict) and 'Outside_Boundary_Condition_Object' in raw_object:
-                    outside_boundary_obj_name = raw_object['Outside_Boundary_Condition_Object']
-            
-            # Process if the boundary object name is found and is a string
-            if isinstance(outside_boundary_obj_name, str) and outside_boundary_obj_name:
-                # Assuming the zone name is the first part if spaces exist
-                zone_name_candidate = outside_boundary_obj_name.split("_")[0].strip()
-                if zone_name_candidate:
-                    is_zone_interior = zone_name_candidate in zones
-            
-        except Exception:
-            pass
-        
-        result = ""
-        if s_type == "wall":
-            if boundary == "outdoors":
-                result = "External wall"
-            elif boundary == "ground":
-                result = "Ground wall"
-            else:
-                result = "Internal wall" if is_zone_interior else "Separation wall"
-                
-        elif s_type == "floor":
-            if boundary == "outdoors":
-                result = "External floor"
-            elif boundary == "ground":
-                result = "Ground floor"
-            else:
-                result = "Intermediate floor" if is_zone_interior else "Separation floor"
-                
-        elif s_type == "ceiling":
-            if boundary == "ground":
-                result = "Ground ceiling"
-            elif boundary == "outdoors":
-                result = "External ceiling"
-            else:
-                result = "Intermediate ceiling" if is_zone_interior else "Separation ceiling"
-                
-        elif s_type == "roof":
-            result = "Roof"
-            
-        return result
+        return list(element_types), dont_use
 
     def _get_surface_film_resistance(self, element_type: str) -> float:
         """

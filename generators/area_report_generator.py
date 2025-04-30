@@ -170,7 +170,10 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
                 zone_cell = ""  # Empty cell if same zone as previous row
                 
             construction_cell = Paragraph(construction_text, cell_style)
-            element_type_cell = Paragraph(row['element_type'], cell_style)
+            
+            # Handle element_type properly whether it's a string or a tuple/list
+            element_type = row.get('element_type', '')
+            element_type_cell = Paragraph(clean_element_type_display(element_type), cell_style)
             
             # Format numeric values with proper alignment
             area_value = f"{row['area']:.2f}"
@@ -178,7 +181,6 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
             u_value_to_format = row.get('weighted_u_value', row.get('u_value', 0.0))
             u_value = f"{u_value_to_format:.3f}"
             area_u_value = f"{row['area_u_value']:.2f}"
-            # area_loss_value = f"{row['area_loss']:.2f}" # Removed as area_loss is no longer used
             
             # Add all cells to row
             table_data.append([
@@ -280,9 +282,11 @@ def merge_reversed_constructions(area_data: List[Dict[str, Any]],
         if materials_parser and surfaces:
             try:
                 # Determine element type accurately using the parser
-                # Ensure materials_parser is not None before calling its method
-                current_element_type = materials_parser._get_element_type(construction, surfaces)
-                if current_element_type == "Glazing":
+                # The _get_element_type now returns (list, bool) instead of (string, bool)
+                element_types_list, _ = materials_parser._get_element_type(construction, surfaces)
+                
+                # Check if "Glazing" is in any of the element types
+                if element_types_list and "Glazing" in element_types_list:
                     should_merge = False
                     # Use original construction name if not merging glazing
                     base_construction = construction
@@ -326,7 +330,6 @@ def merge_reversed_constructions(area_data: List[Dict[str, Any]],
                  existing['weighted_u_value'] = existing.get('weighted_u_value', 0.0) # Placeholder, recalculated below
             # Remove area_loss if it exists
             existing.pop('area_loss', None)
-
 
     # --- Final processing and U-value recalculation ---
     final_list = []
@@ -399,6 +402,38 @@ def format_construction_name(construction: str) -> str:
             return result
     
     return construction
+
+def clean_element_type_display(element_type) -> str:
+    """
+    Cleans the element type for display, removing list formatting, quotes, and boolean values.
+    
+    Args:
+        element_type: Element type which could be a string, tuple, or list,
+                     potentially with a boolean value
+    
+    Returns:
+        str: Cleaned element type string for display
+    """
+    # If it's already a string, just return it
+    if isinstance(element_type, str):
+        return element_type
+    
+    # If it's a tuple or list with boolean, extract just the element types
+    if isinstance(element_type, (list, tuple)):
+        # Check if the second element is a boolean (from _get_element_type which returns (element_types, dont_use))
+        if len(element_type) == 2 and isinstance(element_type[1], bool):
+            element_types = element_type[0]
+            if isinstance(element_types, (list, tuple)):
+                # Join the elements with line breaks for display
+                return '\n'.join(str(et).strip() for et in element_types)
+            else:
+                return str(element_types).strip()
+        else:
+            # It's just a list/tuple of element types
+            return '\n'.join(str(et).strip() for et in element_type)
+    
+    # Fallback - convert whatever it is to a string
+    return str(element_type)
 
 def generate_area_reports(areas_data, output_dir: str = "output/areas",
                           project_name: str = "N/A", run_id: str = "N/A") -> bool:
@@ -565,12 +600,26 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
             # Find the largest external wall in this area's data
             for row in merged_rows:
                 # Ensure element_type exists and is checked case-insensitively
-                element_type = row.get('element_type', '').lower()
-                if element_type == 'external wall':
-                    current_area = row.get('area', 0.0)
-                    if current_area > largest_ext_wall_area:
-                        largest_ext_wall_area = current_area # Keep track of largest area for identification
-                        largest_ext_wall_construction = row.get('construction')
+                # Handle element_type whether it's a string or a tuple/list
+                element_type = row.get('element_type', '')
+                
+                # Check if it's a string or a tuple/list (it might be either due to code changes)
+                if isinstance(element_type, (tuple, list)):
+                    # If it's a tuple or list (multiple element types), check each one
+                    for et in element_type:
+                        if isinstance(et, str) and et.lower() == 'external wall':
+                            current_area = row.get('area', 0.0)
+                            if current_area > largest_ext_wall_area:
+                                largest_ext_wall_area = current_area
+                                largest_ext_wall_construction = row.get('construction')
+                            break
+                else:
+                    # If it's a string (single element type), check it directly
+                    if isinstance(element_type, str) and element_type.lower() == 'external wall':
+                        current_area = row.get('area', 0.0)
+                        if current_area > largest_ext_wall_area:
+                            largest_ext_wall_area = current_area
+                            largest_ext_wall_construction = row.get('construction')
 
             # Calculate mass per area if the largest wall was found and parser is available
             if largest_ext_wall_construction and materials_parser:
