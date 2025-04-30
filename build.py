@@ -10,7 +10,6 @@ def build_exe():
         '--clean',  # Clean PyInstaller cache
         '--add-data=settings.json;.',  # Include settings file if it exists
         # Add Windows specific options
-        '--win-private-assemblies',
         '--uac-admin',  # Request admin privileges for long path support
     ]
 
