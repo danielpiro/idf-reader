@@ -581,7 +581,7 @@ class DataLoader:
                 ref_point_id = str(ref_point.Name)
                 self._daylighting_reference_point_cache[ref_point_id] = {
                     'id': ref_point_id,
-                    'raw_object': ref_point
+                    'raw_object': ref_point # Ensure no extra characters here
                 }
 
     # _filter_constructions_glazing moved to parsers/glazing_parser.py

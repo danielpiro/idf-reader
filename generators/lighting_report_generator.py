@@ -130,25 +130,24 @@ class LightingReportGenerator:
         cell_style = create_cell_style(self._styles, font_size=5, leading=6) # Use smaller font for data
         header_cell_style = create_cell_style(self._styles, is_header=True, font_size=6, leading=7) # Slightly larger for headers
 
-        # --- Table 1: Daylighting:Controls ---
-        self._story.append(Paragraph("Daylighting: Controls", self._styles['h2']))
-        self._story.append(Spacer(1, 0.3*cm)) # Reduce space
+        # --- Combined Daylighting Table ---
+        # self._story.append(Paragraph("Daylighting: Controls", self._styles['h2'])) # Removed Title
+        # self._story.append(Spacer(1, 0.3*cm)) # Reduce space
         controls_data = self._data.get("controls", [])
+
+        # Sort data by Zone Name
+        controls_data.sort(key=lambda x: x.get("Zone", ""))
+
         if controls_data:
-            # Define headers - check if conditional columns are needed
+            # Define headers - Moved columns to the end and renamed one
             headers_controls = [
                 "Zone", "Availability\nSchedule Name", "Lighting\nControl Type",
                 "Stepped\nControl\nSteps", "Daylighting\nReference",
-                "Fraction\nControlled", "Illuminance\nSetpoint\n(lux)"
+                "Lighting\nArea %", # Renamed from Fraction Controlled
+                "Illuminance\nSetpoint\n(lux)", # Moved to end
+                "Min Input\nPower\nFraction", # Moved to end
+                "Min Light\nOutput\nFraction" # Moved to end
             ]
-            # Check if any entry has non-None conditional values
-            has_continuous_fields = any(
-                entry.get("Minimum Input Power Fraction") is not None for entry in controls_data
-            )
-            if has_continuous_fields:
-                 # Insert conditional headers at the correct position
-                 headers_controls.insert(3, "Min Input\nPower\nFraction")
-                 headers_controls.insert(4, "Min Light\nOutput\nFraction")
 
             # Wrap headers
             styled_headers_controls = [wrap_text(h, header_cell_style) for h in headers_controls]
@@ -158,119 +157,135 @@ class LightingReportGenerator:
             def format_num(value, precision):
                 if value is None: return '-'
                 try:
+                    # Format percentage for Lighting Area %
+                    if headers_controls[row_values.index(value)] == "Lighting\nArea %": # Check header during formatting
+                         return f"{float(value) * 100:.0f}%" # Format as percentage
                     return f"{float(value):.{precision}f}"
                 except (ValueError, TypeError):
                     return str(value) # Fallback
+                except IndexError: # Handle case where value might not be in row_values yet during check
+                    return f"{float(value):.{precision}f}" # Fallback formatting
+
 
             # Populate data rows with wrapped text
             for entry in controls_data:
-                row_values = [
+                # Temporary list to build row values before formatting percentage
+                temp_row_values = [
                     entry.get("Zone", "-"),
                     entry.get("Availability Schedule Name", "-"),
                     entry.get("Lighting Control Type", "-"),
                     entry.get("Number of Stepped Control Steps", "-"),
                     entry.get("Daylighting Reference", "-"),
-                    format_num(entry.get('Fraction of Zone Controlled'), 2),
-                    format_num(entry.get('Illuminance Setpoint'), 1)
+                    entry.get('Fraction of Zone Controlled'), # Get raw value first
+                    entry.get('Illuminance Setpoint'), # Moved
+                    entry.get("Minimum Input Power Fraction"), # Moved
+                    entry.get("Minimum Light Output Fraction") # Moved
                 ]
-                if has_continuous_fields:
-                    min_power = entry.get("Minimum Input Power Fraction")
-                    min_output = entry.get("Minimum Light Output Fraction")
-                    row_values.insert(3, format_num(min_power, 2))
-                    row_values.insert(4, format_num(min_output, 2))
+
+                # Now format with correct precision, handling percentage
+                row_values = []
+                precisions = [None, None, None, None, None, 0, 1, 2, 2] # Precision for each column
+                for i, val in enumerate(temp_row_values):
+                    header = headers_controls[i]
+                    precision = precisions[i]
+                    if val is None:
+                        row_values.append('-')
+                    elif header == "Lighting\nArea %":
+                        try:
+                            row_values.append(f"{float(val) * 100:.0f}%")
+                        except (ValueError, TypeError):
+                             row_values.append(str(val)) # Fallback
+                    elif precision is not None:
+                         try:
+                            row_values.append(f"{float(val):.{precision}f}")
+                         except (ValueError, TypeError):
+                            row_values.append(str(val)) # Fallback
+                    else:
+                        row_values.append(str(val)) # No specific formatting
+
 
                 # Wrap each cell value
                 styled_row = [wrap_text(val, cell_style) for val in row_values]
                 table_data_controls.append(styled_row)
 
-            # Calculate proportional column widths
-            num_cols_controls = len(headers_controls)
+            # Calculate proportional column widths (adjust for new structure)
+            num_cols_controls = len(headers_controls) # Should be 9 now
             # Define approximate percentages (adjust as needed)
-            # Example: Give Zone, Schedule, Reference more width
-            if num_cols_controls == 7: # No continuous fields
-                 col_percentages_controls = [15, 18, 12, 8, 18, 12, 17]
-            elif num_cols_controls == 9: # With continuous fields
-                 col_percentages_controls = [14, 15, 10, 8, 8, 8, 15, 10, 12]
-            else: # Fallback to equal width
-                 col_percentages_controls = [100 / num_cols_controls] * num_cols_controls
+            col_percentages_controls = [14, 15, 10, 8, 15, 10, 10, 9, 9] # Adjusted for 9 columns
 
             total_percentage = sum(col_percentages_controls)
+            # Ensure total percentage is close to 100 for safety
+            if not (99.9 < total_percentage < 100.1):
+                 print(f"Warning: Column percentages sum to {total_percentage}, adjusting to equal widths.")
+                 col_percentages_controls = [100 / num_cols_controls] * num_cols_controls
+                 total_percentage = 100
+
             col_widths_controls = [(p / total_percentage) * (doc.width - 1*cm) for p in col_percentages_controls] # Use available width
 
-            # Create and style the table
-            table_controls = Table(table_data_controls, colWidths=col_widths_controls, repeatRows=1) # Repeat header row
-            table_controls.setStyle(table_style)
+            # --- Add Spanning Logic for all columns based on Zone ---
+            span_commands = []
+            base_table_style_commands = table_style.getCommands() # Get base style commands
+
+            # Iterate through data rows (skip header row index 0)
+            # Apply to ALL columns (j iterates from 0 to num_cols_controls - 1)
+            for j in range(num_cols_controls): # Iterate through each column
+                start_row = 1 # Start checking from the first data row
+                while start_row < len(table_data_controls):
+                    # Ensure we don't access invalid index if table_data_controls is modified unexpectedly
+                    if start_row >= len(table_data_controls) or j >= len(table_data_controls[start_row]):
+                        break
+                    current_val_obj = table_data_controls[start_row][j]
+                    # Handle potential non-Paragraph objects if logic changes elsewhere
+                    current_val = getattr(current_val_obj, 'text', str(current_val_obj))
+                    current_zone_obj = table_data_controls[start_row][0] # Zone is always the first column (index 0)
+                    current_zone = getattr(current_zone_obj, 'text', str(current_zone_obj))
+
+                    count = 1
+                    # Check subsequent rows
+                    for i in range(start_row + 1, len(table_data_controls)):
+                         # Ensure we don't access invalid index
+                        if i >= len(table_data_controls) or j >= len(table_data_controls[i]) or 0 >= len(table_data_controls[i]):
+                             break
+                        next_val_obj = table_data_controls[i][j]
+                        next_val = getattr(next_val_obj, 'text', str(next_val_obj))
+                        next_zone_obj = table_data_controls[i][0]
+                        next_zone = getattr(next_zone_obj, 'text', str(next_zone_obj))
+
+                        # Span only if Zone and Value in the current column (j) match
+                        if next_zone == current_zone and next_val == current_val:
+                            count += 1
+                            # Clear the text in the spanned cell below the first one for this column
+                            # Check if it's already cleared to avoid overwriting Paragraph object with empty string
+                            if getattr(table_data_controls[i][j], 'text', '') != "":
+                                table_data_controls[i][j] = wrap_text("", cell_style)
+                        else:
+                            break # Stop counting if zone or value (in this column) changes
+
+                    if count > 1:
+                        # Add SPAN command for the current column (j)
+                        # SPAN, (start_col, start_row), (end_col, end_row)
+                        span_commands.append(('SPAN', (j, start_row), (j, start_row + count - 1)))
+                        # Add commands to remove horizontal grid lines within the span for this column
+                        for r in range(start_row, start_row + count - 1):
+                             # Hide line below row r in column j
+                             span_commands.append(('LINEBELOW', (j, r), (j, r), 0.5, colors.white))
+                             # Also hide the line above the next row within the span to ensure clean merge
+                             span_commands.append(('LINEABOVE', (j, r + 1), (j, r + 1), 0.5, colors.white))
+
+
+                    start_row += count # Move to the next row after the potential span
+
+            # Combine base style with span commands
+            final_table_style = TableStyle(base_table_style_commands + span_commands)
+
+            # Create and style the table with the final style including spans
+            table_controls = Table(table_data_controls, colWidths=col_widths_controls, repeatRows=1)
+            table_controls.setStyle(final_table_style)
             self._story.append(table_controls)
         else:
-            self._story.append(Paragraph("No Daylighting:Controls data found.", self._styles['Normal']))
+            self._story.append(Paragraph("No Daylighting data found.", self._styles['Normal']))
 
-        self._story.append(PageBreak())
-
-        # --- Table 2: Daylighting:ReferencePoint ---
-        self._story.append(Paragraph("Daylighting: Reference Points", self._styles['h2']))
-        self._story.append(Spacer(1, 0.3*cm)) # Reduce space
-        ref_points_data = self._data.get("reference_points", [])
-        if ref_points_data:
-            # Define headers - check if conditional columns are needed
-            headers_ref_points = [
-                "Zone", "X-Coord\n(m)", "Y-Coord\n(m)", "Z-Coord\n(m)",
-                "Daylighting\nReference", "Fraction\nControlled", "Illuminance\nSetpoint\n(lux)"
-            ]
-            # Check if any entry has non-None conditional values
-            has_continuous_fields_ref = any(
-                entry.get("Minimum Input Power Fraction") is not None for entry in ref_points_data
-            )
-            if has_continuous_fields_ref:
-                 # Append conditional headers
-                 headers_ref_points.append("Min Input\nPower\nFraction")
-                 headers_ref_points.append("Min Light\nOutput\nFraction")
-
-            # Wrap headers
-            styled_headers_ref_points = [wrap_text(h, header_cell_style) for h in headers_ref_points]
-            table_data_ref_points = [styled_headers_ref_points]
-
-            # Use the same formatter as above
-            # Populate data rows with wrapped text
-            for entry in ref_points_data:
-                row_values = [
-                    entry.get("Zone", "-"),
-                    format_num(entry.get('X-Coordinate'), 3),
-                    format_num(entry.get('Y-Coordinate'), 3),
-                    format_num(entry.get('Z-Coordinate'), 1),
-                    entry.get("Daylighting Reference", "-"),
-                    format_num(entry.get('Fraction of Zone Controlled'), 2),
-                    format_num(entry.get('Illuminance Setpoint'), 1)
-                ]
-                if has_continuous_fields_ref:
-                    min_power = entry.get("Minimum Input Power Fraction")
-                    min_output = entry.get("Minimum Light Output Fraction")
-                    row_values.append(format_num(min_power, 2))
-                    row_values.append(format_num(min_output, 2))
-
-                # Wrap each cell value
-                styled_row = [wrap_text(val, cell_style) for val in row_values]
-                table_data_ref_points.append(styled_row)
-
-            # Calculate proportional column widths
-            num_cols_ref = len(headers_ref_points)
-            # Define approximate percentages (adjust as needed)
-            if num_cols_ref == 7: # No continuous fields
-                 col_percentages_ref = [15, 10, 10, 10, 20, 15, 20]
-            elif num_cols_ref == 9: # With continuous fields
-                 col_percentages_ref = [14, 8, 8, 8, 18, 12, 14, 9, 9]
-            else: # Fallback to equal width
-                 col_percentages_ref = [100 / num_cols_ref] * num_cols_ref
-
-            total_percentage_ref = sum(col_percentages_ref)
-            col_widths_ref = [(p / total_percentage_ref) * (doc.width - 1*cm) for p in col_percentages_ref] # Use available width
-
-            # Create and style the table
-            table_ref_points = Table(table_data_ref_points, colWidths=col_widths_ref, repeatRows=1) # Repeat header row
-            table_ref_points.setStyle(table_style)
-            self._story.append(table_ref_points)
-        else:
-            self._story.append(Paragraph("No Daylighting:ReferencePoint data found.", self._styles['Normal']))
-
+        # Removed PageBreak and Second Table (Daylighting:ReferencePoint)
 
         # Build the PDF with header/footer
         try:

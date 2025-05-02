@@ -15,7 +15,7 @@
       "program": "${workspaceFolder}/main.py",
       "args": [
         // Provide the positional IDF file argument
-        "${workspaceFolder}/tests/test.idf",
+        "${workspaceFolder}/tests/5.idf",
         // Provide the required --idd argument
         "--idd",
         "C:/EnergyPlusV9-4-0/Energy+.idd" // Assuming this path based on settings.json. Adjust if needed.
