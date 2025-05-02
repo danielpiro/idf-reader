@@ -93,7 +93,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
         <b>Total Area:</b> {total_floor_area:.2f} m²<br/>
         <b>Location:</b> Unknown<br/>
         <b>Directions:</b> N, S, E, W<br/>
-        <b>Largest Ext. Wall Mass:</b> {wall_mass_per_area:.2f} kg/m²
+        <b>Wall Mass:</b> {wall_mass_per_area:.2f} kg/m²
         """
         
         summary_paragraph = Paragraph(summary_text, summary_content_style)

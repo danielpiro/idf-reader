@@ -552,29 +552,42 @@ class AreaParser:
                         cleaned_construction_name = ' - '.join(parts[:-1]).strip()
                 # --- End Cleaning ---
 
+                # Get the overall types for the construction from MaterialsParser
+                # determined_element_types was already fetched earlier (line 531)
+                # Find the primary non-glazing type for aggregation purposes
+                primary_non_glazing_type = "Unknown" # Default if only glazing or error
+                for t in determined_element_types:
+                    if t != "Glazing" and "Glazing" not in t: # Check for "Glazing", "External Glazing", "Internal Glazing"
+                        primary_non_glazing_type = t
+                        break
+
                 # Iterate through the individual elements within the construction
-                # Each element already has its specific type ("External Glazing", "Internal Glazing", "Wall", etc.)
                 elements = construction_data.get("elements", [])
                 for element in elements:
                     element_area = element.get("area", 0.0)
                     if element_area <= 0.0:
                         continue
 
-                    # Use the element_type determined in _process_surfaces
-                    display_element_type = element.get("element_type", "Unknown")
+                    # Determine the type to use for aggregation/display
+                    element_specific_type = element.get("element_type", "Unknown")
+                    if element_specific_type in ["External Glazing", "Internal Glazing"]:
+                        # Use the specific glazing type if applicable
+                        display_element_type = element_specific_type
+                    else:
+                        # Otherwise, use the primary non-glazing type for the construction
+                        display_element_type = primary_non_glazing_type
 
-                    # Aggregate based on zone, cleaned construction name, and the specific element type
+                    # Aggregate based on zone, cleaned construction name, and the determined display_element_type
                     zone_constr_key = f"{zone_id}_{cleaned_construction_name}_{display_element_type}"
 
                     if zone_constr_key not in zone_constructions_aggregated:
                         zone_constructions_aggregated[zone_constr_key] = {
                             "zone": zone_id,
                             "construction": cleaned_construction_name,
-                            "element_type": display_element_type,
+                            "element_type": display_element_type, # Use the determined type for the row
                             "area": 0.0,
                             "u_value": construction_u_value, # Report the construction's weighted U-value
                             "area_loss": 0.0,
-                            # No need for weighted_u_value here anymore as we use construction_u_value directly
                         }
 
                     # Aggregate area and calculate area_loss based on the element's area
