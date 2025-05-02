@@ -16,10 +16,11 @@ class AreaParser:
     Processes area information from IDF files, including distribution of zones in areas.
     Uses cached data from DataLoader for efficient access.
     """
-    def __init__(self, data_loader, parsed_glazing_data: Dict[str, Dict[str, Any]]): # Added parsed_glazing_data
+    def __init__(self, data_loader, parsed_glazing_data: Dict[str, Dict[str, Any]], materials_parser: MaterialsParser): # Added materials_parser
         self.data_loader = data_loader
-        self.parsed_glazing_data = parsed_glazing_data # Store glazing data
-        self.areas_by_zone = {}  # Dictionary to store area data by zone
+        self.parsed_glazing_data = parsed_glazing_data
+        self.materials_parser = materials_parser # Store materials parser instance
+        self.areas_by_zone = {}
         self.processed = False
 
     def process_idf(self, idf) -> None: # idf parameter kept for compatibility
@@ -43,9 +44,17 @@ class AreaParser:
             
             # Process surfaces to extract construction information
             self._process_surfaces()
-            
+
+            # --- Conditional Merge ---
+            if not self.materials_parser:
+                 logger.error("MaterialsParser instance not available in AreaParser for merging.")
+            else:
+                 # Pass the stored materials_parser instance
+                 self._merge_reverse_constructions(self.materials_parser)
+            # --- End Conditional Merge ---
+
             self.processed = True
-        
+
         except Exception as e:
             print(f"Error extracting area information: {str(e)}")
             import traceback
@@ -347,7 +356,77 @@ class AreaParser:
              logger.warning(f"  Resulting U-Value is 0 for '{construction_name}' because total R-value (material + film) is <= 0.")
 
         return u_value
-    
+
+    def _merge_reverse_constructions(self, materials_parser: MaterialsParser) -> None:
+        """
+        Merges constructions with '_rev' or '_reverse' suffixes into their base counterparts
+        ONLY IF they share the exact same set of element types determined by MaterialsParser.
+        Sums total_area and total_u_value, combines elements, and removes the reverse entry.
+        """
+        logger.debug("--- Starting conditional merge of reverse constructions ---")
+        surfaces = self.data_loader.get_surfaces() # Needed for _get_element_type
+
+        for zone_id, zone_data in self.areas_by_zone.items():
+            constructions = zone_data.get("constructions", {})
+            if not constructions:
+                continue
+
+            construction_names = list(constructions.keys())
+            to_remove = []
+
+            for name in construction_names:
+                if name in to_remove:
+                    continue
+
+                base_name = None
+                if name.endswith("_rev"):
+                    base_name = name[:-4]
+                elif name.endswith("_reverse"):
+                    base_name = name[:-8]
+
+                # Check if potential pair exists and base is not already marked for removal
+                if base_name and base_name in constructions and base_name not in to_remove:
+                    reverse_name = name
+
+                    # Get element types for both base and reverse constructions
+                    try:
+                        base_types_list, base_dont_use = materials_parser._get_element_type(base_name, surfaces)
+                        reverse_types_list, reverse_dont_use = materials_parser._get_element_type(reverse_name, surfaces)
+
+                        # Convert to sets for comparison
+                        base_types_set = set(base_types_list)
+                        reverse_types_set = set(reverse_types_list)
+
+                        # --- Conditional Merge Logic ---
+                        # Merge only if types are identical AND not empty
+                        if base_types_set and base_types_set == reverse_types_set:
+                            logger.debug(f"  Merging '{reverse_name}' into '{base_name}' for zone '{zone_id}' (Types match: {base_types_set})")
+
+                            base_constr = constructions[base_name]
+                            reverse_constr = constructions[reverse_name]
+
+                            # Sum areas and area*u_value sums (total_u_value is needed internally for weighted U-value calc)
+                            base_constr["total_area"] += reverse_constr.get("total_area", 0.0)
+                            base_constr["total_u_value"] += reverse_constr.get("total_u_value", 0.0)
+                            base_constr["elements"].extend(reverse_constr.get("elements", []))
+                            to_remove.append(reverse_name)
+                            logger.debug(f"    Merged Area: {base_constr['total_area']}, Merged Internal Area*U: {base_constr['total_u_value']}")
+                        else:
+                             logger.debug(f"  Skipping merge for '{reverse_name}' and '{base_name}' in zone '{zone_id}'. Element types differ or empty (Base: {base_types_set}, Reverse: {reverse_types_set})")
+                        # --- End Conditional Merge ---
+
+                    except Exception as e:
+                        logger.warning(f"  Error determining element types during merge check for '{base_name}'/'{reverse_name}': {e}. Skipping merge.")
+
+            # Remove the merged reverse constructions
+            if to_remove:
+                logger.debug(f"  Removing merged constructions for zone '{zone_id}': {to_remove}")
+                for key in to_remove:
+                    del constructions[key]
+
+        logger.debug("--- Finished conditional merging reverse constructions ---")
+
+
     def get_areas_by_zone(self) -> Dict[str, Dict[str, Any]]:
         """
         Get the processed area data by zone.
@@ -401,138 +480,189 @@ class AreaParser:
         
     def get_area_table_data(self, materials_parser: Optional[MaterialsParser] = None) -> Dict[str, List[Dict[str, Any]]]:
         """
-        Get data for area reports in table format, aggregating glazing constructions.
+        Get data for area reports in table format, aggregating by zone, construction,
+        and element type determined by MaterialsParser. Removes area_u_value from final output.
+        Glazing constructions have their names cleaned.
 
         Args:
-            materials_parser: Optional MaterialsParser instance for better element type detection
+            materials_parser: Optional MaterialsParser instance (uses self.materials_parser if available).
 
         Returns:
-            Dict[str, List[Dict[str, Any]]]: Dictionary of area table rows by area ID
+            Dict[str, List[Dict[str, Any]]]: Dictionary of area table rows by area ID.
         """
         result_by_area = {}
 
-        # Get cached surfaces
+        # Use the instance stored during __init__
+        parser_to_use = self.materials_parser
+        if not parser_to_use:
+             logger.error("MaterialsParser instance is required for get_area_table_data (should be provided during AreaParser init).")
+             return result_by_area
+
         surfaces = self.data_loader.get_surfaces()
 
-        # Process each zone
         for zone_id, zone_data in self.areas_by_zone.items():
             area_id = zone_data.get("area_id", "unknown")
 
-            # Skip zones with "core" in their area ID
             if "core" in area_id.lower():
                 continue
-
-            # Initialize area in results if not already
             if area_id not in result_by_area:
                 result_by_area[area_id] = []
 
-            # Dictionary to store aggregated zone+construction combinations
             zone_constructions_aggregated = {}
 
             for construction_name, construction_data in zone_data.get("constructions", {}).items():
-                # Determine element type and if it's glazing
-                element_type = "Unknown"
-                is_glazing_construction = False
+                try:
+                    determined_element_types, dont_use = parser_to_use._get_element_type(construction_name, surfaces)
+                except Exception as e:
+                    logger.warning(f"Error getting element type for '{construction_name}' from MaterialsParser: {e}. Skipping construction.")
+                    continue
+                if dont_use or not determined_element_types:
+                    continue
 
-                # Prioritize checking surface properties if available
-                # Find a surface in *this zone* that uses this construction
-                matched_surface = next((s for s_id, s in surfaces.items()
-                                        if s.get('construction_name') == construction_name and s.get('zone_name') == zone_id), None)
+                total_area = construction_data.get("total_area", 0.0)
+                total_area_u_value = construction_data.get("total_u_value", 0.0) # Still needed for weighted U-value
 
-                if matched_surface:
-                    if matched_surface.get('is_glazing', False):
-                        element_type = "Glazing"
-                        is_glazing_construction = True
-                    elif materials_parser:
-                        try:
-                            # Pass self if needed by the method signature in MaterialsParser
-                            element_type = materials_parser._get_element_type(construction_name, surfaces)
-                        except Exception as e:
-                            logger.warning(f"Could not determine element type via MaterialsParser for {construction_name}: {e}")
-                            # Fallback below if still Unknown
-                    else: # No materials_parser, use surface_type from matched surface
-                         element_type = matched_surface.get("surface_type", "Unknown").capitalize()
+                if total_area <= 0.0:
+                    continue
 
-                # Fallback: Infer from first element if type is still Unknown
-                if element_type == "Unknown" and construction_data.get("elements"):
-                    first_element = construction_data["elements"][0]
-                    element_type = first_element.get("element_type", "Unknown")
-                    if element_type == "Glazing":
-                        is_glazing_construction = True
+                construction_u_value = total_area_u_value / total_area # Weighted U-value
 
-                # --- Modifications for Glazing Aggregation and Values ---
+                # --- Clean construction name ---
                 cleaned_construction_name = construction_name
-                display_element_type = element_type
-
-                if is_glazing_construction:
-                    display_element_type = "Outside Glazing"  # Set display type for report
-                    # Clean the name: remove trailing " - " and digits
+                is_glazing_type_present = "Glazing" in determined_element_types
+                if is_glazing_type_present:
                     parts = construction_name.split(' - ')
                     if len(parts) > 1 and parts[-1].strip().isdigit():
                         cleaned_construction_name = ' - '.join(parts[:-1]).strip()
-                    # Example: "6+6+6 - 1001" -> "6+6+6"
+                # --- End Cleaning ---
 
-                # Create a unique key for zone + cleaned_construction_name + display_element_type combination
-                zone_constr_key = f"{zone_id}_{cleaned_construction_name}_{display_element_type}"
+                for current_element_type in determined_element_types:
+                    display_element_type = current_element_type
+                    if current_element_type == "Glazing":
+                        display_element_type = "Outside Glazing"
 
-                # Aggregate data based on the key
-                if zone_constr_key not in zone_constructions_aggregated:
-                    # Get u_value from first element (should be consistent for the construction)
-                    u_value = 0.0
-                    # --- DEBUG: Check U-value source ---
-                    if construction_data.get("elements"):
-                        first_element_u_value = construction_data["elements"][0].get("u_value", 0.0)
-                        u_value = first_element_u_value
-                        if cleaned_construction_name == "6+6+6":
-                             logger.debug(f"      AGGREGATION START for '{zone_constr_key}': Using U-Value from first element: {u_value}")
-                    elif cleaned_construction_name == "6+6+6":
-                         logger.debug(f"      AGGREGATION START for '{zone_constr_key}': No elements found, U-Value=0.0")
-                    # --- END DEBUG ---
+                    zone_constr_key = f"{zone_id}_{cleaned_construction_name}_{display_element_type}"
 
-                    zone_constructions_aggregated[zone_constr_key] = {
-                        "zone": zone_id,
-                        "construction": cleaned_construction_name,  # Use cleaned name
-                        "element_type": display_element_type,  # Use adjusted display type
-                        "area": 0.0,
-                        "u_value": u_value,  # U-value per construction
-                        "area_u_value": 0.0,  # Sum of (element area * element u_value)
-                        "area_loss": 0.0  # Initialize area loss
-                    }
+                    if zone_constr_key not in zone_constructions_aggregated:
+                        zone_constructions_aggregated[zone_constr_key] = {
+                            "zone": zone_id,
+                            "construction": cleaned_construction_name,
+                            "element_type": display_element_type,
+                            "area": 0.0,
+                            "u_value": construction_u_value, # Report the weighted U-value
+                            # "area_u_value": 0.0, # REMOVED
+                            "area_loss": 0.0,
+                            "weighted_u_value": construction_u_value # Keep for calculation
+                        }
 
-                # Add area and area_u_value to the aggregated entry
-                constr_agg = zone_constructions_aggregated[zone_constr_key]
-                current_total_area = construction_data.get("total_area", 0.0)
-                # total_u_value in construction_data is already sum(area*u_value) for that specific original construction
-                current_total_area_u_value = construction_data.get("total_u_value", 0.0)
+                    constr_agg = zone_constructions_aggregated[zone_constr_key]
+                    constr_agg["area"] += total_area
+                    # REMOVED: constr_agg["area_u_value"] += total_area_u_value
 
-                # --- DEBUG: Check aggregation values ---
-                if cleaned_construction_name == "6+6+6":
-                    logger.debug(f"      AGGREGATING for '{zone_constr_key}':")
-                    logger.debug(f"         Adding Area: {current_total_area}")
-                    logger.debug(f"         Adding Area*U-Value: {current_total_area_u_value}")
-                    logger.debug(f"         Current Agg Area: {constr_agg['area']}")
-                    logger.debug(f"         Current Agg Area*U: {constr_agg['area_u_value']}")
-                # --- END DEBUG ---
+                    # Update area_loss using aggregated area and weighted U-value
+                    constr_agg["area_loss"] = constr_agg["area"] * constr_agg["weighted_u_value"]
 
-                constr_agg["area"] += current_total_area
-                constr_agg["area_u_value"] += current_total_area_u_value
+            # Final cleanup before adding to results: remove internal weighted_u_value
+            final_aggregated_list = []
+            for agg_data in zone_constructions_aggregated.values():
+                 if "weighted_u_value" in agg_data:
+                     del agg_data["weighted_u_value"] # Remove before adding to final list
+                 final_aggregated_list.append(agg_data)
 
-
-                # Calculate area_loss = aggregated sum(area * u_value)
-                # This matches the user's example where area_loss = area * u_value
-                constr_agg["area_loss"] = constr_agg["area_u_value"]
-
-            # --- Post-aggregation processing ---
-            # Calculate weighted average U-value for each aggregated entry
-            for key, agg_data in zone_constructions_aggregated.items():
-                total_area = agg_data.get("area", 0.0)
-                total_area_u_value = agg_data.get("area_u_value", 0.0)
-                weighted_u_value = 0.0
-                if total_area > 0:
-                    weighted_u_value = total_area_u_value / total_area
-                agg_data["weighted_u_value"] = weighted_u_value # Add the calculated weighted U-value
-
-            # Add all aggregated zone+constructions to the area's result list
-            result_by_area[area_id].extend(zone_constructions_aggregated.values())
+            result_by_area[area_id].extend(final_aggregated_list)
 
         return result_by_area
+
+    def get_area_h_values(self) -> List[Dict[str, Any]]:
+        """
+        Calculates the H-Value for each area based on external, roof, and separation losses.
+
+        H-Value = (sum(Area*U for external/roof) + 0.5 * sum(Area*U for separation)) / TotalFloorArea
+
+        Returns:
+            List[Dict[str, Any]]: A list of dictionaries, each containing:
+                'area_id': The area identifier.
+                'location': Placeholder for area location (currently uses area_id).
+                'h_value': The calculated H-Value.
+                'total_floor_area': The total floor area for the area.
+        """
+        h_values_by_area = []
+        if not self.processed:
+            logger.error("IDF data must be processed before calculating H-values.")
+            return h_values_by_area
+        if not self.materials_parser:
+             logger.error("MaterialsParser instance is required for H-Value calculation.")
+             return h_values_by_area
+
+        # Get the detailed table data which includes element types and area_loss
+        # Note: get_area_table_data now returns data with 'area_loss' calculated
+        area_data_for_h_calc = self.get_area_table_data() # Use self.materials_parser internally
+
+        # Calculate total floor area for each area_id first
+        area_floor_totals = {}
+        for zone_id, zone_data in self.areas_by_zone.items():
+            area_id = zone_data.get("area_id", "unknown")
+            if "core" in area_id.lower(): # Skip core areas
+                 continue
+            if area_id not in area_floor_totals:
+                area_floor_totals[area_id] = 0.0
+            area_floor_totals[area_id] += (
+                zone_data.get("floor_area", 0.0) * zone_data.get("multiplier", 1)
+            )
+
+        # Group the detailed data by area_id
+        from collections import defaultdict # Import here if not already at top
+        grouped_data = defaultdict(list)
+        for area_id, rows in area_data_for_h_calc.items():
+            grouped_data[area_id].extend(rows)
+
+        # Calculate H-Value for each area
+        for area_id, rows in grouped_data.items():
+            total_floor_area = area_floor_totals.get(area_id, 0.0)
+            if total_floor_area <= 0:
+                logger.warning(f"Skipping H-Value calculation for Area '{area_id}': Total floor area is 0 or less.")
+                continue
+
+            external_roof_loss_sum = 0.0
+            separation_loss_sum = 0.0
+
+            for row in rows:
+                element_type = row.get('element_type', '').lower()
+                area_loss = row.get('area_loss', 0.0) # area_loss = area * u_value
+
+                # Check element type for classification
+                is_external_roof = False
+                is_separation = False
+
+                # Define keywords (case-insensitive)
+                external_keywords = ["external", "outside", "ground"] # Include ground contact
+                roof_keywords = ["roof"]
+                separation_keywords = ["separation"] # User specified "separation".
+
+                # More robust check for keywords in element type string
+                if any(keyword in element_type for keyword in external_keywords) or \
+                   any(keyword in element_type for keyword in roof_keywords):
+                    is_external_roof = True
+
+                if any(keyword in element_type for keyword in separation_keywords):
+                     # Avoid double counting if it's somehow both (e.g., "External Separation Wall")
+                     if not is_external_roof:
+                         is_separation = True
+
+                # Add to sums based on classification
+                if is_external_roof:
+                    external_roof_loss_sum += area_loss
+                elif is_separation:
+                    separation_loss_sum += area_loss
+
+            # Calculate H-Value
+            h_value = (external_roof_loss_sum + 0.5 * separation_loss_sum) / total_floor_area
+
+            h_values_by_area.append({
+                'area_id': area_id,
+                'location': area_id, # Using area_id as placeholder for location
+                'h_value': h_value,
+                'total_floor_area': total_floor_area
+            })
+
+        return h_values_by_area

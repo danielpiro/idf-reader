@@ -18,6 +18,9 @@ from generators.materials_report_generator import generate_materials_report_pdf
 from generators.glazing_report_generator import generate_glazing_report_pdf
 # Import lighting components
 from generators.lighting_report_generator import LightingReportGenerator
+# Import area loss components
+from parsers.area_loss_parser import AreaLossParser
+from generators.area_loss_report_generator import generate_area_loss_report_pdf
 from parsers.schedule_parser import ScheduleExtractor
 from parsers.settings_parser import SettingsExtractor
 from parsers.load_parser import LoadExtractor
@@ -70,10 +73,12 @@ class ProcessingManager:
             # Add path for glazing PDF report
             glazing_pdf_path = os.path.join(base_output, "glazing.pdf") # Changed to PDF
             lighting_pdf_path = os.path.join(base_output, "lighting.pdf")
+            # Add path for area loss PDF report
+            area_loss_pdf_path = os.path.join(base_output, "area-loss.pdf")
 
             # Create output directories
             for path in [settings_pdf_path, schedules_pdf_path, loads_pdf_path,
-                        materials_pdf_path, glazing_pdf_path, lighting_pdf_path]: # Add lighting PDF path
+                        materials_pdf_path, glazing_pdf_path, lighting_pdf_path, area_loss_pdf_path]:
                 self.ensure_directory_exists(path)
 
             self.update_progress(0.1)
@@ -120,10 +125,12 @@ class ProcessingManager:
             parsed_glazing = glazing_parser.parse_glazing_data()
 
             # Now initialize AreaParser, passing the parsed glazing data
-            area_parser = AreaParser(data_loader, parsed_glazing)
+            area_parser = AreaParser(data_loader, parsed_glazing, materials_extractor) # Pass materials_extractor
             # Initialize LightingParser
             lighting_parser = LightingParser(data_loader)
-
+            
+            # Initialize AreaLossParser after AreaParser
+            area_loss_parser = AreaLossParser(area_parser)
 
             if self.is_cancelled:
                 return False
@@ -171,6 +178,8 @@ class ProcessingManager:
             # extracted_areas = area_parser.get_parsed_areas() # Incorrect method call removed
             extracted_glazing_data = glazing_parser.parsed_glazing_data # Get parsed data
             extracted_lighting_data = parsed_lighting # Get parsed lighting data
+            # Get area loss data from area_loss_parser
+            extracted_area_loss_data = area_loss_parser.parse() # This calls parse() to calculate H-values
 
             if self.is_cancelled:
                 return False
@@ -269,6 +278,23 @@ class ProcessingManager:
             except Exception as e:
                  self.update_status(f"Error generating Lighting PDF report: {e}")
             self.update_progress(1.0) # Final progress
+
+            # Generate Area Loss PDF report
+            self.update_status("Generating Area Loss report (PDF)...")
+            try:
+                # Call the standalone PDF generation function with header info
+                success_area_loss = generate_area_loss_report_pdf(
+                    extracted_area_loss_data,
+                    area_loss_pdf_path,
+                    project_name=project_name,
+                    run_id=run_id
+                )
+                if success_area_loss:
+                    self.update_status("Area Loss report generated successfully.")
+                else:
+                    self.update_status("Area Loss report generation failed (check console for details).")
+            except Exception as e:
+                 self.update_status(f"Error generating Area Loss PDF report: {e}")
 
             self.update_status("Processing completed successfully!")
             return True

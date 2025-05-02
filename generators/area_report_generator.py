@@ -138,7 +138,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
             Paragraph("Element type", header_style),
             Paragraph("Area", header_style),
             Paragraph("U-Value", header_style),
-            Paragraph("Area * U-Value", header_style)
+            Paragraph("Area * U-Value", header_style) # Reverted header
         ]
         
         # Prepare table data
@@ -180,7 +180,9 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
             # Use weighted_u_value if available (for aggregated glazing), otherwise fallback to u_value
             u_value_to_format = row.get('weighted_u_value', row.get('u_value', 0.0))
             u_value = f"{u_value_to_format:.3f}"
-            area_u_value = f"{row['area_u_value']:.2f}"
+            # Calculate Area * U-Value for display (using the same U-value as displayed)
+            area_u_value_display = row.get('area', 0.0) * u_value_to_format
+            area_u_value = f"{area_u_value_display:.2f}" # Reverted to Area * U-Value
             
             # Add all cells to row
             table_data.append([
@@ -189,7 +191,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
                 element_type_cell,
                 area_value,
                 u_value,
-                area_u_value
+                area_u_value # Reverted
             ])
         
         # Create the table with carefully adjusted column widths
@@ -242,115 +244,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
 
 from typing import Optional # Add Optional for type hinting
 
-def merge_reversed_constructions(area_data: List[Dict[str, Any]],
-                                 materials_parser: Optional[Any] = None, # Use 'Any' to avoid circular import
-                                 surfaces: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
-    """
-    Merge constructions with _Rev suffix with their base construction.
-    Skips merging for glazing elements if materials_parser and surfaces are provided.
-
-    Args:
-        area_data: List of area data rows.
-        materials_parser: Instance of MaterialsParser to determine element type (optional).
-        surfaces: Dictionary of surface data (optional, required if materials_parser is provided).
-
-    Returns:
-        List[Dict[str, Any]]: Merged area data.
-    """
-    if not materials_parser or not surfaces:
-        print(f"{Fore.YELLOW}Warning: MaterialsParser or surfaces not provided to merge_reversed_constructions. Glazing check skipped.{Style.RESET_ALL}")
-
-    merged_dict = {}
-
-    for row in area_data:
-        zone = row['zone']
-        construction = row['construction']
-        element_type = row.get('element_type', 'Unknown') # Get existing type if available
-
-        # Determine base construction name
-        base_construction = construction
-        is_reversed = False
-        rev_patterns = [r'_Rev$', r'_Reversed$', r'_rev$', r'_reversed$']
-        for pattern in rev_patterns:
-            if re.search(pattern, construction):
-                base_construction = re.sub(pattern, '', construction)
-                is_reversed = True
-                break
-
-        # --- Skip merging for Glazing if parser available ---
-        should_merge = True
-        if materials_parser and surfaces:
-            try:
-                # Determine element type accurately using the parser
-                # The _get_element_type now returns (list, bool) instead of (string, bool)
-                element_types_list, _ = materials_parser._get_element_type(construction, surfaces)
-                
-                # Check if "Glazing" is in any of the element types
-                if element_types_list and "Glazing" in element_types_list:
-                    should_merge = False
-                    # Use original construction name if not merging glazing
-                    base_construction = construction
-                    is_reversed = False # Treat as non-reversed if not merging
-            except Exception as e:
-                print(f"{Fore.YELLOW}Warning: Error checking element type for '{construction}' in merge: {e}{Style.RESET_ALL}")
-        # --- End Glazing Check ---
-
-        # Create key based on whether we are merging or not
-        # If not merging (glazing), use the original construction name in the key
-        key_construction = base_construction if (should_merge and is_reversed) else construction
-        key = f"{zone}_{key_construction}"
-
-        if key not in merged_dict:
-            # First time seeing this combination (or it's glazing we're not merging)
-            merged_dict[key] = row.copy()
-            # Ensure the construction name in the stored dict is the one used for the key
-            merged_dict[key]['construction'] = key_construction
-            # Remove area_loss if it exists
-            merged_dict[key].pop('area_loss', None)
-        elif should_merge and is_reversed:
-            # Merge with existing entry (only if it's a reversed non-glazing construction)
-            existing = merged_dict[key]
-            existing['area'] += row['area']
-            existing['area_u_value'] += row['area_u_value']
-            # Area loss is being removed, so no need to merge it.
-            # existing['area_loss'] += row['area_loss'] # Removed
-
-            # Recalculate weighted U-value based on merged area and area*U-value
-            # Note: This assumes 'u_value' or 'weighted_u_value' exists in the row.
-            # A simple weighted average calculation:
-            current_u = row.get('weighted_u_value', row.get('u_value', 0.0))
-            existing_u = existing.get('weighted_u_value', existing.get('u_value', 0.0))
-            new_total_area = existing['area'] # Area already updated above
-            # Update area_u_value first
-            # existing['area_u_value'] += row['area_u_value'] # Already done above
-
-            # Weighted U-value calculation needs care. Let's recalculate from total area_u_value / total_area later.
-            # For now, just ensure the field exists if either input had it.
-            if 'weighted_u_value' in row or 'weighted_u_value' in existing:
-                 existing['weighted_u_value'] = existing.get('weighted_u_value', 0.0) # Placeholder, recalculated below
-            # Remove area_loss if it exists
-            existing.pop('area_loss', None)
-
-    # --- Final processing and U-value recalculation ---
-    final_list = []
-    for key, merged_row in merged_dict.items():
-        total_area = merged_row.get('area', 0.0)
-        total_area_u_value = merged_row.get('area_u_value', 0.0)
-
-        # Recalculate weighted U-value accurately
-        if total_area > 0:
-            merged_row['weighted_u_value'] = total_area_u_value / total_area
-        elif 'u_value' in merged_row: # Fallback if area is somehow zero
-             merged_row['weighted_u_value'] = merged_row['u_value']
-        else:
-             merged_row['weighted_u_value'] = 0.0 # Ensure field exists
-
-        # Remove area_loss just in case it slipped through
-        merged_row.pop('area_loss', None)
-
-        final_list.append(merged_row)
-
-    return final_list
+# Removed redundant merge_reversed_constructions function (logic moved to AreaParser)
 
 def format_construction_name(construction: str) -> str:
     """
@@ -569,26 +463,19 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                             "element_type": element_type,
                             "area": total_area,
                             "u_value": construction_data.get("elements", [{}])[0].get("u_value", 0.0) if construction_data.get("elements") else 0.0,
-                            "area_u_value": total_u_value,
-                            "area_loss": 0.0
+                            "area_u_value": total_u_value
                         }
                         rows.append(row)
                 
                 area_table_data[area_id] = rows
         
-        # --- Merge reversed constructions (excluding glazing) ---
-        merged_area_table_data = {}
-        for area_id, rows in area_table_data.items():
-            if materials_parser and surfaces:
-                 merged_area_table_data[area_id] = merge_reversed_constructions(rows, materials_parser, surfaces)
-            else:
-                 # Fallback if parser/surfaces not available
-                 merged_area_table_data[area_id] = merge_reversed_constructions(rows)
-
+        # --- Merging is now done in AreaParser, no need to call merge_reversed_constructions here ---
+        # The data in area_table_data is already merged.
 
         # --- Generate a report for each area ---
         successes = []
-        for area_id, merged_rows in merged_area_table_data.items():
+        # Iterate directly over the already merged data
+        for area_id, merged_rows in area_table_data.items():
             # Get total floor area for this area
             total_floor_area = area_floor_totals.get(area_id, 0.0)
 
