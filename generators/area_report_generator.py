@@ -19,7 +19,7 @@ init(autoreset=True)
 def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
                              output_filename: str, total_floor_area: float = 0.0,
                              project_name: str = "N/A", run_id: str = "N/A",
-                             wall_mass_per_area: float = 0.0) -> bool: # Changed parameter name
+                             wall_mass_per_area: float = 0.0, location: str = "Unknown") -> bool: # Added location parameter
     """
     Generate a PDF report with area information, including a header.
 
@@ -31,6 +31,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
         project_name (str): Name of the project.
         run_id (str): Identifier for the current run.
         wall_mass_per_area (float): Mass per area (kg/m²) of the largest external wall's construction.
+        location (str): The location type of the area (e.g., Ground Floor, Intermediate Floor).
 
     Returns:
         bool: True if report generation was successful, False otherwise.
@@ -91,7 +92,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
         ------------------------------------<br/>
         <b>Area Name:</b> {area_id}<br/>
         <b>Total Area:</b> {total_floor_area:.2f} m²<br/>
-        <b>Location:</b> Unknown<br/>
+        <b>Location:</b> {location}<br/>
         <b>Directions:</b> N, S, E, W<br/>
         <b>Wall Mass:</b> {wall_mass_per_area:.2f} kg/m²
         """
@@ -472,6 +473,19 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
         # --- Merging is now done in AreaParser, no need to call merge_reversed_constructions here ---
         # The data in area_table_data is already merged.
 
+        # Get area locations from h_values if available
+        area_locations = {}
+        if hasattr(areas_data, 'get_area_h_values'):
+            try:
+                area_h_values = areas_data.get_area_h_values()
+                for item in area_h_values:
+                    area_id = item.get('area_id')
+                    location = item.get('location', 'Unknown')
+                    if area_id:
+                        area_locations[area_id] = location
+            except Exception as e:
+                print(f"{Fore.YELLOW}Warning: Could not get area locations from h_values: {e}{Style.RESET_ALL}")
+
         # --- Generate a report for each area ---
         successes = []
         # Iterate directly over the already merged data
@@ -538,10 +552,13 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                  print(f"{Fore.YELLOW}Warning: MaterialsParser not available to calculate wall mass per area for area {area_id}.{Style.RESET_ALL}")
             # --- End Wall Mass Per Area Calculation ---
 
+            # Get location for this area
+            location = area_locations.get(area_id, "Unknown")
+            
             # Define output filename
             output_file = output_path / f"area_{area_id}.pdf"
 
-            # Generate the PDF report for this area, passing the calculated wall_mass_per_area
+            # Generate the PDF report for this area, passing the calculated wall_mass_per_area and location
             success = generate_area_report_pdf(
                 area_id=area_id,
                 area_data=merged_rows, # Use merged rows
@@ -549,7 +566,8 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                 total_floor_area=total_floor_area,
                 project_name=project_name,
                 run_id=run_id,
-                wall_mass_per_area=wall_mass_per_area # Pass calculated mass per area
+                wall_mass_per_area=wall_mass_per_area, # Pass calculated mass per area
+                location=location # Use the determined location
             )
             successes.append(success)
 

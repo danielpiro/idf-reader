@@ -33,7 +33,7 @@ class AreaLossParser:
             if hasattr(self.area_parser, 'get_area_h_values'):
                 self.area_loss_data = self.area_parser.get_area_h_values()
                 
-                # Get the location for each area from settings or DataLoader
+                # Get the location for each area from the data returned by get_area_h_values
                 locations = self._get_area_locations()
                 
                 # Add the required H-Needed and Compatible fields
@@ -67,29 +67,19 @@ class AreaLossParser:
     
     def _get_area_locations(self) -> Dict[str, str]:
         """
-        Get location information for each area.
+        Get location information for each area. This method is now kept for backward compatibility
+        but the locations should already be determined properly by get_area_h_values().
         
         Returns:
             Dict[str, str]: A dictionary mapping area_id to location
         """
+        # This method is now largely a no-op since location is determined in get_area_h_values
+        # and already included in the data returned by that method
         locations = {}
         
-        # Try to get locations from the DataLoader if available
-        try:
-            if hasattr(self.area_parser, 'data_loader') and self.area_parser.data_loader:
-                # Check for settings data - location might be available there
-                if hasattr(self.area_parser.data_loader, 'get_settings'):
-                    settings = self.area_parser.data_loader.get_settings()
-                    if settings and 'location' in settings:
-                        location_name = settings.get('location', {}).get('name', '')
-                        # Default all areas to the project location
-                        for area_id in self.area_parser.areas_by_zone:
-                            if area_id != "unknown":
-                                locations[area_id] = location_name
+        # We no longer need to fetch locations from settings as they are determined by
+        # the floor and ceiling construction types in get_area_h_values()
         
-        except Exception as e:
-            logger.warning(f"Error getting area locations: {e}")
-            
         return locations
     
     def get_parsed_area_loss_data(self) -> List[Dict[str, Any]]:
