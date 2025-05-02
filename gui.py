@@ -16,6 +16,8 @@ from generators.area_report_generator import generate_area_reports
 from generators.materials_report_generator import generate_materials_report_pdf
 # Import new glazing components PDF function
 from generators.glazing_report_generator import generate_glazing_report_pdf
+# Import lighting components
+from generators.lighting_report_generator import LightingReportGenerator
 from parsers.schedule_parser import ScheduleExtractor
 from parsers.settings_parser import SettingsExtractor
 from parsers.load_parser import LoadExtractor
@@ -23,6 +25,8 @@ from parsers.materials_parser import MaterialsParser
 from parsers.area_parser import AreaParser
 # Import new glazing components
 from parsers.glazing_parser import GlazingParser
+# Import lighting parser
+from parsers.lighting_parser import LightingParser
 
 class ProcessingManager:
     # Removed energyplus_dir from init
@@ -64,11 +68,12 @@ class ProcessingManager:
             loads_pdf_path = os.path.join(base_output, "loads.pdf")
             materials_pdf_path = os.path.join(base_output, "materials.pdf")
             # Add path for glazing PDF report
-            glazing_pdf_path = os.path.join(base_output, "glazing_report.pdf") # Changed to PDF
+            glazing_pdf_path = os.path.join(base_output, "glazing.pdf") # Changed to PDF
+            lighting_pdf_path = os.path.join(base_output, "lighting.pdf")
 
             # Create output directories
             for path in [settings_pdf_path, schedules_pdf_path, loads_pdf_path,
-                        materials_pdf_path, glazing_pdf_path]: # Add glazing PDF path
+                        materials_pdf_path, glazing_pdf_path, lighting_pdf_path]: # Add lighting PDF path
                 self.ensure_directory_exists(path)
 
             self.update_progress(0.1)
@@ -116,6 +121,8 @@ class ProcessingManager:
 
             # Now initialize AreaParser, passing the parsed glazing data
             area_parser = AreaParser(data_loader, parsed_glazing)
+            # Initialize LightingParser
+            lighting_parser = LightingParser(data_loader)
 
 
             if self.is_cancelled:
@@ -150,6 +157,8 @@ class ProcessingManager:
             materials_extractor.process_idf(idf)
             area_parser.process_idf(idf)
             # Glazing data was already parsed before AreaParser initialization
+            # Parse lighting data
+            parsed_lighting = lighting_parser.parse()
 
             self.update_progress(0.6)
             self.update_status("Extracting processed data...")
@@ -161,6 +170,7 @@ class ProcessingManager:
             extracted_element_data = materials_extractor.get_element_data()
             # extracted_areas = area_parser.get_parsed_areas() # Incorrect method call removed
             extracted_glazing_data = glazing_parser.parsed_glazing_data # Get parsed data
+            extracted_lighting_data = parsed_lighting # Get parsed lighting data
 
             if self.is_cancelled:
                 return False
@@ -238,6 +248,26 @@ class ProcessingManager:
                     self.update_status("Glazing report generation failed (check console for details).")
             except Exception as e:
                  self.update_status(f"Error generating Glazing PDF report: {e}")
+            self.update_progress(0.98) # Adjust progress before lighting
+
+            # Generate Lighting PDF report
+            self.update_status("Generating Lighting report (PDF)...")
+            try:
+                # Pass project_name and run_id to the constructor
+                lighting_generator = LightingReportGenerator(
+                    extracted_lighting_data,
+                    lighting_pdf_path,
+                    project_name=project_name,
+                    run_id=run_id
+                )
+                # generate_report now returns True/False
+                success_lighting = lighting_generator.generate_report()
+                if success_lighting:
+                    self.update_status("Lighting report generated successfully.")
+                else:
+                    self.update_status("Lighting report generation failed (check console for details).")
+            except Exception as e:
+                 self.update_status(f"Error generating Lighting PDF report: {e}")
             self.update_progress(1.0) # Final progress
 
             self.update_status("Processing completed successfully!")

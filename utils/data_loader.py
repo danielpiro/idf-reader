@@ -68,6 +68,8 @@ class DataLoader:
         self._window_simple_glazing_cache = {}
         self._window_shading_control_cache = {}
         self._frame_divider_cache = {} # Added cache for FrameAndDivider
+        self._daylighting_controls_cache = {}
+        self._daylighting_reference_point_cache = {}
         
     def load_file(self, idf_path: str, idd_path: Optional[str] = None) -> None:
         """
@@ -98,6 +100,7 @@ class DataLoader:
         self._cache_loads()
         self._cache_window_shading_controls()
         self._cache_frame_dividers()
+        self._cache_daylighting()
         # self._filter_constructions_glazing() # Moved to glazing_parser
 
     def _check_output(self) -> None:
@@ -555,6 +558,31 @@ class DataLoader:
                     'frame_conductance': safe_float(getattr(frame_divider, "Frame_Conductance", 0.0)),
                     'raw_object': frame_divider
                 }
+    def _cache_daylighting(self) -> None:
+        """Cache raw daylighting data"""
+        if not self._idf:
+            return
+
+        self._daylighting_controls_cache.clear()
+        self._daylighting_reference_point_cache.clear()
+
+        # Cache Daylighting:Controls
+        if 'DAYLIGHTING:CONTROLS' in self._idf.idfobjects:
+            for control in self._idf.idfobjects['DAYLIGHTING:CONTROLS']:
+                control_id = str(control.Name)
+                self._daylighting_controls_cache[control_id] = {
+                    'id': control_id,
+                    'raw_object': control
+                }
+
+        # Cache Daylighting:ReferencePoint
+        if 'DAYLIGHTING:REFERENCEPOINT' in self._idf.idfobjects:
+            for ref_point in self._idf.idfobjects['DAYLIGHTING:REFERENCEPOINT']:
+                ref_point_id = str(ref_point.Name)
+                self._daylighting_reference_point_cache[ref_point_id] = {
+                    'id': ref_point_id,
+                    'raw_object': ref_point
+                }
 
     # _filter_constructions_glazing moved to parsers/glazing_parser.py
 
@@ -699,3 +727,10 @@ class DataLoader:
     def get_idf_path(self) -> Optional[str]:
         """Get the path of the loaded IDF file"""
         return self._idf_path
+    def get_daylighting_controls(self) -> Dict[str, Dict[str, Any]]:
+        """Return cached raw Daylighting:Controls data"""
+        return self._daylighting_controls_cache
+
+    def get_daylighting_reference_points(self) -> Dict[str, Dict[str, Any]]:
+        """Return cached raw Daylighting:ReferencePoint data"""
+        return self._daylighting_reference_point_cache
