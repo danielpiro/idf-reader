@@ -155,11 +155,27 @@ class AreaParser:
                     "total_u_value": 0.0
                 }
             
+            # Determine element type, specifically for glazing
+            element_type_str = surface_type.capitalize()
+            # Check if the surface type indicates it's a fenestration surface
+            if surface_type.lower() in ['window', 'glassdoor', 'fenestrationsurface:detailed']: # Add other relevant types if needed
+                # Determine Internal vs External Glazing based on base surface OBC
+                is_external_glazing = False
+                base_surface_name = surface.get("base_surface")
+                if base_surface_name:
+                    base_surface_data = surfaces.get(base_surface_name)
+                    if base_surface_data:
+                        obc = base_surface_data.get("boundary_condition")
+                        if obc and obc.lower() == "outdoors":
+                            is_external_glazing = True
+                element_type_str = "External Glazing" if is_external_glazing else "Internal Glazing"
+            # else: element_type_str remains the capitalized surface_type for non-glazing
+
             # Add element data and update totals
             element_data = {
                 "zone": zone_name,
                 "surface_name": surface_id,
-                "element_type": "Glazing" if is_glazing else surface_type.capitalize(),
+                "element_type": element_type_str, # Use the determined type
                 "area": area,
                 "u_value": u_value, # Use the determined u_value
                 "area_u_value": area * u_value
@@ -536,11 +552,18 @@ class AreaParser:
                         cleaned_construction_name = ' - '.join(parts[:-1]).strip()
                 # --- End Cleaning ---
 
-                for current_element_type in determined_element_types:
-                    display_element_type = current_element_type
-                    if current_element_type == "Glazing":
-                        display_element_type = "Outside Glazing"
+                # Iterate through the individual elements within the construction
+                # Each element already has its specific type ("External Glazing", "Internal Glazing", "Wall", etc.)
+                elements = construction_data.get("elements", [])
+                for element in elements:
+                    element_area = element.get("area", 0.0)
+                    if element_area <= 0.0:
+                        continue
 
+                    # Use the element_type determined in _process_surfaces
+                    display_element_type = element.get("element_type", "Unknown")
+
+                    # Aggregate based on zone, cleaned construction name, and the specific element type
                     zone_constr_key = f"{zone_id}_{cleaned_construction_name}_{display_element_type}"
 
                     if zone_constr_key not in zone_constructions_aggregated:
@@ -549,18 +572,16 @@ class AreaParser:
                             "construction": cleaned_construction_name,
                             "element_type": display_element_type,
                             "area": 0.0,
-                            "u_value": construction_u_value, # Report the weighted U-value
-                            # "area_u_value": 0.0, # REMOVED
+                            "u_value": construction_u_value, # Report the construction's weighted U-value
                             "area_loss": 0.0,
-                            "weighted_u_value": construction_u_value # Keep for calculation
+                            # No need for weighted_u_value here anymore as we use construction_u_value directly
                         }
 
+                    # Aggregate area and calculate area_loss based on the element's area
                     constr_agg = zone_constructions_aggregated[zone_constr_key]
-                    constr_agg["area"] += total_area
-                    # REMOVED: constr_agg["area_u_value"] += total_area_u_value
-
-                    # Update area_loss using aggregated area and weighted U-value
-                    constr_agg["area_loss"] = constr_agg["area"] * constr_agg["weighted_u_value"]
+                    constr_agg["area"] += element_area
+                    # Area loss uses the element's area and the construction's weighted U-value
+                    constr_agg["area_loss"] += element_area * construction_u_value
 
             # Final cleanup before adding to results: remove internal weighted_u_value
             final_aggregated_list = []
