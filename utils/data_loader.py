@@ -110,16 +110,46 @@ class DataLoader:
             
         # Check if output is available
         if 'OUTPUT:VARIABLE' not in self._idf.idfobjects:
+            # If no output variables exist, create all three required ones
             output_variable = self._idf.newidfobject('OUTPUT:VARIABLE')
             output_variable.Key_Value = '*'
             output_variable.Variable_Name = 'Zone Ideal Loads Supply Air Total Cooling Energy'
             output_variable.Reporting_Frequency = 'RunPeriod'
+            
             output_variable = self._idf.newidfobject('OUTPUT:VARIABLE')
             output_variable.Key_Value = '*'
             output_variable.Variable_Name = 'Zone Ideal Loads Supply Air Total Heating Energy'
             output_variable.Reporting_Frequency = 'RunPeriod'
+            
+            # Add the new Lights Electricity Energy output variable
+            output_variable = self._idf.newidfobject('OUTPUT:VARIABLE')
+            output_variable.Key_Value = '*'
+            output_variable.Variable_Name = 'Lights Electricity Energy'
+            output_variable.Reporting_Frequency = 'RunPeriod'
         else:
-            pass
+            # Check if the required output variables exist and add them if they don't
+            output_vars = self._idf.idfobjects['OUTPUT:VARIABLE']
+            
+            # Create set of existing variable names
+            existing_vars = set()
+            for var in output_vars:
+                key = f"{var.Key_Value}:{var.Variable_Name}"
+                existing_vars.add(key)
+            
+            # Check and add missing output variables
+            required_vars = [
+                ('*', 'Zone Ideal Loads Supply Air Total Cooling Energy', 'RunPeriod'),
+                ('*', 'Zone Ideal Loads Supply Air Total Heating Energy', 'RunPeriod'),
+                ('*', 'Lights Electricity Energy', 'RunPeriod')
+            ]
+            
+            for key_value, var_name, freq in required_vars:
+                check_key = f"{key_value}:{var_name}"
+                if check_key not in existing_vars:
+                    output_variable = self._idf.newidfobject('OUTPUT:VARIABLE')
+                    output_variable.Key_Value = key_value
+                    output_variable.Variable_Name = var_name
+                    output_variable.Reporting_Frequency = freq
     
     def _cache_zones(self) -> None:
         """Cache raw zone data"""
