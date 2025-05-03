@@ -884,8 +884,10 @@ class IDFProcessorGUI(ctk.CTk):
             self.show_status(f"Using ISO type: {selected_iso_type}")
 
             # --- Simulation Output Directory ---
-            # Create a dedicated subdirectory for simulation output (can be outside 'reports')
-            simulation_output_dir = os.path.join(output_dir, "simulation_output")
+            # Create a dedicated subdirectory for simulation output inside the reports folder
+            reports_dir = os.path.join(output_dir, "reports")
+            os.makedirs(reports_dir, exist_ok=True)  # Ensure reports dir exists
+            simulation_output_dir = os.path.join(reports_dir, "simulation_output")
             os.makedirs(simulation_output_dir, exist_ok=True)
 
             # --- Run EnergyPlus Simulation First ---
