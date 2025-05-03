@@ -870,8 +870,18 @@ class IDFProcessorGUI(ctk.CTk):
                 epw_filename = f"{selected_area_code}.epw"
                 self.show_status(f"Using RESIDENTIAL 2023 standard - selecting weather file by area code: {selected_area_code}")
             else:
-                # For other ISO types, use the area name as before
-                epw_filename = f"{selected_area_name}.epw"
+                # For other ISO types, use Latin letters (a, b, c, d) instead of the area name
+                # Map area names to corresponding Latin letters
+                area_name_map = {
+                    "א": "a",
+                    "ב": "b",
+                    "ג": "c",
+                    "ד": "d"
+                }
+                # Get the Latin letter equivalent or fallback to the area name if not in map
+                latin_letter = area_name_map.get(selected_area_name, selected_area_name)
+                epw_filename = f"{latin_letter}.epw"
+                self.show_status(f"Using ISO type {selected_iso_type} - selecting weather file: {epw_filename}")
                 
             epw_file_path = os.path.join("data", epw_filename)
             
