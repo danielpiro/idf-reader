@@ -138,8 +138,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
             Paragraph("Construction", header_style),
             Paragraph("Element type", header_style),
             Paragraph("Area", header_style),
-            Paragraph("U-Value", header_style),
-            Paragraph("Area * U-Value", header_style) # Reverted header
+            Paragraph("U-Value", header_style)
         ]
         
         # Prepare table data
@@ -181,9 +180,6 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
             # Use weighted_u_value if available (for aggregated glazing), otherwise fallback to u_value
             u_value_to_format = row.get('weighted_u_value', row.get('u_value', 0.0))
             u_value = f"{u_value_to_format:.3f}"
-            # Calculate Area * U-Value for display (using the same U-value as displayed)
-            area_u_value_display = row.get('area', 0.0) * u_value_to_format
-            area_u_value = f"{area_u_value_display:.2f}" # Reverted to Area * U-Value
             
             # Add all cells to row
             table_data.append([
@@ -191,18 +187,16 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
                 construction_cell,
                 element_type_cell,
                 area_value,
-                u_value,
-                area_u_value # Reverted
+                u_value
             ])
         
         # Create the table with carefully adjusted column widths
         col_widths = [
-            4.5*cm,     # Zone - increased for long zone names
-            7.0*cm,     # Construction - increased for long names with breaks
-            3.0*cm,     # Element type
-            2.3*cm,     # Area
-            2.3*cm,     # U-Value
-            3.0*cm      # Area * U-Value
+            5.0*cm,     # Zone - increased for long zone names
+            8.0*cm,     # Construction - increased for long names with breaks
+            3.5*cm,     # Element type
+            2.7*cm,     # Area
+            3.0*cm      # U-Value
         ]
         
         # Create table with data and column widths
@@ -463,8 +457,7 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                             "construction": construction_name,
                             "element_type": element_type,
                             "area": total_area,
-                            "u_value": construction_data.get("elements", [{}])[0].get("u_value", 0.0) if construction_data.get("elements") else 0.0,
-                            "area_u_value": total_u_value
+                            "u_value": construction_data.get("elements", [{}])[0].get("u_value", 0.0) if construction_data.get("elements") else 0.0
                         }
                         rows.append(row)
                 
