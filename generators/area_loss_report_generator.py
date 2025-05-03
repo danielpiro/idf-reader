@@ -85,6 +85,15 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
             textColor=colors.whitesmoke
         )
         
+        compatibility_style = ParagraphStyle(
+            'CompatibilityStyle',
+            parent=styles['Normal'],
+            fontSize=9,
+            leading=10,
+            spaceBefore=0,
+            spaceAfter=0
+        )
+        
         # Header row for the table as Paragraphs for consistent styling
         headers = [
             Paragraph("Area", header_style),
@@ -112,13 +121,16 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
             h_value_formatted = f"{h_value:.3f}"
             h_needed_formatted = f"{h_needed:.3f}"
             
-            # Add the row to the table
+            # Determine compatibility color based on the status
+            compatibility_color = colors.green if compatible == "Yes" else colors.red
+            
+            # Add row to the table
             table_data.append([
                 Paragraph(area_id, cell_style),
                 Paragraph(location, cell_style),
                 h_value_formatted,
                 h_needed_formatted,
-                Paragraph(compatible, cell_style)
+                Paragraph(f"<font color={compatibility_color}>{compatible}</font>", compatibility_style)
             ])
         
         # Create the table with carefully adjusted column widths
@@ -152,9 +164,7 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
             # Alternating row colors
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
             # Extra - adjust vertical alignment
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            # Compatible column - green for Yes, red for No
-            ('TEXTCOLOR', (4, 1), (4, -1), lambda row, column, text: colors.green if text == 'Yes' else colors.red)
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
         ])
         
         area_loss_table.setStyle(table_style)

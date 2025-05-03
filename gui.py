@@ -131,7 +131,13 @@ class ProcessingManager:
             lighting_parser = LightingParser(data_loader)
             
             # Initialize AreaLossParser after AreaParser
-            area_loss_parser = AreaLossParser(area_parser)
+            # Get city area name from ProcessingManager's city_info if available
+            city_area_name = "א"  # Default value
+            if hasattr(self, 'city_info') and self.city_info and 'area_name' in self.city_info:
+                city_area_name = self.city_info.get('area_name', "א")
+                self.update_status(f"Using city area '{city_area_name}' for thermal loss calculations")
+            
+            area_loss_parser = AreaLossParser(area_parser, city_area_name)
 
             if self.is_cancelled:
                 return False

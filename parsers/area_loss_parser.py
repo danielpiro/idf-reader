@@ -13,10 +13,11 @@ class AreaLossParser:
     Processes area loss information from IDF files, calculating H-values.
     Uses the AreaParser which already has most of the functionality.
     """
-    def __init__(self, area_parser: AreaParser):
+    def __init__(self, area_parser: AreaParser, city_area_name: str = "א"):
         self.area_parser = area_parser
         self.processed = False
         self.area_loss_data = []
+        self.city_area_name = city_area_name
         
     def parse(self) -> List[Dict[str, Any]]:
         """
@@ -33,24 +34,22 @@ class AreaLossParser:
             if hasattr(self.area_parser, 'get_area_h_values'):
                 self.area_loss_data = self.area_parser.get_area_h_values()
                 
-                # Get the location for each area from the data returned by get_area_h_values
-                locations = self._get_area_locations()
+                # Get the locations and wall mass per area for each area
+                wall_mass_data = self._get_wall_mass_per_area()
                 
                 # Add the required H-Needed and Compatible fields
                 for item in self.area_loss_data:
                     area_id = item.get('area_id', '')
+                    location = item.get('location', 'Unknown')
+                    total_floor_area = item.get('total_floor_area', 0)
+                    wall_mass_per_area = wall_mass_data.get(area_id, 0)
                     
-                    # Update the location with actual value from locations dictionary
-                    # if available, otherwise keep existing value
-                    if area_id in locations and locations[area_id]:
-                        item['location'] = locations[area_id]
-                    
-                    # Set H-Needed to 0 as specified
-                    item['h_needed'] = 0
+                    # Calculate h_needed based on the tables and conditions
+                    h_needed = self._calculate_h_needed(location, total_floor_area, wall_mass_per_area)
+                    item['h_needed'] = h_needed
                     
                     # Check compatibility based on h_value < h_needed
                     h_value = item.get('h_value', 0)
-                    h_needed = item.get('h_needed', 0)
                     item['compatible'] = "Yes" if h_value < h_needed else "No"
                 
                 self.processed = True
@@ -65,22 +64,136 @@ class AreaLossParser:
             traceback.print_exc()
             return []
     
-    def _get_area_locations(self) -> Dict[str, str]:
+    def _get_wall_mass_per_area(self) -> Dict[str, float]:
         """
-        Get location information for each area. This method is now kept for backward compatibility
-        but the locations should already be determined properly by get_area_h_values().
+        Calculate the wall mass per area for each area ID.
         
         Returns:
-            Dict[str, str]: A dictionary mapping area_id to location
+            Dict[str, float]: A dictionary mapping area_id to wall mass per area
         """
-        # This method is now largely a no-op since location is determined in get_area_h_values
-        # and already included in the data returned by that method
-        locations = {}
+        wall_mass_data = {}
         
-        # We no longer need to fetch locations from settings as they are determined by
-        # the floor and ceiling construction types in get_area_h_values()
+        try:
+            # Use MaterialsParser to get construction information for external walls
+            materials_parser = self.area_parser.materials_parser
+            if materials_parser and hasattr(materials_parser, 'get_element_data'):
+                element_data = materials_parser.get_element_data()
+                
+                # Group elements by area and calculate wall mass
+                for element in element_data:
+                    if element.get('element_type', '').lower() == 'wall' and 'external' in element.get('boundary_condition', '').lower():
+                        area_id = element.get('area_id', '')
+                        if not area_id:
+                            continue
+                            
+                        mass = element.get('mass_per_area', 0.0)
+                        area = element.get('area', 0.0)
+                        
+                        if area_id not in wall_mass_data:
+                            wall_mass_data[area_id] = mass
+                        else:
+                            # Keep the largest mass per area
+                            wall_mass_data[area_id] = max(wall_mass_data[area_id], mass)
+            
+            else:
+                logger.warning("MaterialsParser instance not available or missing get_element_data method")
+                
+        except Exception as e:
+            logger.error(f"Error calculating wall mass per area: {str(e)}")
         
-        return locations
+        return wall_mass_data
+    
+    def _calculate_h_needed(self, location: str, total_floor_area: float, wall_mass_per_area: float) -> float:
+        """
+        Calculate h_needed based on the tables provided.
+        
+        Args:
+            location (str): The location type (Ground Floor, Intermediate Floor, etc.)
+            total_floor_area (float): The total floor area for this area
+            wall_mass_per_area (float): The wall mass per area for this area
+            
+        Returns:
+            float: The calculated h_needed value
+        """
+        # Map location to number
+        location_map = {
+            "Ground Floor": 1,
+            "Intermediate Floor": 1,
+            "Over Close Space": 2,
+            "Below Open Space": 3,
+            "Over Open Space": 4
+        }
+        
+        # Default to location type 1 if not found
+        location_num = location_map.get(location, 1)
+        
+        # Map city area name to column index (0-based)
+        area_col = {
+            "א": 0,
+            "ב": 1,
+            "ג": 2,
+            "ד": 3
+        }
+        
+        # Default to area "א" if city_area_name not found
+        col_idx = area_col.get(self.city_area_name, 0)
+        
+        # Define the tables
+        # Table 1: total_floor_area <= 100 and wall_mass_per_area >= 100
+        table1 = [
+            [2.3, 2.2, 2.1, 2.0],  # Location 1
+            [3.0, 2.6, 2.5, 2.5],  # Location 2
+            [2.9, 2.8, 2.7, 2.6],  # Location 3
+            [3.6, 3.2, 2.9, 2.9]   # Location 4
+        ]
+        
+        # Table 2: total_floor_area <= 100 and wall_mass_per_area < 100
+        table2 = [
+            [1.8, 1.7, 1.7, 1.7],  # Location 1
+            [2.5, 2.3, 2.1, 2.1],  # Location 2
+            [2.4, 2.3, 2.3, 2.3],  # Location 3
+            [3.1, 2.8, 2.5, 2.5]   # Location 4
+        ]
+        
+        # Table 3: total_floor_area > 100 and wall_mass_per_area >= 100
+        table3 = [
+            [2.1, 2.0, 1.9, 1.8],  # Location 1
+            [2.7, 2.5, 2.4, 2.3],  # Location 2
+            [2.7, 2.6, 2.5, 2.4],  # Location 3
+            [3.3, 3.0, 2.7, 2.7]   # Location 4
+        ]
+        
+        # Table 4: total_floor_area > 100 and wall_mass_per_area < 100
+        table4 = [
+            [1.7, 1.6, 1.6, 1.6],  # Location 1
+            [2.3, 2.1, 2.0, 2.0],  # Location 2
+            [2.3, 2.2, 2.2, 2.2],  # Location 3
+            [2.9, 2.6, 2.4, 2.4]   # Location 4
+        ]
+        
+        # Select the appropriate table based on conditions
+        if total_floor_area <= 100:
+            if wall_mass_per_area >= 100:
+                table = table1
+            else:
+                table = table2
+        else:
+            if wall_mass_per_area >= 100:
+                table = table3
+            else:
+                table = table4
+        
+        # Ensure location_num is within range (1-4 maps to 0-3 for array index)
+        row_idx = min(max(location_num - 1, 0), 3)
+        
+        # Get h_needed from the selected table
+        h_needed = table[row_idx][col_idx]
+        
+        logger.debug(f"Calculated h_needed: {h_needed} - Location: {location} (map: {location_num}), "
+                    f"Floor Area: {total_floor_area}, Wall Mass: {wall_mass_per_area}, "
+                    f"City Area: {self.city_area_name} (col: {col_idx})")
+        
+        return h_needed
     
     def get_parsed_area_loss_data(self) -> List[Dict[str, Any]]:
         """
