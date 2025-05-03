@@ -549,7 +549,7 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
             location = area_locations.get(area_id, "Unknown")
             
             # Define output filename
-            output_file = output_path / f"area_{area_id}.pdf"
+            output_file = output_path / f"{area_id}.pdf"
 
             # Generate the PDF report for this area, passing the calculated wall_mass_per_area and location
             success = generate_area_report_pdf(
