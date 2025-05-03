@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import threading
+import csv
 from pathlib import Path
 from datetime import datetime
 from utils.data_loader import DataLoader
@@ -316,15 +317,36 @@ class IDFProcessorGUI(ctk.CTk):
 
         # --- Configure window ---
         self.title("IDF Report Generator")
-        self.geometry("700x550") # Increased size
+        self.geometry("900x800") # Increased height and width for better visibility
         
         # Initialize variables
         self.input_file = tk.StringVar()
-        self.weather_file = tk.StringVar()
-        self.energyplus_dir = tk.StringVar()
         self.output_dir = tk.StringVar()
+        self.city = tk.StringVar()
+        self.city_area_name = tk.StringVar() # To store area name
+        self.city_area_code = tk.StringVar() # To store area code
+        self.iso_type = tk.StringVar() # Changed from 'iso' to 'iso_type' for clarity
+        self.energyplus_dir = tk.StringVar()
         self.is_processing = False
         self.settings_file = "settings.json"
+        
+        # Add trace callbacks to all variables to update button state when they change
+        self.input_file.trace_add("write", self.check_inputs_complete)
+        self.output_dir.trace_add("write", self.check_inputs_complete)
+        self.city.trace_add("write", self.check_inputs_complete)
+        self.iso_type.trace_add("write", self.check_inputs_complete)
+        self.energyplus_dir.trace_add("write", self.check_inputs_complete)
+        
+        # Initialize city data and ISO types
+        self.city_data = self.load_cities_from_csv()
+        self.iso_types = [
+            "RESIDNTIAL 2023",
+            "RESIDNTIAL 2017",
+            "HOTEL",
+            "EDUCATION",
+            "OFFICE",
+            "CORE & ENVELOPE"
+        ]
         
         # Load saved settings
         self.load_settings()
@@ -337,102 +359,307 @@ class IDFProcessorGUI(ctk.CTk):
         self.grid_columnconfigure(0, weight=1)
         # Configure rows (adjust weights as needed, maybe less weight for fixed elements)
         self.grid_rowconfigure(0, weight=0) # Input frame
-        self.grid_rowconfigure(1, weight=0) # Weather frame
-        self.grid_rowconfigure(2, weight=0) # Eplus frame
-        self.grid_rowconfigure(3, weight=0) # Output frame
-        self.grid_rowconfigure(4, weight=0) # Progress bar
-        self.grid_rowconfigure(5, weight=1) # Status text (give it weight to expand)
-        self.grid_rowconfigure(6, weight=0) # Button frame
+        self.grid_rowconfigure(1, weight=0) # Eplus frame
+        self.grid_rowconfigure(2, weight=0) # Output frame
+        self.grid_rowconfigure(3, weight=0) # City frame
+        self.grid_rowconfigure(4, weight=0) # ISO frame
+        self.grid_rowconfigure(5, weight=0) # Progress bar
+        self.grid_rowconfigure(6, weight=1) # Status text (give it weight to expand)
+        self.grid_rowconfigure(7, weight=0) # Button frame
+        
+        # Check initial button state
+        self.check_inputs_complete()
+
+    def load_cities_from_csv(self):
+        """Load city data from the CSV file"""
+        cities_data = {}
+        # Updated path to use the new data directory
+        csv_path = os.path.join('data', 'countries-selection.csv')
+        
+        try:
+            if os.path.exists(csv_path):
+                with open(csv_path, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        # Split by comma and strip whitespace
+                        parts = [part.strip() for part in line.split(',')]
+                        if len(parts) >= 3:
+                            city_name = parts[0].strip()
+                            area_name = parts[1].strip()
+                            area_code = parts[2].strip()
+                            cities_data[city_name] = {'area_name': area_name, 'area_code': area_code}
+            else:
+                self.show_status(f"Warning: City data file not found at {csv_path}")
+        except Exception as e:
+            self.show_status(f"Error loading city data: {str(e)}")
+            
+        return cities_data
     
+    def on_city_selected(self, event=None):
+        """Handle city selection event"""
+        selected_city = self.city.get()
+        if selected_city in self.city_data:
+            city_info = self.city_data[selected_city]
+            self.city_area_name.set(city_info['area_name'])
+            self.city_area_code.set(city_info['area_code'])
+            self.show_status(f"Selected city: {selected_city}, Area: {city_info['area_name']}, Code: {city_info['area_code']}")
+        else:
+            self.city_area_name.set("")
+            self.city_area_code.set("")
+
+    def update_validation_indicators(self):
+        """Update visual indicators for each input field based on validation"""
+        # Check if each field has a valid value
+        has_input_file = bool(self.input_file.get())
+        has_output_dir = bool(self.output_dir.get())
+        has_eplus_dir = bool(self.energyplus_dir.get())
+        has_city = bool(self.city.get())
+        has_iso = bool(self.iso_type.get())
+        
+        # Set border colors based on validation (green for valid, red for invalid)
+        self.input_entry.configure(
+            border_color=("#2CC985" if has_input_file else "#E74C3C")
+        )
+        self.output_entry.configure(
+            border_color=("#2CC985" if has_output_dir else "#E74C3C")
+        )
+        self.eplus_entry.configure(
+            border_color=("#2CC985" if has_eplus_dir else "#E74C3C")
+        )
+        self.city_combobox.configure(
+            border_color=("#2CC985" if has_city else "#E74C3C")
+        )
+        self.iso_combobox.configure(
+            border_color=("#2CC985" if has_iso else "#E74C3C")
+        )
+
     def create_widgets(self):
-        # Input file selection
+        # Set main app appearance
+        self.configure(fg_color=("#F0F0F0", "#2B2B2B"))  # Light/Dark mode colors
+        
+        # Create a header frame with title
+        header_frame = ctk.CTkFrame(self, height=60, corner_radius=0)
+        header_frame.grid(row=0, column=0, sticky="ew")
+        header_frame.grid_columnconfigure(0, weight=1)
+        header_frame.grid_propagate(False)  # Force the frame to keep its size
+        
+        # App title
+        app_title = ctk.CTkLabel(
+            header_frame, 
+            text="IDF Report Generator",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            anchor="center"
+        )
+        app_title.grid(row=0, column=0, padx=20, pady=15)
+        
+        # Main content frame
+        content_frame = ctk.CTkFrame(self)
+        content_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=10)
+        content_frame.grid_columnconfigure(0, weight=1)
+        
+        # Create shadow effect for frames
+        self.grid_rowconfigure(1, weight=1)
+        
         # --- Input file selection ---
-        input_frame = ctk.CTkFrame(self)
-        input_frame.grid(row=0, column=0, padx=20, pady=(20, 5), sticky="ew")
-        input_frame.grid_columnconfigure(1, weight=1) # Make entry expand
+        input_frame = ctk.CTkFrame(content_frame, corner_radius=10)
+        input_frame.grid(row=0, column=0, padx=10, pady=(10, 5), sticky="ew")
+        input_frame.grid_columnconfigure(1, weight=1)
 
         input_label = ctk.CTkLabel(input_frame, text="Input IDF File:", width=120, anchor="w")
         input_label.grid(row=0, column=0, padx=(10, 5), pady=10)
 
-        self.input_entry = ctk.CTkEntry(input_frame, textvariable=self.input_file)
+        self.input_entry = ctk.CTkEntry(input_frame, textvariable=self.input_file, height=32)
         self.input_entry.grid(row=0, column=1, padx=5, pady=10, sticky="ew")
 
-        input_button = ctk.CTkButton(input_frame, text="Browse", command=self.select_input_file, width=80)
+        input_button = ctk.CTkButton(
+            input_frame, 
+            text="Browse", 
+            command=self.select_input_file, 
+            width=80,
+            height=32,
+            fg_color=("#3a7ebf", "#1f538d"),
+            hover_color=("#2b5f8f", "#144272")
+        )
         input_button.grid(row=0, column=2, padx=(5, 10), pady=10)
 
-        # --- Weather file selection ---
-        weather_frame = ctk.CTkFrame(self)
-        weather_frame.grid(row=1, column=0, padx=20, pady=5, sticky="ew")
-        weather_frame.grid_columnconfigure(1, weight=1)
-
-        weather_label = ctk.CTkLabel(weather_frame, text="Weather EPW File:", width=120, anchor="w")
-        weather_label.grid(row=0, column=0, padx=(10, 5), pady=10)
-
-        self.weather_entry = ctk.CTkEntry(weather_frame, textvariable=self.weather_file)
-        self.weather_entry.grid(row=0, column=1, padx=5, pady=10, sticky="ew")
-
-        weather_button = ctk.CTkButton(weather_frame, text="Browse", command=self.select_weather_file, width=80)
-        weather_button.grid(row=0, column=2, padx=(5, 10), pady=10)
-
         # --- EnergyPlus directory selection ---
-        eplus_frame = ctk.CTkFrame(self)
-        eplus_frame.grid(row=2, column=0, padx=20, pady=5, sticky="ew")
+        eplus_frame = ctk.CTkFrame(content_frame, corner_radius=10)
+        eplus_frame.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
         eplus_frame.grid_columnconfigure(1, weight=1)
 
         eplus_label = ctk.CTkLabel(eplus_frame, text="EnergyPlus Dir:", width=120, anchor="w")
         eplus_label.grid(row=0, column=0, padx=(10, 5), pady=10)
 
-        self.eplus_entry = ctk.CTkEntry(eplus_frame, textvariable=self.energyplus_dir)
+        self.eplus_entry = ctk.CTkEntry(eplus_frame, textvariable=self.energyplus_dir, height=32)
         self.eplus_entry.grid(row=0, column=1, padx=5, pady=10, sticky="ew")
 
-        eplus_button = ctk.CTkButton(eplus_frame, text="Browse", command=self.select_energyplus_dir, width=80)
+        eplus_button = ctk.CTkButton(
+            eplus_frame, 
+            text="Browse", 
+            command=self.select_energyplus_dir, 
+            width=80,
+            height=32,
+            fg_color=("#3a7ebf", "#1f538d"),
+            hover_color=("#2b5f8f", "#144272")
+        )
         eplus_button.grid(row=0, column=2, padx=(5, 10), pady=10)
 
         # --- Output directory selection ---
-        output_frame = ctk.CTkFrame(self)
-        output_frame.grid(row=3, column=0, padx=20, pady=(5, 10), sticky="ew") # Adjusted row index
+        output_frame = ctk.CTkFrame(content_frame, corner_radius=10)
+        output_frame.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
         output_frame.grid_columnconfigure(1, weight=1)
 
         output_label = ctk.CTkLabel(output_frame, text="Output Directory:", width=120, anchor="w")
         output_label.grid(row=0, column=0, padx=(10, 5), pady=10)
 
-        self.output_entry = ctk.CTkEntry(output_frame, textvariable=self.output_dir)
+        self.output_entry = ctk.CTkEntry(output_frame, textvariable=self.output_dir, height=32)
         self.output_entry.grid(row=0, column=1, padx=5, pady=10, sticky="ew")
 
-        output_button = ctk.CTkButton(output_frame, text="Browse", command=self.select_output_dir, width=80)
+        output_button = ctk.CTkButton(
+            output_frame, 
+            text="Browse", 
+            command=self.select_output_dir, 
+            width=80,
+            height=32,
+            fg_color=("#3a7ebf", "#1f538d"),
+            hover_color=("#2b5f8f", "#144272")
+        )
         output_button.grid(row=0, column=2, padx=(5, 10), pady=10)
 
-        # --- Progress bar ---
-        self.progress_var = tk.DoubleVar()
-        self.progress_bar = ctk.CTkProgressBar(self)
-        self.progress_bar.set(0)
-        self.progress_bar.grid(row=4, column=0, padx=20, pady=(10, 5), sticky="ew") # Adjusted row index
+        # --- City selection ---
+        city_frame = ctk.CTkFrame(content_frame, corner_radius=10)
+        city_frame.grid(row=3, column=0, padx=10, pady=5, sticky="ew")
+        city_frame.grid_columnconfigure(1, weight=1)
 
-        # --- Status message ---
-        self.status_text = ctk.CTkTextbox(self, height=150, wrap=tk.WORD) # Increased height
-        self.status_text.grid(row=5, column=0, padx=20, pady=5, sticky="nsew") # Adjusted row index and sticky
+        city_label = ctk.CTkLabel(city_frame, text="City:", width=120, anchor="w")
+        city_label.grid(row=0, column=0, padx=(10, 5), pady=10)
+
+        # Create combobox for city selection with enhanced appearance
+        self.city_combobox = ctk.CTkComboBox(
+            city_frame, 
+            values=list(self.city_data.keys()),
+            variable=self.city,
+            width=400,
+            state="readonly",
+            height=32,
+            dropdown_hover_color=("#3a7ebf", "#1f538d")
+        )
+        self.city_combobox.grid(row=0, column=1, padx=5, pady=10, sticky="ew")
+        self.city_combobox.bind("<<ComboboxSelected>>", self.on_city_selected)
+
+        # --- ISO selection ---
+        iso_frame = ctk.CTkFrame(content_frame, corner_radius=10)
+        iso_frame.grid(row=4, column=0, padx=10, pady=5, sticky="ew")
+        iso_frame.grid_columnconfigure(1, weight=1)
+
+        iso_label = ctk.CTkLabel(iso_frame, text="ISO Type:", width=120, anchor="w")
+        iso_label.grid(row=0, column=0, padx=(10, 5), pady=10)
+
+        # Create combobox for ISO type selection with enhanced appearance
+        self.iso_combobox = ctk.CTkComboBox(
+            iso_frame, 
+            values=self.iso_types,
+            variable=self.iso_type,
+            width=400,
+            state="readonly",
+            height=32,
+            dropdown_hover_color=("#3a7ebf", "#1f538d")
+        )
+        self.iso_combobox.grid(row=0, column=1, padx=5, pady=10, sticky="ew")
+
+        # --- Progress section ---
+        progress_frame = ctk.CTkFrame(content_frame, corner_radius=10)
+        progress_frame.grid(row=5, column=0, padx=10, pady=(15, 5), sticky="ew")
+        progress_frame.grid_columnconfigure(0, weight=1)
+        
+        # Progress label
+        progress_label = ctk.CTkLabel(progress_frame, text="Processing Status:", anchor="w")
+        progress_label.grid(row=0, column=0, padx=10, pady=(10, 0), sticky="w")
+
+        # Progress bar with enhanced appearance
+        self.progress_var = tk.DoubleVar()
+        self.progress_bar = ctk.CTkProgressBar(
+            progress_frame,
+            height=15,
+            corner_radius=5,
+            progress_color=("#3a7ebf", "#1f538d"),
+            fg_color=("#E0E0E0", "#2D2D2D")
+        )
+        self.progress_bar.set(0)
+        self.progress_bar.grid(row=1, column=0, padx=10, pady=(5, 10), sticky="ew")
+
+        # --- Status message with better styling ---
+        status_frame = ctk.CTkFrame(content_frame, corner_radius=10)
+        status_frame.grid(row=6, column=0, padx=10, pady=5, sticky="nsew")
+        status_frame.grid_columnconfigure(0, weight=1)
+        status_frame.grid_rowconfigure(1, weight=1)
+        
+        # Status label
+        status_label = ctk.CTkLabel(status_frame, text="Log Messages:", anchor="w")
+        status_label.grid(row=0, column=0, padx=10, pady=(10, 0), sticky="w")
+        
+        # Status text with scrollbar
+        self.status_text = ctk.CTkTextbox(
+            status_frame, 
+            height=150, 
+            wrap=tk.WORD,
+            corner_radius=5,
+            border_width=1,
+            border_color=("#CCCCCC", "#333333")
+        )
+        self.status_text.grid(row=1, column=0, padx=10, pady=(5, 10), sticky="nsew")
+        
         # Configure tags for colored text
-        self.status_text.tag_config("error", foreground="red")
-        self.status_text.tag_config("success", foreground="green")
-        self.status_text.tag_config("warning", foreground="orange")
+        self.status_text.tag_config("error", foreground="#E74C3C")
+        self.status_text.tag_config("success", foreground="#2CC985")
+        self.status_text.tag_config("warning", foreground="#F39C12")
+        
         # Determine default text color based on current appearance mode
         current_mode = ctk.get_appearance_mode()
         if current_mode == "Dark":
-            info_fg_color = "gray90" # Or another light color suitable for dark mode
+            info_fg_color = "#CCCCCC" # Light color for dark mode
         else: # Light mode
-            info_fg_color = "gray10" # Or another dark color suitable for light mode
+            info_fg_color = "#333333" # Dark color for light mode
         self.status_text.tag_config("info", foreground=info_fg_color)
         
-        # --- Buttons frame ---
-        button_frame = ctk.CTkFrame(self, fg_color="transparent") # Make frame transparent
-        button_frame.grid(row=6, column=0, padx=20, pady=(10, 20), sticky="ew") # Adjusted row index
-        button_frame.grid_columnconfigure((0, 1), weight=1) # Make buttons expand equally
+        # --- Buttons frame with enhanced appearance ---
+        button_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+        button_frame.grid(row=7, column=0, padx=10, pady=(15, 10), sticky="ew")
+        button_frame.grid_columnconfigure((0, 1), weight=1)
 
-        self.process_button = ctk.CTkButton(button_frame, text="Generate Reports", command=self.start_processing, height=35)
+        # Generate Reports button with enhanced appearance
+        self.process_button = ctk.CTkButton(
+            button_frame, 
+            text="Generate Reports", 
+            command=self.start_processing, 
+            height=40,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            corner_radius=8,
+            border_width=0,
+            fg_color=("#3a7ebf", "#1f538d"),  # Normal color
+            hover_color=("#2b5f8f", "#144272")  # Hover color
+        )
         self.process_button.grid(row=0, column=0, padx=(0, 5), pady=5, sticky="ew")
 
-        self.cancel_button = ctk.CTkButton(button_frame, text="Cancel", command=self.cancel_processing, state="disabled", height=35)
+        # Cancel button with enhanced appearance
+        self.cancel_button = ctk.CTkButton(
+            button_frame, 
+            text="Cancel", 
+            command=self.cancel_processing, 
+            state="disabled", 
+            height=40,
+            font=ctk.CTkFont(size=14),
+            corner_radius=8,
+            border_width=0,
+            fg_color=("#E74C3C", "#C0392B"),  # Red for cancel
+            hover_color=("#C0392B", "#922B21")  # Darker red on hover
+        )
         self.cancel_button.grid(row=0, column=1, padx=(5, 0), pady=5, sticky="ew")
+        
+        # Update content_frame to take any remaining space
+        content_frame.grid_rowconfigure(6, weight=1)
+        
+        # Show initial status
+        self.show_status("Welcome to IDF Report Generator. Please select all required files to continue.")
 
     def select_input_file(self):
         file_path = filedialog.askopenfilename(
@@ -449,15 +676,6 @@ class IDFProcessorGUI(ctk.CTk):
             self.output_dir.set(dir_path)
             self.save_settings()
 
-    def select_weather_file(self):
-        file_path = filedialog.askopenfilename(
-            title="Select Weather EPW File",
-            filetypes=[("EPW files", "*.epw"), ("All files", "*.*")]
-        )
-        if file_path:
-            self.weather_file.set(file_path)
-            self.save_settings()
-
     def select_energyplus_dir(self):
         dir_path = filedialog.askdirectory(title="Select EnergyPlus Installation Directory")
         if dir_path:
@@ -471,9 +689,30 @@ class IDFProcessorGUI(ctk.CTk):
                 with open(self.settings_file, 'r') as f:
                     settings = json.load(f)
                     self.input_file.set(settings.get('last_input', ''))
-                    self.weather_file.set(settings.get('last_weather', ''))
                     self.energyplus_dir.set(settings.get('last_eplus_dir', ''))
                     self.output_dir.set(settings.get('last_output', ''))
+                    
+                    # Load city and ISO selections
+                    city = settings.get('last_city', '')
+                    self.city.set(city)
+                    
+                    # Check if area name/code are stored and valid
+                    stored_area_name = settings.get('last_city_area_name', '')
+                    stored_area_code = settings.get('last_city_area_code', '')
+                    
+                    # If we have a city but not area info, get area info from city data
+                    if city and (not stored_area_name or not stored_area_code):
+                        if city in self.city_data:
+                            self.city_area_name.set(self.city_data[city]['area_name'])
+                            self.city_area_code.set(self.city_data[city]['area_code'])
+                            self.show_status(f"Initialized city: {city}, Area: {self.city_data[city]['area_name']}, Code: {self.city_data[city]['area_code']}")
+                    else:
+                        # Use stored values
+                        self.city_area_name.set(stored_area_name)
+                        self.city_area_code.set(stored_area_code)
+                    
+                    # Set ISO type
+                    self.iso_type.set(settings.get('last_iso_type', ''))
         except Exception as e:
             self.show_status(f"Error loading settings: {str(e)}")
 
@@ -481,9 +720,12 @@ class IDFProcessorGUI(ctk.CTk):
         try:
             settings = {
                 'last_input': self.input_file.get(),
-                'last_weather': self.weather_file.get(),
                 'last_eplus_dir': self.energyplus_dir.get(),
-                'last_output': self.output_dir.get()
+                'last_output': self.output_dir.get(),
+                'last_city': self.city.get(),
+                'last_city_area_name': self.city_area_name.get(),
+                'last_city_area_code': self.city_area_code.get(),
+                'last_iso_type': self.iso_type.get()
             }
             with open(self.settings_file, 'w') as f:
                 json.dump(settings, f)
@@ -515,12 +757,6 @@ class IDFProcessorGUI(ctk.CTk):
         if not os.path.exists(self.input_file.get()):
             messagebox.showerror("Error", "Selected input IDF file does not exist.")
             return False
-        if not self.weather_file.get():
-            messagebox.showerror("Error", "Please select a weather EPW file.")
-            return False
-        if not os.path.exists(self.weather_file.get()):
-            messagebox.showerror("Error", "Selected weather EPW file does not exist.")
-            return False
         if not self.energyplus_dir.get():
             messagebox.showerror("Error", "Please select the EnergyPlus installation directory.")
             return False
@@ -545,7 +781,44 @@ class IDFProcessorGUI(ctk.CTk):
             except Exception as e:
                 messagebox.showerror("Error", f"Could not create output directory: {str(e)}")
                 return False
+        # Validate city selection
+        if not self.city.get():
+            messagebox.showerror("Error", "Please select a city.")
+            return False
+        # Validate ISO type selection
+        if not self.iso_type.get():
+            messagebox.showerror("Error", "Please select an ISO type.")
+            return False
         return True
+
+    def check_inputs_complete(self, *args):
+        """Check if all inputs are complete and update the button state."""
+        # Only proceed if process_button has been created
+        if not hasattr(self, 'process_button'):
+            return
+            
+        # Check if all required fields have values
+        all_inputs_complete = (
+            self.input_file.get() and 
+            self.output_dir.get() and 
+            self.city.get() and 
+            self.iso_type.get() and 
+            self.energyplus_dir.get()
+        )
+        
+        # Update button state based on input completion
+        if all_inputs_complete:
+            self.process_button.configure(state="normal")
+            # Apply a highlighted style when the button is available
+            self.process_button.configure(fg_color=("#3a7ebf", "#1f538d"))  # Normal/Hover colors
+        else:
+            self.process_button.configure(state="disabled")
+            # Apply a muted style when the button is disabled
+            self.process_button.configure(fg_color=("#979DA2", "#565B5E"))  # Grayed out colors
+        
+        # Update validation indicators
+        if hasattr(self, 'input_entry'):
+            self.update_validation_indicators()
 
     def start_processing(self):
         if not self.validate_inputs():
@@ -569,8 +842,46 @@ class IDFProcessorGUI(ctk.CTk):
             output_dir = self.output_dir.get()
             energyplus_dir = self.energyplus_dir.get()
             idd_path = os.path.join(energyplus_dir, "Energy+.idd")
-            weather_file_path = self.weather_file.get()
             energyplus_exe = os.path.join(energyplus_dir, "energyplus.exe")
+
+            # --- Get city and ISO type selections ---
+            selected_city = self.city.get()
+            selected_area_name = self.city_area_name.get()
+            selected_area_code = self.city_area_code.get()
+            selected_iso_type = self.iso_type.get()
+            
+            # --- Validate area name before determining EPW file ---
+            if not selected_area_name:
+                # Trigger city selection again to ensure area name is set
+                if selected_city in self.city_data:
+                    city_info = self.city_data[selected_city]
+                    self.city_area_name.set(city_info['area_name'])
+                    self.city_area_code.set(city_info['area_code'])
+                    selected_area_name = self.city_area_name.get()
+                    selected_area_code = self.city_area_code.get()
+                    self.show_status(f"Updated city information: {selected_city}, Area: {selected_area_name}, Code: {selected_area_code}")
+                else:
+                    self.show_status("Error: Selected city does not have area information. Please select a valid city.")
+                    return
+            
+            # --- Determine EPW file based on area name or code depending on ISO type ---
+            if selected_iso_type == "RESIDNTIAL 2023":
+                # For RESIDENTIAL 2023, use the area code (1-8) for the epw file
+                epw_filename = f"{selected_area_code}.epw"
+                self.show_status(f"Using RESIDENTIAL 2023 standard - selecting weather file by area code: {selected_area_code}")
+            else:
+                # For other ISO types, use the area name as before
+                epw_filename = f"{selected_area_name}.epw"
+                
+            epw_file_path = os.path.join("data", epw_filename)
+            
+            self.show_status(f"Looking for weather file: {epw_file_path}")
+            if not os.path.exists(epw_file_path):
+                self.show_status(f"Error: Weather file {epw_file_path} not found. Please check that the file exists.")
+                return
+            
+            self.show_status(f"Using weather file: {epw_file_path} for {selected_city} (Area: {selected_area_name}, Code: {selected_area_code})")
+            self.show_status(f"Using ISO type: {selected_iso_type}")
 
             # --- Simulation Output Directory ---
             # Create a dedicated subdirectory for simulation output (can be outside 'reports')
@@ -584,9 +895,9 @@ class IDFProcessorGUI(ctk.CTk):
             self.update_idletasks()
 
             try:
-                # Run simulation, capture output for better error reporting
+                # Run simulation with the selected weather file
                 sim_result = subprocess.run(
-                    [energyplus_exe, "-w", weather_file_path, "-r", "-d", simulation_output_dir, input_file],
+                    [energyplus_exe, "-w", epw_file_path, "-r", "-d", simulation_output_dir, input_file],
                     check=True, capture_output=True, text=True, encoding='utf-8', errors='ignore'
                 )
                 print("--- EnergyPlus Output ---")
@@ -634,8 +945,8 @@ class IDFProcessorGUI(ctk.CTk):
                 self.progress_bar.set(0)
                 self.update_idletasks()
             # --- End EnergyPlus Simulation ---
-
-
+            
+            # Rest of the method remains unchanged
             # --- Process IDF File (only if simulation was successful and not cancelled) ---
             if simulation_successful and self.is_processing:
                 self.show_status("Simulation complete. Starting IDF processing and report generation...")
@@ -644,15 +955,19 @@ class IDFProcessorGUI(ctk.CTk):
                 processor = ProcessingManager(
                     status_callback=self.show_status,
                     progress_callback=lambda x: (
-                        # self.progress_var.set(x), # progress_var seems unused, remove?
                         self.progress_bar.set(x),
                         self.update_idletasks()
                     ),
                     simulation_output_csv=output_csv_path # Pass the path here
                 )
 
-                # The path is now available within the processor instance (processor.simulation_output_csv)
-                # It needs to be passed down further to GlazingParser within process_idf
+                # Store city and ISO information for use in report generation
+                processor.city_info = {
+                    'city': selected_city,
+                    'area_name': selected_area_name,
+                    'area_code': selected_area_code,
+                    'iso_type': selected_iso_type
+                }
 
                 # Call process_idf
                 idf_processing_success = processor.process_idf(input_file, idd_path, output_dir)
