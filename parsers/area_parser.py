@@ -743,54 +743,48 @@ class AreaParser:
             # Calculate H-Value
             h_value = (external_roof_loss_sum + 0.5 * separation_loss_sum) / total_floor_area
             
-            # Determine location based on the maximum values
-            # For floors: calculate totals and find max
-            sum_intermediate_and_ground_floors = sum_intermediate_floors + sum_ground_floors
-            
-            floor_values = {
-                "external": sum_external_floors,
-                "intermediate_and_ground": sum_intermediate_and_ground_floors,
-                "separation": sum_separation_floors
-            }
-            max_floor_type = max(floor_values, key=floor_values.get) if floor_values else None
-            max_floor_value = floor_values.get(max_floor_type, 0.0) if max_floor_type else 0.0
-            
-            # For ceilings: calculate totals and find max
-            ceiling_values = {
-                "roof": sum_roofs,
-                "intermediate": sum_intermediate_ceilings, 
-                "separation": sum_separation_ceilings
-            }
-            max_ceiling_type = max(ceiling_values, key=ceiling_values.get) if ceiling_values else None
-            
-            # Determine location based on the described logic
+            # Determine location based on the detailed mapping logic
             location = "Unknown"  # Default value
             
-            # If sum_roof is max from ceiling -> Below Open Space
-            if max_ceiling_type == "roof" and ceiling_values["roof"] > 0:
-                location = "Below Open Space"
-            # If sum_external_floors is max from floors -> Over Open Space
-            elif max_floor_type == "external" and floor_values["external"] > 0:
-                location = "Over Open Space"
-            # If sum_separation_floors is max from floors -> Over Close Space
-            elif max_floor_type == "separation" and floor_values["separation"] > 0:
-                location = "Over Close Space"
-            # If sum_intermediate + ground floors is max AND (sum_intermediate_ceilings is max OR sum_separation_ceiling)
-            elif max_floor_type == "intermediate_and_ground" and max_floor_value > 0 and \
-                 (max_ceiling_type == "intermediate" or max_ceiling_type == "separation"):
-                # If we have ground floor construction -> Ground Floor
-                if has_ground_floor_construction:
+            # First mapping: Floor and ceiling types to detailed location
+            # Ground floor cases
+            if sum_ground_floors > 0:
+                if sum_intermediate_ceilings > sum_roofs and sum_intermediate_ceilings > sum_separation_ceilings:
                     location = "Ground Floor"
-                # Otherwise -> Intermediate Floor
-                else:
+                elif sum_roofs > sum_intermediate_ceilings and sum_roofs > sum_separation_ceilings:
+                    location = "Ground Floor Below Open Space"
+                elif sum_separation_ceilings > sum_intermediate_ceilings and sum_separation_ceilings > sum_roofs:
+                    location = "Ground Floor Below Unconditioned"
+            # External floor cases
+            elif sum_external_floors > 0:
+                if sum_roofs > sum_intermediate_ceilings and sum_roofs > sum_separation_ceilings:
+                    location = "External Below Open Space"
+                elif sum_intermediate_ceilings > sum_roofs and sum_intermediate_ceilings > sum_separation_ceilings:
+                    location = "External Floor"
+                elif sum_separation_ceilings > sum_intermediate_ceilings and sum_separation_ceilings > sum_roofs:
+                    location = "External Floor Below Unconditioned"
+            # Separation floor cases
+            elif sum_separation_floors > 0:
+                if sum_roofs > sum_intermediate_ceilings and sum_roofs > sum_separation_ceilings:
+                    location = "Separation Floor Below Open Space"
+                elif sum_intermediate_ceilings > sum_roofs and sum_intermediate_ceilings > sum_separation_ceilings:
+                    location = "Separation Floor"
+                elif sum_separation_ceilings > sum_intermediate_ceilings and sum_separation_ceilings > sum_roofs:
+                    location = "Separation Floor Below Unconditioned"
+            # Intermediate floor cases
+            elif sum_intermediate_floors > 0:
+                if sum_roofs > sum_intermediate_ceilings and sum_roofs > sum_separation_ceilings:
+                    location = "Intermediate Floor Below Open Space"
+                elif sum_intermediate_ceilings > sum_roofs and sum_intermediate_ceilings > sum_separation_ceilings:
                     location = "Intermediate Floor"
+                elif sum_separation_ceilings > sum_intermediate_ceilings and sum_separation_ceilings > sum_roofs:
+                    location = "Intermediate Floor Below Unconditioned"
                     
             # Add debug logging for location determination
             logger.debug(f"Area {area_id} location determination:")
-            logger.debug(f"  Floor values: External={sum_external_floors}, Intermediate+Ground={sum_intermediate_and_ground_floors}, Separation={sum_separation_floors}")
+            logger.debug(f"  Floor values: External={sum_external_floors}, Ground={sum_ground_floors}, Intermediate={sum_intermediate_floors}, Separation={sum_separation_floors}")
             logger.debug(f"  Ceiling values: Roof={sum_roofs}, Intermediate={sum_intermediate_ceilings}, Separation={sum_separation_ceilings}")
-            logger.debug(f"  Has ground floor construction: {has_ground_floor_construction}")
-            logger.debug(f"  Determined location: {location}")
+            logger.debug(f"  Determined detailed location: {location}")
 
             h_values_by_area.append({
                 'area_id': area_id,
