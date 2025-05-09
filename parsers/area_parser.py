@@ -26,7 +26,7 @@ class AreaParser:
     def process_idf(self, idf) -> None: # idf parameter kept for compatibility
         """
         Extract area information.
-        
+
         Args:
             idf: eppy IDF object (not directly used)
         """
@@ -38,7 +38,17 @@ class AreaParser:
             # Skip if already processed
             return
             
-        try:
+        try:            # Make sure the materials parser has processed the data first
+            # since we need its U-values for consistency
+            if self.materials_parser:
+                logger.info(f"Materials parser available with {len(self.materials_parser.constructions)} constructions")
+                if not self.materials_parser.element_data:
+                    logger.debug("Processing materials data in MaterialsParser first")
+                    self.materials_parser.process_idf(idf)
+                    logger.info(f"After processing, materials parser has {len(self.materials_parser.constructions)} constructions")
+            else:
+                logger.warning("No materials parser available in AreaParser")
+            
             # Process zones to initialize data structure
             self._process_zones()
             
@@ -131,14 +141,30 @@ class AreaParser:
                     # Glazing construction found, but U-Value is missing in parsed data - fallback? Log warning?
                     logger.warning(f"Glazing construction '{construction_name}' found in parsed data, but U-Value is missing. Falling back to calculation.")
                     # Decide if fallback calculation is appropriate here or just use 0.0
-                    u_value = self._calculate_u_value(construction_name) # Or set u_value = 0.0
-
-                # Ensure is_glazing flag is consistent
+                    u_value = self._calculate_u_value(construction_name) # Or set u_value = 0.0                # Ensure is_glazing flag is consistent
                 is_glazing = True # If it's in parsed_glazing_data, treat as glazing
-
-            else:
-                # Not found in glazing data, assume opaque and calculate
-                u_value = self._calculate_u_value(construction_name)
+            else:                # Not found in glazing data, assume opaque
+                # First check if we can get the U-value from materials_parser for consistent values
+                if self.materials_parser and hasattr(self.materials_parser, 'get_constructions_u_values'):
+                    u_values_dict = self.materials_parser.get_constructions_u_values()
+                    # Enhanced logging for debugging
+                    if "ExtWall Pumice" in construction_name:
+                        logger.info(f"Found ExtWall Pumice construction: '{construction_name}'")
+                        logger.info(f"Is it in u_values_dict? {construction_name in u_values_dict}")
+                        if construction_name in u_values_dict:
+                            logger.info(f"U-value from dict: {u_values_dict[construction_name]}")
+                    
+                    if construction_name in u_values_dict:
+                        u_value = u_values_dict[construction_name]
+                        logger.debug(f"Using U-Value from MaterialsParser for '{construction_name}': {u_value}")
+                    else:
+                        # Fallback to calculation if construction not found in materials parser
+                        u_value = self._calculate_u_value(construction_name)
+                        logger.debug(f"Falling back to calculated U-Value for '{construction_name}': {u_value}")
+                else:
+                    # Fallback to calculation if materials_parser not available
+                    u_value = self._calculate_u_value(construction_name)
+                    logger.debug(f"Materials parser not available, using calculated U-Value for '{construction_name}': {u_value}")
                 # logger.debug(f"Calculating U-Value for opaque construction '{construction_name}': {u_value}")
             # --- End Determine U-Value ---
 

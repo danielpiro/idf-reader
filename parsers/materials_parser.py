@@ -366,6 +366,7 @@ class MaterialsParser:
                 print(f"{Fore.YELLOW}Warning: Material '{layer_id}' not found while calculating mass for construction '{construction_id}'.{Style.RESET_ALL}")
 
         return total_mass_per_area
+    
     def calculate_construction_properties(self, construction_id: str) -> Dict[str, float]:
         """
         Calculate properties for a specific construction.
@@ -396,3 +397,76 @@ class MaterialsParser:
             'thickness': total_thickness,
             'conductivity': conductivity
         }
+    
+    def get_constructions_u_values(self) -> Dict[str, float]:
+        """
+        Get U-values for all constructions based on the calculations from materials report.
+        
+        Returns:
+            Dict[str, float]: Dictionary mapping construction IDs to their U-values
+        """
+        u_values = {}
+          # Process each construction and calculate the U-value using the same logic
+        # as in the materials report
+        for construction_id, construction_data in self.constructions.items():
+            # Skip reversed constructions
+            pattern = r'_(?:[Rr]ev|[Rr]eversed)$'
+            if bool(re.search(pattern, construction_id)):
+                continue
+                
+            # Debug for specific construction
+            is_target = "ExtWall Pumice" in construction_id
+            if is_target:
+                print(f"Processing U-value for target construction: {construction_id}")
+                
+            # Get material layers for this construction
+            material_layers = construction_data.material_layers
+            
+            # Calculate total thermal resistance
+            total_resistance = 0.0
+            for layer_id in material_layers:
+                material_data = self.materials.get(layer_id)
+                if material_data and material_data.conductivity != 0:
+                    layer_resistance = material_data.thickness / material_data.conductivity
+                    total_resistance += layer_resistance
+                    if is_target:
+                        print(f"  Layer: {layer_id}, thickness: {material_data.thickness}, conductivity: {material_data.conductivity}, resistance: {layer_resistance}")
+                elif is_target:
+                    if material_data:
+                        print(f"  Layer: {layer_id}, ZERO CONDUCTIVITY: thickness: {material_data.thickness}, conductivity: {material_data.conductivity}")
+                    else:
+                        print(f"  Layer: {layer_id}, NOT FOUND in materials dictionary")
+              # Determine element type for film resistance
+            element_types, _ = self._get_element_type(construction_id, self.data_loader.get_surfaces())
+            
+            # Debug for specific construction
+            if "ExtWall Pumice" in construction_id:
+                print(f"Element types for {construction_id}: {element_types}")
+            
+            # If no element types found, use a default film resistance
+            if not element_types:
+                film_resistance = 0.0
+                if is_target:
+                    print(f"  No element types found, using film_resistance = 0.0")
+            else:
+                # Use the first element type for film resistance calculation
+                film_resistance = self._get_surface_film_resistance(element_types[0])
+                if is_target:
+                    print(f"  Using element type: {element_types[0]}, film_resistance = {film_resistance}")
+            
+            # Calculate R-value with film
+            r_value_with_film = total_resistance + film_resistance
+            
+            # Calculate U-value
+            if r_value_with_film > 0:
+                u_value = 1.0 / r_value_with_film
+                if is_target:
+                    print(f"  Total resistance: {total_resistance}, with film: {r_value_with_film}, U-value: {u_value}")
+            else:
+                u_value = 0.0
+                if is_target:
+                    print(f"  WARNING: Zero or negative R-value ({r_value_with_film}), setting U-value to 0")
+                
+            u_values[construction_id] = u_value
+            
+        return u_values
