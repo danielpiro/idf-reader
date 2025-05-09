@@ -109,7 +109,21 @@ class AreaParser:
         # Get cached surface data
         surfaces = self.data_loader.get_surfaces()
         
-        # Process each surface to extract construction and area information
+        # First pass: Process window surfaces to track them by base surface
+        windows_by_base_surface = {}
+        for surface_id, surface in surfaces.items():
+            # Only process windows (fenestration surfaces)
+            if surface.get("is_glazing", False):
+                base_surface = surface.get("base_surface")
+                if base_surface:
+                    if base_surface not in windows_by_base_surface:
+                        windows_by_base_surface[base_surface] = []
+                    windows_by_base_surface[base_surface].append({
+                        "window_id": surface_id,
+                        "area": surface.get("area", 0.0),
+                    })
+                
+        # Second pass: Process all surfaces
         for surface_id, surface in surfaces.items():
             zone_name = surface.get("zone_name")
             
@@ -120,11 +134,19 @@ class AreaParser:
             construction_name = surface.get("construction_name")
             if not construction_name:
                 continue
-                
-            area = surface.get("area", 0.0)
-            if area <= 0.0:
+            
+            # Get original area and adjust if this is a wall with windows
+            original_area = surface.get("area", 0.0)
+            if original_area <= 0.0:
                 continue
 
+            # Adjust area if this is a wall with windows (subtract window areas)
+            area = original_area
+            if not surface.get("is_glazing", False) and surface_id in windows_by_base_surface:
+                window_areas = sum(w["area"] for w in windows_by_base_surface[surface_id])
+                # Subtract window areas from the wall area
+                area = max(0.0, original_area - window_areas)
+            
             # --- Determine U-Value ---
             u_value = 0.0
             is_glazing = surface.get("is_glazing", False) # Check if surface is marked as glazing
@@ -141,7 +163,8 @@ class AreaParser:
                     # Glazing construction found, but U-Value is missing in parsed data - fallback? Log warning?
                     logger.warning(f"Glazing construction '{construction_name}' found in parsed data, but U-Value is missing. Falling back to calculation.")
                     # Decide if fallback calculation is appropriate here or just use 0.0
-                    u_value = self._calculate_u_value(construction_name) # Or set u_value = 0.0                # Ensure is_glazing flag is consistent
+                    u_value = self._calculate_u_value(construction_name) # Or set u_value = 0.0
+                # Ensure is_glazing flag is consistent
                 is_glazing = True # If it's in parsed_glazing_data, treat as glazing
             else:                # Not found in glazing data, assume opaque
                 # First check if we can get the U-value from materials_parser for consistent values
@@ -167,7 +190,6 @@ class AreaParser:
                     logger.debug(f"Materials parser not available, using calculated U-Value for '{construction_name}': {u_value}")
                 # logger.debug(f"Calculating U-Value for opaque construction '{construction_name}': {u_value}")
             # --- End Determine U-Value ---
-
 
             # Get surface type and determine if glazing
             surface_type = surface.get("surface_type", "wall")
@@ -202,14 +224,15 @@ class AreaParser:
                 "zone": zone_name,
                 "surface_name": surface_id,
                 "element_type": element_type_str, # Use the determined type
-                "area": area,
+                "area": area,  # Use adjusted area
+                "original_area": original_area,  # Store original area for reference
                 "u_value": u_value, # Use the determined u_value
                 "area_u_value": area * u_value
             }
 
             constr_group = self.areas_by_zone[zone_name]["constructions"][construction_name]
             constr_group["elements"].append(element_data)
-            constr_group["total_area"] += area
+            constr_group["total_area"] += area  # Use adjusted area
             constr_group["total_u_value"] += area * u_value # Use determined u_value here too
 
     def _get_construction_properties(self, construction_name: str) -> Dict[str, float]:
