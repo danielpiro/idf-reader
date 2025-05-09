@@ -94,6 +94,9 @@ class MaterialsParser:
         # Get cached surface data (still needed for element type)
         surfaces = self.data_loader.get_surfaces()
         
+        # Dictionary to track constructions where low conductivity rule has been applied
+        low_conductivity_found = {}
+        
         # Process each construction (using the populated self.constructions)
         for construction_id, construction_data in self.constructions.items():
             pattern = r'_(?:[Rr]ev|[Rr]eversed)$'
@@ -134,17 +137,23 @@ class MaterialsParser:
                     for element_type in element_types:
                         # Get surface film resistance based on element type
                         film_resistance = self._get_surface_film_resistance(element_type)
-                        
-                        # Calculate mass - divide it if element type is external wall and 
-                        # this is the first low conductivity material
+                          # Calculate mass - divide it if element type is external wall and 
+                        # this is the first low conductivity material in the construction
                         mass = material_data.density * material_data.thickness
-                        found_low_conductivity = False
                         
+                        # Track low conductivity materials per element type and construction
+                        if element_type not in low_conductivity_found:
+                            low_conductivity_found[element_type] = set()
+                            
                         # Apply the external wall special case for mass calculation
-                        if element_type.lower() == "external wall" and material_data.conductivity < 0.2:
+                        # Only divide mass for the first low conductivity material in this construction
+                        if (element_type.lower() == "external wall" and 
+                            material_data.conductivity < 0.2 and
+                            construction_id not in low_conductivity_found[element_type]):
                             # Divide mass for the external wall case with low conductivity
                             mass = mass / 2
-                            found_low_conductivity = True
+                            # Mark this construction as having applied the low conductivity rule
+                            low_conductivity_found[element_type].add(construction_id)
                         
                         self.element_data.append({
                             "element_type": element_type,
