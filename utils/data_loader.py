@@ -72,7 +72,33 @@ class DataLoader:
         self._frame_divider_cache = {} # Added cache for FrameAndDivider
         self._daylighting_controls_cache = {}
         self._daylighting_reference_point_cache = {}
+    def ensure_output_variables(self, idf_path: str = None, idd_path: Optional[str] = None) -> bool:
+        """
+        Ensure required output variables exist in the IDF file before running the simulation.
+        Use this method before running the simulation to make sure energy rating variables are present.
         
+        Args:
+            idf_path: Path to the IDF file. If None, uses the previously loaded file.
+            idd_path: Optional path to the IDD file
+            
+        Returns:
+            bool: True if output variables were successfully checked/added, False otherwise
+        """
+        # If we need to load a new IDF file
+        if idf_path and (not self._idf or self._idf_path != idf_path):
+            if not self._eppy_handler:
+                self._eppy_handler = EppyHandler(idd_path)
+            self._idf_path = idf_path
+            self._idf = self._eppy_handler.load_idf(idf_path)
+            
+        # Now check and add output variables
+        if self._idf:
+            self._check_output()
+            # Save the IDF file after making changes
+            self._idf.save()  # Save to the same file that was loaded
+            return True
+        return False
+
     def load_file(self, idf_path: str, idd_path: Optional[str] = None) -> None:
         """
         Load IDF file and cache raw data.

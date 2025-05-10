@@ -22,6 +22,9 @@ from generators.lighting_report_generator import LightingReportGenerator
 # Import area loss components
 from parsers.area_loss_parser import AreaLossParser
 from generators.area_loss_report_generator import generate_area_loss_report_pdf
+# Import energy rating components
+from parsers.energy_rating_parser import EnergyRatingParser
+from generators.energy_rating_report_generator import EnergyRatingReportGenerator
 from parsers.schedule_parser import ScheduleExtractor
 from parsers.settings_parser import SettingsExtractor
 from parsers.load_parser import LoadExtractor
@@ -73,13 +76,15 @@ class ProcessingManager:
             materials_pdf_path = os.path.join(base_output, "materials.pdf")
             # Add path for glazing PDF report
             glazing_pdf_path = os.path.join(base_output, "glazing.pdf") # Changed to PDF
-            lighting_pdf_path = os.path.join(base_output, "lighting.pdf")
-            # Add path for area loss PDF report
+            lighting_pdf_path = os.path.join(base_output, "lighting.pdf")            # Add path for area loss PDF report
             area_loss_pdf_path = os.path.join(base_output, "area-loss.pdf")
+            # Add path for energy rating PDF report
+            energy_rating_pdf_path = os.path.join(base_output, "energy-rating.pdf")
 
             # Create output directories
             for path in [settings_pdf_path, schedules_pdf_path, loads_pdf_path,
-                        materials_pdf_path, glazing_pdf_path, lighting_pdf_path, area_loss_pdf_path]:
+                        materials_pdf_path, glazing_pdf_path, lighting_pdf_path, area_loss_pdf_path,
+                        energy_rating_pdf_path]:
                 self.ensure_directory_exists(path)
 
             self.update_progress(0.1)
@@ -184,9 +189,16 @@ class ProcessingManager:
             extracted_element_data = materials_extractor.get_element_data()
             # extracted_areas = area_parser.get_parsed_areas() # Incorrect method call removed
             extracted_glazing_data = glazing_parser.parsed_glazing_data # Get parsed data
-            extracted_lighting_data = parsed_lighting # Get parsed lighting data
-            # Get area loss data from area_loss_parser
+            extracted_lighting_data = parsed_lighting # Get parsed lighting data            # Get area loss data from area_loss_parser
             extracted_area_loss_data = area_loss_parser.parse() # This calls parse() to calculate H-values
+            
+            # Initialize energy rating parser and process data if simulation output CSV is available
+            energy_rating_parser = EnergyRatingParser(data_loader, area_parser)
+            if self.simulation_output_csv:
+                energy_rating_parser.process_output(self.simulation_output_csv)
+            else:
+                # Try to find CSV in standard locations relative to IDF file
+                energy_rating_parser.process_output()
 
             if self.is_cancelled:
                 return False
@@ -295,13 +307,31 @@ class ProcessingManager:
                     area_loss_pdf_path,
                     project_name=project_name,
                     run_id=run_id
-                )
+                )                
                 if success_area_loss:
                     self.update_status("Area Loss report generated successfully.")
                 else:
                     self.update_status("Area Loss report generation failed (check console for details).")
             except Exception as e:
-                 self.update_status(f"Error generating Area Loss PDF report: {e}")
+                self.update_status(f"Error generating Area Loss PDF report: {e}")
+                 
+            # Generate Energy Rating PDF report
+            self.update_status("Generating Energy Rating report (PDF)...")
+            try:
+                # Use the EnergyRatingReportGenerator class
+                energy_rating_generator = EnergyRatingReportGenerator(
+                    energy_rating_parser,
+                    output_dir=base_output
+                )
+                success_energy_rating = energy_rating_generator.generate_report(
+                    output_filename="energy-rating.pdf"
+                )
+                if success_energy_rating:
+                    self.update_status("Energy Rating report generated successfully.")
+                else:
+                    self.update_status("Energy Rating report generation failed (check console for details).")
+            except Exception as e:
+                 self.update_status(f"Error generating Energy Rating PDF report: {e}")
 
             self.update_status("Processing completed successfully!")
             return True
@@ -896,6 +926,21 @@ class IDFProcessorGUI(ctk.CTk):
             
             self.show_status(f"Using weather file: {epw_file_path} for {selected_city} (Area: {selected_area_name}, Code: {selected_area_code})")
             self.show_status(f"Using ISO type: {selected_iso_type}")
+
+            # --- Ensure Required Output Variables for Energy Rating ---
+            self.show_status("Ensuring required output variables for Energy Rating...")
+            try:
+                data_loader = DataLoader()
+                output_variables_added = data_loader.ensure_output_variables(
+                    idf_path=input_file,
+                    idd_path=idd_path
+                )
+                if output_variables_added:
+                    self.show_status("Required output variables ensured for Energy Rating system.")
+                else:
+                    self.show_status("Warning: Failed to add required output variables. Energy Rating may not work correctly.")
+            except Exception as e:
+                self.show_status(f"Warning: Error adding output variables: {e}. Energy Rating may not work correctly.")
 
             # --- Simulation Output Directory ---
             # Create a dedicated subdirectory for simulation output inside the reports folder
