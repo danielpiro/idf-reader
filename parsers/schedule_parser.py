@@ -27,7 +27,7 @@ BASIC_TYPES = [
     "on", "off", "work efficiency", "opaqueshade",
     "zone comfort control type sched", "design days only",
     "typoperativetempcontrolsch", "onwinterdesignday",
-    "onsummerdesignday", "sp", "setpoint"
+    "onsummerdesignday", "heating setpoint schedule", "cooling sp sch"
 ]
 
 class ScheduleExtractor:
@@ -52,6 +52,7 @@ class ScheduleExtractor:
     def _is_basic_type(self, schedule_type: str) -> bool:
         """
         Check if schedule is a basic type that should be filtered out.
+        Handles schedule types that may have a zone prefix (e.g., "00:01XLIVING Heating Setpoint Schedule").
         
         Args:
             schedule_type: The schedule type to check
@@ -59,9 +60,33 @@ class ScheduleExtractor:
         Returns:
             bool: True if schedule should be filtered out
         """
-            
-        # Inline the _normalize_schedule_type logic here instead of using a separate method
-        return any(basic_type.lower() in schedule_type.lower()
+        # Regex to match potential zone prefixes like "00:01X " or "00:00LIVING ".
+        # It looks for "HH:MM" possibly followed by one or more capital letters/digits (for zone name part), then a space.
+        # Example Prefixes: "00:01X ", "PERIMETER_ZN_1 "
+        # More general approach: split by space, if first part matches a zone-like pattern, remove it.
+        # However, a direct regex substitution is cleaner if the prefix pattern is consistent.
+        
+        # Attempt to remove a zone-like prefix.
+        # This pattern matches "XX:XX" followed by any non-whitespace characters and a space.
+        # Or common words like "OFFICE", "LIVING" etc. followed by a space.
+        # A more robust way is to check if the first word is a zone identifier.
+        # The existing _extract_zone_id_from_schedule uses `schedule_id.split()` and checks the first part.
+        # Let's adapt a similar logic or a regex.
+        
+        # Regex to find a prefix like "word " where word does not contain "schedule" or "type" or "sched"
+        # and is typically a zone identifier.
+        # A simpler regex for common prefixes: "HH:MM[OptionalLetter(s)] "
+        zone_prefix_pattern = r'^\d{2}:\d{2}[A-Z\d]*\s+' # Matches "00:00XLIVING " or "01:23Z1 "
+        
+        # Remove the prefix if it exists to get the actual schedule type name
+        actual_schedule_type_name = re.sub(zone_prefix_pattern, '', schedule_type, count=1)
+
+        # If the above didn't strip (e.g. "LIVING Cooling SP Sch"), try another common pattern
+        # This is tricky because "Work Efficiency" is a basic type.
+        # For now, we rely on the HH:MMX pattern. If other prefixes are common, this might need adjustment.
+
+        # Perform case-insensitive exact match on the (potentially stripped) schedule type name
+        return any(basic_type.lower() == actual_schedule_type_name.lower()
                   for basic_type in BASIC_TYPES)
 
     def _standardize_date_format(self, date_string: str) -> str:
@@ -163,8 +188,7 @@ class ScheduleExtractor:
             except IndexError:
                 print(f"Warning: Could not parse name/type/rules for Schedule:Compact. Fields: {data}")
                 return
-
-            # Filter out basic types
+            
             if self._is_basic_type(schedule_type):
                 return
 
@@ -201,9 +225,6 @@ class ScheduleExtractor:
         for schedule_id, schedule_data in schedule_cache.items():
             schedule_type = schedule_data['type']
             
-            # Filter out basic types
-            if self._is_basic_type(schedule_type):
-                continue
                 
             # Get schedule rules from cache
             rule_fields = self.data_loader.get_schedule_rules(schedule_id)
