@@ -354,11 +354,9 @@ class IDFProcessorGUI(ctk.CTk):
             "CORE & ENVELOPE"
         ]
         
-        # Load saved settings
-        self.load_settings()
-        
         # Create GUI elements
         self.create_widgets()
+        self.load_settings()
         
         # Configure grid weights
         # --- Configure Grid Layout ---

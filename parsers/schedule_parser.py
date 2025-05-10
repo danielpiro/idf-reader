@@ -59,9 +59,6 @@ class ScheduleExtractor:
         Returns:
             bool: True if schedule should be filtered out
         """
-        if "24/7" in schedule_type.lower() or "shading" in schedule_type.lower() or "ventilation" in schedule_type.lower():
-            # Special case for 24/7 schedules
-            return False
             
         # Inline the _normalize_schedule_type logic here instead of using a separate method
         return any(basic_type.lower() in schedule_type.lower()
