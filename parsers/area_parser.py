@@ -661,12 +661,9 @@ class AreaParser:
         Calculates the H-Value for each area based on external, roof, and separation losses.
         Also determines the location type for each area based on floor and ceiling construction types.
 
-        Location types:
-        - Ground Floor: When intermediate+ground floors dominates and has ground floor constructions
-        - Intermediate Floor: When intermediate+ground floors dominates without ground floor constructions
-        - Over Close Space: When separation floors dominates
-        - Below Open Space: When roof ceiling dominates
-        - Over Open Space: When external floors dominates
+        Location types determined by comparing max values in two groups:
+        Group 1: ground floor, external floor, separation floor, intermediate floor
+        Group 2: roof, intermediate ceiling, separation ceiling
 
         H-Value = (sum(Area*U for external/roof) + 0.5 * sum(Area*U for separation)) / TotalFloorArea
 
@@ -717,18 +714,16 @@ class AreaParser:
             external_roof_loss_sum = 0.0
             separation_loss_sum = 0.0
 
-            # Sums for determining location
-            sum_external_floors = 0.0
-            sum_ground_floors = 0.0
-            sum_intermediate_floors = 0.0
-            sum_separation_floors = 0.0
+            # Sums for determining location - GROUP 1 (floors)
+            sum_ground_floor = 0.0
+            sum_external_floor = 0.0
+            sum_separation_floor = 0.0
+            sum_intermediate_floor = 0.0
             
-            sum_roofs = 0.0
-            sum_intermediate_ceilings = 0.0
-            sum_separation_ceilings = 0.0
-            
-            # Track if we have any ground floor constructions
-            has_ground_floor_construction = False
+            # Sums for determining location - GROUP 2 (ceilings)
+            sum_roof = 0.0
+            sum_intermediate_ceiling = 0.0
+            sum_separation_ceiling = 0.0
 
             for row in rows:
                 element_type = row.get('element_type', '').lower()
@@ -739,105 +734,128 @@ class AreaParser:
                 is_external_roof = False
                 is_separation = False
 
-                # Define keywords (case-insensitive)
-                external_keywords = ["external", "outside", "ground"] # Include ground contact
+                # Define keywords (case-insensitive) for element types
+                external_keywords = ["external", "outside"]
+                ground_keywords = ["ground", "slab on grade", "slab-on-grade"]
                 roof_keywords = ["roof"]
-                separation_keywords = ["separation"] # User specified "separation".
+                separation_keywords = ["separation"] 
                 floor_keywords = ["floor"]
                 ceiling_keywords = ["ceiling"]
-                ground_floor_keywords = ["ground floor", "slab on grade", "slab-on-grade"]
+                intermediate_keywords = ["intermediate"]
 
-                # Check if this is a ground floor construction
-                if any(keyword in element_type for keyword in ground_floor_keywords):
-                    has_ground_floor_construction = True
-
-                # More robust check for keywords in element type string
+                # Check for external/roof elements for h-value calculation
                 if any(keyword in element_type for keyword in external_keywords) or \
                    any(keyword in element_type for keyword in roof_keywords):
                     is_external_roof = True
 
+                # Check for separation elements for h-value calculation
                 if any(keyword in element_type for keyword in separation_keywords):
-                     # Avoid double counting if it's somehow both (e.g., "External Separation Wall")
-                     if not is_external_roof:
-                         is_separation = True
+                    if not is_external_roof:  # Avoid double counting
+                        is_separation = True
 
-                # Add to sums based on classification
+                # Accumulate sums for h-value calculation
                 if is_external_roof:
                     external_roof_loss_sum += area_loss
-                    
-                    # For location determination - floors and ceilings
-                    if any(keyword in element_type for keyword in floor_keywords):
-                        sum_external_floors += area
-                    elif any(keyword in element_type for keyword in roof_keywords):
-                        sum_roofs += area
-                        
                 elif is_separation:
                     separation_loss_sum += area_loss
-                    
-                    # For location determination
-                    if any(keyword in element_type for keyword in floor_keywords):
-                        sum_separation_floors += area
-                    elif any(keyword in element_type for keyword in ceiling_keywords):
-                        sum_separation_ceilings += area
-                else:
-                    # Intermediate floors/ceilings (not external, not separation)
-                    if any(keyword in element_type for keyword in floor_keywords):
-                        if any(keyword in element_type for keyword in ground_floor_keywords):
-                            sum_ground_floors += area
-                        else:
-                            sum_intermediate_floors += area
-                    elif any(keyword in element_type for keyword in ceiling_keywords):
-                        sum_intermediate_ceilings += area
+                
+                # GROUP 1 - Floor type classification
+                if any(keyword in element_type for keyword in floor_keywords):
+                    # Check for ground floor
+                    if any(keyword in element_type for keyword in ground_keywords):
+                        sum_ground_floor += area
+                    # Check for external floor
+                    elif any(keyword in element_type for keyword in external_keywords):
+                        sum_external_floor += area
+                    # Check for separation floor
+                    elif any(keyword in element_type for keyword in separation_keywords):
+                        sum_separation_floor += area
+                    # If none of the above, assume intermediate floor
+                    else:
+                        sum_intermediate_floor += area
+
+                # GROUP 2 - Ceiling type classification
+                elif any(keyword in element_type for keyword in ceiling_keywords) or \
+                     any(keyword in element_type for keyword in roof_keywords):
+                    # Check for roof
+                    if any(keyword in element_type for keyword in roof_keywords):
+                        sum_roof += area
+                    # Check for separation ceiling
+                    elif any(keyword in element_type for keyword in separation_keywords):
+                        sum_separation_ceiling += area
+                    # If none of the above, assume intermediate ceiling
+                    else:
+                        sum_intermediate_ceiling += area
 
             # Calculate H-Value
-            h_value = (external_roof_loss_sum + 0.5 * separation_loss_sum) / total_floor_area
+            h_value = (external_roof_loss_sum + 0.5 * separation_loss_sum) / total_floor_area if total_floor_area > 0 else 0.0
+
+            # Find the maximum value in each group
+            group1_values = {
+                "ground_floor": sum_ground_floor,
+                "external_floor": sum_external_floor,
+                "separation_floor": sum_separation_floor,
+                "intermediate_floor": sum_intermediate_floor
+            }
             
-            # Determine location based on the detailed mapping logic
+            group2_values = {
+                "roof": sum_roof,
+                "intermediate_ceiling": sum_intermediate_ceiling,
+                "separation_ceiling": sum_separation_ceiling
+            }
+            
+            # Find max element in each group
+            max_group1 = max(group1_values.items(), key=lambda x: x[1]) if group1_values else ("unknown", 0)
+            max_group2 = max(group2_values.items(), key=lambda x: x[1]) if group2_values else ("unknown", 0)
+            
+            # Get the names of max elements
+            max_floor_type = max_group1[0]
+            max_ceiling_type = max_group2[0]
+            
+            # Determine location based on the max values from each group
             location = "Unknown"  # Default value
             
-            # First mapping: Floor and ceiling types to detailed location
-            # Ground floor cases
-            if sum_ground_floors > 0:
-                if sum_intermediate_ceilings > sum_roofs and sum_intermediate_ceilings > sum_separation_ceilings:
+            # Logic based on max floor and ceiling types
+            if max_floor_type == "ground_floor":
+                if max_ceiling_type == "intermediate_ceiling":
                     location = "Ground Floor"
-                elif sum_roofs > sum_intermediate_ceilings and sum_roofs > sum_separation_ceilings:
+                elif max_ceiling_type == "roof":
                     location = "Ground Floor Below Open Space"
-                elif sum_separation_ceilings > sum_intermediate_ceilings and sum_separation_ceilings > sum_roofs:
+                elif max_ceiling_type == "separation_ceiling":
                     location = "Ground Floor Below Unconditioned"
-            # External floor cases
-            elif sum_external_floors > 0:
-                if sum_roofs > sum_intermediate_ceilings and sum_roofs > sum_separation_ceilings:
+            elif max_floor_type == "external_floor":
+                if max_ceiling_type == "roof":
                     location = "External Below Open Space"
-                elif sum_intermediate_ceilings > sum_roofs and sum_intermediate_ceilings > sum_separation_ceilings:
+                elif max_ceiling_type == "intermediate_ceiling":
                     location = "External Floor"
-                elif sum_separation_ceilings > sum_intermediate_ceilings and sum_separation_ceilings > sum_roofs:
+                elif max_ceiling_type == "separation_ceiling":
                     location = "External Floor Below Unconditioned"
-            # Separation floor cases
-            elif sum_separation_floors > 0:
-                if sum_roofs > sum_intermediate_ceilings and sum_roofs > sum_separation_ceilings:
+            elif max_floor_type == "separation_floor":
+                if max_ceiling_type == "roof":
                     location = "Separation Floor Below Open Space"
-                elif sum_intermediate_ceilings > sum_roofs and sum_intermediate_ceilings > sum_separation_ceilings:
+                elif max_ceiling_type == "intermediate_ceiling":
                     location = "Separation Floor"
-                elif sum_separation_ceilings > sum_intermediate_ceilings and sum_separation_ceilings > sum_roofs:
+                elif max_ceiling_type == "separation_ceiling":
                     location = "Separation Floor Below Unconditioned"
-            # Intermediate floor cases
-            elif sum_intermediate_floors > 0:
-                if sum_roofs > sum_intermediate_ceilings and sum_roofs > sum_separation_ceilings:
+            elif max_floor_type == "intermediate_floor":
+                if max_ceiling_type == "roof":
                     location = "Intermediate Floor Below Open Space"
-                elif sum_intermediate_ceilings > sum_roofs and sum_intermediate_ceilings > sum_separation_ceilings:
+                elif max_ceiling_type == "intermediate_ceiling":
                     location = "Intermediate Floor"
-                elif sum_separation_ceilings > sum_intermediate_ceilings and sum_separation_ceilings > sum_roofs:
+                elif max_ceiling_type == "separation_ceiling":
                     location = "Intermediate Floor Below Unconditioned"
-                    
+
             # Add debug logging for location determination
             logger.debug(f"Area {area_id} location determination:")
-            logger.debug(f"  Floor values: External={sum_external_floors}, Ground={sum_ground_floors}, Intermediate={sum_intermediate_floors}, Separation={sum_separation_floors}")
-            logger.debug(f"  Ceiling values: Roof={sum_roofs}, Intermediate={sum_intermediate_ceilings}, Separation={sum_separation_ceilings}")
-            logger.debug(f"  Determined detailed location: {location}")
+            logger.debug(f"  Group 1 (Floors): Ground={sum_ground_floor}, External={sum_external_floor}, Separation={sum_separation_floor}, Intermediate={sum_intermediate_floor}")
+            logger.debug(f"  Group 2 (Ceilings): Roof={sum_roof}, Intermediate={sum_intermediate_ceiling}, Separation={sum_separation_ceiling}")
+            logger.debug(f"  Max Floor: {max_floor_type} ({max_group1[1]})") 
+            logger.debug(f"  Max Ceiling: {max_ceiling_type} ({max_group2[1]})")
+            logger.debug(f"  Determined location: {location}")
 
             h_values_by_area.append({
                 'area_id': area_id,
-                'location': location,  # Now using the determined location instead of area_id
+                'location': location,
                 'h_value': h_value,
                 'total_floor_area': total_floor_area
             })

@@ -53,12 +53,6 @@ class AreaLossParser:
                     h_needed = self._calculate_h_needed(location, total_floor_area, wall_mass_per_area, area_id)
                     item['h_needed'] = h_needed
                     
-                    # Replace the location with the detailed location for reporting
-                    if 'detailed_location' in item:
-                        item['original_location'] = location  # Keep the original for reference
-                        item['location'] = item['detailed_location']
-                        del item['detailed_location']  # Clean up the temporary field
-                    
                     # Check compatibility based on h_value < h_needed
                     h_value = item.get('h_value', 0)
                     item['compatible'] = "Yes" if h_value < h_needed else "No"
@@ -159,7 +153,9 @@ class AreaLossParser:
             
         Returns:
             float: The calculated h_needed value
-        """        # First map the detailed location to a more general location type
+        """
+        # Map the location to the numerical value for h-value calculation
+        # First map the detailed location to a more general location type
         detailed_location_map = {
             # Ground floor and intermediate floor variants map to "Ground Floor" or "Intermediate Floor"
             "Ground Floor": "Ground Floor",
@@ -213,12 +209,6 @@ class AreaLossParser:
         
         # Then map to the numerical value for h-value calculation
         location_num = final_location_map.get(detailed_location, 1)  # Default to 1 if not found
-        
-        # Update the item with the detailed location name
-        if hasattr(self, 'area_loss_data') and isinstance(self.area_loss_data, list):
-            for item in self.area_loss_data:
-                if item.get('area_id') == area_id:
-                    item['detailed_location'] = detailed_location
         
         # Map city area name to column index (0-based)
         area_col = {
