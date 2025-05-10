@@ -43,7 +43,8 @@ def create_hierarchical_table_style():
         ('SPAN', (10, 0), (12, 0)), # Heating
         ('SPAN', (13, 0), (15, 0)), # Cooling
         ('SPAN', (16, 0), (17, 0)), # Infiltration
-        ('SPAN', (18, 0), (19, 0))  # Ventilation
+        ('SPAN', (18, 0), (19, 0)), # Ventilation
+        ('SPAN', (20, 0), (21, 0))  # Mechanical Ventilation - New Span
     ]
 
     # Basic styling + spans
@@ -357,18 +358,19 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf",
             "Zone", "Occupancy", "", "", "Lighting", "",
             "Non Fixed Equipment", "", "Fixed Equipment", "",
             "Heating", "", "", "Cooling", "", "",
-            "Infiltration", "", "Ventilation", ""
+            "Infiltration", "", "Ventilation", "", "Mechanical Ventilation", "" # Added Mechanical Ventilation
         ]
         header_row2 = [
             "", # Spanned by Zone in row 1
-            "people/\narea", "activity\nschedule\nw/person", "schedule\ntemplate\nname",
-            "power\ndensity\n[w/m2]", "schedule\ntemplate\nname",
-            "power\ndensity\n(W/m2)", "schedule\ntemplate\nname",
-            "power\ndensity\n(W/m2)", "schedule\ntemplate\nname",
-            "setpoint\n(C)", "setpoint\nnon work\ntime(C)", "equipment\nschedule\ntemplate\nname",
-            "setpoint\n(C)", "setpoint\nnon work\ntime(C)", "equipment\nschedule\ntemplate\nname",
-            "rate\n(ACH)", "schedule",
-            "rate\n(ACH)", "schedule"
+            "people/\narea", "activity\nschedule\nw/person", "schedule\ntemplate\nname", # Occupancy
+            "power\ndensity\n[w/m2]", "schedule\ntemplate\nname", # Lighting
+            "power\ndensity\n(W/m2)", "schedule\ntemplate\nname", # Non Fixed Equipment
+            "power\ndensity\n(W/m2)", "schedule\ntemplate\nname", # Fixed Equipment
+            "setpoint\n(C)", "setpoint\nnon work\ntime(C)", "equipment\nschedule\ntemplate\nname", # Heating
+            "setpoint\n(C)", "setpoint\nnon work\ntime(C)", "equipment\nschedule\ntemplate\nname", # Cooling
+            "rate\n(ACH)", "schedule", # Infiltration
+            "rate\n(ACH)", "schedule", # Ventilation
+            "Outdoor Air\nFlow per Person\n{m3/s}", "Outdoor Air\nFlow Rate Fraction\nSchedule Name" # Mechanical Ventilation - New Subheaders
         ]
 
         # Apply styles to header cells
@@ -425,6 +427,9 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf",
             vent_rate = get_load_data('ventilation', 'rate_ach', 0.0)
             vent_sched = get_load_data('ventilation', 'schedule')
 
+            mech_vent_flow_per_person = get_load_data('mechanical_ventilation', 'outdoor_air_flow_per_person', 0.0)
+            mech_vent_sched = get_load_data('mechanical_ventilation', 'schedule')
+
             # Format data for the row
             # Ensure all data is string before wrapping
             def to_str(val, precision=None):
@@ -465,6 +470,9 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf",
                 # Ventilation
                 wrap_text(to_str(vent_rate, 2), cell_style),
                 wrap_text(to_str(vent_sched), cell_style),
+                # Mechanical Ventilation
+                wrap_text(to_str(mech_vent_flow_per_person, 3), cell_style), # Using 3 decimal places for m3/s
+                wrap_text(to_str(mech_vent_sched), cell_style),
             ]
             table_data.append(row_data)
 
@@ -495,9 +503,79 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf",
                 3.0,  # infil rate - very narrow numeric column
                 5.0,  # infil schedule - medium width for names
                 3.0,  # vent rate - very narrow numeric column
-                5.0   # vent schedule - medium width for names
+                5.0,  # vent schedule - medium width for names
+                4.0,  # mech_vent_flow_per_person - numeric, adjust as needed
+                7.0   # mech_vent_sched - schedule name, adjust as needed
             ]
             
+            # Adjust percentages to sum to 100 if new columns were added
+            # Current sum: 7+3.5+5.5+8+3.5+6.5+3.5+6.5+3.5+6.5+3+3.5+8+3+3.5+8+3+5+3+5 = 98
+            # New columns: 4 + 7 = 11. Total = 98 + 11 = 109. Need to re-normalize.
+            # Let's adjust existing ones slightly to make space or verify the sum.
+            # Initial sum of col_percentages before adding new ones:
+            # 7+3.5+5.5+8+3.5+6.5+3.5+6.5+3.5+6.5+3+3.5+8+3+3.5+8+3+5+3+5 = 98. This was an error in the original. It should sum to 100.
+            # Let's assume the original intent was to distribute 100%.
+            # Original count: 20 columns. New count: 22 columns.
+
+            # Re-evaluating percentages for 22 columns to sum to 100.
+            # Let's try to maintain relative widths.
+            # Old total width units = 98. New total width units = 98 + 4 + 7 = 109.
+            # We need to scale everything down by 98/109 or adjust manually.
+            # For simplicity, let's try to make them fit.
+            # The provided percentages already sum to 98, not 100. This is an issue.
+            # Let's assume the user wants to add two columns and the existing ones are relatively okay.
+            # We'll adjust the percentages to make them sum to 100.
+            # Current sum of provided percentages: 98. We need to add 2% somewhere or reduce others.
+            # Let's try to make the new columns fit and adjust slightly.
+            # Zone: 6.5
+            # people/area: 3
+            # activity_schedule: 5
+            # occupancy_schedule_name: 7.5
+            # lighting_density: 3
+            # lighting_schedule_name: 6
+            # non-fixed_density: 3
+            # non-fixed_schedule_name: 6
+            # fixed_density: 3
+            # fixed_schedule_name: 6
+            # heating_setpoint: 2.5
+            # heating_non-work: 3
+            # heating_schedule_name: 7.5
+            # cooling_setpoint: 2.5
+            # cooling_non-work: 3
+            # cooling_schedule_name: 7.5
+            # infil_rate: 2.5
+            # infil_schedule: 4.5
+            # vent_rate: 2.5
+            # vent_schedule: 4.5
+            # mech_vent_flow: 3.5
+            # mech_vent_schedule: 6.5
+            # Sum: 6.5+3+5+7.5+3+6+3+6+3+6+2.5+3+7.5+2.5+3+7.5+2.5+4.5+2.5+4.5+3.5+6.5 = 100
+
+            col_percentages = [
+                6.5,  # Zone
+                3.0,  # people/area
+                5.0,  # activity schedule
+                7.5,  # occupancy schedule name
+                3.0,  # lighting density
+                6.0,  # lighting schedule name
+                3.0,  # non-fixed density
+                6.0,  # non-fixed schedule name
+                3.0,  # fixed density
+                6.0,  # fixed schedule name
+                2.5,  # heating setpoint
+                3.0,  # heating non-work setpoint
+                7.5,  # heating schedule name
+                2.5,  # cooling setpoint
+                3.0,  # cooling non-work setpoint
+                7.5,  # cooling schedule name
+                2.5,  # infil rate
+                4.5,  # infil schedule
+                2.5,  # vent rate
+                4.5,  # vent schedule
+                3.5,  # mech_vent_flow_per_person
+                6.5   # mech_vent_sched
+            ]
+
             # Calculate column widths based on percentages
             col_widths = [available_width * (p/100) for p in col_percentages]
             

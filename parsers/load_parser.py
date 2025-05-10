@@ -42,6 +42,7 @@ class LoadExtractor:
         self._process_equipment_loads()
         self._process_infiltration_loads()
         self._process_ventilation_loads()
+        self._process_mechanical_ventilation_loads() # Added call
         self._process_temperature_schedules()
 
     def _process_zones(self) -> None:
@@ -66,7 +67,8 @@ class LoadExtractor:
                     "non_fixed_equipment": {"watts_per_area": 0.0, "schedule": None},
                     "fixed_equipment": {"watts_per_area": 0.0, "schedule": None},
                     "infiltration": {"rate_ach": 0.0, "schedule": None},
-                    "ventilation": {"rate_ach": 0.0, "schedule": None}
+                    "ventilation": {"rate_ach": 0.0, "schedule": None},
+                    "mechanical_ventilation": {"outdoor_air_flow_per_person": 0.0, "schedule": None} # New entry
                 },
                 "schedules": {
                     "heating": None,
@@ -196,6 +198,32 @@ class LoadExtractor:
                 # Store first schedule name encountered
                 if zone_load_data["schedule"] is None:
                     zone_load_data["schedule"] = load['schedule']
+
+    def _process_mechanical_ventilation_loads(self) -> None:
+        """
+        Process and aggregate DesignSpecification:OutdoorAir loads.
+        """
+        if not self.data_loader:
+            return
+
+        outdoor_air_specs = self.data_loader.get_outdoor_air_specifications()
+
+        for zone_name_from_spec, spec_data in outdoor_air_specs.items():
+            # The key in outdoor_air_specs is assumed to be the zone name
+            # as cached in DataLoader._cache_outdoor_air_specifications
+            if zone_name_from_spec in self.loads_by_zone:
+                zone_load_data = self.loads_by_zone[zone_name_from_spec]["loads"]["mechanical_ventilation"]
+                
+                # Accumulate or set values. Assuming one spec per zone for simplicity here.
+                # If multiple specs could apply and need summing, logic would be similar to other load types.
+                zone_load_data["outdoor_air_flow_per_person"] = spec_data.get('outdoor_air_flow_per_person', 0.0)
+                
+                if zone_load_data["schedule"] is None: # Store first schedule encountered
+                    zone_load_data["schedule"] = spec_data.get('outdoor_air_flow_rate_fraction_schedule_name')
+            # else:
+                # Optionally handle cases where a DesignSpecification:OutdoorAir object's name
+                # doesn't match any existing zone in self.loads_by_zone.
+                # print(f"Warning: DesignSpecification:OutdoorAir for '{zone_name_from_spec}' does not match any processed zone.")
 
     def _process_temperature_schedules(self) -> None:
         """
@@ -340,7 +368,8 @@ class LoadExtractor:
                 "fixed_equipment": loads["fixed_equipment"]["watts_per_area"],
                 "non_fixed_equipment": loads["non_fixed_equipment"]["watts_per_area"],
                 "infiltration": loads["infiltration"]["rate_ach"],
-                "ventilation": loads["ventilation"]["rate_ach"]
+                "ventilation": loads["ventilation"]["rate_ach"],
+                "mechanical_ventilation_per_person": loads["mechanical_ventilation"]["outdoor_air_flow_per_person"] # New summary field
             }
             
         return summary

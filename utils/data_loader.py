@@ -60,6 +60,7 @@ class DataLoader:
         self._equipment_cache = {}
         self._infiltration_cache = {}
         self._ventilation_cache = {}
+        self._outdoor_air_spec_cache = {} # Cache for DesignSpecification:OutdoorAir
         self._windows_cache = {}
         
         # Window-related material caches
@@ -102,8 +103,9 @@ class DataLoader:
         self._cache_window_shading_controls()
         self._cache_frame_dividers()
         self._cache_daylighting()
+        self._cache_outdoor_air_specifications() # Cache outdoor air specs
         # self._filter_constructions_glazing() # Moved to glazing_parser
-    
+
     def _check_output(self) -> None:
         """Check if the IDF file is loaded and output is available"""
         if not self._idf:
@@ -637,6 +639,27 @@ class DataLoader:
                     'raw_object': ref_point # Ensure no extra characters here
                 }
 
+    def _cache_outdoor_air_specifications(self) -> None:
+        """Cache raw DesignSpecification:OutdoorAir data"""
+        if not self._idf:
+            return
+            
+        self._outdoor_air_spec_cache.clear()
+        if 'DESIGNSPECIFICATION:OUTDOORAIR' in self._idf.idfobjects:
+            for spec in self._idf.idfobjects['DESIGNSPECIFICATION:OUTDOORAIR']:
+                
+                spec_name = str(getattr(spec, "Name", ""))
+                if not spec_name:
+                    continue
+
+                self._outdoor_air_spec_cache[spec_name] = {
+                    'id': spec_name, # Assuming this is the Zone Name
+                    'zone_name': spec_name, # Redundant but for clarity
+                    'outdoor_air_flow_per_person': safe_float(getattr(spec, "Outdoor_Air_Flow_per_Person", 0.0)),
+                    'outdoor_air_flow_rate_fraction_schedule_name': str(getattr(spec, "Outdoor_Air_Schedule_Name", "")),
+                    'raw_object': spec
+                }
+
     # _filter_constructions_glazing moved to parsers/glazing_parser.py
 
 
@@ -791,3 +814,7 @@ class DataLoader:
     def get_daylighting_reference_points(self) -> Dict[str, Dict[str, Any]]:
         """Return cached raw Daylighting:ReferencePoint data"""
         return self._daylighting_reference_point_cache
+
+    def get_outdoor_air_specifications(self) -> Dict[str, Dict[str, Any]]:
+        """Get cached DesignSpecification:OutdoorAir data"""
+        return self._outdoor_air_spec_cache
