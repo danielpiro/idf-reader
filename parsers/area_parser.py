@@ -146,24 +146,31 @@ class AreaParser:
                 window_areas = sum(w["area"] for w in windows_by_base_surface[surface_id])
                 # Subtract window areas from the wall area
                 area = max(0.0, original_area - window_areas)
-            
-            # --- Determine U-Value ---
+              # --- Determine U-Value and Area (for glazing) ---
             u_value = 0.0
             is_glazing = surface.get("is_glazing", False) # Check if surface is marked as glazing
+            glazing_area_override = None # Initialize area override for glazing
 
             # Check if this construction exists in the parsed glazing data
             if construction_name in self.parsed_glazing_data:
                 glazing_details = self.parsed_glazing_data[construction_name].get('system_details', {})
                 u_value_from_glazing = glazing_details.get('U-Value')
+                area_from_glazing = glazing_details.get('Area')  # Get area from CSV data
 
                 if u_value_from_glazing is not None:
                     u_value = safe_float(u_value_from_glazing, 0.0)
-                    # logger.debug(f"Using U-Value from GlazingParser for '{construction_name}': {u_value}")
+                    logger.debug(f"Using U-Value from GlazingParser for '{construction_name}': {u_value}")
                 else:
                     # Glazing construction found, but U-Value is missing in parsed data - fallback? Log warning?
                     logger.warning(f"Glazing construction '{construction_name}' found in parsed data, but U-Value is missing. Falling back to calculation.")
                     # Decide if fallback calculation is appropriate here or just use 0.0
                     u_value = self._calculate_u_value(construction_name) # Or set u_value = 0.0
+                
+                # Store area from CSV if available
+                if area_from_glazing is not None:
+                    glazing_area_override = safe_float(area_from_glazing, 0.0)
+                    logger.debug(f"Using area from CSV for glazing '{construction_name}': {glazing_area_override} m²")
+                
                 # Ensure is_glazing flag is consistent
                 is_glazing = True # If it's in parsed_glazing_data, treat as glazing
             else:                # Not found in glazing data, assume opaque
@@ -217,23 +224,27 @@ class AreaParser:
                         if obc and obc.lower() == "outdoors":
                             is_external_glazing = True
                 element_type_str = "External Glazing" if is_external_glazing else "Internal Glazing"
-            # else: element_type_str remains the capitalized surface_type for non-glazing
-
-            # Add element data and update totals
+            # else: element_type_str remains the capitalized surface_type for non-glazing            # Add element data and update totals
+            
+            # If this is glazing and we have area from CSV, use that instead of the IDF area
+            final_area = area  # Default to the adjusted area from IDF
+            if is_glazing and glazing_area_override is not None:
+                logger.debug(f"Using CSV area for glazing '{construction_name}': {glazing_area_override} m² instead of IDF area: {area} m²")
+                final_area = glazing_area_override
+                
             element_data = {
                 "zone": zone_name,
                 "surface_name": surface_id,
                 "element_type": element_type_str, # Use the determined type
-                "area": area,  # Use adjusted area
-                "original_area": original_area,  # Store original area for reference
-                "u_value": u_value, # Use the determined u_value
-                "area_u_value": area * u_value
+                "area": final_area,  # Use area from CSV for glazing if available, otherwise use adjusted area
+                "original_area": original_area,  # Store original area for reference                "u_value": u_value, # Use the determined u_value
+                "area_u_value": final_area * u_value  # Update using final_area
             }
-
+            
             constr_group = self.areas_by_zone[zone_name]["constructions"][construction_name]
             constr_group["elements"].append(element_data)
-            constr_group["total_area"] += area  # Use adjusted area
-            constr_group["total_u_value"] += area * u_value # Use determined u_value here too
+            constr_group["total_area"] += final_area  # Use final_area which might be from CSV for glazing
+            constr_group["total_u_value"] += final_area * u_value # Use determined u_value with final_area
 
     def _get_construction_properties(self, construction_name: str) -> Dict[str, float]:
         """
@@ -611,11 +622,15 @@ class AreaParser:
                         break
 
                 # Iterate through the individual elements within the construction
-                elements = construction_data.get("elements", [])
+                elements = construction_data.get("elements", [])                
                 for element in elements:
                     element_area = element.get("area", 0.0)
                     if element_area <= 0.0:
                         continue
+                          # Add logging for glazing elements to track the CSV area in reports
+                    element_specific_type = element.get("element_type", "Unknown")
+                    if element_specific_type in ["External Glazing", "Internal Glazing"]:
+                        logger.debug(f"Adding glazing area to report: '{cleaned_construction_name}' in zone '{zone_id}', area: {element_area} m²")
 
                     # Determine the type to use for aggregation/display
                     element_specific_type = element.get("element_type", "Unknown")

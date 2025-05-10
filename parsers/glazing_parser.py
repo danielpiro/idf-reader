@@ -91,9 +91,10 @@ class GlazingParser:
                 reader = csv.reader(csvfile)
                 in_target_table = False
                 headers_found = False
-                # Define expected headers and their indices based on the sample CSV
+                # Define expected headers and their indices based on the sample CSV                
                 header_map = {
                     "construction": 1, # Actual construction name is in the *second* data column (index 2 in row)
+                    "area of multiplied openings [m2]": 6, # Add area information
                     "glass u-factor [w/m2-k]": 7,
                     "glass shgc": 8,
                     "glass visible transmittance": 9
@@ -161,20 +162,20 @@ class GlazingParser:
                                 continue
 
                             if len(row) > max_index:
-                                try:
-                                    # Extract data using mapped indices
+                                try:                                    # Extract data using mapped indices
                                     construction_name = row[col_indices["construction"]].strip()
                                     u_value = safe_float(row[col_indices["glass u-factor [w/m2-k]"]])
                                     shgc = safe_float(row[col_indices["glass shgc"]])
                                     vt = safe_float(row[col_indices["glass visible transmittance"]])
-
-                                    if construction_name:
-                                        # Store properties using the construction name as the key
+                                    area = safe_float(row[col_indices["area of multiplied openings [m2]"]])
+                                    
+                                    if construction_name:                                        # Store properties using the construction name as the key
                                         if construction_name not in self._sim_properties: # Use first found
                                             self._sim_properties[construction_name] = {
                                                 'U-Value': u_value,
                                                 'SHGC': shgc,
-                                                'VT': vt
+                                                'VT': vt,
+                                                'Area': area  # Store the area information
                                             }
                                             # # print(f"DEBUG: Stored props for '{construction_name}': U={u_value}, SHGC={shgc}, VT={vt}")
                                         # else: # Less verbose logging for duplicates
@@ -340,14 +341,15 @@ class GlazingParser:
                 processed_data[construction_id] = {
                     'id': construction_id,
                     'name': construction_id,
-                    'type': 'Simple', # Assign type here
+                    'type': 'Simple', # Assign type here                    
                     'system_details': {
                         'Name': construction_id,
                         'Type': 'Simple Glazing',
                         'Thickness': None, # Not available for simple glazing
                         'U-Value': simple_data.get('u_factor'),
                         'VT': simple_data.get('visible_transmittance'),
-                        'SHGC': simple_data.get('shgc')
+                        'SHGC': simple_data.get('shgc'),
+                        'Area': self._sim_properties.get(construction_id, {}).get('Area') # Get area from CSV data
                     },
                     'glazing_layers': [], # Simple systems don't list layers
                     'shading_layers': [], # Shades handled later if present
@@ -415,14 +417,15 @@ class GlazingParser:
                 processed_data[construction_id] = {
                     'id': construction_id,
                     'name': construction_id,
-                    'type': 'Detailed', # Assign type here
+                    'type': 'Detailed', # Assign type here                    
                     'system_details': {
                         'Name': construction_id,
                         'Type': 'Detailed Glazing',
                         'Thickness': total_thickness if total_thickness > 0 else None,
                         'U-Value': u_value_sim,
                         'VT': vt_sim,
-                        'SHGC': shgc_sim
+                        'SHGC': shgc_sim,
+                        'Area': sim_props.get('Area')  # Add area information from CSV
                     },
                     'glazing_layers': glazing_layers_details,
                     'shading_layers': shading_layers_details,
@@ -639,48 +642,3 @@ class GlazingParser:
         # print(f"\n--- DEBUG: Final Parsed Glazing Data Keys: {list(self.parsed_glazing_data.keys())} ---")
         # print(f"--- DEBUG: Final Parsed Glazing Data Count: {len(self.parsed_glazing_data)} ---")
         return self.parsed_glazing_data # Correct indentation
-
-    # Removed update_system_properties_from_eio method as properties are now read from eplustbl.csv
-
-# Example Usage (if run directly or for testing)
-if __name__ == '__main__':
-    # Mock data for testing
-    mock_constructions_glazing = {
-        "Exterior Window Simple": {'type': 'simple', 'material_layers': ['Simple Glazing Material']},
-        "Exterior Window Detailed": {'type': 'detailed', 'material_layers': ['Glass Layer 1', 'Air Gap', 'Glass Layer 2']},
-        "Window With Shade": {'type': 'simple', 'material_layers': ['Exterior Window Detailed', 'Interior Shade Material']},
-        "Exterior Wall": {'type': 'detailed', 'material_layers': ['Brick', 'Insulation', 'Gypsum']} # Should be ignored
-    }
-    mock_simple_glazing = {
-        "Simple Exterior Window Simple": {'u_factor': 2.5, 'shgc': 0.6, 'visible_transmittance': 0.7}
-    }
-    mock_window_glazing = {
-        "Glass Layer 1": {'thickness': 0.003, 'conductivity': 1.0, 'visible_transmittance': 0.8, 'solar_transmittance': 0.7},
-        "Glass Layer 2": {'thickness': 0.003, 'conductivity': 1.0, 'visible_transmittance': 0.8, 'solar_transmittance': 0.7}
-    }
-    mock_window_gas = {
-        "Air Gap": {'thickness': 0.0127, 'gas_type': 'Air'}
-    }
-    mock_window_shade = {
-        "Interior Shade Material": {'thickness': 0.001, 'conductivity': 0.1, 'solar_transmittance': 0.2, 'solar_reflectance': 0.5}
-    }
-
-    parser = GlazingParser(
-        mock_constructions_glazing,
-        mock_simple_glazing,
-        mock_window_glazing,
-        mock_window_gas,
-        mock_window_shade
-    )
-    parsed_data = parser.parse_glazing_data()
-
-    import json
-    print(json.dumps(parsed_data, indent=2))
-
-    # Expected output structure:
-    # {
-    #   "Exterior Window Simple": { ... system_details populated ... },
-    #   "Exterior Window Detailed": { ... glazing_layers populated, shading_layers has Interior Shade ... }
-    # }
-    # Note: "Window With Shade" construction itself might be removed or kept depending on final logic.
-    # Note: "Exterior Wall" should not be present.
