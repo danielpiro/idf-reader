@@ -56,6 +56,7 @@ class DataLoader:
         self._schedule_rules_cache = {}
         self._people_cache = {}
         self._lights_cache = {}
+        self._exterior_lights_cache = [] # Added cache for Exterior:Lights
         self._equipment_cache = {}
         self._infiltration_cache = {}
         self._ventilation_cache = {}
@@ -97,12 +98,12 @@ class DataLoader:
         self._cache_surfaces()
         self._cache_materials()
         self._cache_constructions()
-        self._cache_loads()
+        self._cache_loads() # This will call _cache_exterior_lights internally now
         self._cache_window_shading_controls()
         self._cache_frame_dividers()
         self._cache_daylighting()
         # self._filter_constructions_glazing() # Moved to glazing_parser
-
+    
     def _check_output(self) -> None:
         """Check if the IDF file is loaded and output is available"""
         if not self._idf:
@@ -471,10 +472,18 @@ class DataLoader:
                 self._lights_cache[zone_name] = []
                 
             self._lights_cache[zone_name].append({
+                'name': str(getattr(lights, "Name", "")),
+                'zone_name': zone_name,
                 'watts_per_area': safe_float(getattr(lights, "Watts_per_Zone_Floor_Area", 0.0)),
+                'lighting_level': safe_float(getattr(lights, "Lighting_Level", 0.0)),
+                'watts_per_person': safe_float(getattr(lights, "Watts_per_Person", 0.0)),
+                'design_level_calculation_method': str(getattr(lights, "Design_Level_Calculation_Method", "")),
                 'schedule': str(getattr(lights, "Schedule_Name", "")),
                 'raw_object': lights  # Store the raw object for parsers
             })
+
+        # Cache exterior lights loads
+        self._cache_exterior_lights()
         
         # Cache equipment loads
         self._equipment_cache.clear()
@@ -531,6 +540,20 @@ class DataLoader:
                     'schedule': str(getattr(vent, "Schedule_Name", "")),
                     'raw_object': vent  # Store the raw object for parsers
                 })
+
+    def _cache_exterior_lights(self) -> None:
+        """Cache raw Exterior:Lights data"""
+        if not self._idf:
+            return
+        
+        self._exterior_lights_cache.clear()
+        for ext_light in self._idf.idfobjects.get('EXTERIOR:LIGHTS', []):
+            self._exterior_lights_cache.append({
+                'name': str(getattr(ext_light, "Name", "")),
+                'schedule_name': str(getattr(ext_light, "Schedule_Name", "")),
+                'design_level': safe_float(getattr(ext_light, "Design_Level", 0.0)),
+                'raw_object': ext_light
+            })
     
     def _cache_window_shading_controls(self) -> None:
         """Cache window shading control data"""
@@ -680,6 +703,10 @@ class DataLoader:
         if zone_name:
             return {zone_name: self._lights_cache.get(zone_name, [])} if zone_name in self._lights_cache else {}
         return self._lights_cache
+
+    def get_exterior_lights_loads(self) -> List[Dict[str, Any]]:
+        """Get cached exterior lights loads"""
+        return self._exterior_lights_cache
     
     def get_equipment_loads(self, zone_name: Optional[str] = None) -> Dict[str, List[Dict[str, Any]]]:
         """Get cached equipment loads, optionally filtered by zone"""

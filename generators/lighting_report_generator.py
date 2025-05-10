@@ -285,8 +285,101 @@ class LightingReportGenerator:
         else:
             self._story.append(Paragraph("No Daylighting data found.", self._styles['Normal']))
 
-        # Removed PageBreak and Second Table (Daylighting:ReferencePoint)
+        # self._story.append(PageBreak()) # Removed PageBreak
+        self._story.append(Spacer(1, 0.5*cm)) # Add some space before the next table
 
+        # --- Exterior Lights Table ---
+        self._story.append(Paragraph("Exterior Lights", self._styles['h2']))
+        self._story.append(Spacer(1, 0.2*cm)) # Reduced spacer
+        exterior_lights_data = self._data.get("exterior_lights", [])
+        exterior_lights_data.sort(key=lambda x: x.get("Name", "")) # Sort by Name
+
+        if exterior_lights_data:
+            headers_ext_lights = ["Name", "Lighting SCHEDULE Name", "Design Equipment Level (W)"]
+            styled_headers_ext_lights = [wrap_text(h, header_cell_style) for h in headers_ext_lights]
+            table_data_ext_lights = [styled_headers_ext_lights]
+
+            for entry in exterior_lights_data:
+                row_values = [
+                    entry.get("Name", "-"),
+                    entry.get("Lighting SCHEDULE Name", "-"),
+                    f"{entry.get('Design Equipment Level (W)', 0.0):.2f}"
+                ]
+                styled_row = [wrap_text(val, cell_style) for val in row_values]
+                table_data_ext_lights.append(styled_row)
+            
+            # Adjust column widths as needed, e.g., equal widths for simplicity
+            num_cols_ext = len(headers_ext_lights)
+            col_widths_ext = [(doc.width - 1*cm) / num_cols_ext] * num_cols_ext
+            
+            table_ext_lights = Table(table_data_ext_lights, colWidths=col_widths_ext, repeatRows=1)
+            table_ext_lights.setStyle(table_style) # Use the same base style
+            self._story.append(table_ext_lights)
+        else:
+            self._story.append(Paragraph("No Exterior Lights data found.", self._styles['Normal']))
+
+        # self._story.append(PageBreak()) # Removed PageBreak
+        self._story.append(Spacer(1, 0.5*cm)) # Add some space before the next table
+
+        # --- Task Lights Table ---
+        self._story.append(Paragraph("Task Lights", self._styles['h2']))
+        self._story.append(Spacer(1, 0.2*cm)) # Reduced spacer
+        task_lights_data = self._data.get("task_lights", [])
+        
+        # Sort by Zone Name, then by Schedule Name for consistent ordering within zones
+        task_lights_data.sort(key=lambda x: (x.get("Zone Name", ""), x.get("Lighting SCHEDULE Name", "")))
+
+        if task_lights_data:
+            headers_task_lights = ["Zone Name", "Lighting SCHEDULE Name"] # Fields as requested
+            styled_headers_task_lights = [wrap_text(h, header_cell_style) for h in headers_task_lights]
+            table_data_task_lights = [styled_headers_task_lights]
+
+            for entry in task_lights_data:
+                row_values = [
+                    entry.get("Zone Name", "-"),
+                    entry.get("Lighting SCHEDULE Name", "-")
+                ]
+                styled_row = [wrap_text(val, cell_style) for val in row_values]
+                table_data_task_lights.append(styled_row)
+
+            num_cols_task = len(headers_task_lights)
+            col_widths_task = [(doc.width - 1*cm) / num_cols_task] * num_cols_task
+
+            # Spanning logic for "Zone Name"
+            task_table_style_commands = list(table_style.getCommands()) # Start with a copy of the base style
+            span_commands_task = []
+            
+            # Span only the "Zone Name" column (index 0)
+            start_row_task = 1 # Skip header
+            while start_row_task < len(table_data_task_lights):
+                current_zone_obj = table_data_task_lights[start_row_task][0]
+                current_zone = getattr(current_zone_obj, 'text', str(current_zone_obj))
+                count_task = 1
+                for i in range(start_row_task + 1, len(table_data_task_lights)):
+                    next_zone_obj = table_data_task_lights[i][0]
+                    next_zone = getattr(next_zone_obj, 'text', str(next_zone_obj))
+                    if next_zone == current_zone:
+                        count_task += 1
+                        if getattr(table_data_task_lights[i][0], 'text', '') != "":
+                             table_data_task_lights[i][0] = wrap_text("", cell_style) # Clear text for spanned cell
+                    else:
+                        break
+                
+                if count_task > 1:
+                    span_commands_task.append(('SPAN', (0, start_row_task), (0, start_row_task + count_task - 1)))
+                    for r in range(start_row_task, start_row_task + count_task - 1):
+                        span_commands_task.append(('LINEBELOW', (0, r), (0, r), 0.5, colors.white))
+                        span_commands_task.append(('LINEABOVE', (0, r + 1), (0, r + 1), 0.5, colors.white))
+                start_row_task += count_task
+            
+            final_task_table_style = TableStyle(task_table_style_commands + span_commands_task)
+
+            table_task_lights = Table(table_data_task_lights, colWidths=col_widths_task, repeatRows=1)
+            table_task_lights.setStyle(final_task_table_style)
+            self._story.append(table_task_lights)
+        else:
+            self._story.append(Paragraph("No Task Lights data found.", self._styles['Normal']))
+        
         # Build the PDF with header/footer
         try:
             # Use onFirstPage and onLaterPages arguments for header/footer
@@ -296,11 +389,10 @@ class LightingReportGenerator:
         except Exception as e:
             print(f"Error generating Lighting report PDF file {self._output_path}: {e}")
             return False # Indicate failure
-
+        
 # Example Usage (if you want to test this generator directly)
 # Updated to include project_name and run_id
 if __name__ == '__main__':
-    # Dummy data matching the parser output structure
     # Dummy data matching the parser output structure
     dummy_data = {
         "controls": [
@@ -310,35 +402,22 @@ if __name__ == '__main__':
                 "Fraction of Zone Controlled": 1.0, "Illuminance Setpoint": 300.0,
                 "Minimum Input Power Fraction": 0.1, "Minimum Light Output Fraction": 0.1
             },
-             { # Example for Stepped control
-                "Zone": "02:03XMAMAD", "Availability Schedule Name": "Work Hours", "Lighting Control Type": "Stepped",
-                "Number of Stepped Control Steps": 3, "Daylighting Reference": "02:03XMAMAD Ref Point 1",
-                "Fraction of Zone Controlled": 0.8, "Illuminance Setpoint": 500.0,
-                 "Minimum Input Power Fraction": None, "Minimum Light Output Fraction": None
-            },
-             { # Example for a second ref point from the same control object
-                "Zone": "02:03XMAMAD", "Availability Schedule Name": "Work Hours", "Lighting Control Type": "Stepped",
-                "Number of Stepped Control Steps": 3, "Daylighting Reference": "02:03XMAMAD Ref Point 2",
-                "Fraction of Zone Controlled": 0.2, "Illuminance Setpoint": 400.0,
-                 "Minimum Input Power Fraction": None, "Minimum Light Output Fraction": None
-            },
         ],
         "reference_points": [
-            { # Linked to ContinuousOff control
+            {
                 "Zone": "01:02XLIVING", "X-Coordinate": 10.123, "Y-Coordinate": 5.456, "Z-Coordinate": 0.8,
                 "Daylighting Reference": "01:02XLIVING Ref Point 1", "Fraction of Zone Controlled": 1.0, "Illuminance Setpoint": 300.0,
                 "Minimum Input Power Fraction": 0.1, "Minimum Light Output Fraction": 0.1
             },
-            { # Linked to Stepped control (point 1)
-                "Zone": "02:03XMAMAD", "X-Coordinate": 67.788, "Y-Coordinate": -32.073, "Z-Coordinate": 0.7,
-                "Daylighting Reference": "02:03XMAMAD Ref Point 1", "Fraction of Zone Controlled": 0.8, "Illuminance Setpoint": 500.0,
-                 "Minimum Input Power Fraction": None, "Minimum Light Output Fraction": None
-            },
-             { # Linked to Stepped control (point 2)
-                "Zone": "02:03XMAMAD", "X-Coordinate": 70.0, "Y-Coordinate": -30.0, "Z-Coordinate": 0.7,
-                "Daylighting Reference": "02:03XMAMAD Ref Point 2", "Fraction of Zone Controlled": 0.2, "Illuminance Setpoint": 400.0,
-                 "Minimum Input Power Fraction": None, "Minimum Light Output Fraction": None
-            }
+        ],
+        "exterior_lights": [
+            {"Name": "EXTERIOR LIGHTING", "Lighting SCHEDULE Name": "On 24/7", "Design Equipment Level (W)": 100.0},
+            {"Name": "GARAGE LIGHTS", "Lighting SCHEDULE Name": "Dusk to Dawn", "Design Equipment Level (W)": 75.5},
+        ],
+        "task_lights": [
+            {"Zone Name": "02:03XMAMAD", "Lighting SCHEDULE Name": "8:00 - 18:00 Mon - Sat"},
+            {"Zone Name": "02:03XMAMAD", "Lighting SCHEDULE Name": "Evening Study"},
+            {"Zone Name": "01:01XSTUDY", "Lighting SCHEDULE Name": "Always On Task"},
         ]
     }
     # Pass project name and run ID to the constructor

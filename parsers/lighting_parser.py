@@ -17,16 +17,21 @@ class LightingParser:
         self._data_loader = data_loader
         self._controls_data = []
         self._reference_point_data = []
+        self._exterior_lights_data = []
+        self._task_lights_data = []
 
     def parse(self) -> Dict[str, List[Dict[str, Any]]]:
         """
-        Parses the Daylighting:Controls and Daylighting:ReferencePoint data.
+        Parses Daylighting:Controls, Daylighting:ReferencePoint, Exterior:Lights, and Lights (for task lighting) data.
 
         Returns:
-            A dictionary containing two lists: 'controls' and 'reference_points'.
+            A dictionary containing lists for: 'controls', 'reference_points',
+            'exterior_lights', and 'task_lights'.
         """
         controls_raw = self._data_loader.get_daylighting_controls()
         ref_points_raw = self._data_loader.get_daylighting_reference_points()
+        exterior_lights_raw = self._data_loader.get_exterior_lights_loads()
+        lights_raw = self._data_loader.get_lights_loads()
 
         # --- Parse Daylighting:Controls ---
         self._controls_data = []
@@ -138,8 +143,42 @@ class LightingParser:
             #     # Optionally add an entry with placeholders if needed
             #     pass
 
+        # --- Parse Exterior:Lights ---
+        self._exterior_lights_data = []
+        for ext_light_data in exterior_lights_raw:
+            self._exterior_lights_data.append({
+                "Name": ext_light_data.get("name", "-"),
+                "Lighting SCHEDULE Name": ext_light_data.get("schedule_name", "-"),
+                "Design Equipment Level (W)": ext_light_data.get("design_level", 0.0)
+            })
 
+        # --- Parse Lights (for "task" lighting) ---
+        self._task_lights_data = []
+        task_lights_by_zone: Dict[str, List[Dict[str, Any]]] = {}
+
+        for zone_name, light_list in lights_raw.items():
+            for light_data in light_list:
+                light_name = light_data.get("name", "").lower()
+                if "task" in light_name:
+                    entry = {
+                        "Zone Name": light_data.get("zone_name", "-"),
+                        "Lighting SCHEDULE Name": light_data.get("schedule", "-"),
+                        # Add other fields if needed, based on your example, these are the primary ones.
+                        # "Design Equipment Level (W)": light_data.get("lighting_level", 0.0) # Example if needed
+                    }
+                    if zone_name not in task_lights_by_zone:
+                        task_lights_by_zone[zone_name] = []
+                    task_lights_by_zone[zone_name].append(entry)
+        
+        # Flatten the grouped data if needed, or keep it grouped if the report generator handles it.
+        # For now, let's flatten it as the original request implies a single table.
+        # The "group by Zone Name" will be handled by sorting in the report generator.
+        for zone_entries in task_lights_by_zone.values():
+            self._task_lights_data.extend(zone_entries)
+            
         return {
             "controls": self._controls_data,
-            "reference_points": self._reference_point_data
+            "reference_points": self._reference_point_data,
+            "exterior_lights": self._exterior_lights_data,
+            "task_lights": self._task_lights_data
         }
