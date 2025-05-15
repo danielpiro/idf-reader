@@ -133,52 +133,37 @@ class DataLoader:
         # self._filter_constructions_glazing() # Moved to glazing_parser
 
     def _check_output(self) -> None:
-        """Check if the IDF file is loaded and output is available"""
+        """Ensure the required Output:Variable objects are present in the IDF."""
         if not self._idf:
             return
-            
-        # Check if output is available
-        if 'OUTPUT:VARIABLE' not in self._idf.idfobjects:
-            # If no output variables exist, create all three required ones
+
+        # Define the required Output:Variable objects
+        required_vars_data = [
+            {
+                'Key_Value': '*',
+                'Variable_Name': 'Zone Ideal Loads Supply Air Total Cooling Energy',
+                'Reporting_Frequency': 'RunPeriod'
+            },
+            {
+                'Key_Value': '*',
+                'Variable_Name': 'Zone Ideal Loads Supply Air Total Heating Energy',
+                'Reporting_Frequency': 'RunPeriod'
+            },
+            {
+                'Key_Value': '*',
+                'Variable_Name': 'Lights Electricity Energy',
+                'Reporting_Frequency': 'RunPeriod'
+            }
+        ]
+
+        # For simplicity and to ensure "always inject", we will add them.
+        # If precise control over duplicates is needed (e.g., remove existing exact matches first),
+        # this logic could be expanded. For now, this ensures they are added.
+        for var_data in required_vars_data:
             output_variable = self._idf.newidfobject('OUTPUT:VARIABLE')
-            output_variable.Key_Value = '*'
-            output_variable.Variable_Name = 'Zone Ideal Loads Supply Air Total Cooling Energy'
-            output_variable.Reporting_Frequency = 'RunPeriod'
-            
-            output_variable = self._idf.newidfobject('OUTPUT:VARIABLE')
-            output_variable.Key_Value = '*'
-            output_variable.Variable_Name = 'Zone Ideal Loads Supply Air Total Heating Energy'
-            output_variable.Reporting_Frequency = 'RunPeriod'
-            
-            # Add the new Lights Electricity Energy output variable
-            output_variable = self._idf.newidfobject('OUTPUT:VARIABLE')
-            output_variable.Key_Value = '*'
-            output_variable.Variable_Name = 'Lights Electricity Energy'
-            output_variable.Reporting_Frequency = 'RunPeriod'
-        else:
-            # Check if the required output variables exist and add them if they don't
-            output_vars = self._idf.idfobjects['OUTPUT:VARIABLE']
-            
-            # Create set of existing variable names
-            existing_vars = set()
-            for var in output_vars:
-                key = f"{var.Key_Value}:{var.Variable_Name}"
-                existing_vars.add(key)
-            
-            # Check and add missing output variables
-            required_vars = [
-                ('*', 'Zone Ideal Loads Supply Air Total Cooling Energy', 'RunPeriod'),
-                ('*', 'Zone Ideal Loads Supply Air Total Heating Energy', 'RunPeriod'),
-                ('*', 'Lights Electricity Energy', 'RunPeriod')
-            ]
-            
-            for key_value, var_name, freq in required_vars:
-                check_key = f"{key_value}:{var_name}"
-                if check_key not in existing_vars:
-                    output_variable = self._idf.newidfobject('OUTPUT:VARIABLE')
-                    output_variable.Key_Value = key_value
-                    output_variable.Variable_Name = var_name
-                    output_variable.Reporting_Frequency = freq
+            output_variable.Key_Value = var_data['Key_Value']
+            output_variable.Variable_Name = var_data['Variable_Name']
+            output_variable.Reporting_Frequency = var_data['Reporting_Frequency']
     
     def _cache_zones(self) -> None:
         """Cache raw zone data"""
