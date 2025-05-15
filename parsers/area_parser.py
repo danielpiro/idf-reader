@@ -3,8 +3,10 @@ Extracts and processes area information including floor areas and material prope
 """
 from typing import Dict, Any, List, Optional, Tuple
 import logging
+import os
 from parsers.materials_parser import MaterialsParser  # Import MaterialsParser for element_type function
 from utils.data_loader import safe_float # Import safe_float
+from parsers.eplustbl_reader import read_glazing_data_from_csv # Import the new reader
 
 logger = logging.getLogger(__name__)
 # --- Explicitly set logging level for this module ---
@@ -225,12 +227,14 @@ class AreaParser:
                             is_external_glazing = True
                 element_type_str = "External Glazing" if is_external_glazing else "Internal Glazing"
             # else: element_type_str remains the capitalized surface_type for non-glazing            # Add element data and update totals
-            
-            # If this is glazing and we have area from CSV, use that instead of the IDF area
+              # If this is glazing and we have area from CSV, use that instead of the IDF area
             final_area = area  # Default to the adjusted area from IDF
             if is_glazing and glazing_area_override is not None:
                 logger.debug(f"Using CSV area for glazing '{construction_name}': {glazing_area_override} m² instead of IDF area: {area} m²")
                 final_area = glazing_area_override
+                # Add extra debug for 6+6+6 constructions
+                if "6+6+6" in construction_name:
+                    print(f"DEBUG: Surface '{surface_id}' with construction '{construction_name}' - Area from CSV: {glazing_area_override} m²")
                 
             element_data = {
                 "zone": zone_name,
@@ -432,12 +436,14 @@ class AreaParser:
              logger.warning(f"  Resulting U-Value is 0 for '{construction_name}' because total R-value (material + film) is <= 0.")
 
         return u_value
-
+        
     def _merge_reverse_constructions(self, materials_parser: MaterialsParser) -> None:
         """
         Merges constructions with '_rev' or '_reverse' suffixes into their base counterparts
         ONLY IF they share the exact same set of element types determined by MaterialsParser.
         Sums total_area and total_u_value, combines elements, and removes the reverse entry.
+        
+        Important: Glazing constructions are never merged, even if they have the same element types.
         """
         logger.debug("--- Starting conditional merge of reverse constructions ---")
         surfaces = self.data_loader.get_surfaces() # Needed for _get_element_type
@@ -463,6 +469,34 @@ class AreaParser:
                 # Check if potential pair exists and base is not already marked for removal
                 if base_name and base_name in constructions and base_name not in to_remove:
                     reverse_name = name
+
+                    # Check if either construction is a glazing construction
+                    is_base_glazing = base_name in self.parsed_glazing_data
+                    is_reverse_glazing = reverse_name in self.parsed_glazing_data
+                    
+                    # If either is a glazing construction, skip the merge
+                    if is_base_glazing or is_reverse_glazing:
+                        logger.debug(f"  Skipping merge for glazing constructions: '{reverse_name}' and '{base_name}' in zone '{zone_id}'")
+                        continue
+                    
+                    # If not in parsed_glazing_data, also check elements for glazing types
+                    base_elements = constructions[base_name].get("elements", [])
+                    reverse_elements = constructions[reverse_name].get("elements", [])
+                    
+                    # Check if any elements are glazing
+                    has_base_glazing_element = any(
+                        element.get("element_type") in ["External Glazing", "Internal Glazing"] 
+                        for element in base_elements
+                    )
+                    has_reverse_glazing_element = any(
+                        element.get("element_type") in ["External Glazing", "Internal Glazing"] 
+                        for element in reverse_elements
+                    )
+                    
+                    # If any element is glazing, skip the merge
+                    if has_base_glazing_element or has_reverse_glazing_element:
+                        logger.debug(f"  Skipping merge for constructions with glazing elements: '{reverse_name}' and '{base_name}' in zone '{zone_id}'")
+                        continue
 
                     # Get element types for both base and reverse constructions
                     try:
@@ -605,11 +639,13 @@ class AreaParser:
 
                 # --- Clean construction name ---
                 cleaned_construction_name = construction_name
-                is_glazing_type_present = "Glazing" in determined_element_types
-                if is_glazing_type_present:
-                    parts = construction_name.split(' - ')
-                    if len(parts) > 1 and parts[-1].strip().isdigit():
-                        cleaned_construction_name = ' - '.join(parts[:-1]).strip()
+                # IMPORTANT: No longer cleaning glazing construction names to preserve uniqueness
+                # and ensure proper matching with CSV data values
+                # is_glazing_type_present = "Glazing" in determined_element_types
+                # if is_glazing_type_present:
+                #     parts = construction_name.split(' - ')
+                #     if len(parts) > 1 and parts[-1].strip().isdigit():
+                #         cleaned_construction_name = ' - '.join(parts[:-1]).strip()
                 # --- End Cleaning ---
 
                 # Get the overall types for the construction from MaterialsParser

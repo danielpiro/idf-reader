@@ -32,6 +32,7 @@ from parsers.materials_parser import MaterialsParser
 from parsers.area_parser import AreaParser
 # Import new glazing components
 from parsers.glazing_parser import GlazingParser
+from parsers.eplustbl_reader import read_glazing_data_from_csv
 # Import lighting parser
 from parsers.lighting_parser import LightingParser
 
@@ -126,9 +127,45 @@ class ProcessingManager:
                 # --- ADDED ---
                 frame_divider_cache=data_loader._frame_divider_cache # Pass the frame cache
                 # -------------
-            )
-            # Parse glazing data *before* initializing AreaParser
+            )            # Parse glazing data *before* initializing AreaParser
             parsed_glazing = glazing_parser.parse_glazing_data()
+            
+            # Get glazing data from CSV if available
+            simulation_output_csv = self.simulation_output_csv
+            if simulation_output_csv and os.path.exists(simulation_output_csv):                
+                csv_glazing_data = read_glazing_data_from_csv(simulation_output_csv)                # Update the parsed_glazing_data with values from the CSV
+                matched_constructions = 0
+                # Create case-insensitive mapping for parsed_glazing keys
+                glazing_keys_lower = {k.lower(): k for k in parsed_glazing.keys()}
+                for construction_name, csv_data in csv_glazing_data.items():
+                    # Add debug output for 6+6+6 constructions
+                    if "6+6+6" in construction_name:
+                        print(f"DEBUG: Processing CSV data for '{construction_name}': {csv_data}")
+                    
+                    # Try direct match first
+                    if construction_name in parsed_glazing:
+                        # Update system_details with CSV data
+                        if 'system_details' not in parsed_glazing[construction_name]:
+                            parsed_glazing[construction_name]['system_details'] = {}
+                        parsed_glazing[construction_name]['system_details'].update(csv_data)
+                        if "6+6+6" in construction_name:
+                            print(f"DEBUG: Updated system_details for '{construction_name}': {parsed_glazing[construction_name]['system_details']}")
+                        matched_constructions += 1
+                    # Try case-insensitive match
+                    elif construction_name.lower() in glazing_keys_lower:
+                        # Get the actual key with correct case from parsing
+                        actual_key = glazing_keys_lower[construction_name.lower()]
+                        # Log the match for debugging
+                        print(f"Case-insensitive match found: CSV '{construction_name}' -> Parser '{actual_key}'")
+                        # Update system_details with CSV data using the actual key
+                        if 'system_details' not in parsed_glazing[actual_key]:
+                            parsed_glazing[actual_key]['system_details'] = {}
+                        parsed_glazing[actual_key]['system_details'].update(csv_data)
+                        if "6+6+6" in construction_name:
+                            print(f"DEBUG: Updated system_details for '{actual_key}' (case-insensitive match): {parsed_glazing[actual_key]['system_details']}")
+                        matched_constructions += 1
+                
+                self.update_status(f"Glazing data updated from CSV for {matched_constructions} constructions")
 
             # Now initialize AreaParser, passing the parsed glazing data
             area_parser = AreaParser(data_loader, parsed_glazing, materials_extractor) # Pass materials_extractor
