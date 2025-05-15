@@ -1,7 +1,6 @@
-# parsers/glazing_parser.py
 import csv
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 def safe_float(value: Any, default: float = 0.0) -> float:
     """
@@ -19,72 +18,45 @@ def safe_float(value: Any, default: float = 0.0) -> float:
         return default
 
     try:
-        # Handle numpy float types by converting to Python float
-        if hasattr(value, 'item'):  # Check if it's a numpy type
+        if hasattr(value, 'item'):
             return float(value.item())
         return float(value)
     except (ValueError, TypeError, AttributeError):
         return default
 
 class GlazingParser:
-    """Parses glazing-related data from IDF caches."""
-
+    """
+    Parses glazing-related data from IDF caches and simulation output.
+    """
     def __init__(self,
                  constructions_glazing_cache: Dict[str, Dict[str, Any]],
                  window_simple_glazing_cache: Dict[str, Dict[str, Any]],
                  window_glazing_cache: Dict[str, Dict[str, Any]],
                  window_gas_cache: Dict[str, Dict[str, Any]],
                  window_shade_cache: Dict[str, Dict[str, Any]],
-                 # --- ADDED ---
-                 window_shading_control_cache: Dict[str, Dict[str, Any]], # Add the new cache
-                 # -------------
-                 # --- ADDED ---
-                 windows_cache: Dict[str, Dict[str, Any]], # Add windows cache parameter
-                 # -------------
-                 simulation_output_csv: str = None, # Added parameter for CSV path
+                 window_shading_control_cache: Dict[str, Dict[str, Any]],
+                 windows_cache: Dict[str, Dict[str, Any]],
+                 simulation_output_csv: str = None,
                  idf_objects: Any = None,
-                 frame_divider_cache: Dict[str, Dict[str, Any]] = None): # Added frame cache
-       """
-       Initializes the parser with necessary data caches and simulation output path.
-
-       Args:
-           constructions_glazing_cache: Cache containing pre-filtered glazing constructions.
-           window_simple_glazing_cache: Cache for simple glazing system materials.
-           window_glazing_cache: Cache for window glazing materials.
-           window_gas_cache: Cache for window gas materials.
-           window_shade_cache: Cache for window shade materials.
-           window_shading_control_cache: Cache for window shading control objects. # Add docstring
-           windows_cache: Cache for raw window objects (FenestrationSurface:Detailed). # Add docstring
-           simulation_output_csv: Path to the eplustbl.csv file from simulation (optional).
-           idf_objects: Raw IDF objects if direct access is needed (optional).
-           frame_divider_cache: Cache for FrameAndDivider objects. # Added docstring
-       """
-       self._constructions_glazing_cache = constructions_glazing_cache
-       self._window_simple_glazing_cache = window_simple_glazing_cache
-       self._window_glazing_cache = window_glazing_cache
-       self._window_gas_cache = window_gas_cache
-       self._window_shade_cache = window_shade_cache
-       # --- ADDED ---
-       self._window_shading_control_cache = window_shading_control_cache # Store the cache
-       # -------------
-       # --- ADDED ---
-       self._windows_cache = windows_cache # Store the windows cache
-       # -------------
-       # --- ADDED ---
-       self._frame_divider_cache = frame_divider_cache if frame_divider_cache is not None else {} # Store frame cache
-       # -------------
-       self._simulation_output_csv = simulation_output_csv # Store the path
-       self._sim_properties = {} # Dictionary to store properties read from CSV
-       self._idf = idf_objects # Store if needed
-       self.parsed_glazing_data = {} # Store results here
+                 frame_divider_cache: Dict[str, Dict[str, Any]] = None):
+        self._constructions_glazing_cache = constructions_glazing_cache
+        self._window_simple_glazing_cache = window_simple_glazing_cache
+        self._window_glazing_cache = window_glazing_cache
+        self._window_gas_cache = window_gas_cache
+        self._window_shade_cache = window_shade_cache
+        self._window_shading_control_cache = window_shading_control_cache
+        self._windows_cache = windows_cache
+        self._frame_divider_cache = frame_divider_cache if frame_divider_cache is not None else {}
+        self._simulation_output_csv = simulation_output_csv
+        self._sim_properties = {}
+        self._idf = idf_objects
+        self.parsed_glazing_data = {}
 
     def _parse_simulation_output_csv(self):
         """Parses the eplustbl.csv file to extract window properties from the 'Exterior Fenestration' table."""
         if not self._simulation_output_csv or not os.path.exists(self._simulation_output_csv):
-            # print(f"DEBUG: Simulation output CSV not found or not provided: {self._simulation_output_csv}")
             return # No file to parse
 
-        # print(f"DEBUG: Parsing simulation output CSV: {self._simulation_output_csv}")
         self._sim_properties = {} # Reset properties before parsing
         try:
             with open(self._simulation_output_csv, 'r', encoding='utf-8', errors='ignore') as csvfile:
@@ -123,7 +95,6 @@ class GlazingParser:
                                         if key in current_headers_norm:
                                             actual_index = current_headers_norm.index(key)
                                             col_indices[key] = actual_index
-                                            # # print(f"DEBUG: Mapped '{key}' to column index {actual_index}") # Less verbose
                                         else:
                                             # Fallback for 'construction' might not be needed if it's always present
                                             raise ValueError(f"Missing required header: '{key}'")
@@ -177,32 +148,13 @@ class GlazingParser:
                                                 'VT': vt,
                                                 'Area': area  # Store the area information
                                             }
-                                            # # print(f"DEBUG: Stored props for '{construction_name}': U={u_value}, SHGC={shgc}, VT={vt}")
-                                        # else: # Less verbose logging for duplicates
-                                            # # print(f"DEBUG: Duplicate construction '{construction_name}' found, using first entry.")
-                                except IndexError:
-                                    # print(f"DEBUG: Skipping row due to IndexError (mismatched length?): {row}")
-                                    pass # Or log differently
-                                except KeyError as e:
-                                     # print(f"DEBUG: Skipping row due to KeyError (header mapping issue?): {e} | Row: {row}")
-                                     pass # Or log differently
-                                except Exception as e:
-                                    # print(f"DEBUG: Error processing data row: {e} | Row: {row}")
-                                    pass # Or log differently
-                            else:
-                                 # print(f"DEBUG: Skipping short data row: {row}")
-                                 pass # Or log differently
+                                except Exception:
+                                    continue
                         # --- End Data Row Processing ---
 
-        except FileNotFoundError:
-            # print(f"DEBUG: Error - Simulation output CSV file not found at: {self._simulation_output_csv}")
-            pass # Or log error differently
         except Exception as e:
-            # print(f"DEBUG: Error reading or parsing simulation output CSV: {e}")
-            import traceback
-            traceback.print_exc() # Print full traceback for debugging CSV errors
+            raise RuntimeError(f"Error parsing simulation output CSV: {e}")
 
-        # print(f"DEBUG: Finished parsing CSV. Found properties for {len(self._sim_properties)} constructions.")
 
     # --- Helper method for transferring shades ---
     def _transfer_shades_based_on_naming(self, processed_data: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
@@ -213,7 +165,6 @@ class GlazingParser:
                        'yyy - 4444' (base) and 'yyy - 6666' (shaded)
         """
         # This is now Step 4 in the main parse method
-        # print("\n--- DEBUG: Processing Step 4 (Transferring Shades) ---")
 
         # Add try-except around the main logic of the transfer method
         try:
@@ -258,16 +209,11 @@ class GlazingParser:
 
                             if is_base_pattern and is_shade_pattern:
                                 # Prefixes match AND suffixes follow the 1xxx/2xxx pattern
-                                # print(f"DEBUG:   Pattern match found: Base='{base_id}', Shade='{shade_id}'") # DEBUG
-                                # Transfer shading layers
-                                pass # Placeholder
+                                pass
                             else:
-                                # Prefixes match, but suffixes don't follow the 1xxx/2xxx pattern
-                                # # print(f"DEBUG:   Prefix match for '{base_id}' and '{shade_id}', but suffixes ('{base_suffix}', '{shade_suffix}') don't match 1xxx/2xxx pattern.")
                                 continue # Skip to the next potential shade_id
 
                         except Exception as suffix_check_error:
-                            # print(f"DEBUG:   Error checking suffix pattern for '{base_id}'/'{shade_id}': {suffix_check_error}")
                             continue # Skip to the next potential shade_id
 
                         # --- Transfer logic starts here (only runs if pattern matched) ---
@@ -286,18 +232,11 @@ class GlazingParser:
                                      added_count += 1
 
                             if added_count > 0:
-                                # print(f"DEBUG:   Transferred {added_count} shade(s) (e.g., '{shades_to_transfer[0]['Name']}') from '{shade_id}' to '{base_id}'.")
-                                # Mark the shaded version for removal
                                 keys_to_remove.add(shade_id)
                                 break # Stop searching for other matches for this base_id
                         else:
-                             # Should not happen based on constructions_with_shades filter, but good check
-                             # print(f"DEBUG:   Potential match '{shade_id}' found for '{base_id}', but it has no shades to transfer.")
                              pass
 
-                # if not found_match:
-                #     # print(f"DEBUG:   No corresponding shaded construction found for base '{base_id}'.")
-                #     pass
 
             # Remove the redundant shaded constructions from the original processed_data
             final_data = processed_data.copy() # Work on a copy
@@ -310,10 +249,7 @@ class GlazingParser:
             return final_data # Correct indentation
 
         except Exception as e_transfer:
-            print(f"ERROR: Exception inside _transfer_shades_based_on_naming: {e_transfer}")
-            import traceback
-            traceback.print_exc()
-            return processed_data # Return original data on error within transfer logic
+            raise RuntimeError(f"Error transferring shades based on naming: {e_transfer}")
     # --- End Helper method ---
 
     def parse_glazing_data(self) -> Dict[str, Dict[str, Any]]:
@@ -324,7 +260,6 @@ class GlazingParser:
         """
         # --- Parse Simulation Output First ---
         self._parse_simulation_output_csv() # Populate self._sim_properties
-        # print(f"DEBUG: Initial _sim_properties: {self._sim_properties}") # DEBUG ADDED
 
         processed_data = {}
 
@@ -356,12 +291,8 @@ class GlazingParser:
                     'raw_object': construction_data.get('raw_object')
                 }
 
-        # --- DEBUG: Print keys after Step 1 ---
-        # print(f"\n--- DEBUG: Processed Data after Step 1 (Simple Glazing): {list(processed_data.keys())} ---")
-
         # --- Step 2: Process Detailed Glazing Constructions ---
         # Process constructions not already identified as Simple
-        # print("\n--- DEBUG: Processing Step 2 (Detailed Glazing) ---")
         for construction_id, construction_data in self._constructions_glazing_cache.items():
             # Skip if already processed as Simple
             if construction_id in processed_data:
@@ -432,12 +363,8 @@ class GlazingParser:
                     'raw_object': construction_data.get('raw_object')
                 }
 
-        # --- DEBUG: Print after Step 2 ---
-        # print(f"\n--- DEBUG: Processed Data after Step 2 (Detailed Glazing): {list(processed_data.keys())} ---")
-
         # --- Step 3: Link Shades from separate constructions ---
         # Identify constructions NOT processed yet (likely shade-only definitions)
-        # print("\n--- DEBUG: Processing Step 3: Linking Shades ---")
         keys_to_delete = [] # Track shade-defining constructions to remove later
         for construction_id, construction_data in self._constructions_glazing_cache.items():
             # Skip if already processed as Simple or Detailed
@@ -479,7 +406,6 @@ class GlazingParser:
 
             # If we found a base and have shades, link them
             if base_construction_id and current_shades_info:
-                # print(f"DEBUG:   Linking shades { [s['Name'] for s in current_shades_info] } from '{construction_id}' to base: '{base_construction_id}'")
                 if base_construction_id in processed_data:
                     # Ensure 'shading_layers' key exists
                     if 'shading_layers' not in processed_data[base_construction_id]:
@@ -490,7 +416,6 @@ class GlazingParser:
                         if shade_info['Name'] not in existing_shades:
                             processed_data[base_construction_id]['shading_layers'].append(shade_info)
                     # Mark this shade-defining construction for removal from the final dict if desired
-                    # keys_to_delete.append(construction_id) # Optional cleanup
 
         # Optional: Clean up shade-defining constructions from processed_data
         # for key in keys_to_delete:
@@ -498,11 +423,9 @@ class GlazingParser:
         #         del processed_data[key]
 
         # --- Step 4: Transfer shades based on naming convention ---
-        # print(f"\nDEBUG: Calling Step 4 (Transferring Shades). Data size before: {len(processed_data)}")
         try:
             # Modify processed_data in place or reassign
             processed_data = self._transfer_shades_based_on_naming(processed_data)
-            # print(f"DEBUG: Data size after Step 4 (Transferring Shades): {len(processed_data)}")
         except Exception as e:
              print(f"ERROR: Exception during Step 4 (Transferring Shades): {e}")
              import traceback
@@ -511,7 +434,6 @@ class GlazingParser:
         # --- End Step 4 ---
 
         # --- Step 5: Update Shading Position via Window Control Link ---
-        # print("\n--- DEBUG: Entering Step 5: Updating Shade Positions ---")
         try:
             updated_constructions = set()
             for control_key, control_data in self._window_shading_control_cache.items():
@@ -521,7 +443,6 @@ class GlazingParser:
                 if not shade_position or not window_names:
                     continue
 
-                # print(f"--- DEBUG: Processing Control '{control_key}': Position='{shade_position}', Windows='{window_names}'")
 
                 for window_name in window_names:
                     window_data = self._windows_cache.get(window_name)
@@ -550,7 +471,6 @@ class GlazingParser:
                     if base_construction_id in processed_data and base_construction_id not in updated_constructions:
                         target_construction_data = processed_data[base_construction_id]
                         if target_construction_data.get('shading_layers'):
-                            # print(f"--- DEBUG:     Updating position for shades in base '{base_construction_id}' to '{shade_position}'.")
                             for shade_layer in target_construction_data['shading_layers']:
                                 # Only update if not already set or is default
                                 if 'Position' not in shade_layer or shade_layer.get('Position') in [None, '-', 'Unknown']:
@@ -592,7 +512,6 @@ class GlazingParser:
         # --- End Step 6 (Filtering) ---
 
         # --- Step 7: Add Frame and Divider Info (after filtering) ---
-        # print("\n--- DEBUG: Processing Step 7: Adding Frame Info ---")
         for construction_id, data in final_filtered_data.items(): # Iterate over the filtered data
             data['frame_details'] = None # Initialize frame details as None
 
@@ -630,15 +549,10 @@ class GlazingParser:
                             'frame_width': frame_data.get('frame_width'),
                             'frame_conductance': frame_data.get('frame_conductance')
                         }
-                        # print(f"DEBUG:   Added Frame '{frame_divider_name}' to construction '{construction_id}' (found via window using '{window_construction_name}')")
                         found_frame = True
                         break # Found frame info for this construction, stop checking windows
-            # if not found_frame:
-                # print(f"DEBUG:   No frame found for construction '{construction_id}' (checked base and potential shaded '{potential_shaded_id}')")
         # --- End Step 7 ---
 
 
         self.parsed_glazing_data = final_filtered_data # Assign the final filtered data
-        # print(f"\n--- DEBUG: Final Parsed Glazing Data Keys: {list(self.parsed_glazing_data.keys())} ---")
-        # print(f"--- DEBUG: Final Parsed Glazing Data Count: {len(self.parsed_glazing_data)} ---")
         return self.parsed_glazing_data # Correct indentation

@@ -1,24 +1,15 @@
 import re
-import io
 from typing import Dict, Any, Optional
 from utils.data_loader import DataLoader
 
 class SettingsExtractor:
     """
-    Extracts settings and simulation parameters from IDF files.
-    Implementation details moved from DataLoader.
+    Extracts settings and simulation parameters from IDF files using a DataLoader instance.
     """
     def __init__(self, data_loader: DataLoader):
-        """
-        Initialize the SettingsExtractor.
-
-        Args:
-            data_loader: DataLoader instance for accessing cached IDF data and path.
-        """
         if not data_loader:
             raise ValueError("DataLoader instance is required.")
         self.data_loader = data_loader
-        # self.idf_file_path is no longer needed, get path from data_loader
         self.extracted_settings = {}
         self.initialize_settings()
         self._setup_mappings()
@@ -26,10 +17,9 @@ class SettingsExtractor:
     def initialize_settings(self) -> None:
         """
         Initialize the settings dictionary with default values.
-        Remove sizing section and focus on IDF settings specifically mentioned.
         """
         self.extracted_settings = {
-            'designbuilder': { # Added section for DesignBuilder metadata
+            'designbuilder': {
                 'version': None,
                 'date': None,
                 'time': None,
@@ -199,7 +189,7 @@ class SettingsExtractor:
         """
         idf_file_path = self.data_loader.get_idf_path()
         if not idf_file_path:
-            print("Warning: IDF file path not available from DataLoader for comment parsing.")
+            # Warning: IDF file path not available from DataLoader for comment parsing.
             return
 
         try:
@@ -246,9 +236,9 @@ class SettingsExtractor:
                         db_settings['window_wall_ratio'] = value
 
         except FileNotFoundError:
-            print(f"Error: IDF file not found at {idf_file_path} for comment parsing.")
+            pass
         except Exception as e:
-            print(f"Error parsing DesignBuilder comments from {idf_file_path}: {str(e)}")
+            pass
 
 
     def process_idf(self) -> None:
@@ -261,7 +251,7 @@ class SettingsExtractor:
 
         idf = self.data_loader.get_idf()
         if not idf:
-            print("Warning: No IDF object available from DataLoader to process settings.")
+            # Warning: No IDF object available from DataLoader to process settings.
             return
 
         try:
@@ -325,10 +315,11 @@ class SettingsExtractor:
                 for obj in idf.idfobjects['CONVERGENCELIMITS']:
                     self.process_eppy_object('CONVERGENCELIMITS', obj)
 
-            print("Settings extraction complete")
+            # Settings extraction complete
 
         except Exception as e:
-            print(f"Error extracting settings: {str(e)}")
+            pass
+            # Error extracting settings: {str(e)}
 
     def process_eppy_object(self, obj_type: str, obj) -> None:
         """
@@ -496,7 +487,8 @@ class SettingsExtractor:
             elif 'summer' in name_lower or 'cool' in name_lower:
                 self.extracted_settings['simulation']['sizing_zone'] = 'summer'
         except Exception as e:
-            print(f"Error processing design day {getattr(obj, 'Name', 'unknown')}: {str(e)}")
+            pass
+            # Error processing design day {getattr(obj, 'Name', 'unknown')}: {str(e)}
 
     def get_settings(self) -> Dict[str, Any]:
         """

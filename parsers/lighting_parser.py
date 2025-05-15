@@ -5,7 +5,9 @@ from typing import Dict, List, Any
 from utils.data_loader import DataLoader, safe_float
 
 class LightingParser:
-    """Parses Daylighting IDF objects."""
+    """
+    Parses Daylighting:Controls, Daylighting:ReferencePoint, Exterior:Lights, and Lights (for task lighting) data.
+    """
 
     def __init__(self, data_loader: DataLoader):
         """
@@ -33,9 +35,30 @@ class LightingParser:
         exterior_lights_raw = self._data_loader.get_exterior_lights_loads()
         lights_raw = self._data_loader.get_lights_loads()
 
-        # --- Parse Daylighting:Controls ---
-        self._controls_data = []
-        for control_id, control_cache in controls_raw.items():
+        self._controls_data = self._parse_controls(controls_raw)
+        self._reference_point_data = self._parse_reference_points(ref_points_raw, controls_raw)
+        self._exterior_lights_data = self._parse_exterior_lights(exterior_lights_raw)
+        self._task_lights_data = self._parse_task_lights(lights_raw)
+
+        return {
+            "controls": self._controls_data,
+            "reference_points": self._reference_point_data,
+            "exterior_lights": self._exterior_lights_data,
+            "task_lights": self._task_lights_data
+        }
+
+    def _parse_controls(self, controls_raw) -> List[Dict[str, Any]]:
+        """
+        Parses the raw data for Daylighting:Controls objects.
+
+        Args:
+            controls_raw: The raw controls data from the DataLoader.
+
+        Returns:
+            A list of dictionaries, each representing a parsed Daylighting:Controls object.
+        """
+        controls = []
+        for control_cache in controls_raw.values():
             control = control_cache['raw_object']
             zone_name = str(getattr(control, "Zone_Name", ""))
             lighting_control_type = str(getattr(control, "Lighting_Control_Type", ""))
@@ -48,14 +71,11 @@ class LightingParser:
                 min_power_frac = safe_float(getattr(control, "Minimum_Input_Power_Fraction_for_Continuous_or_ContinuousOff_Dimming_Control", 0.0))
                 min_output_frac = safe_float(getattr(control, "Minimum_Light_Output_Fraction_for_Continuous_or_ContinuousOff_Dimming_Control", 0.0))
 
-            # Iterate through potential reference points (EnergyPlus allows many)
-            # We'll check fields dynamically up to a reasonable limit (e.g., 10)
             for i in range(1, 11): # Check for up to 10 reference points
                 ref_point_field_name = f"Daylighting_Reference_Point_{i}_Name"
                 fraction_field_name = f"Fraction_of_Zone_Controlled_by_Reference_Point_{i}"
                 setpoint_field_name = f"Illuminance_Setpoint_at_Reference_Point_{i}"
 
-                # Check if the reference point name field exists and has a value
                 ref_point_name = str(getattr(control, ref_point_field_name, ""))
                 if not ref_point_name:
                     # If the first ref point name is empty, stop checking for this control
@@ -67,37 +87,36 @@ class LightingParser:
                 fraction = safe_float(getattr(control, fraction_field_name, 0.0))
                 setpoint = safe_float(getattr(control, setpoint_field_name, 0.0))
 
-                # Only add entry if the reference point is named and fraction > 0 (or maybe just if named?)
-                # Let's add if named, fraction can be 0.
-                # if ref_point_name and fraction > 0:
-                if ref_point_name:
-                    control_entry = {
-                        "Zone": zone_name,
-                        "Availability Schedule Name": availability_schedule,
-                        "Lighting Control Type": lighting_control_type,
-                        "Number of Stepped Control Steps": num_stepped_steps,
-                        "Daylighting Reference": ref_point_name,
-                        "Fraction of Zone Controlled": fraction,
-                        "Illuminance Setpoint": setpoint,
-                        # Add conditional fields if applicable for this control type
-                        "Minimum Input Power Fraction": min_power_frac,
-                        "Minimum Light Output Fraction": min_output_frac,
-                    }
-                    self._controls_data.append(control_entry)
+                controls.append({
+                    "Zone": zone_name,
+                    "Availability Schedule Name": availability_schedule,
+                    "Lighting Control Type": lighting_control_type,
+                    "Number of Stepped Control Steps": num_stepped_steps,
+                    "Daylighting Reference": ref_point_name,
+                    "Fraction of Zone Controlled": fraction,
+                    "Illuminance Setpoint": setpoint,
+                    "Minimum Input Power Fraction": min_power_frac,
+                    "Minimum Light Output Fraction": min_output_frac,
+                })
 
+        return controls
 
-        # --- Parse Daylighting:ReferencePoint ---
-        # This part needs adjustment to correctly link back to the control and get the *correct* fraction/setpoint
-        self._reference_point_data = []
+    def _parse_reference_points(self, ref_points_raw, controls_raw) -> List[Dict[str, Any]]:
+        """
+        Parses the raw data for Daylighting:ReferencePoint objects.
+
+        Args:
+            ref_points_raw: The raw reference points data from the DataLoader.
+            controls_raw: The raw controls data from the DataLoader.
+
+        Returns:
+            A list of dictionaries, each representing a parsed Daylighting:ReferencePoint object.
+        """
+        reference_points = []
         for ref_point_id, ref_point_cache in ref_points_raw.items():
             ref_point = ref_point_cache['raw_object']
             zone_name = str(getattr(ref_point, "Zone_Name", ""))
 
-            # Find the Daylighting:Controls object(s) that use this reference point
-            # A reference point might theoretically be used by multiple controls,
-            # or multiple times within one control (though less likely).
-            # We'll create an entry for each time it's referenced in a control.
-            found_in_control = False
             for control_cache in controls_raw.values():
                 control_obj = control_cache['raw_object']
                 control_type_for_ref = str(getattr(control_obj, "Lighting_Control_Type", ""))
@@ -107,7 +126,6 @@ class LightingParser:
                     min_power_frac_ref = safe_float(getattr(control_obj, "Minimum_Input_Power_Fraction_for_Continuous_or_ContinuousOff_Dimming_Control", 0.0))
                     min_output_frac_ref = safe_float(getattr(control_obj, "Minimum_Light_Output_Fraction_for_Continuous_or_ContinuousOff_Dimming_Control", 0.0))
 
-                # Iterate through potential reference points in the control object
                 for i in range(1, 11): # Check up to 10 points
                     ref_point_field_name = f"Daylighting_Reference_Point_{i}_Name"
                     fraction_field_name = f"Fraction_of_Zone_Controlled_by_Reference_Point_{i}"
@@ -117,68 +135,55 @@ class LightingParser:
 
                     # If this control uses the current reference point at this index (i)
                     if control_ref_point_name == ref_point_id:
-                        found_in_control = True
                         fraction = safe_float(getattr(control_obj, fraction_field_name, 0.0))
                         setpoint = safe_float(getattr(control_obj, setpoint_field_name, 0.0))
 
-                        ref_point_entry = {
+                        reference_points.append({
                             "Zone": zone_name, # Zone from the RefPoint object
                             "X-Coordinate": safe_float(getattr(ref_point, "XCoordinate_of_Reference_Point", 0.0)),
                             "Y-Coordinate": safe_float(getattr(ref_point, "YCoordinate_of_Reference_Point", 0.0)),
                             "Z-Coordinate": safe_float(getattr(ref_point, "ZCoordinate_of_Reference_Point", 0.0)),
                             "Daylighting Reference": ref_point_id, # The reference point name
-                            # Get fraction and setpoint specific to this index (i) from the control
                             "Fraction of Zone Controlled": fraction,
                             "Illuminance Setpoint": setpoint,
-                            # Add conditional fields based on the control type
                             "Minimum Input Power Fraction": min_power_frac_ref,
                             "Minimum Light Output Fraction": min_output_frac_ref,
-                        }
-                        self._reference_point_data.append(ref_point_entry)
-                        # Don't break here, a ref point could potentially be listed multiple times in one control
+                        })
 
-            # If a reference point exists but isn't linked by any control, maybe still list it?
-            # Current logic only adds if found in a control. Let's keep it this way for now.
-            # if not found_in_control:
-            #     # Optionally add an entry with placeholders if needed
-            #     pass
+        return reference_points
 
-        # --- Parse Exterior:Lights ---
-        self._exterior_lights_data = []
-        for ext_light_data in exterior_lights_raw:
-            self._exterior_lights_data.append({
-                "Name": ext_light_data.get("name", "-"),
-                "Lighting SCHEDULE Name": ext_light_data.get("schedule_name", "-"),
-                "Design Equipment Level (W)": ext_light_data.get("design_level", 0.0)
-            })
+    def _parse_exterior_lights(self, exterior_lights_raw) -> List[Dict[str, Any]]:
+        """
+        Parses the raw data for Exterior:Lights objects.
 
-        # --- Parse Lights (for "task" lighting) ---
-        self._task_lights_data = []
-        task_lights_by_zone: Dict[str, List[Dict[str, Any]]] = {}
+        Args:
+            exterior_lights_raw: The raw exterior lights data from the DataLoader.
 
+        Returns:
+            A list of dictionaries, each representing a parsed Exterior:Lights object.
+        """
+        return [{
+            "Name": ext_light.get("name", "-"),
+            "Lighting SCHEDULE Name": ext_light.get("schedule_name", "-"),
+            "Design Equipment Level (W)": ext_light.get("design_level", 0.0)
+        } for ext_light in exterior_lights_raw]
+
+    def _parse_task_lights(self, lights_raw) -> List[Dict[str, Any]]:
+        """
+        Parses the raw data for task lighting from Lights objects.
+
+        Args:
+            lights_raw: The raw lights data from the DataLoader.
+
+        Returns:
+            A list of dictionaries, each representing a parsed task lighting entry.
+        """
+        task_lights = []
         for zone_name, light_list in lights_raw.items():
             for light_data in light_list:
-                light_name = light_data.get("name", "").lower()
-                if "task" in light_name:
-                    entry = {
+                if "task" in light_data.get("name", "").lower():
+                    task_lights.append({
                         "Zone Name": light_data.get("zone_name", "-"),
-                        "Lighting SCHEDULE Name": light_data.get("schedule", "-"),
-                        # Add other fields if needed, based on your example, these are the primary ones.
-                        # "Design Equipment Level (W)": light_data.get("lighting_level", 0.0) # Example if needed
-                    }
-                    if zone_name not in task_lights_by_zone:
-                        task_lights_by_zone[zone_name] = []
-                    task_lights_by_zone[zone_name].append(entry)
-        
-        # Flatten the grouped data if needed, or keep it grouped if the report generator handles it.
-        # For now, let's flatten it as the original request implies a single table.
-        # The "group by Zone Name" will be handled by sorting in the report generator.
-        for zone_entries in task_lights_by_zone.values():
-            self._task_lights_data.extend(zone_entries)
-            
-        return {
-            "controls": self._controls_data,
-            "reference_points": self._reference_point_data,
-            "exterior_lights": self._exterior_lights_data,
-            "task_lights": self._task_lights_data
-        }
+                        "Lighting SCHEDULE Name": light_data.get("schedule", "-")
+                    })
+        return task_lights

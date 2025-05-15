@@ -3,12 +3,11 @@ Handles eppy IDF model loading, initialization and common operations.
 """
 from typing import Optional
 import os
-
 from eppy.modeleditor import IDF
 
 class EppyHandler:
     """Handles eppy IDF model loading and provides utility functions."""
-    
+
     def __init__(self, idd_path: str):
         """
         Initialize the EppyHandler.
@@ -47,7 +46,7 @@ class EppyHandler:
         try:
             return IDF(idf_path)
         except Exception as e:
-            raise Exception(f"Failed to load IDF file: {e}")
+            raise RuntimeError(f"Failed to load IDF file: {e}") from e
 
     def get_objects_by_type(self, idf: IDF, object_type: str) -> list:
         """
@@ -61,10 +60,9 @@ class EppyHandler:
             list: List of objects matching the specified type.
         """
         try:
-            return idf.idfobjects[object_type]
-        except KeyError:
-            return []  # Return empty list if object type not found
-
+            return idf.idfobjects.get(object_type, [])
+        except Exception as e:
+            raise RuntimeError(f"Error retrieving objects of type '{object_type}': {e}") from e
 
     def get_schedule_objects(self, idf: IDF) -> list:
         """
@@ -79,16 +77,8 @@ class EppyHandler:
         return self.get_objects_by_type(idf, "Schedule:Compact")
 
     def get_settings_objects(self, idf: IDF) -> dict:
-        """
-        Get common settings objects from the IDF model.
-        
-        Args:
-            idf: The IDF model to query.
-            
-        Returns:
-            dict: Dictionary of settings objects by type.
-        """
-        settings_types = [
+        """Return a dictionary of common settings objects from the IDF model by type."""
+        types = [
             "Version",
             "RunPeriod",
             "Timestep",
@@ -102,8 +92,4 @@ class EppyHandler:
             "Site:GroundReflectance",
             "Site:GroundReflectance:SnowModifier"
         ]
-        
-        return {
-            obj_type: self.get_objects_by_type(idf, obj_type)
-            for obj_type in settings_types
-        }
+        return {t: self.get_objects_by_type(idf, t) for t in types}

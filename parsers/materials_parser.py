@@ -2,178 +2,127 @@
 Extracts and processes materials and constructions.
 Uses DataLoader for cached access to IDF data.
 """
-import re
 from typing import Dict, Any, Optional
-from colorama import Fore, Style
 from utils.data_loader import DataLoader
 from utils.data_models import MaterialData, ConstructionData
 
 class MaterialsParser:
     """
-    Extracts material properties and construction definitions.
-    Uses cached data from DataLoader for efficient access.
+    Extracts material properties and construction definitions using cached data from DataLoader.
     """
     def __init__(self, data_loader: Optional[DataLoader] = None):
-        """
-        Initialize MaterialsParser.
-        
-        Args:
-            data_loader: DataLoader instance for accessing cached data
-        """
         self.data_loader = data_loader
-        self.element_data = []  # Final processed data for report
-        self.materials = {}     # Processed materials indexed by ID
-        self.constructions = {} # Processed constructions indexed by ID
-        
-    def process_idf(self, idf) -> None: # idf parameter kept for compatibility, but not used directly
+        self.element_data = []
+        self.materials = {}
+        self.constructions = {}
+
+    def process_idf(self, idf) -> None:
         """
         Process materials and constructions using data from DataLoader.
-        
-        Args:
-            idf: eppy IDF object (kept for compatibility)
         """
         if not self.data_loader:
-            print(f"{Fore.RED}Error: MaterialsParser requires a DataLoader instance.{Style.RESET_ALL}")
-            return
-        
+            raise RuntimeError("MaterialsParser requires a DataLoader instance.")
         try:
-            # Clear previous processed data
             self.materials.clear()
             self.constructions.clear()
             self.element_data.clear()
-
-            # --- Process Materials from DataLoader Cache ---
             material_cache = self.data_loader.get_materials()
             for material_id, raw_material_data in material_cache.items():
                 self.materials[material_id] = MaterialData(
                     id=material_id,
                     name=material_id,
-                    # Use .get() with default 0.0 for potentially missing properties
                     conductivity=raw_material_data.get('conductivity', 0.0),
                     density=raw_material_data.get('density', 0.0),
                     specific_heat=raw_material_data.get('specific_heat', 0.0),
                     thickness=raw_material_data.get('thickness', 0.0),
                     solar_absorptance=raw_material_data.get('solar_absorptance', 0.0)
                 )
-
-            # --- Process Constructions from DataLoader Cache ---
             construction_cache = self.data_loader.get_constructions()
             for construction_id, raw_construction_data in construction_cache.items():
                 material_layers = raw_construction_data['material_layers']
-                
-                # Calculate total thickness using the already processed self.materials
-                total_thickness = 0.0
-                for layer_id in material_layers:
-                    if layer_id in self.materials:
-                        total_thickness += self.materials[layer_id].thickness
-                    else:
-                        # This case should ideally not happen if all materials are defined
-                        print(f"{Fore.YELLOW}Warning: Material '{layer_id}' not found while calculating thickness for construction '{construction_id}'.{Style.RESET_ALL}")
-
+                total_thickness = sum(self.materials[layer_id].thickness for layer_id in material_layers if layer_id in self.materials)
                 self.constructions[construction_id] = ConstructionData(
                     id=construction_id,
                     name=construction_id,
                     material_layers=material_layers,
                     thickness=total_thickness
                 )
-
-            # --- Process Element Data (using populated self.materials and self.constructions) ---
             self._process_element_data()
-
         except Exception as e:
-            print(f"{Fore.RED}Error processing materials and constructions: {str(e)}{Style.RESET_ALL}")
-            # Optionally re-raise or handle more gracefully
-            import traceback
-            traceback.print_exc()
+            raise RuntimeError(f"Error processing materials and constructions: {e}")
 
     def _process_element_data(self) -> None:
         """
         Process element data for report generation.
         This combines materials and constructions to create report data.
         """
-        # Get cached surface data (still needed for element type)
         surfaces = self.data_loader.get_surfaces()
-        
-        # Dictionary to track constructions where low conductivity rule has been applied
         low_conductivity_found = {}
-        
-        # Process each construction (using the populated self.constructions)
         for construction_id, construction_data in self.constructions.items():
-            pattern = r'_(?:[Rr]ev|[Rr]eversed)$'
-            if bool(re.search(pattern, construction_id)):
-                continue            
+            if self._is_reversed_construction(construction_id):
+                continue
             element_types, dont_use = self._get_element_type(construction_id, surfaces)
-            
-            # Skip this construction if dont_use flag is True
-            if dont_use:
+            if dont_use or not element_types:
                 continue
-                
-            # If no element types were found, skip this construction
-            if not element_types:
-                continue
-                
-            # Determine surface type and boundary condition for film resistance calculation
-            s_type = ""
-            boundary = ""
-            
-            # Find a surface using this construction to get its type and boundary
-            for surface_id, surface in surfaces.items():
-                if surface.get('construction_name') == construction_id:
-                    s_type = surface.get('surface_type', '').lower()
-                    boundary = surface.get('boundary_condition', '').lower()
-                    break
-            
-            # Process each material layer in the construction
+            s_type, boundary = self._get_surface_type_and_boundary(construction_id, surfaces)
             for layer_id in construction_data.material_layers:
-                # Use the populated self.materials dictionary
-                material_data = self.materials.get(layer_id) 
-                if material_data:
-                    thermal_resistance = (
-                        material_data.thickness / material_data.conductivity 
-                        if material_data.conductivity != 0 else 0.0
-                    )
-                    
-                    # For each element type, create an entry in element_data
-                    for element_type in element_types:
-                        # Get surface film resistance based on element type
-                        film_resistance = self._get_surface_film_resistance(element_type)
-                          # Calculate mass - divide it if element type is external wall and 
-                        # this is the first low conductivity material in the construction
-                        mass = material_data.density * material_data.thickness
-                        
-                        # Track low conductivity materials per element type and construction
-                        if element_type not in low_conductivity_found:
-                            low_conductivity_found[element_type] = set()
-                            
-                        # Apply the external wall special case for mass calculation
-                        # Only divide mass for the first low conductivity material in this construction
-                        if (element_type.lower() == "external wall" and 
-                            material_data.conductivity < 0.2 and
-                            construction_id not in low_conductivity_found[element_type]):
-                            # Divide mass for the external wall case with low conductivity
-                            mass = mass / 2
-                            # Mark this construction as having applied the low conductivity rule
-                            low_conductivity_found[element_type].add(construction_id)
-                        
-                        self.element_data.append({
-                            "element_type": element_type,
-                            "element_name": construction_id,
-                            "material_name": layer_id,
-                            "thickness": material_data.thickness,
-                            "conductivity": material_data.conductivity,
-                            "density": material_data.density,
-                            "mass": mass,
-                            "thermal_resistance": thermal_resistance,
-                            "solar_absorptance": material_data.solar_absorptance,
-                            "specific_heat": material_data.specific_heat,
-                            "surface_film_resistance": film_resistance,
-                            "surface_type": s_type,
-                            "boundary_condition": boundary
-                        })
-                # Missing materials are silently skipped for report generation
-                # No debug message needed here as warning was already shown during construction processing
+                material_data = self.materials.get(layer_id)
+                if not material_data:
+                    continue
+                thermal_resistance = material_data.thickness / material_data.conductivity if material_data.conductivity != 0 else 0.0
+                for element_type in element_types:
+                    film_resistance = self._get_surface_film_resistance(element_type)
+                    mass = material_data.density * material_data.thickness
+                    if element_type not in low_conductivity_found:
+                        low_conductivity_found[element_type] = set()
+                    if (element_type.lower() == "external wall" and material_data.conductivity < 0.2 and construction_id not in low_conductivity_found[element_type]):
+                        mass = mass / 2
+                        low_conductivity_found[element_type].add(construction_id)
+                    self.element_data.append({
+                        "element_type": element_type,
+                        "element_name": construction_id,
+                        "material_name": layer_id,
+                        "thickness": material_data.thickness,
+                        "conductivity": material_data.conductivity,
+                        "density": material_data.density,
+                        "mass": mass,
+                        "thermal_resistance": thermal_resistance,
+                        "solar_absorptance": material_data.solar_absorptance,
+                        "specific_heat": material_data.specific_heat,
+                        "surface_film_resistance": film_resistance,
+                        "surface_type": s_type,
+                        "boundary_condition": boundary
+                    })
 
-    def _get_element_type(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]]) -> tuple:
+    def _is_reversed_construction(self, construction_id: str) -> bool:
+        """
+        Check if the construction ID indicates a reversed construction.
+        
+        Args:
+            construction_id: The construction ID to check.
+        
+        Returns:
+            bool: True if the construction is reversed, False otherwise.
+        """
+        return construction_id.lower().endswith(('_rev', '_reversed'))
+
+    def _get_surface_type_and_boundary(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]]):
+        """
+        Get the surface type and boundary condition for a given construction ID.
+        
+        Args:
+            construction_id: The construction ID.
+            surfaces: The surfaces data dictionary.
+        
+        Returns:
+            tuple: A tuple containing the surface type and boundary condition.
+        """
+        for surface in surfaces.values():
+            if surface.get('construction_name') == construction_id:
+                return surface.get('surface_type', '').lower(), surface.get('boundary_condition', '').lower()
+        return '', ''
+
+    def _get_element_type(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]]):
         """
         Determine element type based on construction usage.
         Implementation moved from DataLoader.
@@ -188,11 +137,7 @@ class MaterialsParser:
                   - dont_use: bool - Flag indicating if this construction should be excluded from output
         """
         # Find surfaces using this construction
-        construction_surfaces = []
-        for surface_id, surface in surfaces.items():
-            if surface.get('construction_name') == construction_id:
-                construction_surfaces.append(surface)
-        
+        construction_surfaces = [s for s in surfaces.values() if s.get('construction_name') == construction_id]
         if not construction_surfaces:
             return [], False
         
@@ -208,11 +153,8 @@ class MaterialsParser:
                 element_types.add("Glazing")
                 continue
                 
-            try:
-                s_type = surface['surface_type'].lower() if surface.get('surface_type') else ""
-                boundary = surface['boundary_condition'].lower() if surface.get('boundary_condition') else ""
-            except (AttributeError, IndexError, KeyError):
-                continue
+            s_type = surface.get('surface_type', '').lower() if surface.get('surface_type') else ""
+            boundary = surface.get('boundary_condition', '').lower() if surface.get('boundary_condition') else ""
             
             # Safely get the outside boundary object name
             raw_object = surface.get('raw_object')
@@ -295,7 +237,7 @@ class MaterialsParser:
 
         element_type = element_type.lower()
 
-        if element_type in ["ground wall", "internal wall", "ground floor", "ground ceiling","intermediate ceiling"]:
+        if element_type in ["ground wall", "internal wall", "ground floor", "ground ceiling", "intermediate ceiling"]:
             return 0.0
         if element_type == "external wall":
             return 0.17
@@ -311,7 +253,7 @@ class MaterialsParser:
             return 0.2
         else:
             return 0.14
-        
+
     def get_element_data(self) -> list:
         """
         Returns the list of processed element data.
@@ -320,7 +262,7 @@ class MaterialsParser:
             list: List of dictionaries containing element data and calculated properties
         """
         return self.element_data
-    
+
     def get_all_materials(self) -> Dict[str, MaterialData]:
         """
         Get all processed materials.
@@ -329,7 +271,7 @@ class MaterialsParser:
             Dict[str, MaterialData]: Dictionary of all materials
         """
         return self.materials
-    
+
     def get_all_constructions(self) -> Dict[str, ConstructionData]:
         """
         Get all processed constructions.
@@ -338,7 +280,7 @@ class MaterialsParser:
             Dict[str, ConstructionData]: Dictionary of all constructions
         """
         return self.constructions
-    
+
     def calculate_construction_mass_per_area(self, construction_id: str) -> float:
         """
         Calculate the total mass per square meter for a given construction.
@@ -351,9 +293,7 @@ class MaterialsParser:
         """
         construction = self.constructions.get(construction_id)
         if not construction:
-            print(f"{Fore.YELLOW}Warning: Construction '{construction_id}' not found for mass calculation.{Style.RESET_ALL}")
             return 0.0
-
         total_mass_per_area = 0.0
         for layer_id in construction.material_layers:
             material = self.materials.get(layer_id)
@@ -361,12 +301,8 @@ class MaterialsParser:
                 # Mass per area for this layer = density * thickness
                 layer_mass = material.density * material.thickness
                 total_mass_per_area += layer_mass
-            else:
-                # This warning should ideally not appear if process_idf ran correctly
-                print(f"{Fore.YELLOW}Warning: Material '{layer_id}' not found while calculating mass for construction '{construction_id}'.{Style.RESET_ALL}")
-
         return total_mass_per_area
-    
+
     def calculate_construction_properties(self, construction_id: str) -> Dict[str, float]:
         """
         Calculate properties for a specific construction.
@@ -397,7 +333,7 @@ class MaterialsParser:
             'thickness': total_thickness,
             'conductivity': conductivity
         }
-    
+
     def get_constructions_u_values(self) -> Dict[str, float]:
         """
         Get U-values for all constructions based on the calculations from materials report.
@@ -406,67 +342,18 @@ class MaterialsParser:
             Dict[str, float]: Dictionary mapping construction IDs to their U-values
         """
         u_values = {}
-          # Process each construction and calculate the U-value using the same logic
-        # as in the materials report
         for construction_id, construction_data in self.constructions.items():
-            # Skip reversed constructions
-            pattern = r'_(?:[Rr]ev|[Rr]eversed)$'
-            if bool(re.search(pattern, construction_id)):
+            if self._is_reversed_construction(construction_id):
                 continue
-                
-            # Debug for specific construction
-            is_target = "ExtWall Pumice" in construction_id
-            if is_target:
-                print(f"Processing U-value for target construction: {construction_id}")
-                
-            # Get material layers for this construction
             material_layers = construction_data.material_layers
-            
-            # Calculate total thermal resistance
             total_resistance = 0.0
             for layer_id in material_layers:
                 material_data = self.materials.get(layer_id)
                 if material_data and material_data.conductivity != 0:
-                    layer_resistance = material_data.thickness / material_data.conductivity
-                    total_resistance += layer_resistance
-                    if is_target:
-                        print(f"  Layer: {layer_id}, thickness: {material_data.thickness}, conductivity: {material_data.conductivity}, resistance: {layer_resistance}")
-                elif is_target:
-                    if material_data:
-                        print(f"  Layer: {layer_id}, ZERO CONDUCTIVITY: thickness: {material_data.thickness}, conductivity: {material_data.conductivity}")
-                    else:
-                        print(f"  Layer: {layer_id}, NOT FOUND in materials dictionary")
-              # Determine element type for film resistance
+                    total_resistance += material_data.thickness / material_data.conductivity
             element_types, _ = self._get_element_type(construction_id, self.data_loader.get_surfaces())
-            
-            # Debug for specific construction
-            if "ExtWall Pumice" in construction_id:
-                print(f"Element types for {construction_id}: {element_types}")
-            
-            # If no element types found, use a default film resistance
-            if not element_types:
-                film_resistance = 0.0
-                if is_target:
-                    print(f"  No element types found, using film_resistance = 0.0")
-            else:
-                # Use the first element type for film resistance calculation
-                film_resistance = self._get_surface_film_resistance(element_types[0])
-                if is_target:
-                    print(f"  Using element type: {element_types[0]}, film_resistance = {film_resistance}")
-            
-            # Calculate R-value with film
+            film_resistance = self._get_surface_film_resistance(element_types[0]) if element_types else 0.0
             r_value_with_film = total_resistance + film_resistance
-            
-            # Calculate U-value
-            if r_value_with_film > 0:
-                u_value = 1.0 / r_value_with_film
-                if is_target:
-                    print(f"  Total resistance: {total_resistance}, with film: {r_value_with_film}, U-value: {u_value}")
-            else:
-                u_value = 0.0
-                if is_target:
-                    print(f"  WARNING: Zero or negative R-value ({r_value_with_film}), setting U-value to 0")
-                
+            u_value = 1.0 / r_value_with_film if r_value_with_film > 0 else 0.0
             u_values[construction_id] = u_value
-            
         return u_values

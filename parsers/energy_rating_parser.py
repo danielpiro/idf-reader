@@ -1,19 +1,12 @@
 """
 Extracts and processes energy consumption and rating information from EnergyPlus output files.
 """
-from typing import Dict, Any, List, Optional, Tuple
-import logging
+from typing import Dict, Any, List, Optional
 import re
 import csv
 import os
-from pathlib import Path
 from parsers.area_parser import AreaParser
 from utils.data_loader import safe_float
-
-logger = logging.getLogger(__name__)
-# --- Explicitly set logging level for this module ---
-# logger.setLevel(logging.DEBUG) # Keep or remove as needed
-# ---
 
 class EnergyRatingParser:
     """
@@ -23,7 +16,7 @@ class EnergyRatingParser:
     def __init__(self, data_loader, area_parser: AreaParser):
         self.data_loader = data_loader
         self.area_parser = area_parser
-        self.energy_data_by_area = {}  # Stores processed energy data by area ID
+        self.energy_data_by_area = {}
         self.processed = False
         self.zone_pattern = re.compile(r'(\d{2}):(\d{2})X([A-Za-z0-9_]+)(?:\s+([A-Za-z0-9_ ]+))?:([A-Za-z0-9_ ]+(?:\s+[A-Za-z0-9_ ]+)*)\s+\[([A-Za-z0-9/]+)\]\(([A-Za-z0-9]+)\)')
 
@@ -45,53 +38,51 @@ class EnergyRatingParser:
                 idf_dir = os.path.dirname(idf_path)
                 possible_paths = [
                     os.path.join(idf_dir, "eplusout.csv"),
-                    os.path.join(os.path.dirname(idf_dir), "tests", "eplusout.csv")
+                    os.path.join(os.path.dirname(idf_dir), "tests", "eplusout.csv"),
+                    os.path.join(os.path.dirname(os.path.dirname(__file__)), "simulation_output", "eplusout.csv")
                 ]
                 for path in possible_paths:
-                    if os.path.exists(path):
+                    if os.path.basename(path).lower() == "eplusout.csv" and os.path.exists(path):
                         output_file_path = path
                         break
-        
+
+        # If the user accidentally passes eplustbl.csv, try to find eplusout.csv in the same directory
+        if output_file_path and os.path.basename(output_file_path).lower() == "eplustbl.csv":
+            candidate = os.path.join(os.path.dirname(output_file_path), "eplusout.csv")
+            if os.path.exists(candidate):
+                print(f"[DEBUG] Switching to correct output file: {candidate}")
+                output_file_path = candidate
+
         if not output_file_path or not os.path.exists(output_file_path):
-            logger.error(f"Cannot find EnergyPlus output file: {output_file_path}")
-            return
-            
-        logger.info(f"Processing EnergyPlus output file: {output_file_path}")
+            raise FileNotFoundError(f"Cannot find EnergyPlus output file: {output_file_path}")
         
         # Make sure area parser has processed the data
         if not self.area_parser.processed:
-            logger.info("Area parser not processed yet, processing now...")
             self.area_parser.process_idf(None)  # Process with default settings
-            
+        
         # Process the CSV file
         try:
             with open(output_file_path, 'r', encoding='utf-8') as csvfile:
                 reader = csv.reader(csvfile)
                 headers = next(reader)
-                
-                # Get the last row which should contain the run period values
+                row_count = 0
                 last_row = None
                 for row in reader:
                     last_row = row
-                    
+                    row_count += 1
                 if not last_row:
-                    logger.error("No data found in EnergyPlus output file")
-                    return
-                    
+                    raise ValueError("No data found in EnergyPlus output file")
+                
                 # Process headers and extract zone energy data
                 self._process_headers_and_values(headers, last_row)
-                
+            
             # Perform final calculations
             self._calculate_totals()
             
             self.processed = True
-            logger.info(f"Successfully processed energy data for {len(self.energy_data_by_area)} areas")
-            
         except Exception as e:
-            logger.error(f"Error processing EnergyPlus output file: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-    
+            raise RuntimeError(f"Error processing EnergyPlus output file: {e}")
+
     def _process_headers_and_values(self, headers: List[str], values: List[str]) -> None:
         """
         Process headers to extract zone information and corresponding values.
@@ -120,12 +111,9 @@ class EnergyRatingParser:
                 # Skip if not RunPeriod
                 if period != "RunPeriod":
                     continue
-                    
+                
                 # Get value for this header
-                if i < len(values):
-                    value = safe_float(values[i], 0.0)
-                else:
-                    value = 0.0
+                value = safe_float(values[i], 0.0) if i < len(values) else 0.0
                 
                 # Process value based on header type
                 processed_value = self._process_value(value, header.lower())
@@ -159,10 +147,10 @@ class EnergyRatingParser:
                 
                 if category:
                     self.energy_data_by_area[area_key][category] += processed_value
-                    
+                
             except Exception as e:
-                logger.error(f"Error processing header {header}: {e}")
-    
+                raise RuntimeError(f"Error processing header {header}: {e}")
+
     def _process_value(self, value: float, header_lower: str) -> float:
         """
         Process value based on header type and divide by appropriate factor.
@@ -176,14 +164,12 @@ class EnergyRatingParser:
         """
         # Divide by appropriate factor based on header type
         if 'light' in header_lower:
-            processed = value / 3600000.0
+            return value / 3600000.0
         elif 'heating' in header_lower or 'cooling' in header_lower:
-            processed = value / 10800000.0
-        else:
-            processed = value
-            
-        return processed
-    
+            return value / 10800000.0
+        
+        return value
+
     def _calculate_totals(self) -> None:
         """
         Calculate total energy consumption and per area values.
@@ -207,6 +193,7 @@ class EnergyRatingParser:
                 
             # Convert zones set to list for easier serialization
             area_data['zones'] = list(area_data['zones'])
+
     def _get_area_total_for_area_id(self, area_id: str) -> float:
         """
         Get the total floor area for a specific area ID.
@@ -220,6 +207,7 @@ class EnergyRatingParser:
         # Use the existing method in area_parser to get total floor area
         area_totals = self.area_parser.get_area_totals(area_id)
         return area_totals.get("total_floor_area", 0.0)
+
     def _determine_location(self, area_id: str) -> str:
         """
         Determine the location for an area ID based on area parser data.

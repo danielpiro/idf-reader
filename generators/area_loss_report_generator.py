@@ -4,15 +4,41 @@ Generates reports for area loss information extracted from IDF files.
 from typing import Dict, Any, List
 from pathlib import Path
 import datetime
-from colorama import Fore, Style, init
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
-# Initialize colorama
-init(autoreset=True)
+def _compatibility_color(compatible):
+    return colors.green if compatible == "Yes" else colors.red
+
+def _area_loss_table_data(area_loss_data, cell_style, compatibility_style):
+    table_data = [[
+        Paragraph("Area", cell_style),
+        Paragraph("Location", cell_style),
+        Paragraph("H-Value", cell_style),
+        Paragraph("H-Needed", cell_style),
+        Paragraph("Compatible", cell_style)
+    ]]
+    sorted_rows = sorted(area_loss_data, key=lambda x: x.get('area_id', ''))
+    for row in sorted_rows:
+        area_id = row.get('area_id', 'Unknown')
+        location = row.get('location', 'Unknown')
+        h_value = row.get('h_value', 0.0)
+        h_needed = row.get('h_needed', 0.0)
+        compatible = row.get('compatible', 'No')
+        h_value_formatted = f"{h_value:.3f}"
+        h_needed_formatted = f"{h_needed:.3f}"
+        color = _compatibility_color(compatible)
+        table_data.append([
+            Paragraph(area_id, cell_style),
+            Paragraph(location, cell_style),
+            h_value_formatted,
+            h_needed_formatted,
+            Paragraph(f"<font color={color}>{compatible}</font>", compatibility_style)
+        ])
+    return table_data
 
 def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
                              output_filename: str,
@@ -77,14 +103,6 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
             spaceAfter=0
         )
         
-        header_style = ParagraphStyle(
-            'HeaderStyle',
-            parent=styles['Heading4'],
-            fontSize=10,
-            alignment=1,  # Center alignment
-            textColor=colors.whitesmoke
-        )
-        
         compatibility_style = ParagraphStyle(
             'CompatibilityStyle',
             parent=styles['Normal'],
@@ -96,42 +114,15 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
         
         # Header row for the table as Paragraphs for consistent styling
         headers = [
-            Paragraph("Area", header_style),
-            Paragraph("Location", header_style),
-            Paragraph("H-Value", header_style),
-            Paragraph("H-Needed", header_style),
-            Paragraph("Compatible", header_style)
+            Paragraph("Area", cell_style),
+            Paragraph("Location", cell_style),
+            Paragraph("H-Value", cell_style),
+            Paragraph("H-Needed", cell_style),
+            Paragraph("Compatible", cell_style)
         ]
         
         # Prepare table data
-        table_data = [headers]
-        
-        # Sort rows by area_id for better readability
-        sorted_rows = sorted(area_loss_data, key=lambda x: x.get('area_id', ''))
-        
-        # Format values and add to table
-        for row in sorted_rows:
-            area_id = row.get('area_id', 'Unknown')
-            location = row.get('location', 'Unknown')
-            h_value = row.get('h_value', 0.0)
-            h_needed = row.get('h_needed', 0.0)
-            compatible = row.get('compatible', 'No')
-            
-            # Format numeric values with proper precision
-            h_value_formatted = f"{h_value:.3f}"
-            h_needed_formatted = f"{h_needed:.3f}"
-            
-            # Determine compatibility color based on the status
-            compatibility_color = colors.green if compatible == "Yes" else colors.red
-            
-            # Add row to the table
-            table_data.append([
-                Paragraph(area_id, cell_style),
-                Paragraph(location, cell_style),
-                h_value_formatted,
-                h_needed_formatted,
-                Paragraph(f"<font color={compatibility_color}>{compatible}</font>", compatibility_style)
-            ])
+        table_data = _area_loss_table_data(area_loss_data, cell_style, compatibility_style)
         
         # Create the table with carefully adjusted column widths
         col_widths = [
@@ -175,7 +166,4 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
         return True
         
     except Exception as e:
-        print(f"{Fore.RED}Error generating area loss report PDF: {e}{Style.RESET_ALL}")
-        import traceback
-        traceback.print_exc()
-        return False
+        raise RuntimeError(f"Error generating area loss report PDF: {e}")

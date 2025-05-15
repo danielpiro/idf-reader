@@ -1,10 +1,10 @@
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import cm, inch # Import inch
+from reportlab.lib.units import cm
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
-import datetime # Add datetime import
+import datetime
 
 def wrap_text(text, style):
     """Helper function to wrap text for proper display in cells"""
@@ -15,18 +15,72 @@ def wrap_text(text, style):
         result = ""
         for line in lines:
             # Add more breaks for monthly data
-            line = line.replace("Jan ", "Jan<br/>").replace("Feb ", "Feb<br/>")
-            line = line.replace("Mar ", "Mar<br/>").replace("Apr ", "Apr<br/>")
-            line = line.replace("May ", "May<br/>").replace("Jun ", "Jun<br/>")
-            line = line.replace("Jul ", "Jul<br/>").replace("Aug ", "Aug<br/>")
-            line = line.replace("Sep ", "Sep<br/>").replace("Oct ", "Oct<br/>")
-            line = line.replace("Nov ", "Nov<br/>").replace("Dec ", "Dec<br/>")
+            for month in ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]:
+                line = line.replace(f"{month} ", f"{month}<br/>")
             result += line + "<br/>"
         return Paragraph(result, style)
     
     # Regular text wrapping for other content
     modified_text = str(text).replace('\n', '<br/>')
     return Paragraph(modified_text, style)
+
+def format_dict_value(value_dict):
+    """Format dictionary values for display in the report"""
+    if not value_dict:
+        return "Not specified"
+    
+    # Monthly temperature values (ground temps, reflectance)
+    if isinstance(value_dict, dict) and any(key in ['January', 'February', 'March'] for key in value_dict.keys()):
+        month_order = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ]
+        return "<br/>".join(f"{month}: {value_dict[month]}" for month in month_order if month in value_dict)
+    
+    # For RunPeriod nested data
+    if isinstance(value_dict, dict) and any(key in ['start_month', 'end_month', 'location'] for key in value_dict.keys()):
+        lines = []
+        # Format start/end dates
+        if 'start_month' in value_dict and 'start_day' in value_dict:
+            lines.append(f"Start Date: {value_dict['start_month']}/{value_dict['start_day']}")
+        if 'end_month' in value_dict and 'end_day' in value_dict:
+            lines.append(f"End Date: {value_dict['end_month']}/{value_dict['end_day']}")
+        if 'location' in value_dict:
+            lines.append(f"Location: {value_dict['location']}")
+        
+        # Format weather options
+        for k, v in value_dict.items():
+            if k not in ['start_month', 'start_day', 'end_month', 'end_day', 'location'] and v is not None:
+                lines.append(f"{k.replace('_', ' ').title()}: {v}")
+                
+        return "<br/>".join(lines)
+    
+    # For daylight saving
+    if isinstance(value_dict, dict) and any(key in ['start', 'end'] for key in value_dict.keys()):
+        lines = []
+        if 'start' in value_dict:
+            lines.append(f"Start: {value_dict['start']}")
+        if 'end' in value_dict:
+            lines.append(f"End: {value_dict['end']}")
+        return "<br/>".join(lines)
+    
+    # For snow modifiers
+    if isinstance(value_dict, dict) and any(key in ['ground', 'daylighting'] for key in value_dict.keys()):
+        lines = []
+        if 'ground' in value_dict:
+            lines.append(f"Ground Reflected: {value_dict['ground']}")
+        if 'daylighting' in value_dict:
+            lines.append(f"Daylighting: {value_dict['daylighting']}")
+        return "<br/>".join(lines)
+    
+    # Default formatting for other dictionary values
+    return "<br/>".join([f"{k}: {v}" for k, v in value_dict.items()])
+
+def _make_table(data, col_widths, style):
+    """Helper function to create and style a table"""
+    table = Table(data, colWidths=col_widths, repeatRows=1)
+    table.setStyle(style)
+    return table
 
 def generate_settings_report_pdf(settings_data, output_filename="output/settings.pdf",
                                  project_name: str = "N/A", run_id: str = "N/A"):
@@ -78,8 +132,7 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
         spaceBefore=0.5*cm,
         spaceAfter=1*cm
     )
-    title = Paragraph("Energy Plus Settings Summary", title_style)
-    story.append(title)
+    story.append(Paragraph("Energy Plus Settings Summary", title_style))
 
     # Create custom styles for cells with better wrapping
     header_style = ParagraphStyle(
@@ -114,65 +167,7 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
         alignment=TA_LEFT
     )
 
-    # Function to format dictionary values
-    def format_dict_value(value_dict):
-        if not value_dict:
-            return "Not specified"
-        
-        # Monthly temperature values (ground temps, reflectance)
-        if isinstance(value_dict, dict) and any(key in ['January', 'February', 'March'] for key in value_dict.keys()):
-            formatted_lines = []
-            # Sort months in calendar order
-            month_order = [
-                'January', 'February', 'March', 'April', 'May', 'June',
-                'July', 'August', 'September', 'October', 'November', 'December'
-            ]
-            for month in month_order:
-                if month in value_dict:
-                    formatted_lines.append(f"{month}: {value_dict[month]}")
-            return "<br/>".join(formatted_lines)
-            
-        # For RunPeriod nested data
-        if isinstance(value_dict, dict) and any(key in ['start_month', 'end_month', 'location'] for key in value_dict.keys()):
-            formatted_lines = []
-            # Format start/end dates
-            if 'start_month' in value_dict and 'start_day' in value_dict:
-                formatted_lines.append(f"Start Date: {value_dict['start_month']}/{value_dict['start_day']}")
-            if 'end_month' in value_dict and 'end_day' in value_dict:
-                formatted_lines.append(f"End Date: {value_dict['end_month']}/{value_dict['end_day']}")
-            if 'location' in value_dict:
-                formatted_lines.append(f"Location: {value_dict['location']}")
-                
-            # Format weather options
-            for k, v in value_dict.items():
-                if k not in ['start_month', 'start_day', 'end_month', 'end_day', 'location'] and v is not None:
-                    formatted_name = k.replace('_', ' ').title()
-                    formatted_lines.append(f"{formatted_name}: {v}")
-                    
-            return "<br/>".join(formatted_lines)
-            
-        # For daylight saving
-        if isinstance(value_dict, dict) and any(key in ['start', 'end'] for key in value_dict.keys()):
-            formatted_lines = []
-            if 'start' in value_dict:
-                formatted_lines.append(f"Start: {value_dict['start']}")
-            if 'end' in value_dict:
-                formatted_lines.append(f"End: {value_dict['end']}")
-            return "<br/>".join(formatted_lines)
-            
-        # For snow modifiers
-        if isinstance(value_dict, dict) and any(key in ['ground', 'daylighting'] for key in value_dict.keys()):
-            formatted_lines = []
-            if 'ground' in value_dict:
-                formatted_lines.append(f"Ground Reflected: {value_dict['ground']}")
-            if 'daylighting' in value_dict:
-                formatted_lines.append(f"Daylighting: {value_dict['daylighting']}")
-            return "<br/>".join(formatted_lines)
-            
-        # Default formatting for other dictionary values
-        return "<br/>".join([f"{k}: {v}" for k, v in value_dict.items()])
-
-# --- Add DesignBuilder Metadata Section ---
+    # --- Add DesignBuilder Metadata Section ---
     if 'designbuilder' in settings_data:
         designbuilder_data = settings_data.pop('designbuilder') # Extract and remove
         if designbuilder_data and any(designbuilder_data.values()):
@@ -194,7 +189,7 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
 
             for key, display_name in db_param_map.items():
                 value = designbuilder_data.get(key)
-                if value is not None and value != '':
+                if value not in (None, ''):
                     db_table_data.append([
                         Paragraph(display_name, key_cell_style),
                         Paragraph(str(value), value_cell_style)
@@ -222,9 +217,7 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
                     ('BOX', (0, 0), (-1, -1), 1, colors.black),
                     ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.whitesmoke])
                 ])
-                db_table = Table(db_table_data, colWidths=db_col_widths, repeatRows=1)
-                db_table.setStyle(db_table_style)
-                story.append(db_table)
+                story.append(_make_table(db_table_data, db_col_widths, db_table_style))
                 story.append(Spacer(1, 0.8*cm))
             else:
                  story.append(Paragraph("No DesignBuilder metadata found.", value_cell_style))
@@ -310,18 +303,14 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
         ])
 
         # Create and style the table
-        table = Table(table_data, colWidths=col_widths, repeatRows=1)
-        table.setStyle(style)
-        story.append(table)
+        story.append(_make_table(table_data, col_widths, style))
         story.append(Spacer(1, 0.8*cm))
 
     # Build PDF
     try:
         doc.build(story)
-        print(f"Successfully generated settings report: {output_filename}")
         return True
     except Exception as e:
-        print(f"Error building settings report PDF {output_filename}: {e}")
         import traceback
-        traceback.print_exc()  # Enable traceback for better debugging
+        traceback.print_exc()
         return False

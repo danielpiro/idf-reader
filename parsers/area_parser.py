@@ -1,31 +1,27 @@
 """
 Extracts and processes area information including floor areas and material properties.
 """
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 import logging
-import os
-from parsers.materials_parser import MaterialsParser  # Import MaterialsParser for element_type function
-from utils.data_loader import safe_float # Import safe_float
-from parsers.eplustbl_reader import read_glazing_data_from_csv # Import the new reader
+from parsers.materials_parser import MaterialsParser
+from utils.data_loader import safe_float
+from parsers.eplustbl_reader import read_glazing_data_from_csv
 
 logger = logging.getLogger(__name__)
-# --- Explicitly set logging level for this module ---
-# logger.setLevel(logging.DEBUG) # Keep or remove as needed
-# ---
 
 class AreaParser:
     """
     Processes area information from IDF files, including distribution of zones in areas.
     Uses cached data from DataLoader for efficient access.
     """
-    def __init__(self, data_loader, parsed_glazing_data: Dict[str, Dict[str, Any]], materials_parser: MaterialsParser): # Added materials_parser
+    def __init__(self, data_loader, parsed_glazing_data: Dict[str, Dict[str, Any]], materials_parser: MaterialsParser):
         self.data_loader = data_loader
         self.parsed_glazing_data = parsed_glazing_data
-        self.materials_parser = materials_parser # Store materials parser instance
+        self.materials_parser = materials_parser
         self.areas_by_zone = {}
         self.processed = False
 
-    def process_idf(self, idf) -> None: # idf parameter kept for compatibility
+    def process_idf(self, idf) -> None:
         """
         Extract area information.
 
@@ -33,45 +29,21 @@ class AreaParser:
             idf: eppy IDF object (not directly used)
         """
         if not self.data_loader:
-            print("Error: AreaParser requires a DataLoader instance.")
-            return
-            
+            raise ValueError("AreaParser requires a DataLoader instance.")
         if self.processed:
-            # Skip if already processed
             return
-            
-        try:            # Make sure the materials parser has processed the data first
-            # since we need its U-values for consistency
-            if self.materials_parser:
-                logger.info(f"Materials parser available with {len(self.materials_parser.constructions)} constructions")
-                if not self.materials_parser.element_data:
-                    logger.debug("Processing materials data in MaterialsParser first")
-                    self.materials_parser.process_idf(idf)
-                    logger.info(f"After processing, materials parser has {len(self.materials_parser.constructions)} constructions")
-            else:
-                logger.warning("No materials parser available in AreaParser")
-            
-            # Process zones to initialize data structure
+        try:
+            if self.materials_parser and not self.materials_parser.element_data:
+                self.materials_parser.process_idf(idf)
             self._process_zones()
-            
-            # Process surfaces to extract construction information
             self._process_surfaces()
-
-            # --- Conditional Merge ---
-            if not self.materials_parser:
-                 logger.error("MaterialsParser instance not available in AreaParser for merging.")
-            else:
-                 # Pass the stored materials_parser instance
-                 self._merge_reverse_constructions(self.materials_parser)
-            # --- End Conditional Merge ---
-
+            if self.materials_parser:
+                self._merge_reverse_constructions(self.materials_parser)
             self.processed = True
-
         except Exception as e:
-            print(f"Error extracting area information: {str(e)}")
-            import traceback
-            traceback.print_exc()
-    
+            logger.error(f"Error extracting area information: {e}")
+            raise
+
     def _process_zones(self) -> None:
         """
         Process zones to initialize the data structure.
@@ -161,17 +133,13 @@ class AreaParser:
 
                 if u_value_from_glazing is not None:
                     u_value = safe_float(u_value_from_glazing, 0.0)
-                    logger.debug(f"Using U-Value from GlazingParser for '{construction_name}': {u_value}")
                 else:
                     # Glazing construction found, but U-Value is missing in parsed data - fallback? Log warning?
-                    logger.warning(f"Glazing construction '{construction_name}' found in parsed data, but U-Value is missing. Falling back to calculation.")
-                    # Decide if fallback calculation is appropriate here or just use 0.0
                     u_value = self._calculate_u_value(construction_name) # Or set u_value = 0.0
                 
                 # Store area from CSV if available
                 if area_from_glazing is not None:
                     glazing_area_override = safe_float(area_from_glazing, 0.0)
-                    logger.debug(f"Using area from CSV for glazing '{construction_name}': {glazing_area_override} m²")
                 
                 # Ensure is_glazing flag is consistent
                 is_glazing = True # If it's in parsed_glazing_data, treat as glazing
@@ -179,24 +147,14 @@ class AreaParser:
                 # First check if we can get the U-value from materials_parser for consistent values
                 if self.materials_parser and hasattr(self.materials_parser, 'get_constructions_u_values'):
                     u_values_dict = self.materials_parser.get_constructions_u_values()
-                    # Enhanced logging for debugging
-                    if "ExtWall Pumice" in construction_name:
-                        logger.info(f"Found ExtWall Pumice construction: '{construction_name}'")
-                        logger.info(f"Is it in u_values_dict? {construction_name in u_values_dict}")
-                        if construction_name in u_values_dict:
-                            logger.info(f"U-value from dict: {u_values_dict[construction_name]}")
-                    
                     if construction_name in u_values_dict:
                         u_value = u_values_dict[construction_name]
-                        logger.debug(f"Using U-Value from MaterialsParser for '{construction_name}': {u_value}")
                     else:
                         # Fallback to calculation if construction not found in materials parser
                         u_value = self._calculate_u_value(construction_name)
-                        logger.debug(f"Falling back to calculated U-Value for '{construction_name}': {u_value}")
                 else:
                     # Fallback to calculation if materials_parser not available
                     u_value = self._calculate_u_value(construction_name)
-                    logger.debug(f"Materials parser not available, using calculated U-Value for '{construction_name}': {u_value}")
                 # logger.debug(f"Calculating U-Value for opaque construction '{construction_name}': {u_value}")
             # --- End Determine U-Value ---
 
@@ -230,11 +188,7 @@ class AreaParser:
               # If this is glazing and we have area from CSV, use that instead of the IDF area
             final_area = area  # Default to the adjusted area from IDF
             if is_glazing and glazing_area_override is not None:
-                logger.debug(f"Using CSV area for glazing '{construction_name}': {glazing_area_override} m² instead of IDF area: {area} m²")
                 final_area = glazing_area_override
-                # Add extra debug for 6+6+6 constructions
-                if "6+6+6" in construction_name:
-                    print(f"DEBUG: Surface '{surface_id}' with construction '{construction_name}' - Area from CSV: {glazing_area_override} m²")
                 
             element_data = {
                 "zone": zone_name,
@@ -305,138 +259,60 @@ class AreaParser:
         Returns:
             float: U-Value
         """
-        # NOTE: This function should ideally only be called for opaque constructions now.
-        # The simple glazing check might be redundant if AreaParser relies on GlazingParser data.
-        # Consider simplifying or removing glazing-specific logic here if it's fully handled above.
-
-        logger.debug(f"--- Calculating U-Value (Fallback/Opaque) for construction: '{construction_name}' ---")
-        # Get cached data - MERGE both construction caches
+        logger.debug(f"Calculating U-Value for construction: '{construction_name}'")
         constructions_opaque = self.data_loader.get_constructions()
         constructions_glazing = self.data_loader.get_constructions_glazing()
-        all_constructions = {**constructions_opaque, **constructions_glazing} # Merge dicts
-
-        materials = self.data_loader.get_materials() # Should contain all material types
+        all_constructions = {**constructions_opaque, **constructions_glazing}
+        materials = self.data_loader.get_materials()
         surfaces = self.data_loader.get_surfaces()
-
-        # Check merged dictionary
         if construction_name not in all_constructions:
-            logger.warning(f"Construction '{construction_name}' not found in combined cached construction data. Returning U=0.")
+            logger.warning(f"Construction '{construction_name}' not found. Returning U=0.")
             return 0.0
-
-        construction_data = all_constructions[construction_name] # Use merged dict
+        construction_data = all_constructions[construction_name]
         material_layers = construction_data.get('material_layers', [])
-        logger.debug(f"  Material layers: {material_layers}")
-
-        # --- Check for Simple Glazing System ---
         simple_glazing_found = False
         for layer_id in material_layers:
             if layer_id in materials:
                 material_data = materials[layer_id]
                 mat_type = material_data.get('type')
-                # Log the relevant parts of material_data for clarity
-                log_mat_data = {k: v for k, v in material_data.items() if k in ['id', 'name', 'type', 'u_factor', 'thickness', 'conductivity', 'thermal_resistance']}
-                logger.debug(f"    Material data (relevant): {log_mat_data}")
-                logger.debug(f"    Material type: '{mat_type}'")
-
-                # Adjust 'WindowMaterial:SimpleGlazingSystem' if the actual type name differs
-                expected_simple_glazing_type = 'WindowMaterial:SimpleGlazingSystem'
-                if mat_type == expected_simple_glazing_type:
-                    logger.debug(f"    MATCH! Found '{expected_simple_glazing_type}'. Attempting to use direct U-Factor.")
+                if mat_type == 'WindowMaterial:SimpleGlazingSystem':
                     simple_glazing_found = True
-                    # Retrieve the U-Factor directly. Adjust key 'u_factor' if needed.
-                    u_factor = material_data.get('u_factor') # Key confirmed from DataLoader cache logic
-                    logger.debug(f"    Retrieved 'u_factor' from material data: {u_factor} (type: {type(u_factor)})")
+                    u_factor = material_data.get('u_factor')
                     if u_factor is not None:
-                        try:
-                            # Use safe_float for robust conversion
-                            u_value_float = safe_float(u_factor, -1.0) # Use -1 default to indicate conversion failure vs actual 0
-                            if u_value_float != -1.0:
-                                # logger.info(f"    RETURNING Simple Glazing U-Value for '{construction_name}': {u_value_float}") # REMOVED INFO LOG
-                                return u_value_float
-                            else:
-                                logger.error(f"    safe_float conversion failed for U-Factor '{u_factor}'. Falling back.")
-                        except Exception as e: # Catch any unexpected error during conversion
-                             logger.error(f"    Error converting U-Factor '{u_factor}' to float for material '{layer_id}': {e}. Falling back.")
-                    else:
-                        logger.warning(f"    Simple glazing material '{layer_id}' has 'u_factor' key but value is None. Falling back.")
-                    # If U-factor is None or conversion fails, fall through to resistance calculation
-                    break # Stop checking layers if simple glazing type found but no valid U-factor obtained
-
-            else:
-                 logger.warning(f"  Layer '{layer_id}' not found in cached materials.")
-
-        # --- Fallback: Calculate U-Value based on layer resistance ---
-        if not simple_glazing_found:
-             logger.debug(f"  No simple glazing found. Falling back to resistance calculation for '{construction_name}'.")
-        else: # simple_glazing_found is True, but we fell through
-             logger.debug(f"  Simple glazing found but failed to get valid U-factor. Falling back to resistance calculation for '{construction_name}'.")
-
-        # Calculate film resistance using MaterialsParser logic
-        film_resistance = 0.0 # Initialize
+                        u_value_float = safe_float(u_factor, -1.0)
+                        if u_value_float != -1.0:
+                            return u_value_float
+        film_resistance = 0.0
         try:
-            element_type = "Wall" # Default assumption
-            is_window = any(s.get('is_glazing', False) for s_id, s in surfaces.items() if s.get('construction_name') == construction_name)
+            element_type = "Wall"
+            is_window = any(s.get('is_glazing', False) for s in surfaces.values() if s.get('construction_name') == construction_name)
             if is_window:
                 element_type = "Window"
-            logger.debug(f"    Determined element type for film resistance: '{element_type}'")
-
-            # Ensure MaterialsParser._get_surface_film_resistance exists and is callable
             if hasattr(MaterialsParser, '_get_surface_film_resistance') and callable(getattr(MaterialsParser, '_get_surface_film_resistance')):
-                 film_resistance = MaterialsParser._get_surface_film_resistance(self, element_type) # Assuming static call works or is adapted
-                 logger.debug(f"    Calculated film resistance: {film_resistance}")
-            else:
-                 logger.warning(f"    MaterialsParser._get_surface_film_resistance not found or not callable. Using film_resistance=0.")
-
+                film_resistance = MaterialsParser._get_surface_film_resistance(self, element_type)
         except Exception as e:
-             logger.warning(f"    Error calculating film resistance for {construction_name}: {e}. Using default 0.")
-             film_resistance = 0.0
-
-        # Calculate material thermal resistance
+            logger.warning(f"Error calculating film resistance for {construction_name}: {e}.")
+            film_resistance = 0.0
         total_resistance = 0.0
-        logger.debug(f"    Calculating total material resistance...")
         for layer_id in material_layers:
             if layer_id in materials:
                 material_data = materials[layer_id]
-                # Log relevant properties for resistance calculation
                 thickness = material_data.get('thickness')
                 conductivity = material_data.get('conductivity')
-                resistance = material_data.get('thermal_resistance') # Direct R-value
-                logger.debug(f"      Layer '{layer_id}': Thickness={thickness}, Conductivity={conductivity}, Resistance={resistance}")
-
+                resistance = material_data.get('thermal_resistance')
                 layer_r = 0.0
-                # Use safe_float for robustness
                 thickness_f = safe_float(thickness, -1.0)
                 conductivity_f = safe_float(conductivity, -1.0)
                 resistance_f = safe_float(resistance, -1.0)
-
-                if thickness_f != -1.0 and conductivity_f > 0: # Check conductivity > 0 strictly
+                if thickness_f != -1.0 and conductivity_f > 0:
                     layer_r = thickness_f / conductivity_f
-                    logger.debug(f"        R = Thickness / Conductivity = {thickness_f} / {conductivity_f} = {layer_r}")
-                elif resistance_f != -1.0: # Check if direct resistance is valid
-                     layer_r = resistance_f
-                     logger.debug(f"        R = {layer_r} (from direct thermal_resistance)")
-                else:
-                     logger.warning(f"        Layer '{layer_id}': No valid thickness/conductivity or resistance found. R=0 for this layer.")
-
+                elif resistance_f != -1.0:
+                    layer_r = resistance_f
                 total_resistance += layer_r
-            # else: logger already warned above if layer_id not in materials
-
-        logger.debug(f"    Total material resistance (sum of layer R): {total_resistance}")
-
-        # Total R-value with film
         r_value_with_film = total_resistance + film_resistance
-        logger.debug(f"    Total R-value (material + film): {total_resistance} + {film_resistance} = {r_value_with_film}")
-
-        # Calculate U-Value as 1 / R-Value with film
-        u_value = 0.0 # Default
-        if r_value_with_film > 0:
-            u_value = 1.0 / r_value_with_film
-            logger.debug(f"  Calculated fallback U-Value for '{construction_name}': 1.0 / {r_value_with_film} = {u_value}")
-        else:
-             logger.warning(f"  Resulting U-Value is 0 for '{construction_name}' because total R-value (material + film) is <= 0.")
-
+        u_value = 1.0 / r_value_with_film if r_value_with_film > 0 else 0.0
         return u_value
-        
+
     def _merge_reverse_constructions(self, materials_parser: MaterialsParser) -> None:
         """
         Merges constructions with '_rev' or '_reverse' suffixes into their base counterparts
@@ -445,45 +321,29 @@ class AreaParser:
         
         Important: Glazing constructions are never merged, even if they have the same element types.
         """
-        logger.debug("--- Starting conditional merge of reverse constructions ---")
-        surfaces = self.data_loader.get_surfaces() # Needed for _get_element_type
-
+        surfaces = self.data_loader.get_surfaces()
         for zone_id, zone_data in self.areas_by_zone.items():
             constructions = zone_data.get("constructions", {})
             if not constructions:
                 continue
-
             construction_names = list(constructions.keys())
             to_remove = []
-
             for name in construction_names:
                 if name in to_remove:
                     continue
-
                 base_name = None
                 if name.endswith("_rev"):
                     base_name = name[:-4]
                 elif name.endswith("_reverse"):
                     base_name = name[:-8]
-
-                # Check if potential pair exists and base is not already marked for removal
                 if base_name and base_name in constructions and base_name not in to_remove:
                     reverse_name = name
-
-                    # Check if either construction is a glazing construction
                     is_base_glazing = base_name in self.parsed_glazing_data
                     is_reverse_glazing = reverse_name in self.parsed_glazing_data
-                    
-                    # If either is a glazing construction, skip the merge
                     if is_base_glazing or is_reverse_glazing:
-                        logger.debug(f"  Skipping merge for glazing constructions: '{reverse_name}' and '{base_name}' in zone '{zone_id}'")
                         continue
-                    
-                    # If not in parsed_glazing_data, also check elements for glazing types
                     base_elements = constructions[base_name].get("elements", [])
                     reverse_elements = constructions[reverse_name].get("elements", [])
-                    
-                    # Check if any elements are glazing
                     has_base_glazing_element = any(
                         element.get("element_type") in ["External Glazing", "Internal Glazing"] 
                         for element in base_elements
@@ -492,50 +352,24 @@ class AreaParser:
                         element.get("element_type") in ["External Glazing", "Internal Glazing"] 
                         for element in reverse_elements
                     )
-                    
-                    # If any element is glazing, skip the merge
                     if has_base_glazing_element or has_reverse_glazing_element:
-                        logger.debug(f"  Skipping merge for constructions with glazing elements: '{reverse_name}' and '{base_name}' in zone '{zone_id}'")
                         continue
-
-                    # Get element types for both base and reverse constructions
                     try:
                         base_types_list, base_dont_use = materials_parser._get_element_type(base_name, surfaces)
                         reverse_types_list, reverse_dont_use = materials_parser._get_element_type(reverse_name, surfaces)
-
-                        # Convert to sets for comparison
                         base_types_set = set(base_types_list)
                         reverse_types_set = set(reverse_types_list)
-
-                        # --- Conditional Merge Logic ---
-                        # Merge only if types are identical AND not empty
                         if base_types_set and base_types_set == reverse_types_set:
-                            logger.debug(f"  Merging '{reverse_name}' into '{base_name}' for zone '{zone_id}' (Types match: {base_types_set})")
-
                             base_constr = constructions[base_name]
                             reverse_constr = constructions[reverse_name]
-
-                            # Sum areas and area*u_value sums (total_u_value is needed internally for weighted U-value calc)
                             base_constr["total_area"] += reverse_constr.get("total_area", 0.0)
                             base_constr["total_u_value"] += reverse_constr.get("total_u_value", 0.0)
                             base_constr["elements"].extend(reverse_constr.get("elements", []))
                             to_remove.append(reverse_name)
-                            logger.debug(f"    Merged Area: {base_constr['total_area']}, Merged Internal Area*U: {base_constr['total_u_value']}")
-                        else:
-                             logger.debug(f"  Skipping merge for '{reverse_name}' and '{base_name}' in zone '{zone_id}'. Element types differ or empty (Base: {base_types_set}, Reverse: {reverse_types_set})")
-                        # --- End Conditional Merge ---
-
                     except Exception as e:
-                        logger.warning(f"  Error determining element types during merge check for '{base_name}'/'{reverse_name}': {e}. Skipping merge.")
-
-            # Remove the merged reverse constructions
-            if to_remove:
-                logger.debug(f"  Removing merged constructions for zone '{zone_id}': {to_remove}")
-                for key in to_remove:
-                    del constructions[key]
-
-        logger.debug("--- Finished conditional merging reverse constructions ---")
-
+                        logger.warning(f"Error determining element types during merge check for '{base_name}'/'{reverse_name}': {e}.")
+            for key in to_remove:
+                del constructions[key]
 
     def get_areas_by_zone(self) -> Dict[str, Dict[str, Any]]:
         """
@@ -573,14 +407,7 @@ class AreaParser:
             
             # Process constructions
             for construction_name, construction_data in zone_data.get("constructions", {}).items():
-                # Check if any element is glazing
-                is_glazing = False
-                for element in construction_data.get("elements", []):
-                    if element.get("element_type") == "Glazing":
-                        is_glazing = True
-                        break
-                
-                # Add to appropriate area total
+                is_glazing = any(element.get("element_type") == "Glazing" for element in construction_data.get("elements", []))
                 if is_glazing:
                     result["window_area"] += construction_data.get("total_area", 0.0)
                 elif "wall" in [e.get("element_type", "").lower() for e in construction_data.get("elements", [])]:
@@ -605,8 +432,8 @@ class AreaParser:
         # Use the instance stored during __init__
         parser_to_use = self.materials_parser
         if not parser_to_use:
-             logger.error("MaterialsParser instance is required for get_area_table_data (should be provided during AreaParser init).")
-             return result_by_area
+            logger.error("MaterialsParser instance is required for get_area_table_data.")
+            return result_by_area
 
         surfaces = self.data_loader.get_surfaces()
 
@@ -624,7 +451,7 @@ class AreaParser:
                 try:
                     determined_element_types, dont_use = parser_to_use._get_element_type(construction_name, surfaces)
                 except Exception as e:
-                    logger.warning(f"Error getting element type for '{construction_name}' from MaterialsParser: {e}. Skipping construction.")
+                    logger.warning(f"Error getting element type for '{construction_name}' from MaterialsParser: {e}.")
                     continue
                 if dont_use or not determined_element_types:
                     continue
@@ -663,18 +490,10 @@ class AreaParser:
                     element_area = element.get("area", 0.0)
                     if element_area <= 0.0:
                         continue
-                          # Add logging for glazing elements to track the CSV area in reports
                     element_specific_type = element.get("element_type", "Unknown")
                     if element_specific_type in ["External Glazing", "Internal Glazing"]:
-                        logger.debug(f"Adding glazing area to report: '{cleaned_construction_name}' in zone '{zone_id}', area: {element_area} m²")
-
-                    # Determine the type to use for aggregation/display
-                    element_specific_type = element.get("element_type", "Unknown")
-                    if element_specific_type in ["External Glazing", "Internal Glazing"]:
-                        # Use the specific glazing type if applicable
                         display_element_type = element_specific_type
                     else:
-                        # Otherwise, use the primary non-glazing type for the construction
                         display_element_type = primary_non_glazing_type
 
                     # Aggregate based on zone, cleaned construction name, and the determined display_element_type
@@ -730,8 +549,8 @@ class AreaParser:
             logger.error("IDF data must be processed before calculating H-values.")
             return h_values_by_area
         if not self.materials_parser:
-             logger.error("MaterialsParser instance is required for H-Value calculation.")
-             return h_values_by_area
+            logger.error("MaterialsParser instance is required for H-Value calculation.")
+            return h_values_by_area
 
         # Get the detailed table data which includes element types and area_loss
         # Note: get_area_table_data now returns data with 'area_loss' calculated
@@ -895,14 +714,6 @@ class AreaParser:
                     location = "Intermediate Floor"
                 elif max_ceiling_type == "separation_ceiling":
                     location = "Intermediate Floor Below Unconditioned"
-
-            # Add debug logging for location determination
-            logger.debug(f"Area {area_id} location determination:")
-            logger.debug(f"  Group 1 (Floors): Ground={sum_ground_floor}, External={sum_external_floor}, Separation={sum_separation_floor}, Intermediate={sum_intermediate_floor}")
-            logger.debug(f"  Group 2 (Ceilings): Roof={sum_roof}, Intermediate={sum_intermediate_ceiling}, Separation={sum_separation_ceiling}")
-            logger.debug(f"  Max Floor: {max_floor_type} ({max_group1[1]})") 
-            logger.debug(f"  Max Ceiling: {max_ceiling_type} ({max_group2[1]})")
-            logger.debug(f"  Determined location: {location}")
 
             h_values_by_area.append({
                 'area_id': area_id,

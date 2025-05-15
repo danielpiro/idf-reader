@@ -7,45 +7,26 @@ from pathlib import Path
 import re
 from utils.eppy_handler import EppyHandler
 
-# Pre-compile regex for area_id extraction
 AREA_ID_REGEX = re.compile(r"^\d{2}")
 
 def safe_float(value: Any, default: float = 0.0) -> float:
-    """
-    Safely convert a value to float, returning a default if conversion fails.
-    Handles numpy float types by converting them to Python floats.
-    
-    Args:
-        value: Value to convert to float
-        default: Default value to return if conversion fails
-        
-    Returns:
-        float: Converted value or default
-    """
+    """Safely convert a value to float, returning a default if conversion fails."""
     if value is None or value == '':
         return default
-        
     try:
-        # Handle numpy float types by converting to Python float
-        if hasattr(value, 'item'):  # Check if it's a numpy type
+        if hasattr(value, 'item'):
             return float(value.item())
         return float(value)
     except (ValueError, TypeError, AttributeError):
         return default
 
-
 class DataLoader:
-    """
-    Simplified DataLoader class focused on caching raw IDF data.
-    Implementation details for processing have been moved to the respective parsers.
-    """
+    """DataLoader for caching and retrieving IDF data."""
     def __init__(self):
         self._idf = None
         self._eppy_handler = None
-        self._idf_path = None # Store the path
+        self._idf_path = None
         self._loaded_sections = set()
-        
-        # Basic caches for raw IDF data
         self._zones_cache = {}
         self._hvac_zones_cache = []
         self._surfaces_cache = {}
@@ -56,25 +37,23 @@ class DataLoader:
         self._schedule_rules_cache = {}
         self._people_cache = {}
         self._lights_cache = {}
-        self._exterior_lights_cache = [] # Added cache for Exterior:Lights
+        self._exterior_lights_cache = []
         self._equipment_cache = {}
         self._infiltration_cache = {}
         self._ventilation_cache = {}
-        self._outdoor_air_spec_cache = {} # Cache for DesignSpecification:OutdoorAir
+        self._outdoor_air_spec_cache = {}
         self._windows_cache = {}
-        
-        # Window-related material caches
         self._window_glazing_cache = {}
         self._window_gas_cache = {}
         self._window_shade_cache = {}
         self._window_simple_glazing_cache = {}
         self._window_shading_control_cache = {}
-        self._frame_divider_cache = {} # Added cache for FrameAndDivider
+        self._frame_divider_cache = {}
         self._daylighting_controls_cache = {}
         self._daylighting_reference_point_cache = {}
+
     def ensure_output_variables(self, idf_path: str = None, idd_path: Optional[str] = None) -> bool:
-        """
-        Ensure required output variables exist in the IDF file before running the simulation.
+        """Ensure required output variables exist in the IDF file before running the simulation.
         Use this method before running the simulation to make sure energy rating variables are present.
         
         Args:
@@ -166,34 +145,17 @@ class DataLoader:
             output_variable.Reporting_Frequency = var_data['Reporting_Frequency']
     
     def _cache_zones(self) -> None:
-        """Cache raw zone data"""
+        """Cache raw zone data."""
         if not self._idf:
             return
-            
         self._zones_cache.clear()
-        
         for zone in self._idf.idfobjects['ZONE']:
             zone_id = str(zone.Name)
-            
-            # Check against pre-calculated flags in schedules
             for schedule_id, schedule_data in self._schedules_cache.items():
                 if schedule_data['is_hvac_indicator'] and zone_id in schedule_id:
                     self._hvac_zones_cache.append(zone_id)
-                    break # Found one, no need to check other schedules for this zone
-                    
-            # Extract area_id
-            area_id = None
-            try:
-                split = zone_id.split(":", 1)
-                if len(split) > 1 and split[1]:
-                    if AREA_ID_REGEX.match(split[1]):
-                        area_id = split[1][:2]  # Take first 2 chars if starts with digits
-                    else:
-                        area_id = split[1]  # Take whole string after colon
-            except:
-                pass # Silently ignore if area_id extraction fails
-            
-            # Cache raw zone data
+                    break
+            area_id = self._extract_area_id(zone_id)
             self._zones_cache[zone_id] = {
                 'id': zone_id,
                 'name': zone_id,
@@ -201,8 +163,8 @@ class DataLoader:
                 'floor_area': safe_float(getattr(zone, "Floor_Area", 0.0)),
                 'volume': safe_float(getattr(zone, "Volume", 0.0)),
                 'multiplier': int(safe_float(getattr(zone, "Multiplier", 1))),
-                'raw_object': zone,  # Store the raw object for parsers
-                'surfaces': zone.zonesurfaces  # Updated to include surfaces
+                'raw_object': zone,
+                'surfaces': zone.zonesurfaces
             }
     
     def _cache_surfaces(self) -> None:
@@ -424,19 +386,10 @@ class DataLoader:
             schedule_type = str(schedule.Schedule_Type_Limits_Name)
             
             # Get all non-empty fields after Name and Type
-            rule_fields = []
-            for field in schedule.fieldvalues[2:]:  # Skip Name and Type
-                if field.strip():
-                    rule_fields.append(str(field))
-            
+            rule_fields = [str(field) for field in schedule.fieldvalues[2:] if field.strip()]
+
             # Determine if schedule indicates HVAC zone (based on type/name)
-            schedule_name_lower = schedule_id.lower()
-            schedule_type_lower = schedule_type.lower()
-            is_hvac_indicator = (
-                'temperature' in schedule_type_lower and
-                ('heating' in schedule_name_lower or 'cooling' in schedule_name_lower) and
-                'setpoint' not in schedule_type_lower
-            )
+            is_hvac_indicator = self._is_hvac_indicator(schedule_id, schedule_type)
 
             # Cache raw schedule data
             self._schedules_cache[schedule_id] = {
@@ -673,32 +626,50 @@ class DataLoader:
 
     # _filter_constructions_glazing moved to parsers/glazing_parser.py
 
+    def _get_idfobjects(self, key: str) -> list:
+        """Helper to safely get IDF objects by key, returns empty list if not found."""
+        return self._idf.idfobjects.get(key, []) if self._idf and hasattr(self._idf, 'idfobjects') else []
+
+    def _get_field(self, obj, field: str, default=None):
+        """Helper to safely get a field from an object."""
+        return getattr(obj, field, default)
+
+    def _cache_dict(self, idf_key: str, cache: dict, fields: dict, type_name: str = None):
+        """Generic cache helper for simple IDF objects."""
+        cache.clear()
+        for obj in self._get_idfobjects(idf_key):
+            obj_id = str(self._get_field(obj, 'Name', ''))
+            if not obj_id:
+                continue
+            entry = {'id': obj_id, 'name': obj_id, 'raw_object': obj}
+            for k, v in fields.items():
+                entry[k] = v(obj)
+            if type_name:
+                entry['type'] = type_name
+            cache[obj_id] = entry
 
     # Getter methods for cached data
     def get_zones(self) -> Dict[str, Dict[str, Any]]:
-        """Get cached zone data"""
+        """Get cached zone data."""
         return self._zones_cache
     
     def get_hvac_zones(self) -> List[str]:
-        """Get cached HVAC zone names"""
+        """Get cached HVAC zone names."""
         return self._hvac_zones_cache
     
     def get_surfaces(self) -> Dict[str, Dict[str, Any]]:
-        """Get cached surface data"""
+        """Get cached surface data."""
         return self._surfaces_cache
     
     def get_materials(self) -> Dict[str, Dict[str, Any]]:
         """Get cached material data, merging all material types."""
-        # Merge all relevant material caches into one dictionary
         merged_materials = {
             **self._materials_cache,
             **self._window_glazing_cache,
             **self._window_gas_cache,
             **self._window_shade_cache,
             **self._window_simple_glazing_cache
-            # Add other window material caches if they exist and are needed
         }
-        # Add type information to each material for easier identification in parsers
         for mat_id, mat_data in merged_materials.items():
             if mat_id in self._materials_cache:
                 mat_data['type'] = 'Material'
@@ -710,8 +681,6 @@ class DataLoader:
                 mat_data['type'] = 'WindowMaterial:Shade'
             elif mat_id in self._window_simple_glazing_cache:
                 mat_data['type'] = 'WindowMaterial:SimpleGlazingSystem'
-            # Add elif for other types if necessary
-
         return merged_materials
     
     def get_constructions(self) -> Dict[str, Dict[str, Any]]:
@@ -829,3 +798,22 @@ class DataLoader:
     def get_outdoor_air_specifications(self) -> Dict[str, Dict[str, Any]]:
         """Get cached DesignSpecification:OutdoorAir data"""
         return self._outdoor_air_spec_cache
+
+    def _extract_area_id(self, zone_id: str) -> Optional[str]:
+        """Extract area_id from a zone_id string."""
+        split = zone_id.split(":", 1)
+        if len(split) > 1 and split[1]:
+            if AREA_ID_REGEX.match(split[1]):
+                return split[1][:2]
+            return split[1]
+        return None
+
+    def _is_hvac_indicator(self, schedule_id: str, schedule_type: str) -> bool:
+        """Determine if a schedule indicates an HVAC zone."""
+        schedule_name_lower = schedule_id.lower()
+        schedule_type_lower = schedule_type.lower()
+        return (
+            'temperature' in schedule_type_lower and
+            ('heating' in schedule_name_lower or 'cooling' in schedule_name_lower) and
+            'setpoint' not in schedule_type_lower
+        )

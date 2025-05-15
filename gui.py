@@ -5,7 +5,6 @@ import json
 import os
 import subprocess
 import threading
-import csv
 from pathlib import Path
 from datetime import datetime
 from utils.data_loader import DataLoader
@@ -15,35 +14,27 @@ from generators.schedule_report_generator import generate_schedules_report_pdf
 from generators.load_report_generator import generate_loads_report_pdf
 from generators.area_report_generator import generate_area_reports
 from generators.materials_report_generator import generate_materials_report_pdf
-# Import new glazing components PDF function
 from generators.glazing_report_generator import generate_glazing_report_pdf
-# Import lighting components
 from generators.lighting_report_generator import LightingReportGenerator
-# Import area loss components
-from parsers.area_loss_parser import AreaLossParser
 from generators.area_loss_report_generator import generate_area_loss_report_pdf
-# Import energy rating components
-from parsers.energy_rating_parser import EnergyRatingParser
+from parsers.area_loss_parser import AreaLossParser
 from generators.energy_rating_report_generator import EnergyRatingReportGenerator
+from parsers.energy_rating_parser import EnergyRatingParser
 from parsers.schedule_parser import ScheduleExtractor
 from parsers.settings_parser import SettingsExtractor
 from parsers.load_parser import LoadExtractor
 from parsers.materials_parser import MaterialsParser
 from parsers.area_parser import AreaParser
-# Import new glazing components
 from parsers.glazing_parser import GlazingParser
 from parsers.eplustbl_reader import read_glazing_data_from_csv
-# Import lighting parser
 from parsers.lighting_parser import LightingParser
 
 class ProcessingManager:
-    # Removed energyplus_dir from init
-    # Added simulation_output_csv parameter
     def __init__(self, status_callback=None, progress_callback=None, simulation_output_csv=None):
         self.status_callback = status_callback
         self.progress_callback = progress_callback
         self.is_cancelled = False
-        self.simulation_output_csv = simulation_output_csv # Store the path
+        self.simulation_output_csv = simulation_output_csv
 
     def update_status(self, message):
         if self.status_callback:
@@ -58,192 +49,109 @@ class ProcessingManager:
         if directory and not os.path.exists(directory):
             os.makedirs(directory)
 
-    # Added idd_path parameter, output_dir remains
     def process_idf(self, input_file: str, idd_path: str, output_dir: str) -> bool:
         try:
-            # Generate project name and run ID
             project_name = Path(input_file).stem
             run_id = datetime.now().strftime('%Y%m%d_%H%M%S')
-
-            # Initialize progress
             self.update_progress(0.0)
             self.update_status("Initializing...")
-
-            # Setup output paths
             base_output = os.path.join(output_dir, "reports")
             settings_pdf_path = os.path.join(base_output, "settings.pdf")
             schedules_pdf_path = os.path.join(base_output, "schedules.pdf")
             loads_pdf_path = os.path.join(base_output, "loads.pdf")
             materials_pdf_path = os.path.join(base_output, "materials.pdf")
-            # Add path for glazing PDF report
-            glazing_pdf_path = os.path.join(base_output, "glazing.pdf") # Changed to PDF
-            lighting_pdf_path = os.path.join(base_output, "lighting.pdf")            # Add path for area loss PDF report
+            glazing_pdf_path = os.path.join(base_output, "glazing.pdf")
+            lighting_pdf_path = os.path.join(base_output, "lighting.pdf")
             area_loss_pdf_path = os.path.join(base_output, "area-loss.pdf")
-            # Add path for energy rating PDF report
             energy_rating_pdf_path = os.path.join(base_output, "energy-rating.pdf")
-
-            # Create output directories
             for path in [settings_pdf_path, schedules_pdf_path, loads_pdf_path,
                         materials_pdf_path, glazing_pdf_path, lighting_pdf_path, area_loss_pdf_path,
                         energy_rating_pdf_path]:
                 self.ensure_directory_exists(path)
-
             self.update_progress(0.1)
             self.update_status("Loading IDF file...")
-
-            # Initialize handlers and load file
             data_loader = DataLoader()
-            # Pass idd_path to DataLoader as well
             data_loader.load_file(input_file, idd_path=idd_path)
-
-            # Initialize EppyHandler with the provided idd_path
             eppy_handler = EppyHandler(idd_path=idd_path)
             idf = eppy_handler.load_idf(input_file)
-
             self.update_progress(0.2)
             self.update_status("Initializing parsers...")
-
-            # Initialize parsers
-            # Pass only data_loader (it contains the path and idf object)
             settings_extractor = SettingsExtractor(data_loader)
             schedule_extractor = ScheduleExtractor(data_loader)
             load_extractor = LoadExtractor(data_loader)
             materials_extractor = MaterialsParser(data_loader)
-            # area_parser = AreaParser(data_loader) # Moved after GlazingParser
-            # Initialize GlazingParser - needs relevant caches from data_loader
             glazing_parser = GlazingParser(
                 constructions_glazing_cache=data_loader._constructions_glazing_cache,
                 window_simple_glazing_cache=data_loader._window_simple_glazing_cache,
                 window_glazing_cache=data_loader._window_glazing_cache,
                 window_gas_cache=data_loader._window_gas_cache,
                 window_shade_cache=data_loader._window_shade_cache,
-                # --- ADDED ---
-                window_shading_control_cache=data_loader._window_shading_control_cache, # Pass the control cache
-                # -------------
-                # --- ADDED ---
-                windows_cache=data_loader.get_raw_windows_cache(), # Pass the raw windows cache
-                # -------------
-                simulation_output_csv=self.simulation_output_csv, # Pass the CSV path
-                # --- ADDED ---
-                frame_divider_cache=data_loader._frame_divider_cache # Pass the frame cache
-                # -------------
-            )            # Parse glazing data *before* initializing AreaParser
+                window_shading_control_cache=data_loader._window_shading_control_cache,
+                windows_cache=data_loader.get_raw_windows_cache(),
+                simulation_output_csv=self.simulation_output_csv,
+                frame_divider_cache=data_loader._frame_divider_cache
+            )
             parsed_glazing = glazing_parser.parse_glazing_data()
-            
-            # Get glazing data from CSV if available
             simulation_output_csv = self.simulation_output_csv
-            if simulation_output_csv and os.path.exists(simulation_output_csv):                
-                csv_glazing_data = read_glazing_data_from_csv(simulation_output_csv)                # Update the parsed_glazing_data with values from the CSV
+            if simulation_output_csv and os.path.exists(simulation_output_csv):
+                csv_glazing_data = read_glazing_data_from_csv(simulation_output_csv)
                 matched_constructions = 0
-                # Create case-insensitive mapping for parsed_glazing keys
                 glazing_keys_lower = {k.lower(): k for k in parsed_glazing.keys()}
                 for construction_name, csv_data in csv_glazing_data.items():
-                    # Add debug output for 6+6+6 constructions
-                    if "6+6+6" in construction_name:
-                        print(f"DEBUG: Processing CSV data for '{construction_name}': {csv_data}")
-                    
-                    # Try direct match first
                     if construction_name in parsed_glazing:
-                        # Update system_details with CSV data
                         if 'system_details' not in parsed_glazing[construction_name]:
                             parsed_glazing[construction_name]['system_details'] = {}
                         parsed_glazing[construction_name]['system_details'].update(csv_data)
-                        if "6+6+6" in construction_name:
-                            print(f"DEBUG: Updated system_details for '{construction_name}': {parsed_glazing[construction_name]['system_details']}")
                         matched_constructions += 1
-                    # Try case-insensitive match
                     elif construction_name.lower() in glazing_keys_lower:
-                        # Get the actual key with correct case from parsing
                         actual_key = glazing_keys_lower[construction_name.lower()]
-                        # Log the match for debugging
-                        print(f"Case-insensitive match found: CSV '{construction_name}' -> Parser '{actual_key}'")
-                        # Update system_details with CSV data using the actual key
                         if 'system_details' not in parsed_glazing[actual_key]:
                             parsed_glazing[actual_key]['system_details'] = {}
                         parsed_glazing[actual_key]['system_details'].update(csv_data)
-                        if "6+6+6" in construction_name:
-                            print(f"DEBUG: Updated system_details for '{actual_key}' (case-insensitive match): {parsed_glazing[actual_key]['system_details']}")
                         matched_constructions += 1
-                
                 self.update_status(f"Glazing data updated from CSV for {matched_constructions} constructions")
-
-            # Now initialize AreaParser, passing the parsed glazing data
-            area_parser = AreaParser(data_loader, parsed_glazing, materials_extractor) # Pass materials_extractor
-            # Initialize LightingParser
+            area_parser = AreaParser(data_loader, parsed_glazing, materials_extractor)
             lighting_parser = LightingParser(data_loader)
-            
-            # Initialize AreaLossParser after AreaParser
-            # Get city area name from ProcessingManager's city_info if available
-            city_area_name = "א"  # Default value
+            city_area_name = "א"
             if hasattr(self, 'city_info') and self.city_info and 'area_name' in self.city_info:
                 city_area_name = self.city_info.get('area_name', "א")
                 self.update_status(f"Using city area '{city_area_name}' for thermal loss calculations")
-            
             area_loss_parser = AreaLossParser(area_parser, city_area_name)
-
             if self.is_cancelled:
                 return False
-
             self.update_progress(0.3)
             self.update_status("Processing settings...")
-
-            # Call the extractor's own process_idf method (it gets idf from data_loader)
             settings_extractor.process_idf()
-            # Remove the manual loop below:
-            # settings_objects = eppy_handler.get_settings_objects(idf)
-            # for obj_type, objects in settings_objects.items():
-            #     for obj in objects:
-            #         settings_extractor.process_eppy_object(obj_type, obj)
-
             self.update_progress(0.4)
             self.update_status("Processing schedules...")
-
-            # Process schedules
             for schedule in eppy_handler.get_schedule_objects(idf):
                 schedule_extractor.process_eppy_schedule(schedule)
-
             if self.is_cancelled:
                 return False
-
             self.update_progress(0.5)
             self.update_status("Processing other data...")
-
-            # Process other data
             load_extractor.process_idf(idf)
             materials_extractor.process_idf(idf)
             area_parser.process_idf(idf)
-            # Glazing data was already parsed before AreaParser initialization
-            # Parse lighting data
             parsed_lighting = lighting_parser.parse()
-
             self.update_progress(0.6)
             self.update_status("Extracting processed data...")
-
-            # Get extracted data
             extracted_settings = settings_extractor.get_settings()
             extracted_schedules = schedule_extractor.get_parsed_unique_schedules()
             extracted_loads = load_extractor.get_parsed_zone_loads()
             extracted_element_data = materials_extractor.get_element_data()
-            # extracted_areas = area_parser.get_parsed_areas() # Incorrect method call removed
-            extracted_glazing_data = glazing_parser.parsed_glazing_data # Get parsed data
-            extracted_lighting_data = parsed_lighting # Get parsed lighting data            # Get area loss data from area_loss_parser
-            extracted_area_loss_data = area_loss_parser.parse() # This calls parse() to calculate H-values
-            
-            # Initialize energy rating parser and process data if simulation output CSV is available
+            extracted_glazing_data = glazing_parser.parsed_glazing_data
+            extracted_lighting_data = parsed_lighting
+            extracted_area_loss_data = area_loss_parser.parse()
             energy_rating_parser = EnergyRatingParser(data_loader, area_parser)
             if self.simulation_output_csv:
                 energy_rating_parser.process_output(self.simulation_output_csv)
             else:
-                # Try to find CSV in standard locations relative to IDF file
                 energy_rating_parser.process_output()
-
             if self.is_cancelled:
                 return False
-
             self.update_progress(0.7)
             self.update_status("Generating reports...")
-
-            # Generate reports
             self.update_status("Generating Settings report...")
             generate_settings_report_pdf(
                 extracted_settings,
@@ -253,7 +161,6 @@ class ProcessingManager:
             )
             self.update_status("Settings report generation attempted.")
             self.update_progress(0.75)
-
             self.update_status("Generating Schedules report...")
             generate_schedules_report_pdf(
                 extracted_schedules,
@@ -263,7 +170,6 @@ class ProcessingManager:
             )
             self.update_status("Schedules report generation attempted.")
             self.update_progress(0.8)
-
             self.update_status("Generating Loads report...")
             generate_loads_report_pdf(
                 extracted_loads,
@@ -273,7 +179,6 @@ class ProcessingManager:
             )
             self.update_status("Loads report generation attempted.")
             self.update_progress(0.85)
-
             self.update_status("Generating Materials report...")
             generate_materials_report_pdf(
                 extracted_element_data,
@@ -283,23 +188,18 @@ class ProcessingManager:
             )
             self.update_status("Materials report generation attempted.")
             self.update_progress(0.9)
-
-            # Pass the area_parser instance and the specific zones output directory
             self.update_status("Generating Area reports...")
-            zones_output_dir = os.path.join(base_output, "zones") # Create path for zones subfolder
+            zones_output_dir = os.path.join(base_output, "zones")
             generate_area_reports(
                 area_parser,
                 output_dir=zones_output_dir,
                 project_name=project_name,
                 run_id=run_id
-            ) # Pass the new path and header info
+            )
             self.update_status("Area reports generation attempted.")
-            self.update_progress(0.95) # Adjust progress
-
-            # Generate Glazing PDF report
+            self.update_progress(0.95)
             self.update_status("Generating Glazing report (PDF)...")
             try:
-                # Call the standalone PDF generation function with header info
                 success_glazing = generate_glazing_report_pdf(
                     extracted_glazing_data,
                     glazing_pdf_path,
@@ -309,53 +209,42 @@ class ProcessingManager:
                 if success_glazing:
                     self.update_status("Glazing report generated successfully.")
                 else:
-                    # The function itself prints errors, but we can add a status here
                     self.update_status("Glazing report generation failed (check console for details).")
             except Exception as e:
-                 self.update_status(f"Error generating Glazing PDF report: {e}")
-            self.update_progress(0.98) # Adjust progress before lighting
-
-            # Generate Lighting PDF report
+                self.update_status(f"Error generating Glazing PDF report: {e}")
+            self.update_progress(0.98)
             self.update_status("Generating Lighting report (PDF)...")
             try:
-                # Pass project_name and run_id to the constructor
                 lighting_generator = LightingReportGenerator(
                     extracted_lighting_data,
                     lighting_pdf_path,
                     project_name=project_name,
                     run_id=run_id
                 )
-                # generate_report now returns True/False
                 success_lighting = lighting_generator.generate_report()
                 if success_lighting:
                     self.update_status("Lighting report generated successfully.")
                 else:
                     self.update_status("Lighting report generation failed (check console for details).")
             except Exception as e:
-                 self.update_status(f"Error generating Lighting PDF report: {e}")
-            self.update_progress(1.0) # Final progress
-
-            # Generate Area Loss PDF report
+                self.update_status(f"Error generating Lighting PDF report: {e}")
+            self.update_progress(1.0)
             self.update_status("Generating Area Loss report (PDF)...")
             try:
-                # Call the standalone PDF generation function with header info
                 success_area_loss = generate_area_loss_report_pdf(
                     extracted_area_loss_data,
                     area_loss_pdf_path,
                     project_name=project_name,
                     run_id=run_id
-                )                
+                )
                 if success_area_loss:
                     self.update_status("Area Loss report generated successfully.")
                 else:
                     self.update_status("Area Loss report generation failed (check console for details).")
             except Exception as e:
                 self.update_status(f"Error generating Area Loss PDF report: {e}")
-                 
-            # Generate Energy Rating PDF report
             self.update_status("Generating Energy Rating report (PDF)...")
             try:
-                # Use the EnergyRatingReportGenerator class
                 energy_rating_generator = EnergyRatingReportGenerator(
                     energy_rating_parser,
                     output_dir=base_output
@@ -368,11 +257,9 @@ class ProcessingManager:
                 else:
                     self.update_status("Energy Rating report generation failed (check console for details).")
             except Exception as e:
-                 self.update_status(f"Error generating Energy Rating PDF report: {e}")
-
+                self.update_status(f"Error generating Energy Rating PDF report: {e}")
             self.update_status("Processing completed successfully!")
             return True
-
         except Exception as e:
             self.update_status(f"Error: {str(e)}")
             raise
@@ -998,9 +885,6 @@ class IDFProcessorGUI(ctk.CTk):
                     [energyplus_exe, "-w", epw_file_path, "-r", "-d", simulation_output_dir, input_file],
                     check=True, capture_output=True, text=True, encoding='utf-8', errors='ignore'
                 )
-                print("--- EnergyPlus Output ---")
-                print(sim_result.stdout)
-                print("-------------------------")
 
                 # Check for the specific output file needed
                 output_csv_path = os.path.join(simulation_output_dir, "eplustbl.csv")
@@ -1044,7 +928,6 @@ class IDFProcessorGUI(ctk.CTk):
                 self.update_idletasks()
             # --- End EnergyPlus Simulation ---
             
-            # Rest of the method remains unchanged
             # --- Process IDF File (only if simulation was successful and not cancelled) ---
             if simulation_successful and self.is_processing:
                 self.show_status("Simulation complete. Starting IDF processing and report generation...")

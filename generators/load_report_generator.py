@@ -2,14 +2,14 @@
 Generates PDF reports showing zone loads and their associated schedules.
 """
 # Use platypus for automatic pagination
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer, PageBreak
-from reportlab.lib.pagesizes import A4, landscape, A3
-from reportlab.lib.units import cm, inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, Spacer
+from reportlab.lib.pagesizes import landscape, A3
+from reportlab.lib.units import cm
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.colors import navy, black, grey, lightgrey, white , darkgray
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
-import ast # Add import for literal_eval
-import datetime # Add datetime import
+from reportlab.lib.colors import navy, black, lightgrey, white, grey
+from reportlab.lib.enums import TA_CENTER
+import datetime
+from reportlab.platypus import TableStyle
 
 def wrap_text(text, style):
     """Helper function to create wrapped text in a cell."""
@@ -271,8 +271,26 @@ def extract_setpoint(schedule_values, setpoint_type, zone_name=None, all_schedul
     
     return '-'
 
-def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf",
-                              project_name: str = "N/A", run_id: str = "N/A"):
+def _get_load_data(loads, load_type, key, default='-'):
+    return loads.get(load_type, {}).get(key, default) or default
+
+def _get_schedule_name(schedules, schedule_type, default='-'):
+    sched_info = schedules.get(schedule_type)
+    if isinstance(sched_info, dict):
+        return sched_info.get('name', default) or default
+    return sched_info or default
+
+def _to_str(val, precision=None):
+    if val is None:
+        return '-'
+    if precision is not None:
+        try:
+            return f"{float(val):.{precision}f}"
+        except (ValueError, TypeError):
+            return str(val)
+    return str(val)
+
+def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", project_name="N/A", run_id="N/A"):
     """
     Generates a PDF report containing zone loads, including a header.
 
@@ -281,46 +299,27 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf",
         output_filename (str): The name of the output PDF file.
         project_name (str): Name of the project.
         run_id (str): Identifier for the current run.
+
+    Returns:
+        bool: True if report generated successfully, False otherwise.
     """
-    # Use SimpleDocTemplate for automatic page layout
-    # Use A3 Landscape with minimal margins to maximize table space
-    left_margin = 0.5*cm
-    right_margin = 0.5*cm
-    top_margin = 1.0*cm
-    bottom_margin = 1.0*cm
-    page_size = landscape(A3)  # A3 gives much more space than A4
-    
+    left_margin = right_margin = 0.5 * cm
+    top_margin = bottom_margin = 1.0 * cm
+    page_size = landscape(A3)
     doc = SimpleDocTemplate(output_filename, pagesize=page_size,
                             leftMargin=left_margin, rightMargin=right_margin,
                             topMargin=top_margin, bottomMargin=bottom_margin)
     story = []
-    width, height = page_size
-    content_width = width - left_margin - right_margin # Available content width
-
-    # Styles
+    width, _ = page_size
+    content_width = width - left_margin - right_margin
     styles = getSampleStyleSheet()
     cell_style = create_cell_style(styles)
     header_cell_style = create_cell_style(styles, is_header=True)
     title_style = styles['h1']
     title_style.textColor = navy
-    title_style.alignment = TA_CENTER  # Center the title
-    section_title_style = styles['h2']
-    section_title_style.spaceBefore = 0.5 * cm
-    section_title_style.spaceAfter = 0.3 * cm
-    zone_name_style = ParagraphStyle(
-        name='ZoneName', parent=styles['Normal'], fontName='Helvetica-Bold',
-        fontSize=10, # Slightly larger for zone names
-        spaceBefore = 0.4*cm, spaceAfter=0.1*cm
-    )
+    title_style.alignment = TA_CENTER
     header_info_style = ParagraphStyle(
-        'HeaderInfo',
-        parent=styles['Normal'],
-        fontSize=9,
-        textColor=black, # Changed from darkgray to black
-        alignment=2 # Right aligned
-    )
-
-    # --- Header ---
+        'HeaderInfo', parent=styles['Normal'], fontSize=9, textColor=black, alignment=2)
     now = datetime.datetime.now()
     header_text = f"""
     Project: {project_name}<br/>
@@ -329,271 +328,103 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf",
     Report: Zone Loads Summary
     """
     story.append(Paragraph(header_text, header_info_style))
-    story.append(Spacer(1, 5)) # Add some space after header
-
-    # --- Title ---
-    title_text = "IDF Zone Loads Report"
-    story.append(Paragraph(title_text, title_style))
-    story.append(Spacer(1, 0.5*cm)) # Reduce space after title
-
+    story.append(Spacer(1, 5))
+    story.append(Paragraph("IDF Zone Loads Report", title_style))
+    story.append(Spacer(1, 0.5 * cm))
     if not zone_data:
         story.append(Paragraph("No zones found or processed.", styles['Normal']))
         try:
             doc.build(story)
-            print(f"Generated empty loads report: {output_filename}")
             return True
         except Exception as e:
-            print(f"Error generating empty loads PDF file {output_filename}: {e}")
-            return False
-
-    # Create consistent cell style for data cells
-    cell_style = create_cell_style(styles)
-
+            raise RuntimeError(f"Error generating empty loads PDF file {output_filename}: {e}")
     try:
-        # --- Consolidated Load Table ---
         table_data = []
-
-        # Define Hierarchical Header Rows
         header_row1 = [
             "Zone", "Occupancy", "", "", "Lighting", "",
             "Non Fixed Equipment", "", "Fixed Equipment", "",
             "Heating", "", "", "Cooling", "", "",
-            "Infiltration", "", "Ventilation", "", "Mechanical Ventilation", "" # Added Mechanical Ventilation
+            "Infiltration", "", "Ventilation", "", "Mechanical Ventilation", ""
         ]
         header_row2 = [
-            "", # Spanned by Zone in row 1
-            "people/\narea", "activity\nschedule\nw/person", "schedule\ntemplate\nname", # Occupancy
-            "power\ndensity\n[w/m2]", "schedule\ntemplate\nname", # Lighting
-            "power\ndensity\n(W/m2)", "schedule\ntemplate\nname", # Non Fixed Equipment
-            "power\ndensity\n(W/m2)", "schedule\ntemplate\nname", # Fixed Equipment
-            "setpoint\n(C)", "setpoint\nnon work\ntime(C)", "equipment\nschedule\ntemplate\nname", # Heating
-            "setpoint\n(C)", "setpoint\nnon work\ntime(C)", "equipment\nschedule\ntemplate\nname", # Cooling
-            "rate\n(ACH)", "schedule", # Infiltration
-            "rate\n(ACH)", "schedule", # Ventilation
-            "Outdoor Air\nFlow per Person\n{m3/s}", "Outdoor Air\nFlow Rate Fraction\nSchedule Name" # Mechanical Ventilation - New Subheaders
+            "", "people/\narea", "activity\nschedule\nw/person", "schedule\ntemplate\nname",
+            "power\ndensity\n[w/m2]", "schedule\ntemplate\nname",
+            "power\ndensity\n(W/m2)", "schedule\ntemplate\nname",
+            "power\ndensity\n(W/m2)", "schedule\ntemplate\nname",
+            "setpoint\n(C)", "setpoint\nnon work\ntime(C)", "equipment\nschedule\ntemplate\nname",
+            "setpoint\n(C)", "setpoint\nnon work\ntime(C)", "equipment\nschedule\ntemplate\nname",
+            "rate\n(ACH)", "schedule", "rate\n(ACH)", "schedule",
+            "Outdoor Air\nFlow per Person\n{m3/s}", "Outdoor Air\nFlow Rate Fraction\nSchedule Name"
         ]
-
-        # Apply styles to header cells
         styled_header_row1 = [wrap_text(h, header_cell_style) if h else "" for h in header_row1]
         styled_header_row2 = [wrap_text(h, header_cell_style) if h else "" for h in header_row2]
-
         table_data.append(styled_header_row1)
         table_data.append(styled_header_row2)
-
-        # Populate Data Rows
         for zone_name, zone_info in zone_data.items():
             loads = zone_info.get('loads', {})
             schedules = zone_info.get('schedules', {})
-
-            # Helper to safely get nested data or return default
-            def get_load_data(load_type, key, default='-'):
-                return loads.get(load_type, {}).get(key, default) or default
-
-            def get_schedule_name(schedule_type, default='-'):
-                 sched_info = schedules.get(schedule_type)
-                 if isinstance(sched_info, dict):
-                     return sched_info.get('name', default) or default
-                 return sched_info or default # Fallback if not a dict
-
-            # Extract data for each column
-            people_density = get_load_data('people', 'people_per_area', 0.0)
-            people_activity_sched = get_load_data('people', 'activity_schedule')
-            people_sched = get_load_data('people', 'schedule')
-
-            lights_density = get_load_data('lights', 'watts_per_area', 0.0)
-            lights_sched = get_load_data('lights', 'schedule')
-
-            non_fixed_density = get_load_data('non_fixed_equipment', 'watts_per_area', 0.0)
-            non_fixed_sched = get_load_data('non_fixed_equipment', 'schedule')
-
-            fixed_density = get_load_data('fixed_equipment', 'watts_per_area', 0.0)
-            fixed_sched = get_load_data('fixed_equipment', 'schedule')
-
+            people_density = _get_load_data(loads, 'people', 'people_per_area', 0.0)
+            people_activity_sched = _get_load_data(loads, 'people', 'activity_schedule')
+            people_sched = _get_load_data(loads, 'people', 'schedule')
+            lights_density = _get_load_data(loads, 'lights', 'watts_per_area', 0.0)
+            lights_sched = _get_load_data(loads, 'lights', 'schedule')
+            non_fixed_density = _get_load_data(loads, 'non_fixed_equipment', 'watts_per_area', 0.0)
+            non_fixed_sched = _get_load_data(loads, 'non_fixed_equipment', 'schedule')
+            fixed_density = _get_load_data(loads, 'fixed_equipment', 'watts_per_area', 0.0)
+            fixed_sched = _get_load_data(loads, 'fixed_equipment', 'schedule')
             heating_schedule_obj = schedules.get('heating')
             heating_sched_name = heating_schedule_obj.get('name', '-') if isinstance(heating_schedule_obj, dict) else '-'
             heating_sched_values = heating_schedule_obj.get('schedule_values', []) if isinstance(heating_schedule_obj, dict) else []
             heating_setpoint = extract_setpoint(heating_sched_values, 'work', zone_name, heating_schedule_obj)
             heating_setpoint_non_work = extract_setpoint(heating_sched_values, 'non_work', zone_name, heating_schedule_obj)
-
             cooling_schedule_obj = schedules.get('cooling')
             cooling_sched_name = cooling_schedule_obj.get('name', '-') if isinstance(cooling_schedule_obj, dict) else '-'
             cooling_sched_values = cooling_schedule_obj.get('schedule_values', []) if isinstance(cooling_schedule_obj, dict) else []
             cooling_setpoint = extract_setpoint(cooling_sched_values, 'work', zone_name, cooling_schedule_obj)
             cooling_setpoint_non_work = extract_setpoint(cooling_sched_values, 'non_work', zone_name, cooling_schedule_obj)
-
-            infil_rate = get_load_data('infiltration', 'rate_ach', 0.0)
-            infil_sched = get_load_data('infiltration', 'schedule')
-
-            vent_rate = get_load_data('ventilation', 'rate_ach', 0.0)
-            vent_sched = get_load_data('ventilation', 'schedule')
-
-            mech_vent_flow_per_person = get_load_data('mechanical_ventilation', 'outdoor_air_flow_per_person', 0.0)
-            mech_vent_sched = get_load_data('mechanical_ventilation', 'schedule')
-
-            # Format data for the row
-            # Ensure all data is string before wrapping
-            def to_str(val, precision=None):
-                if val is None: return '-'
-                if precision is not None:
-                    try:
-                        return f"{float(val):.{precision}f}"
-                    except (ValueError, TypeError):
-                        return str(val) # Fallback to string if formatting fails
-                return str(val)
-
+            infil_rate = _get_load_data(loads, 'infiltration', 'rate_ach', 0.0)
+            infil_sched = _get_load_data(loads, 'infiltration', 'schedule')
+            vent_rate = _get_load_data(loads, 'ventilation', 'rate_ach', 0.0)
+            vent_sched = _get_load_data(loads, 'ventilation', 'schedule')
+            mech_vent_flow_per_person = _get_load_data(loads, 'mechanical_ventilation', 'outdoor_air_flow_per_person', 0.0)
+            mech_vent_sched = _get_load_data(loads, 'mechanical_ventilation', 'schedule')
             row_data = [
-                wrap_text(to_str(zone_name), cell_style),
-                # Occupancy
-                wrap_text(to_str(people_density, 2), cell_style),
-                wrap_text(to_str(people_activity_sched), cell_style),
-                wrap_text(to_str(people_sched), cell_style),
-                # Lighting
-                wrap_text(to_str(lights_density, 1), cell_style),
-                wrap_text(to_str(lights_sched), cell_style),
-                # Non Fixed Equipment
-                wrap_text(to_str(non_fixed_density, 1), cell_style),
-                wrap_text(to_str(non_fixed_sched), cell_style),
-                # Fixed Equipment
-                wrap_text(to_str(fixed_density, 1), cell_style),
-                wrap_text(to_str(fixed_sched), cell_style),
-                # Heating
-                wrap_text(to_str(heating_setpoint), cell_style),
-                wrap_text('-', cell_style), # Always display '-' for non-work heating setpoint
-                wrap_text(to_str(heating_sched_name), cell_style),
-                # Cooling
-                wrap_text(to_str(cooling_setpoint), cell_style),
-                wrap_text('-', cell_style), # Always display '-' for non-work cooling setpoint
-                wrap_text(to_str(cooling_sched_name), cell_style),
-                # Infiltration
-                wrap_text(to_str(infil_rate, 2), cell_style),
-                wrap_text(to_str(infil_sched), cell_style),
-                # Ventilation
-                wrap_text(to_str(vent_rate, 2), cell_style),
-                wrap_text(to_str(vent_sched), cell_style),
-                # Mechanical Ventilation
-                wrap_text(to_str(mech_vent_flow_per_person, 3), cell_style), # Using 3 decimal places for m3/s
-                wrap_text(to_str(mech_vent_sched), cell_style),
+                wrap_text(_to_str(zone_name), cell_style),
+                wrap_text(_to_str(people_density, 2), cell_style),
+                wrap_text(_to_str(people_activity_sched), cell_style),
+                wrap_text(_to_str(people_sched), cell_style),
+                wrap_text(_to_str(lights_density, 1), cell_style),
+                wrap_text(_to_str(lights_sched), cell_style),
+                wrap_text(_to_str(non_fixed_density, 1), cell_style),
+                wrap_text(_to_str(non_fixed_sched), cell_style),
+                wrap_text(_to_str(fixed_density, 1), cell_style),
+                wrap_text(_to_str(fixed_sched), cell_style),
+                wrap_text(_to_str(heating_setpoint), cell_style),
+                wrap_text(_to_str(heating_setpoint_non_work), cell_style),
+                wrap_text(_to_str(heating_sched_name), cell_style),
+                wrap_text(_to_str(cooling_setpoint), cell_style),
+                wrap_text(_to_str(cooling_setpoint_non_work), cell_style),
+                wrap_text(_to_str(cooling_sched_name), cell_style),
+                wrap_text(_to_str(infil_rate, 2), cell_style),
+                wrap_text(_to_str(infil_sched), cell_style),
+                wrap_text(_to_str(vent_rate, 2), cell_style),
+                wrap_text(_to_str(vent_sched), cell_style),
+                wrap_text(_to_str(mech_vent_flow_per_person, 3), cell_style),
+                wrap_text(_to_str(mech_vent_sched), cell_style),
             ]
             table_data.append(row_data)
-
-        # Create and style the table
-        if len(table_data) > 2: # Check if there's data beyond the two header rows
-            # Optimize column widths based on content importance and available space
-            # Calculate total available width and distribute proportionally
-            available_width = content_width - 1*cm  # Allow some buffer
-            
-            # Define column width percentages (totaling 100%)
+        if len(table_data) > 2:
+            available_width = content_width - 1 * cm
             col_percentages = [
-                7.0,  # Zone - keep wider for zone names
-                3.5,  # people/area - narrow numeric column
-                5.5,  # activity schedule - medium width for text
-                8.0,  # occupancy schedule name - wider for long names
-                3.5,  # lighting density - narrow numeric column
-                6.5,  # lighting schedule name - medium width for names
-                3.5,  # non-fixed density - narrow numeric column
-                6.5,  # non-fixed schedule name - medium width for names
-                3.5,  # fixed density - narrow numeric column
-                6.5,  # fixed schedule name - medium width for names
-                3.0,  # heating setpoint - very narrow numeric column
-                3.5,  # heating non-work setpoint - narrow numeric column
-                8.0,  # heating schedule name - wider for long names
-                3.0,  # cooling setpoint - very narrow numeric column
-                3.5,  # cooling non-work setpoint - narrow numeric column
-                8.0,  # cooling schedule name - wider for long names
-                3.0,  # infil rate - very narrow numeric column
-                5.0,  # infil schedule - medium width for names
-                3.0,  # vent rate - very narrow numeric column
-                5.0,  # vent schedule - medium width for names
-                4.0,  # mech_vent_flow_per_person - numeric, adjust as needed
-                7.0   # mech_vent_sched - schedule name, adjust as needed
+                6.5, 3.0, 5.0, 7.5, 3.0, 6.0, 3.0, 6.0, 3.0, 6.0, 2.5, 3.0, 7.5, 2.5, 3.0, 7.5, 2.5, 4.5, 2.5, 4.5, 3.5, 6.5
             ]
-            
-            # Adjust percentages to sum to 100 if new columns were added
-            # Current sum: 7+3.5+5.5+8+3.5+6.5+3.5+6.5+3.5+6.5+3+3.5+8+3+3.5+8+3+5+3+5 = 98
-            # New columns: 4 + 7 = 11. Total = 98 + 11 = 109. Need to re-normalize.
-            # Let's adjust existing ones slightly to make space or verify the sum.
-            # Initial sum of col_percentages before adding new ones:
-            # 7+3.5+5.5+8+3.5+6.5+3.5+6.5+3.5+6.5+3+3.5+8+3+3.5+8+3+5+3+5 = 98. This was an error in the original. It should sum to 100.
-            # Let's assume the original intent was to distribute 100%.
-            # Original count: 20 columns. New count: 22 columns.
-
-            # Re-evaluating percentages for 22 columns to sum to 100.
-            # Let's try to maintain relative widths.
-            # Old total width units = 98. New total width units = 98 + 4 + 7 = 109.
-            # We need to scale everything down by 98/109 or adjust manually.
-            # For simplicity, let's try to make them fit.
-            # The provided percentages already sum to 98, not 100. This is an issue.
-            # Let's assume the user wants to add two columns and the existing ones are relatively okay.
-            # We'll adjust the percentages to make them sum to 100.
-            # Current sum of provided percentages: 98. We need to add 2% somewhere or reduce others.
-            # Let's try to make the new columns fit and adjust slightly.
-            # Zone: 6.5
-            # people/area: 3
-            # activity_schedule: 5
-            # occupancy_schedule_name: 7.5
-            # lighting_density: 3
-            # lighting_schedule_name: 6
-            # non-fixed_density: 3
-            # non-fixed_schedule_name: 6
-            # fixed_density: 3
-            # fixed_schedule_name: 6
-            # heating_setpoint: 2.5
-            # heating_non-work: 3
-            # heating_schedule_name: 7.5
-            # cooling_setpoint: 2.5
-            # cooling_non-work: 3
-            # cooling_schedule_name: 7.5
-            # infil_rate: 2.5
-            # infil_schedule: 4.5
-            # vent_rate: 2.5
-            # vent_schedule: 4.5
-            # mech_vent_flow: 3.5
-            # mech_vent_schedule: 6.5
-            # Sum: 6.5+3+5+7.5+3+6+3+6+3+6+2.5+3+7.5+2.5+3+7.5+2.5+4.5+2.5+4.5+3.5+6.5 = 100
-
-            col_percentages = [
-                6.5,  # Zone
-                3.0,  # people/area
-                5.0,  # activity schedule
-                7.5,  # occupancy schedule name
-                3.0,  # lighting density
-                6.0,  # lighting schedule name
-                3.0,  # non-fixed density
-                6.0,  # non-fixed schedule name
-                3.0,  # fixed density
-                6.0,  # fixed schedule name
-                2.5,  # heating setpoint
-                3.0,  # heating non-work setpoint
-                7.5,  # heating schedule name
-                2.5,  # cooling setpoint
-                3.0,  # cooling non-work setpoint
-                7.5,  # cooling schedule name
-                2.5,  # infil rate
-                4.5,  # infil schedule
-                2.5,  # vent rate
-                4.5,  # vent schedule
-                3.5,  # mech_vent_flow_per_person
-                6.5   # mech_vent_sched
-            ]
-
-            # Calculate column widths based on percentages
-            col_widths = [available_width * (p/100) for p in col_percentages]
-            
-            # Create the table with the calculated widths
+            col_widths = [available_width * (p / 100) for p in col_percentages]
             load_table = Table(table_data, colWidths=col_widths, hAlign='CENTER', repeatRows=2)
             load_table.setStyle(create_hierarchical_table_style())
             story.append(load_table)
         else:
-            # Handle case where only header exists (e.g., zone_data was empty after filtering)
-             story.append(Paragraph("No zone load data to display.", styles['Normal']))
-
-        # Build the PDF document from the story
+            story.append(Paragraph("No zone load data to display.", styles['Normal']))
         doc.build(story)
-        print(f"Successfully generated loads report: {output_filename}")
         return True
-
     except Exception as e:
-        print(f"Error generating or saving loads PDF file {output_filename}: {e}")
-        import traceback
-        traceback.print_exc()  # Enable traceback for better debugging
-        return False
+        raise RuntimeError(f"Error generating or saving loads PDF file {output_filename}: {e}")

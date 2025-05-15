@@ -2,24 +2,108 @@
 Generates reports for area-specific information extracted from IDF files.
 """
 from typing import Dict, Any, List
-from pathlib import Path
-from collections import defaultdict
-import re
-import datetime
-from colorama import Fore, Style, init
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.pagesizes import letter, landscape, A4
+from reportlab.lib.pagesizes import landscape, A4
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from pathlib import Path
+import datetime
+from collections import defaultdict
 
-# Initialize colorama
-init(autoreset=True)
+def _format_construction_name(construction: str) -> str:
+    """
+    Format construction name for better display in the table.
+    Adds line breaks for better readability.
+    
+    Args:
+        construction: Construction name
+        
+    Returns:
+        str: Formatted construction name
+    """
+    # If the name is long, insert line breaks at meaningful places
+    if len(construction) > 18:  # Reduced threshold for breaking
+        # Try to break at spaces
+        parts = construction.split(' ')
+        if len(parts) > 1:
+            # Try to find optimal break points
+            result = ""
+            current_line = ""
+            
+            for part in parts:
+                if len(current_line) + len(part) + 1 > 18:  # +1 for space
+                    if current_line:
+                        result += current_line + "<br/>"
+                        current_line = part
+                    else:
+                        # Single part too long
+                        result += part + "<br/>"
+                        current_line = ""
+                else:
+                    current_line = f"{current_line} {part}".strip() if current_line else part
+            
+            # Add the last line
+            if current_line:
+                result += current_line
+                
+            return result
+        else:
+            # No spaces, insert break every ~15 characters
+            result = ""
+            for i in range(0, len(construction), 15):
+                result += construction[i:min(i+15, len(construction))]
+                if i + 15 < len(construction):
+                    result += "<br/>"
+            return result
+    
+    return construction
 
-def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
-                             output_filename: str, total_floor_area: float = 0.0,
-                             project_name: str = "N/A", run_id: str = "N/A",
-                             wall_mass_per_area: float = 0.0, location: str = "Unknown") -> bool: # Added location parameter
+def _clean_element_type(element_type) -> str:
+    """
+    Cleans the element type for display, removing list formatting, quotes, and boolean values.
+    
+    Args:
+        element_type: Element type which could be a string, tuple, or list,
+                     potentially with a boolean value
+    
+    Returns:
+        str: Cleaned element type string for display
+    """
+    # If it's already a string, just return it
+    if isinstance(element_type, str):
+        return element_type
+    
+    # If it's a tuple or list with boolean, extract just the element types
+    if isinstance(element_type, (list, tuple)):
+        # Check if the second element is a boolean (from _get_element_type which returns (element_types, dont_use))
+        if len(element_type) == 2 and isinstance(element_type[1], bool):
+            element_types = element_type[0]
+            if isinstance(element_types, (list, tuple)):
+                # Join the elements with line breaks for display
+                return '\n'.join(str(et).strip() for et in element_types)
+            else:
+                return str(element_types).strip()
+        else:
+            # It's just a list/tuple of element types
+            return '\n'.join(str(et).strip() for et in element_type)
+    
+    # Fallback - convert whatever it is to a string
+    return str(element_type)
+
+def _area_table_data(merged_data):
+    """
+    Prepare and sort area table data for report generation.
+    
+    Args:
+        merged_data: Merged area data rows
+    
+    Returns:
+        Sorted list of area data rows
+    """
+    return sorted(merged_data, key=lambda x: (x['zone'], x['construction']))
+
+def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_area=0.0, project_name="N/A", run_id="N/A", wall_mass_per_area=0.0, location="Unknown"):
     """
     Generate a PDF report with area information, including a header.
 
@@ -145,7 +229,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
         table_data = [headers]
         
         # Sort rows by zone and construction for better readability
-        sorted_rows = sorted(merged_data, key=lambda x: (x['zone'], x['construction']))
+        sorted_rows = _area_table_data(merged_data)
         
         # Track the last zone seen to avoid duplication
         last_zone = None
@@ -153,14 +237,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
         # Format values and add to table
         for row in sorted_rows:
             # Format construction name with line breaks
-            construction_text = format_construction_name(row['construction'])
-
-            # --- DEBUG PRINT ADDED ---
-            # Check for the specific construction name after cleaning/merging
-            if row.get('construction') == "6+6+6":
-                # print(f"\nDEBUG REPORT GEN: Data for '6+6+6' row before formatting:\n{row}\n")
-                pass
-            # --- END DEBUG PRINT ---
+            construction_text = _format_construction_name(row['construction'])
 
             # Create zone cell - only show zone if different from previous row
             if row['zone'] != last_zone:
@@ -173,7 +250,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
             
             # Handle element_type properly whether it's a string or a tuple/list
             element_type = row.get('element_type', '')
-            element_type_cell = Paragraph(clean_element_type_display(element_type), cell_style)
+            element_type_cell = Paragraph(_clean_element_type(element_type), cell_style)
             
             # Format numeric values with proper alignment
             area_value = f"{row['area']:.2f}"
@@ -232,97 +309,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
         return True
         
     except Exception as e:
-        print(f"{Fore.RED}Error generating area report PDF for Area {area_id}: {e}{Style.RESET_ALL}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-from typing import Optional # Add Optional for type hinting
-
-# Removed redundant merge_reversed_constructions function (logic moved to AreaParser)
-
-def format_construction_name(construction: str) -> str:
-    """
-    Format construction name for better display in the table.
-    Adds line breaks for better readability.
-    
-    Args:
-        construction: Construction name
-        
-    Returns:
-        str: Formatted construction name
-    """
-    # If the name is long, insert line breaks at meaningful places
-    if len(construction) > 18:  # Reduced threshold for breaking
-        # Try to break at spaces
-        parts = construction.split(' ')
-        if len(parts) > 1:
-            # Try to find optimal break points
-            result = ""
-            current_line = ""
-            
-            for i, part in enumerate(parts):
-                if len(current_line) + len(part) + 1 > 18:  # +1 for space
-                    if current_line:
-                        result += current_line + "<br/>"
-                        current_line = part
-                    else:
-                        # Single part too long
-                        result += part + "<br/>"
-                        current_line = ""
-                else:
-                    if current_line:
-                        current_line += " " + part
-                    else:
-                        current_line = part
-            
-            # Add the last line
-            if current_line:
-                result += current_line
-                
-            return result
-        else:
-            # No spaces, insert break every ~15 characters
-            result = ""
-            for i in range(0, len(construction), 15):
-                result += construction[i:min(i+15, len(construction))]
-                if i + 15 < len(construction):
-                    result += "<br/>"
-            return result
-    
-    return construction
-
-def clean_element_type_display(element_type) -> str:
-    """
-    Cleans the element type for display, removing list formatting, quotes, and boolean values.
-    
-    Args:
-        element_type: Element type which could be a string, tuple, or list,
-                     potentially with a boolean value
-    
-    Returns:
-        str: Cleaned element type string for display
-    """
-    # If it's already a string, just return it
-    if isinstance(element_type, str):
-        return element_type
-    
-    # If it's a tuple or list with boolean, extract just the element types
-    if isinstance(element_type, (list, tuple)):
-        # Check if the second element is a boolean (from _get_element_type which returns (element_types, dont_use))
-        if len(element_type) == 2 and isinstance(element_type[1], bool):
-            element_types = element_type[0]
-            if isinstance(element_types, (list, tuple)):
-                # Join the elements with line breaks for display
-                return '\n'.join(str(et).strip() for et in element_types)
-            else:
-                return str(element_types).strip()
-        else:
-            # It's just a list/tuple of element types
-            return '\n'.join(str(et).strip() for et in element_type)
-    
-    # Fallback - convert whatever it is to a string
-    return str(element_type)
+        raise RuntimeError(f"Error generating area report PDF for Area {area_id}: {e}")
 
 def generate_area_reports(areas_data, output_dir: str = "output/areas",
                           project_name: str = "N/A", run_id: str = "N/A") -> bool:
@@ -361,7 +348,6 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                 materials_parser = MaterialsParser(data_loader)
                 materials_parser.process_idf(None)
         except Exception as e:
-            print(f"{Fore.YELLOW}Warning: Could not initialize MaterialsParser: {e}{Style.RESET_ALL}")
             materials_parser = None
         
         # Get surfaces if we have a data_loader
@@ -477,7 +463,7 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                     if area_id:
                         area_locations[area_id] = location
             except Exception as e:
-                print(f"{Fore.YELLOW}Warning: Could not get area locations from h_values: {e}{Style.RESET_ALL}")
+                pass
 
         # --- Generate a report for each area ---
         successes = []
@@ -535,14 +521,14 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                                 calculated_mass_per_area += layer_mass
                         wall_mass_per_area = calculated_mass_per_area
                     else:
-                         print(f"{Fore.YELLOW}Warning: Construction data not found for '{largest_ext_wall_construction}' during mass calculation.{Style.RESET_ALL}")
+                         pass
 
                 except Exception as e:
-                    print(f"{Fore.YELLOW}Warning: Could not calculate wall mass per area for area {area_id}, construction '{largest_ext_wall_construction}': {e}{Style.RESET_ALL}")
+                    pass
                     import traceback
                     traceback.print_exc() # Add traceback for debugging calculation errors
             elif largest_ext_wall_construction:
-                 print(f"{Fore.YELLOW}Warning: MaterialsParser not available to calculate wall mass per area for area {area_id}.{Style.RESET_ALL}")
+                 pass
             # --- End Wall Mass Per Area Calculation ---
 
             # Get location for this area
@@ -564,15 +550,10 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
             )
             successes.append(success)
 
-            if success:
-                print(f"{Fore.GREEN}Successfully generated area report for Area {area_id}: {output_file}{Style.RESET_ALL}")
-            else:
-                print(f"{Fore.RED}Failed to generate report for Area {area_id}{Style.RESET_ALL}")
             
         return all(successes)
         
     except Exception as e:
-        print(f"{Fore.RED}Error processing area data for reports: {e}{Style.RESET_ALL}")
         import traceback
         traceback.print_exc()
         return False

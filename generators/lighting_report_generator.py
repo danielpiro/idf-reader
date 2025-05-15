@@ -62,10 +62,53 @@ def create_lighting_table_style(header_rows=1):
     return TableStyle(style)
 
 
-class LightingReportGenerator:
-    """Generates a PDF report for parsed Daylighting data, styled like the load report."""
+def _format_lighting_row(entry, headers, precisions):
+    row = []
+    for i, header in enumerate(headers):
+        val = entry.get(header.replace('\n', ' ').replace(' (lux)', '').replace(' %', '').replace('Fraction Controlled', 'Fraction of Zone Controlled').replace('Illuminance Setpoint', 'Illuminance Setpoint').replace('Min Input Power Fraction', 'Minimum Input Power Fraction').replace('Min Light Output Fraction', 'Minimum Light Output Fraction'), '-')
+        precision = precisions[i]
+        if header == "Lighting\nArea %":
+            try:
+                row.append(f"{float(val) * 100:.0f}%")
+            except (ValueError, TypeError):
+                row.append(str(val))
+        elif precision is not None:
+            try:
+                row.append(f"{float(val):.{precision}f}")
+            except (ValueError, TypeError):
+                row.append(str(val))
+        else:
+            row.append(str(val))
+    return row
 
-    # Added project_name and run_id
+def _span_table(table_data, col_idx):
+    from reportlab.platypus import TableStyle
+    from reportlab.lib import colors
+    span_cmds = []
+    start_row = 1
+    while start_row < len(table_data):
+        current_val_obj = table_data[start_row][col_idx]
+        current_val = getattr(current_val_obj, 'text', str(current_val_obj))
+        count = 1
+        for i in range(start_row + 1, len(table_data)):
+            next_val_obj = table_data[i][col_idx]
+            next_val = getattr(next_val_obj, 'text', str(next_val_obj))
+            if next_val == current_val:
+                count += 1
+                if getattr(table_data[i][col_idx], 'text', '') != "":
+                    table_data[i][col_idx] = wrap_text("", table_data[i][col_idx].style)
+            else:
+                break
+        if count > 1:
+            span_cmds.append(('SPAN', (col_idx, start_row), (col_idx, start_row + count - 1)))
+            for r in range(start_row, start_row + count - 1):
+                span_cmds.append(('LINEBELOW', (col_idx, r), (col_idx, r), 0.5, colors.white))
+                span_cmds.append(('LINEABOVE', (col_idx, r + 1), (col_idx, r + 1), 0.5, colors.white))
+        start_row += count
+    return span_cmds
+
+class LightingReportGenerator:
+    """Generates a PDF report for parsed Daylighting data."""
     def __init__(self, data: Dict[str, List[Dict[str, Any]]], output_path: str,
                  project_name: str = "N/A", run_id: str = "N/A"):
         """
@@ -216,7 +259,6 @@ class LightingReportGenerator:
             total_percentage = sum(col_percentages_controls)
             # Ensure total percentage is close to 100 for safety
             if not (99.9 < total_percentage < 100.1):
-                 print(f"Warning: Column percentages sum to {total_percentage}, adjusting to equal widths.")
                  col_percentages_controls = [100 / num_cols_controls] * num_cols_controls
                  total_percentage = 100
 
@@ -384,11 +426,9 @@ class LightingReportGenerator:
         try:
             # Use onFirstPage and onLaterPages arguments for header/footer
             doc.build(self._story, onFirstPage=self._add_header_footer, onLaterPages=self._add_header_footer)
-            print(f"Successfully generated Lighting report: {self._output_path}")
             return True # Indicate success
         except Exception as e:
-            print(f"Error generating Lighting report PDF file {self._output_path}: {e}")
-            return False # Indicate failure
+            raise RuntimeError(f"Error generating Lighting report PDF file {self._output_path}: {e}") # Indicate failure
         
 # Example Usage (if you want to test this generator directly)
 # Updated to include project_name and run_id

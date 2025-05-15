@@ -13,20 +13,10 @@ based on the simulation results rather than the IDF input file values.
 import csv
 import os
 from typing import Dict, Any, Optional
-import logging
-
-logger = logging.getLogger(__name__)
 
 def safe_float(value: Any, default: float = 0.0) -> float:
     """
     Safely convert a value to float, returning default if conversion fails.
-    
-    Args:
-        value (Any): The value to convert
-        default (float): Default value if conversion fails
-        
-    Returns:
-        float: Converted value or default
     """
     if value is None:
         return default
@@ -35,134 +25,85 @@ def safe_float(value: Any, default: float = 0.0) -> float:
     except (ValueError, TypeError):
         return default
 
+def _find_csv_path(csv_path: Optional[str]) -> Optional[str]:
+    if csv_path and os.path.exists(csv_path):
+        return csv_path
+    default_path = os.path.join("simulation_output", "eplustbl.csv")
+    if os.path.exists(default_path):
+        return default_path
+    return None
+
+def _parse_exterior_fenestration_table(reader) -> Dict[str, Dict[str, Any]]:
+    header_map = {
+        "construction": 1,
+        "area of multiplied openings [m2]": 6,
+        "glass u-factor [w/m2-k]": 7,
+        "glass shgc": 8,
+        "glass visible transmittance": 9
+    }
+    col_indices = {}
+    result = {}
+    in_target_table = False
+    headers_found = False
+    for row in reader:
+        if not row or not any(field.strip() for field in row):
+            continue
+        if not in_target_table and row[0].strip().lower() == "exterior fenestration":
+            in_target_table = True
+            headers_found = False
+            col_indices = {}
+            continue
+        if in_target_table:
+            if not headers_found:
+                current_headers_norm = [h.strip().lower() for h in row]
+                if "construction" in current_headers_norm and "glass u-factor [w/m2-k]" in current_headers_norm:
+                    for key in header_map:
+                        if key in current_headers_norm:
+                            col_indices[key] = current_headers_norm.index(key)
+                        else:
+                            raise ValueError(f"Missing required header: '{key}'")
+                    if len(col_indices) != len(header_map):
+                        missing = set(header_map.keys()) - set(col_indices.keys())
+                        raise ValueError(f"Missing required headers: {missing}")
+                    headers_found = True
+                continue
+            else:
+                is_total_row = row[0].strip().lower().endswith("total or average")
+                is_blank_data_row = not row[0].strip() and (len(row) < 2 or not row[1].strip())
+                if is_total_row or is_blank_data_row:
+                    break
+                max_index = max(col_indices.values()) if col_indices else -1
+                if max_index == -1:
+                    break
+                if len(row) > max_index:
+                    construction_name = row[col_indices["construction"]].strip()
+                    area = safe_float(row[col_indices["area of multiplied openings [m2]"]])
+                    u_value = safe_float(row[col_indices["glass u-factor [w/m2-k]"]])
+                    if construction_name:
+                        result[construction_name] = {
+                            'Area': area,
+                            'U-Value': u_value,
+                        }
+    return result
+
 def read_glazing_data_from_csv(csv_path: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
     """
     Read glazing data from the eplustbl.csv file.
-    
-    Specifically looks for:
-    - Area of Multiplied Openings [m2]
-    - Glass U-Factor [W/m2-K]
-    
-    Args:
-        csv_path (Optional[str]): Path to the eplustbl.csv file
-            If None, will attempt to find it in simulation_output/eplustbl.csv
-            
-    Returns:
-        Dict[str, Dict[str, Any]]: Dictionary mapping construction names to their properties
+    Returns a dictionary mapping construction names to their properties.
+    Raises FileNotFoundError or ValueError for missing files or headers.
     """
     result = {}
-    
-    if csv_path is None:
-        # Try to find the CSV in the simulation_output directory
-        default_path = os.path.join("simulation_output", "eplustbl.csv")
-        if os.path.exists(default_path):
-            csv_path = default_path
-        else:
-            logger.warning(f"No CSV path provided and default path {default_path} not found.")
-            return result
-    
-    if not os.path.exists(csv_path):
-        logger.warning(f"CSV file not found: {csv_path}")
-        return result
-    
-    logger.info(f"Reading glazing data from CSV: {csv_path}")
-    
+    resolved_path = _find_csv_path(csv_path)
+    if not resolved_path:
+        raise FileNotFoundError("eplustbl.csv not found in provided path or simulation_output directory.")
     try:
-        with open(csv_path, 'r', encoding='utf-8', errors='ignore') as csvfile:
+        with open(resolved_path, 'r', encoding='utf-8', errors='ignore') as csvfile:
             reader = csv.reader(csvfile)
-            in_target_table = False
-            headers_found = False
-            
-            # Define expected headers and their indices based on the sample CSV
-            header_map = {
-                "construction": 1,  # Construction name is in the second column
-                "area of multiplied openings [m2]": 6,
-                "glass u-factor [w/m2-k]": 7,
-                "glass shgc": 8,
-                "glass visible transmittance": 9
-            }
-            col_indices = {}
-            
-            for row in reader:
-                if not row or not any(field.strip() for field in row): 
-                    continue  # Skip empty/blank rows
-                
-                # Check for start of table title
-                if not in_target_table and row[0].strip().lower() == "exterior fenestration":
-                    in_target_table = True
-                    headers_found = False  # Reset header flag for this table
-                    col_indices = {}  # Reset indices
-                    continue  # Skip the table title row itself
-                
-                if in_target_table:
-                    # --- Header Row Search ---
-                    if not headers_found:
-                        current_headers_norm = [h.strip().lower() for h in row]
-                        # Check if this row looks like the header row (contains key elements)
-                        if "construction" in current_headers_norm and "glass u-factor [w/m2-k]" in current_headers_norm:
-                            try:
-                                # Validate and map expected headers to their actual indices
-                                for key, _ in header_map.items():
-                                    if key in current_headers_norm:
-                                        actual_index = current_headers_norm.index(key)
-                                        col_indices[key] = actual_index
-                                
-                                # Check if all required headers were found
-                                if len(col_indices) != len(header_map):
-                                    missing = set(header_map.keys()) - set(col_indices.keys())
-                                    raise ValueError(f"Missing required headers: {missing}")
-                                
-                                headers_found = True
-                            except ValueError as e:
-                                in_target_table = False  # Abort if headers invalid
-                                logger.warning(f"Invalid headers in CSV table: {e}")
-                            continue  # Skip the header row once processed/validated
-                        else:
-                            # This row is between title and header (e.g., blank), skip it
-                            continue
-                    # --- End Header Row Search ---
-                    
-                    # --- Data Row Processing or Table End Check ---
-                    else:  # headers_found is True
-                        # End condition check
-                        is_total_row = row[0].strip().lower().endswith("total or average")
-                        is_blank_data_row = not row[0].strip() and (len(row) < 2 or not row[1].strip())
-                        
-                        if is_total_row or is_blank_data_row:
-                            in_target_table = False  # Stop processing this table
-                            continue  # Skip this end/total/blank row
-                        
-                        # Process data row
-                        max_index = max(col_indices.values()) if col_indices else -1
-                        if max_index == -1:  # Should not happen if headers were found
-                            in_target_table = False
-                            continue
-                        
-                        if len(row) > max_index:
-                            try:
-                                # Extract data using mapped indices
-                                construction_name = row[col_indices["construction"]].strip()
-                                area = safe_float(row[col_indices["area of multiplied openings [m2]"]])
-                                u_value = safe_float(row[col_indices["glass u-factor [w/m2-k]"]])                                # Store properties using the construction name as the key
-                                if construction_name:
-                                    # Simply store the values from the CSV without aggregation
-                                    result[construction_name] = {
-                                        'Area': area,
-                                        'U-Value': u_value,
-                                    }
-                                    logger.debug(f"Stored glazing data for '{construction_name}': Area={area}, U={u_value}")
-                            except IndexError:
-                                logger.debug(f"Skipping row due to IndexError: {row}")
-                            except KeyError as e:
-                                logger.debug(f"Skipping row due to KeyError: {e} | Row: {row}")
-                            except Exception as e:
-                                logger.debug(f"Error processing data row: {e} | Row: {row}")
-                    # --- End Data Row Processing ---
-    
+            result = _parse_exterior_fenestration_table(reader)
     except FileNotFoundError:
-        logger.error(f"CSV file not found: {csv_path}")
+        raise FileNotFoundError(f"CSV file not found: {resolved_path}")
+    except ValueError as e:
+        raise ValueError(f"CSV header error: {e}")
     except Exception as e:
-        logger.exception(f"Error reading or parsing CSV: {e}")
-    
-    logger.info(f"Finished parsing CSV. Found properties for {len(result)} constructions.")
+        raise RuntimeError(f"Error reading or parsing CSV: {e}")
     return result
