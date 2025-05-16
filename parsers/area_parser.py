@@ -516,30 +516,41 @@ class AreaParser:
                     element_area = element.get("area", 0.0)
                     if element_area <= 0.0:
                         continue
+                    
                     element_specific_type = element.get("element_type", "Unknown")
-                    if element_specific_type in ["External Glazing", "Internal Glazing"]:
+                    element_u_value = element.get("u_value", 0.0) # U-value of the individual element
+                    element_surface_name = element.get("surface_name", "unknown_surface")
+
+                    is_glazing_element = element_specific_type in ["External Glazing", "Internal Glazing"]
+
+                    if is_glazing_element:
                         display_element_type = element_specific_type
+                        # For glazing, make the key unique per surface_name to prevent aggregation of distinct CSV entries
+                        zone_constr_key = f"{zone_id}_{cleaned_construction_name}_{display_element_type}_{element_surface_name}"
+                        # For individual glazing elements, the U-value is its own specific U-value
+                        reported_u_value = element_u_value
                     else:
+                        # For non-glazing, aggregate by primary type
                         display_element_type = primary_non_glazing_type
-
-                    # Aggregate based on zone, cleaned construction name, and the determined display_element_type
-                    zone_constr_key = f"{zone_id}_{cleaned_construction_name}_{display_element_type}"
-
+                        zone_constr_key = f"{zone_id}_{cleaned_construction_name}_{display_element_type}"
+                        # For aggregated opaque elements, use the construction's overall weighted U-value
+                        reported_u_value = construction_u_value
+    
                     if zone_constr_key not in zone_constructions_aggregated:
                         zone_constructions_aggregated[zone_constr_key] = {
                             "zone": zone_id,
-                            "construction": cleaned_construction_name,
-                            "element_type": display_element_type, # Use the determined type for the row
+                            "construction": cleaned_construction_name, # IDF construction name
+                            "element_type": display_element_type,
                             "area": 0.0,
-                            "u_value": construction_u_value, # Report the construction's weighted U-value
+                            "u_value": reported_u_value, # Use specific U-value for glazing, weighted for opaque
                             "area_loss": 0.0,
                         }
-
-                    # Aggregate area and calculate area_loss based on the element's area
+    
                     constr_agg = zone_constructions_aggregated[zone_constr_key]
-                    constr_agg["area"] += element_area
-                    # Area loss uses the element's area and the construction's weighted U-value
-                    constr_agg["area_loss"] += element_area * construction_u_value
+                    constr_agg["area"] += element_area # For unique glazing key, this just assigns its area. For opaque, it sums.
+                    # Area loss uses the element's area and the u_value stored for this (potentially aggregated) row.
+                    # For glazing, constr_agg["u_value"] is element_u_value. For opaque, it's construction_u_value.
+                    constr_agg["area_loss"] += element_area * constr_agg["u_value"]
 
             # Final cleanup before adding to results: remove internal weighted_u_value
             final_aggregated_list = []
