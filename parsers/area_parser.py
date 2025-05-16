@@ -14,9 +14,17 @@ class AreaParser:
     Processes area information from IDF files, including distribution of zones in areas.
     Uses cached data from DataLoader for efficient access.
     """
-    def __init__(self, data_loader, parsed_glazing_data: Dict[str, Dict[str, Any]], materials_parser: MaterialsParser):
+    def __init__(self, data_loader, materials_parser: MaterialsParser, csv_path: Optional[str] = None):
         self.data_loader = data_loader
-        self.parsed_glazing_data = parsed_glazing_data
+        try:
+            self.glazing_data_from_csv = read_glazing_data_from_csv(csv_path)
+            logger.info(f"Successfully loaded glazing data from CSV: {csv_path if csv_path else 'default path'}")
+        except FileNotFoundError:
+            logger.warning(f"Glazing CSV file not found at {csv_path if csv_path else 'default path'} or simulation_output/eplustbl.csv. Proceeding without CSV glazing data.")
+            self.glazing_data_from_csv = {}
+        except (ValueError, RuntimeError) as e:
+            logger.error(f"Error reading or parsing glazing CSV: {e}. Proceeding without CSV glazing data.")
+            self.glazing_data_from_csv = {}
         self.materials_parser = materials_parser
         self.areas_by_zone = {}
         self.processed = False
@@ -126,23 +134,24 @@ class AreaParser:
             glazing_area_override = None # Initialize area override for glazing
 
             # Check if this construction exists in the parsed glazing data
-            if construction_name in self.parsed_glazing_data:
-                glazing_details = self.parsed_glazing_data[construction_name].get('system_details', {})
-                u_value_from_glazing = glazing_details.get('U-Value')
-                area_from_glazing = glazing_details.get('Area')  # Get area from CSV data
+            if construction_name in self.glazing_data_from_csv:
+                glazing_details_csv = self.glazing_data_from_csv[construction_name]
+                u_value_from_glazing = glazing_details_csv.get('U-Value')
+                area_from_glazing = glazing_details_csv.get('Area')  # Get area from CSV data
 
                 if u_value_from_glazing is not None:
                     u_value = safe_float(u_value_from_glazing, 0.0)
                 else:
-                    # Glazing construction found, but U-Value is missing in parsed data - fallback? Log warning?
-                    u_value = self._calculate_u_value(construction_name) # Or set u_value = 0.0
+                    # Glazing construction found in CSV, but U-Value is missing - fallback? Log warning?
+                    logger.warning(f"U-Value missing for '{construction_name}' in glazing CSV data. Calculating.")
+                    u_value = self._calculate_u_value(construction_name)
                 
                 # Store area from CSV if available
                 if area_from_glazing is not None:
                     glazing_area_override = safe_float(area_from_glazing, 0.0)
                 
                 # Ensure is_glazing flag is consistent
-                is_glazing = True # If it's in parsed_glazing_data, treat as glazing
+                is_glazing = True # If it's in glazing_data_from_csv, treat as glazing
             else:                # Not found in glazing data, assume opaque
                 # First check if we can get the U-value from materials_parser for consistent values
                 if self.materials_parser and hasattr(self.materials_parser, 'get_constructions_u_values'):
@@ -338,8 +347,8 @@ class AreaParser:
                     base_name = name[:-8]
                 if base_name and base_name in constructions and base_name not in to_remove:
                     reverse_name = name
-                    is_base_glazing = base_name in self.parsed_glazing_data
-                    is_reverse_glazing = reverse_name in self.parsed_glazing_data
+                    is_base_glazing = base_name in self.glazing_data_from_csv
+                    is_reverse_glazing = reverse_name in self.glazing_data_from_csv
                     if is_base_glazing or is_reverse_glazing:
                         continue
                     base_elements = constructions[base_name].get("elements", [])

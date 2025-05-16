@@ -260,6 +260,8 @@ class GlazingParser:
         """
         # --- Parse Simulation Output First ---
         self._parse_simulation_output_csv() # Populate self._sim_properties
+        # Create a version of _sim_properties with lowercase keys for fallback
+        self._sim_properties_lower = {k.lower(): v for k, v in self._sim_properties.items()}
 
         processed_data = {}
 
@@ -284,7 +286,7 @@ class GlazingParser:
                         'U-Value': simple_data.get('u_factor'),
                         'VT': simple_data.get('visible_transmittance'),
                         'SHGC': simple_data.get('shgc'),
-                        'Area': self._sim_properties.get(construction_id, {}).get('Area') # Get area from CSV data
+                        'Area': self._sim_properties.get(construction_id, self._sim_properties_lower.get(construction_id.lower(), {})).get('Area')
                     },
                     'glazing_layers': [], # Simple systems don't list layers
                     'shading_layers': [], # Shades handled later if present
@@ -340,7 +342,10 @@ class GlazingParser:
             # Only add if it contains actual glazing or gas layers
             if has_glazing_or_gas:
                 # print(f"DEBUG:   Processing Detailed Construction ID: '{construction_id}'")
-                sim_props = self._sim_properties.get(construction_id, {})
+                sim_props = self._sim_properties.get(construction_id)
+                if not sim_props: # Exact match failed, try case-insensitive
+                    sim_props = self._sim_properties_lower.get(construction_id.lower(), {})
+                
                 u_value_sim = sim_props.get('U-Value')
                 shgc_sim = sim_props.get('SHGC')
                 vt_sim = sim_props.get('VT')

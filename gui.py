@@ -91,26 +91,13 @@ class ProcessingManager:
                 simulation_output_csv=self.simulation_output_csv,
                 frame_divider_cache=data_loader._frame_divider_cache
             )
-            parsed_glazing = glazing_parser.parse_glazing_data()
-            simulation_output_csv = self.simulation_output_csv
-            if simulation_output_csv and os.path.exists(simulation_output_csv):
-                csv_glazing_data = read_glazing_data_from_csv(simulation_output_csv)
-                matched_constructions = 0
-                glazing_keys_lower = {k.lower(): k for k in parsed_glazing.keys()}
-                for construction_name, csv_data in csv_glazing_data.items():
-                    if construction_name in parsed_glazing:
-                        if 'system_details' not in parsed_glazing[construction_name]:
-                            parsed_glazing[construction_name]['system_details'] = {}
-                        parsed_glazing[construction_name]['system_details'].update(csv_data)
-                        matched_constructions += 1
-                    elif construction_name.lower() in glazing_keys_lower:
-                        actual_key = glazing_keys_lower[construction_name.lower()]
-                        if 'system_details' not in parsed_glazing[actual_key]:
-                            parsed_glazing[actual_key]['system_details'] = {}
-                        parsed_glazing[actual_key]['system_details'].update(csv_data)
-                        matched_constructions += 1
-                self.update_status(f"Glazing data updated from CSV for {matched_constructions} constructions")
-            area_parser = AreaParser(data_loader, parsed_glazing, materials_extractor)
+            # GlazingParser.parse_glazing_data() internally handles CSV data if simulation_output_csv is provided to its constructor.
+            # The manual CSV merging block that was here is redundant.
+            parsed_glazing = glazing_parser.parse_glazing_data() # This is for GlazingReport
+            
+            # AreaParser now loads its own glazing data from CSV via its constructor,
+            # using the simulation_output_csv path.
+            area_parser = AreaParser(data_loader, materials_extractor, self.simulation_output_csv)
             lighting_parser = LightingParser(data_loader)
             city_area_name = "א"
             if hasattr(self, 'city_info') and self.city_info and 'area_name' in self.city_info:
