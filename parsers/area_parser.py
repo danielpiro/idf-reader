@@ -18,7 +18,8 @@ class AreaParser:
         self.data_loader = data_loader
         try:
             self.glazing_data_from_csv = read_glazing_data_from_csv(csv_path)
-            logger.info(f"Successfully loaded glazing data from CSV: {csv_path if csv_path else 'default path'}")
+            logger.info(f"Successfully loaded glazing data from CSV: {csv_path if csv_path else 'default path'}.")
+            logger.debug(f"Glazing data from CSV (first 5 items): {dict(list(self.glazing_data_from_csv.items())[:5])}")
         except FileNotFoundError:
             logger.warning(f"Glazing CSV file not found at {csv_path if csv_path else 'default path'} or simulation_output/eplustbl.csv. Proceeding without CSV glazing data.")
             self.glazing_data_from_csv = {}
@@ -133,27 +134,38 @@ class AreaParser:
             is_glazing = surface.get("is_glazing", False) # Check if surface is marked as glazing
             glazing_area_override = None # Initialize area override for glazing
 
-            # Check if this construction exists in the parsed glazing data
-            if construction_name in self.glazing_data_from_csv:
-                glazing_details_csv = self.glazing_data_from_csv[construction_name]
+            # Check if this surface_id (fenestration surface name) exists in the parsed glazing data
+            # The key in glazing_data_from_csv is now the uppercased fenestration surface name
+            surface_id_upper = surface_id.upper() # Convert current surface_id to uppercase for lookup
+            if surface_id_upper in self.glazing_data_from_csv:
+                glazing_details_csv = self.glazing_data_from_csv[surface_id_upper]
+                logger.debug(f"Found uppercased surface_id '{surface_id_upper}' (original: '{surface_id}') in glazing_data_from_csv. Data: {glazing_details_csv}")
+                
+                csv_construction_name = glazing_details_csv.get('Construction')
+                if csv_construction_name and csv_construction_name != construction_name:
+                    logger.warning(
+                        f"Mismatch for surface '{surface_id}' (lookup key '{surface_id_upper}'): IDF construction '{construction_name}' vs "
+                        f"CSV construction '{csv_construction_name}'. Using CSV data."
+                    )
+
                 u_value_from_glazing = glazing_details_csv.get('U-Value')
-                area_from_glazing = glazing_details_csv.get('Area')  # Get area from CSV data
+                area_from_glazing = glazing_details_csv.get('Area')
 
                 if u_value_from_glazing is not None:
                     u_value = safe_float(u_value_from_glazing, 0.0)
+                    logger.debug(f"Using U-Value from CSV for '{surface_id}' (lookup key '{surface_id_upper}'): {u_value}")
                 else:
-                    # Glazing construction found in CSV, but U-Value is missing - fallback? Log warning?
-                    logger.warning(f"U-Value missing for '{construction_name}' in glazing CSV data. Calculating.")
+                    logger.warning(f"U-Value missing for surface '{surface_id}' (lookup key '{surface_id_upper}', construction '{construction_name}') in glazing CSV data. Calculating.")
                     u_value = self._calculate_u_value(construction_name)
                 
-                # Store area from CSV if available
                 if area_from_glazing is not None:
                     glazing_area_override = safe_float(area_from_glazing, 0.0)
+                    logger.debug(f"Using Area from CSV for '{surface_id}' (lookup key '{surface_id_upper}'): {glazing_area_override}")
                 
-                # Ensure is_glazing flag is consistent
-                is_glazing = True # If it's in glazing_data_from_csv, treat as glazing
-            else:                # Not found in glazing data, assume opaque
-                # First check if we can get the U-value from materials_parser for consistent values
+                is_glazing = True
+            else:
+                logger.debug(f"Uppercased Surface_id '{surface_id_upper}' (original: '{surface_id}', Construction: '{construction_name}') not found in glazing_data_from_csv. Will calculate U-value and use IDF area.")
+                # Fallback to calculation if materials_parser not available or construction not in it
                 if self.materials_parser and hasattr(self.materials_parser, 'get_constructions_u_values'):
                     u_values_dict = self.materials_parser.get_constructions_u_values()
                     if construction_name in u_values_dict:
@@ -195,23 +207,28 @@ class AreaParser:
                 element_type_str = "External Glazing" if is_external_glazing else "Internal Glazing"
             # else: element_type_str remains the capitalized surface_type for non-glazing            # Add element data and update totals
               # If this is glazing and we have area from CSV, use that instead of the IDF area
-            final_area = area  # Default to the adjusted area from IDF
-            if is_glazing and glazing_area_override is not None:
+            final_area = area  # Default to the adjusted area from IDF (which might be net wall area)
+            if is_glazing and glazing_area_override is not None: # This 'is_glazing' is from surface.get("is_glazing") or set if found in CSV
                 final_area = glazing_area_override
-                
+                logger.debug(f"For glazing surface '{surface_id}', final_area set to CSV override: {final_area}")
+            elif is_glazing: # Is glazing but no CSV override (e.g. not in CSV or area missing in CSV)
+                 logger.debug(f"For glazing surface '{surface_id}', no CSV area override. Using IDF area: {final_area} (original: {original_area})")
+            
             element_data = {
                 "zone": zone_name,
                 "surface_name": surface_id,
-                "element_type": element_type_str, # Use the determined type
-                "area": final_area,  # Use area from CSV for glazing if available, otherwise use adjusted area
-                "original_area": original_area,  # Store original area for reference                "u_value": u_value, # Use the determined u_value
-                "area_u_value": final_area * u_value  # Update using final_area
+                "element_type": element_type_str,
+                "area": final_area,
+                "original_area": original_area,
+                "u_value": u_value,
+                "area_u_value": final_area * u_value
             }
+            logger.debug(f"Processed element: {element_data}")
             
             constr_group = self.areas_by_zone[zone_name]["constructions"][construction_name]
             constr_group["elements"].append(element_data)
-            constr_group["total_area"] += final_area  # Use final_area which might be from CSV for glazing
-            constr_group["total_u_value"] += final_area * u_value # Use determined u_value with final_area
+            constr_group["total_area"] += final_area
+            constr_group["total_u_value"] += final_area * u_value
 
     def _get_construction_properties(self, construction_name: str) -> Dict[str, float]:
         """

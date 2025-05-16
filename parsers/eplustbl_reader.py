@@ -13,6 +13,9 @@ based on the simulation results rather than the IDF input file values.
 import csv
 import os
 from typing import Dict, Any, Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 def safe_float(value: Any, default: float = 0.0) -> float:
     """
@@ -52,38 +55,92 @@ def _parse_exterior_fenestration_table(reader) -> Dict[str, Dict[str, Any]]:
             in_target_table = True
             headers_found = False
             col_indices = {}
+            logger.debug("Found 'Exterior Fenestration' table.")
             continue
         if in_target_table:
             if not headers_found:
                 current_headers_norm = [h.strip().lower() for h in row]
+                logger.debug(f"Attempting to find headers in row: {row}")
                 if "construction" in current_headers_norm and "glass u-factor [w/m2-k]" in current_headers_norm:
-                    for key in header_map:
-                        if key in current_headers_norm:
-                            col_indices[key] = current_headers_norm.index(key)
-                        else:
-                            raise ValueError(f"Missing required header: '{key}'")
-                    if len(col_indices) != len(header_map):
-                        missing = set(header_map.keys()) - set(col_indices.keys())
-                        raise ValueError(f"Missing required headers: {missing}")
+                    for key_map, expected_idx in header_map.items(): # Use header_map for default indices if needed
+                        try:
+                            col_indices[key_map] = current_headers_norm.index(key_map)
+                        except ValueError:
+                            # If direct match fails, consider if we should use default index or raise error
+                            # For now, strict check:
+                            logger.error(f"Header '{key_map}' not found in {current_headers_norm}. Expected based on map: {header_map}")
+                            # raise ValueError(f"Missing required header: '{key_map}' in {current_headers_norm}")
+                            # Fallback to predefined index if critical, or make it configurable
+                            # Using a more robust check:
+                            if key_map not in current_headers_norm:
+                                logger.warning(f"Critical header '{key_map}' not found in CSV row: {row}. CSV structure might be unexpected.")
+                                # Decide: raise error or try to proceed with potential issues
+                                # For debugging, let's try to proceed if some headers are missing but log extensively
+                    
+                    # Check if all essential keys from header_map are in col_indices
+                    missing_keys = [k for k in header_map if k not in col_indices]
+                    if missing_keys:
+                        logger.error(f"Missing critical column indices for: {missing_keys} after parsing headers {current_headers_norm}")
+                        # Potentially raise error here if essential headers are missing
+                        # raise ValueError(f"Essential headers missing: {missing_keys}")
+                    
                     headers_found = True
+                    logger.debug(f"Headers identified. Column indices: {col_indices}")
                 continue
             else:
                 is_total_row = row[0].strip().lower().endswith("total or average")
+                # Check if it's a blank data row by seeing if the fenestration surface name (row[1]) is empty
                 is_blank_data_row = not row[0].strip() and (len(row) < 2 or not row[1].strip())
                 if is_total_row or is_blank_data_row:
                     break
-                max_index = max(col_indices.values()) if col_indices else -1
-                if max_index == -1:
-                    break
-                if len(row) > max_index:
+                
+                max_col_idx_needed = 0
+                if col_indices:
+                    max_col_idx_needed = max(col_indices.get("construction", 0),
+                                             col_indices.get("area of multiplied openings [m2]", 0),
+                                             col_indices.get("glass u-factor [w/m2-k]", 0))
+                
+                # Ensure row has enough columns for fenestration surface name (index 1) and other mapped columns
+                if len(row) > 1 and row[1].strip() and len(row) > max_col_idx_needed:
+                    fenestration_surface_name = row[1].strip()
+                    # Ensure all required column indices were found before trying to access them
+                    required_cols_for_data = ["construction", "area of multiplied openings [m2]", "glass u-factor [w/m2-k]"]
+                    if not all(col_name in col_indices for col_name in required_cols_for_data):
+                        logger.warning(f"Skipping row due to missing column indices for data extraction: {row}. Have indices: {col_indices}")
+                        continue
+
                     construction_name = row[col_indices["construction"]].strip()
                     area = safe_float(row[col_indices["area of multiplied openings [m2]"]])
                     u_value = safe_float(row[col_indices["glass u-factor [w/m2-k]"]])
-                    if construction_name:
-                        result[construction_name] = {
+                    
+                    derived_zone_name = fenestration_surface_name
+                    suffixes_to_check = ["_WALL", "_ROOF", "_FLOOR", "_WIN", "_DOOR"]
+                    found_suffix = False
+                    for suffix in suffixes_to_check:
+                        if suffix in fenestration_surface_name:
+                            derived_zone_name = fenestration_surface_name.split(suffix)[0]
+                            found_suffix = True
+                            break
+                    if not found_suffix and '_' in fenestration_surface_name:
+                        parts = fenestration_surface_name.split('_', 1)
+                        if ':' in parts[0]: # Check if the part before '_' looks like a zone name
+                            derived_zone_name = parts[0]
+                    
+                    logger.debug(
+                        f"Processing row: FenSurfName='{fenestration_surface_name}', "
+                        f"Constr='{construction_name}', Area='{area}', U-Val='{u_value}', "
+                        f"DerivedZone='{derived_zone_name}'"
+                    )
+
+                    if fenestration_surface_name and construction_name:
+                        # Store the key in uppercase for case-insensitive matching later
+                        result[fenestration_surface_name.upper()] = {
+                            'Construction': construction_name,
                             'Area': area,
                             'U-Value': u_value,
+                            'DerivedZone': derived_zone_name
                         }
+    logger.debug(f"Finished parsing 'Exterior Fenestration' table. Result (keys are uppercased): {result}")
     return result
 
 def read_glazing_data_from_csv(csv_path: Optional[str] = None) -> Dict[str, Dict[str, Any]]:

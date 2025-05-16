@@ -1,3 +1,9 @@
+import logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# Add a test log message to confirm setup
+logger = logging.getLogger(__name__)
+logger.info("Logging configured at DEBUG level.")
 import argparse
 import sys
 import os
