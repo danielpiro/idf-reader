@@ -70,30 +70,95 @@ def _clean_element_type(element_type) -> str:
     Returns:
         str: Cleaned element type string for display
     """
-    # If it's already a string, just return it
+    cleaned_str = ""
+    # If it's already a string, process it
     if isinstance(element_type, str):
-        return element_type
+        cleaned_str = element_type.strip()
+        if cleaned_str == "External Glazing":
+            return "External glazing"
+        return cleaned_str
     
     # If it's a tuple or list with boolean, extract just the element types
     if isinstance(element_type, (list, tuple)):
         # Check if the second element is a boolean (from _get_element_type which returns (element_types, dont_use))
         if len(element_type) == 2 and isinstance(element_type[1], bool):
-            element_types = element_type[0]
-            if isinstance(element_types, (list, tuple)):
-                # Join the elements with line breaks for display
-                return '\n'.join(str(et).strip() for et in element_types)
+            raw_element_types = element_type[0]
+            if isinstance(raw_element_types, (list, tuple)):
+                # Process each element in the list/tuple
+                processed_elements = []
+                for et in raw_element_types:
+                    et_str = str(et).strip()
+                    if et_str == "External Glazing":
+                        processed_elements.append("External glazing")
+                    else:
+                        processed_elements.append(et_str)
+                return '\n'.join(processed_elements)
             else:
-                return str(element_types).strip()
+                # Single element type after boolean check
+                et_str = str(raw_element_types).strip()
+                if et_str == "External Glazing":
+                    return "External glazing"
+                return et_str
         else:
-            # It's just a list/tuple of element types
-            return '\n'.join(str(et).strip() for et in element_type)
+            # It's just a list/tuple of element types without a boolean
+            processed_elements = []
+            for et in element_type:
+                et_str = str(et).strip()
+                if et_str == "External Glazing":
+                    processed_elements.append("External glazing")
+                else:
+                    processed_elements.append(et_str)
+            return '\n'.join(processed_elements)
     
-    # Fallback - convert whatever it is to a string
-    return str(element_type)
+    # Fallback - convert whatever it is to a string and apply the specific replacement
+    fallback_str = str(element_type).strip()
+    if fallback_str == "External Glazing":
+        return "External glazing"
+    return fallback_str
+
+def _get_element_type_sort_keys_area(element_type_val):
+    """Assigns primary and secondary sort keys based on element type string for area report."""
+    # Use _clean_element_type to get a consistent string representation
+    cleaned_element_type_str = _clean_element_type(element_type_val)
+    element_type_lower = (cleaned_element_type_str or "").lower()
+    
+    primary_key = 99  # Default for unspecified types
+    secondary_key = 99 # Default for unspecified sub-types
+
+    # Prioritize based on keywords
+    if 'floor' in element_type_lower:
+        primary_key = 0
+    elif 'ceiling' in element_type_lower or 'roof' in element_type_lower:
+        primary_key = 1
+    elif 'wall' in element_type_lower: # This will catch 'external wall', 'internal wall', etc.
+        primary_key = 2
+        if 'internal' in element_type_lower: # Specifically 'internal wall'
+            secondary_key = 0
+        elif 'separation' in element_type_lower: # Specifically 'separation wall'
+            secondary_key = 1
+        elif 'external' in element_type_lower: # Specifically 'external wall'
+            secondary_key = 2
+        else: # Other wall types or just 'wall'
+            secondary_key = 3
+    elif 'glazing' in element_type_lower:
+        primary_key = 3
+    # Add more specific checks if needed, e.g., for 'door', 'window' if they are distinct from 'glazing'
+
+    return primary_key, secondary_key
+
+def custom_area_sort_key(item):
+    """Create a custom sort key for area data based on zone, element type, and construction name."""
+    zone = item.get('zone', '')
+    element_type = item.get('element_type', '') # Raw element_type from data
+    construction_name = item.get('construction', '')
+    
+    primary_sort, secondary_sort = _get_element_type_sort_keys_area(element_type)
+    
+    return (zone, primary_sort, secondary_sort, construction_name)
 
 def _area_table_data(merged_data):
     """
-    Prepare and sort area table data for report generation.
+    Prepare and sort area table data for report generation using custom sort key.
     
     Args:
         merged_data: Merged area data rows
@@ -101,7 +166,7 @@ def _area_table_data(merged_data):
     Returns:
         Sorted list of area data rows
     """
-    return sorted(merged_data, key=lambda x: (x['zone'], x['construction']))
+    return sorted(merged_data, key=custom_area_sort_key)
 
 def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_area=0.0, project_name="N/A", run_id="N/A", wall_mass_per_area=0.0, location="Unknown"):
     """

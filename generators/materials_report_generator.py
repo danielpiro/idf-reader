@@ -44,9 +44,43 @@ def create_table_style():
         ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
     ])
 
-def safe_sort_key(item):
-    """Create a safe sort key that handles None values."""
-    return (item.get('element_type', '') or '', item.get('element_name', '') or '')
+def _get_element_type_sort_keys(element_type_str):
+    """Assigns primary and secondary sort keys based on element type string."""
+    element_type_lower = (element_type_str or "").lower()
+    primary_key = 99  # Default for unspecified types
+    secondary_key = 99 # Default for unspecified sub-types
+
+    if 'floor' in element_type_lower:
+        primary_key = 0
+    elif 'ceiling' in element_type_lower or 'roof' in element_type_lower:
+        primary_key = 1
+    elif 'wall' in element_type_lower:
+        primary_key = 2
+        if 'internal' in element_type_lower:
+            secondary_key = 0
+        elif 'separation' in element_type_lower:
+            secondary_key = 1
+        elif 'external' in element_type_lower:
+            secondary_key = 2
+        else:
+            secondary_key = 3 # Other wall types
+    elif 'glazing' in element_type_lower:
+        primary_key = 3
+    
+    # Handle cases where element_type might be a list/tuple (though less common in materials)
+    # For simplicity, this example assumes element_type_str is a simple string.
+    # If it can be a list, the logic would need to iterate or pick the most relevant.
+
+    return primary_key, secondary_key
+
+def custom_material_sort_key(item):
+    """Create a custom sort key for materials based on element type and name."""
+    element_type = item.get('element_type', '') or ''
+    element_name = item.get('element_name', '') or ''
+    
+    primary_sort, secondary_sort = _get_element_type_sort_keys(element_type)
+    
+    return (primary_sort, secondary_sort, element_name)
 
 def _calc_group_totals(group):
     """Calculate totals and derived values for a group of layers."""
@@ -62,7 +96,7 @@ def _calc_group_totals(group):
 def group_element_data(element_data):
     """Group element data by element type and name, and calculate totals."""
     try:
-        sorted_data = sorted(element_data, key=safe_sort_key)
+        sorted_data = sorted(element_data, key=custom_material_sort_key)
         grouped_data = []
         current_key = None
         current_group = []
