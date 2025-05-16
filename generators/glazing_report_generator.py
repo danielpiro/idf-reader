@@ -1,11 +1,9 @@
-# generators/glazing_report_generator.py
-from typing import Dict, Any, List
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
-from reportlab.lib.colors import navy, black, grey, lightgrey, white
+from reportlab.lib.colors import navy, black, grey, lightgrey
 import datetime
 import pandas as pd
 
@@ -101,7 +99,7 @@ class GlazingReportGenerator:
                 if system_table:
                     title_p = Paragraph("Glazing System", self.styles['h3'])
                     outer_data = [[title_p, system_table]]
-                    available_width = landscape(A4)[0] - 3*cm
+                    landscape(A4)[0] - 3*cm
                     title_col_width = 3.5*cm
                     outer_table = Table(outer_data, colWidths=[title_col_width, None])
                     outer_style = TableStyle([
@@ -255,10 +253,7 @@ def generate_glazing_report_pdf(parsed_glazing_data, output_filename, project_na
     generator = GlazingReportGenerator(parsed_glazing_data, project_name=project_name, run_id=run_id)
     return generator.generate_report_pdf(output_filename)
 
-
-# Example Usage (if run directly or for testing)
 if __name__ == '__main__':
-    # Example parsed data (similar to parser output)
     mock_parsed_data = {
         "Exterior Window Simple": {
             'id': "Exterior Window Simple", 'name': "Exterior Window Simple", 'type': 'Simple',
@@ -281,4 +276,3 @@ if __name__ == '__main__':
 
     output_pdf = "test_glazing_report.pdf"
     generate_glazing_report_pdf(mock_parsed_data, output_pdf)
-    print(f"Test PDF generated: {output_pdf}")

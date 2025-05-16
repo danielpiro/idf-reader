@@ -4,13 +4,17 @@ Generates reports for area loss information extracted from IDF files.
 from typing import Dict, Any, List
 from pathlib import Path
 import datetime
+import logging # Added for detailed error logging
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
-def _compatibility_color(compatible):
+logger = logging.getLogger(__name__) # Added logger instance
+
+def _compatibility_color(compatible: str) -> colors.Color:
+    """Returns green if compatible is 'Yes', otherwise red."""
     return colors.green if compatible == "Yes" else colors.red
 
 def _area_loss_table_data(area_loss_data, cell_style, compatibility_style):
@@ -56,24 +60,34 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
     Returns:
         bool: True if report generation was successful, False otherwise.
     """
+    doc = None
     try:
-        # Ensure output directory exists
         output_path = Path(output_filename).parent
-        output_path.mkdir(exist_ok=True, parents=True)
-        
-        # Create PDF document
-        doc = SimpleDocTemplate(output_filename, pagesize=A4)
+        if not output_path.exists():
+            try:
+                output_path.mkdir(parents=True, exist_ok=True)
+                logger.info(f"Created output directory: {output_path}")
+            except OSError as e:
+                error_message = f"Error creating output directory '{output_path}': {e.strerror}"
+                logger.error(error_message, exc_info=True)
+                # No need to display to user here, caller (GUI) should handle status.
+                return False
+        elif not output_path.is_dir():
+            error_message = f"Error: Output path '{output_path}' exists but is not a directory."
+            logger.error(error_message)
+            return False
+
+        doc = SimpleDocTemplate(str(output_filename), pagesize=A4) # Ensure output_filename is string
         styles = getSampleStyleSheet()
         story = []
-        
-        # Header Information
+
         now = datetime.datetime.now()
         header_style = ParagraphStyle(
             'HeaderInfo',
             parent=styles['Normal'],
             fontSize=9,
             textColor=colors.black,
-            alignment=2  # Right aligned
+            alignment=2
         )
         header_text = f"""
         Project: {project_name}<br/>
@@ -82,9 +96,8 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
         Report: Area Loss - Thermal Performance
         """
         story.append(Paragraph(header_text, header_style))
-        story.append(Spacer(1, 5))  # Add some space after header
+        story.append(Spacer(1, 5))
 
-        # Title
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
@@ -92,8 +105,7 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
             spaceAfter=20
         )
         story.append(Paragraph("Area Loss - Thermal Performance Report", title_style))
-        
-        # Create cell styles for better formatting
+
         cell_style = ParagraphStyle(
             'CellStyle',
             parent=styles['Normal'],
@@ -102,7 +114,7 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
             spaceBefore=0,
             spaceAfter=0
         )
-        
+
         compatibility_style = ParagraphStyle(
             'CompatibilityStyle',
             parent=styles['Normal'],
@@ -111,8 +123,7 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
             spaceBefore=0,
             spaceAfter=0
         )
-        
-        # Header row for the table as Paragraphs for consistent styling
+
         headers = [
             Paragraph("Area", cell_style),
             Paragraph("Location", cell_style),
@@ -120,50 +131,50 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
             Paragraph("H-Needed", cell_style),
             Paragraph("Compatible", cell_style)
         ]
-        
-        # Prepare table data
+
         table_data = _area_loss_table_data(area_loss_data, cell_style, compatibility_style)
-        
-        # Create the table with carefully adjusted column widths
+
         col_widths = [
-            3.0*cm,  # Area
-            5.0*cm,  # Location
-            3.0*cm,  # H-Value
-            3.0*cm,  # H-Needed
-            3.0*cm   # Compatible
+            3.0*cm,
+            5.0*cm,
+            3.0*cm,
+            3.0*cm,
+            3.0*cm
         ]
-        
-        # Create table with data and column widths
+
         area_loss_table = Table(table_data, colWidths=col_widths, repeatRows=1)
-        
-        # Style the table
+
         table_style = TableStyle([
-            # Header style
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            # Data rows - numbers right aligned
             ('ALIGN', (2, 1), (3, -1), 'RIGHT'),
-            # Grid style
             ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-            # Enhanced cell padding for better spacing
             ('LEFTPADDING', (0, 0), (-1, -1), 6),
             ('RIGHTPADDING', (0, 0), (-1, -1), 6),
             ('TOPPADDING', (0, 0), (-1, -1), 4),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-            # Alternating row colors
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
-            # Extra - adjust vertical alignment
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
         ])
-        
+
         area_loss_table.setStyle(table_style)
         story.append(area_loss_table)
-        
-        # Build the document
+
         doc.build(story)
+        logger.info(f"Successfully generated Area Loss report: {output_filename}")
         return True
-        
-    except Exception as e:
-        raise RuntimeError(f"Error generating area loss report PDF: {e}")
+    except (IOError, OSError) as e:
+        error_message = f"Error during file operation for Area Loss report '{output_filename}': {e.strerror}"
+        logger.error(error_message, exc_info=True)
+        return False
+    except Exception as e: # Catch ReportLab specific errors or other unexpected issues
+        # ReportLab errors can be varied. Logging them is key.
+        error_message = f"An unexpected error occurred while generating Area Loss report '{output_filename}': {type(e).__name__} - {str(e)}"
+        logger.error(error_message, exc_info=True)
+        return False
+    finally:
+        # SimpleDocTemplate's build method should handle closing the file.
+        # No explicit file resource to close here unless we were manually opening/writing.
+        pass

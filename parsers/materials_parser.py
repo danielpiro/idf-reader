@@ -97,10 +97,10 @@ class MaterialsParser:
     def _is_reversed_construction(self, construction_id: str) -> bool:
         """
         Check if the construction ID indicates a reversed construction.
-        
+
         Args:
             construction_id: The construction ID to check.
-        
+
         Returns:
             bool: True if the construction is reversed, False otherwise.
         """
@@ -109,11 +109,11 @@ class MaterialsParser:
     def _get_surface_type_and_boundary(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]]):
         """
         Get the surface type and boundary condition for a given construction ID.
-        
+
         Args:
             construction_id: The construction ID.
             surfaces: The surfaces data dictionary.
-        
+
         Returns:
             tuple: A tuple containing the surface type and boundary condition.
         """
@@ -126,52 +126,46 @@ class MaterialsParser:
         """
         Determine element type based on construction usage.
         Implementation moved from DataLoader.
-        
+
         Args:
             construction_id: ID of the construction
             surfaces: Dictionary of surface data from cache
-            
+
         Returns:
             tuple: (element_types, dont_use) where:
                   - element_types: list - List of element type descriptions
                   - dont_use: bool - Flag indicating if this construction should be excluded from output
         """
-        # Find surfaces using this construction
         construction_surfaces = [s for s in surfaces.values() if s.get('construction_name') == construction_id]
         if not construction_surfaces:
             return [], False
-        
-        element_types = set()  # Use a set to avoid duplicate element types
+
+        element_types = set()
         is_zone_interior = False
         dont_use = False
         zones = self.data_loader.get_hvac_zones()
-        
-        # Process each surface using this construction
+
         for surface in construction_surfaces:
-            # Check if this is a glazing surface
             if surface.get('is_glazing', False):
                 element_types.add("Glazing")
                 continue
-                
+
             s_type = surface.get('surface_type', '').lower() if surface.get('surface_type') else ""
             boundary = surface.get('boundary_condition', '').lower() if surface.get('boundary_condition') else ""
-            
-            # Safely get the outside boundary object name
+
             raw_object = surface.get('raw_object')
             outside_boundary_obj_name = None
             is_zone_interior = False
             surface_dont_use = False
-            
+
             try:
                 if raw_object:
                     if hasattr(raw_object, 'Outside_Boundary_Condition_Object'):
                         outside_boundary_obj_name = raw_object.Outside_Boundary_Condition_Object
                     elif isinstance(raw_object, dict) and 'Outside_Boundary_Condition_Object' in raw_object:
                         outside_boundary_obj_name = raw_object['Outside_Boundary_Condition_Object']
-                
-                # Process if the boundary object name is found and is a string
+
                 if isinstance(outside_boundary_obj_name, str) and outside_boundary_obj_name:
-                    # Assuming the zone name is the first part if spaces exist
                     zone_name_candidate = outside_boundary_obj_name.split("_")[0].strip()
                     if zone_name_candidate:
                         construction_zone = raw_object.Name.split("_")[0].strip()
@@ -181,15 +175,13 @@ class MaterialsParser:
                             surface_dont_use = True
                         else:
                             is_zone_interior = is_hvac_inside and is_hvac_outside
-                
+
             except Exception:
                 pass
-            
-            # If any surface using this construction should not be used, set the flag
+
             if surface_dont_use:
                 dont_use = True
-            
-            # Determine element type for this surface
+
             element_type = ""
             if s_type == "wall":
                 if boundary == "outdoors":
@@ -198,7 +190,7 @@ class MaterialsParser:
                     element_type = "Ground wall"
                 else:
                     element_type = "Internal wall" if is_zone_interior else "Separation wall"
-                    
+
             elif s_type == "floor":
                 if boundary == "outdoors":
                     element_type = "External floor"
@@ -206,7 +198,7 @@ class MaterialsParser:
                     element_type = "Ground floor"
                 else:
                     element_type = "Intermediate floor" if is_zone_interior else "Separation floor"
-                    
+
             elif s_type == "ceiling":
                 if boundary == "ground":
                     element_type = "Ground ceiling"
@@ -214,23 +206,23 @@ class MaterialsParser:
                     element_type = "External ceiling"
                 else:
                     element_type = "Intermediate ceiling" if is_zone_interior else "Separation ceiling"
-                    
+
             elif s_type == "roof":
                 element_type = "Roof"
-                
+
             if element_type:
                 element_types.add(element_type)
-        
+
         return list(element_types), dont_use
 
     def _get_surface_film_resistance(self, element_type: str) -> float:
         """
         Determine the surface film resistance constant based on element type and boundary.
-        
+
         Args:
             s_type: Surface type (wall, floor, ceiling, roof)
             boundary: Boundary condition (outdoors, ground, etc.)
-            
+
         Returns:
             float: Surface film resistance constant to add to R-Value
         """
@@ -257,7 +249,7 @@ class MaterialsParser:
     def get_element_data(self) -> list:
         """
         Returns the list of processed element data.
-        
+
         Returns:
             list: List of dictionaries containing element data and calculated properties
         """
@@ -266,7 +258,7 @@ class MaterialsParser:
     def get_all_materials(self) -> Dict[str, MaterialData]:
         """
         Get all processed materials.
-        
+
         Returns:
             Dict[str, MaterialData]: Dictionary of all materials
         """
@@ -275,7 +267,7 @@ class MaterialsParser:
     def get_all_constructions(self) -> Dict[str, ConstructionData]:
         """
         Get all processed constructions.
-        
+
         Returns:
             Dict[str, ConstructionData]: Dictionary of all constructions
         """
@@ -298,7 +290,6 @@ class MaterialsParser:
         for layer_id in construction.material_layers:
             material = self.materials.get(layer_id)
             if material:
-                # Mass per area for this layer = density * thickness
                 layer_mass = material.density * material.thickness
                 total_mass_per_area += layer_mass
         return total_mass_per_area
@@ -306,29 +297,27 @@ class MaterialsParser:
     def calculate_construction_properties(self, construction_id: str) -> Dict[str, float]:
         """
         Calculate properties for a specific construction.
-        
+
         Args:
             construction_id: ID of the construction
-            
+
         Returns:
             Dict[str, float]: Dictionary with properties like thickness and conductivity
         """
         construction = self.constructions.get(construction_id)
         if not construction:
             return {'thickness': 0.0, 'conductivity': 0.0}
-        
+
         total_resistance = 0.0
         total_thickness = construction.thickness
-        
-        # Calculate total resistance
+
         for layer_id in construction.material_layers:
             material = self.materials.get(layer_id)
             if material and material.conductivity > 0:
                 total_resistance += material.thickness / material.conductivity
-        
-        # Calculate effective conductivity
+
         conductivity = total_thickness / total_resistance if total_resistance > 0 else 0.0
-        
+
         return {
             'thickness': total_thickness,
             'conductivity': conductivity
@@ -337,7 +326,7 @@ class MaterialsParser:
     def get_constructions_u_values(self) -> Dict[str, float]:
         """
         Get U-values for all constructions based on the calculations from materials report.
-        
+
         Returns:
             Dict[str, float]: Dictionary mapping construction IDs to their U-values
         """

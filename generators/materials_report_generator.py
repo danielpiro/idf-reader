@@ -1,14 +1,17 @@
 """
 Generates PDF reports showing materials and their thermal properties within constructions.
 """
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4, landscape, A3
+from reportlab.lib.pagesizes import landscape, A3
 from reportlab.lib.units import cm
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import Paragraph, Table, TableStyle, SimpleDocTemplate, Spacer
 from reportlab.lib.colors import navy, black, grey, lightgrey
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import datetime
+import logging # Added for detailed error logging
+from pathlib import Path # Added for path operations
+
+logger = logging.getLogger(__name__) # Added logger instance
 
 def wrap_text(text, style):
     """Create wrapped text in a cell."""
@@ -46,9 +49,9 @@ def create_table_style():
 
 def _get_element_type_sort_keys(element_type_str):
     """Assigns primary and secondary sort keys based on element type string."""
-    element_type_lower = (element_type_str or "").lower()
-    primary_key = 99  # Default for unspecified types
-    secondary_key = 99 # Default for unspecified sub-types
+    element_type_lower = element_type_str.lower() # Assumes element_type_str is always a string
+    primary_key = 99
+    secondary_key = 99
 
     if 'floor' in element_type_lower:
         primary_key = 0
@@ -63,13 +66,9 @@ def _get_element_type_sort_keys(element_type_str):
         elif 'external' in element_type_lower:
             secondary_key = 2
         else:
-            secondary_key = 3 # Other wall types
+            secondary_key = 3
     elif 'glazing' in element_type_lower:
         primary_key = 3
-    
-    # Handle cases where element_type might be a list/tuple (though less common in materials)
-    # For simplicity, this example assumes element_type_str is a simple string.
-    # If it can be a list, the logic would need to iterate or pick the most relevant.
 
     return primary_key, secondary_key
 
@@ -77,9 +76,9 @@ def custom_material_sort_key(item):
     """Create a custom sort key for materials based on element type and name."""
     element_type = item.get('element_type', '') or ''
     element_name = item.get('element_name', '') or ''
-    
+
     primary_sort, secondary_sort = _get_element_type_sort_keys(element_type)
-    
+
     return (primary_sort, secondary_sort, element_name)
 
 def _calc_group_totals(group):
@@ -136,8 +135,15 @@ def group_element_data(element_data):
                 'u_value': u_value
             })
         return grouped_data
-    except Exception as e:
-        raise RuntimeError(f"Error grouping element data: {e}")
+    except (TypeError, ValueError, KeyError, AttributeError) as e:
+        logger.error(f"Error processing or grouping element data: {type(e).__name__} - {str(e)}. Problematic item might be missing expected keys or have incorrect data types.", exc_info=True)
+        # Depending on desired behavior, you might return an empty list or re-raise a custom error
+        # For now, let's return an empty list to prevent further processing if data is malformed.
+        return []
+    except Exception as e: # Catch-all for other unexpected errors
+        logger.error(f"Unexpected error grouping element data: {type(e).__name__} - {str(e)}", exc_info=True)
+        return []
+
 
 def safe_value(value, default=""):
     """Safely convert a value to string, handling None."""
@@ -204,15 +210,35 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
         bool: True if report generated successfully, False otherwise.
     """
     if not element_data:
-        return False
+        logger.warning("No element data provided for materials report. Skipping generation.")
+        return False # No data, no report.
+
+    doc = None
     try:
-        grouped_data = group_element_data(element_data)
-        if not grouped_data:
+        output_file_path = Path(output_filename)
+        output_dir = output_file_path.parent
+        if not output_dir.exists():
+            try:
+                output_dir.mkdir(parents=True, exist_ok=True)
+                logger.info(f"Created output directory for materials report: {output_dir}")
+            except OSError as e:
+                error_message = f"Error creating output directory '{output_dir}' for materials report: {e.strerror}"
+                logger.error(error_message, exc_info=True)
+                return False
+        elif not output_dir.is_dir():
+            error_message = f"Error: Output path '{output_dir}' for materials report exists but is not a directory."
+            logger.error(error_message)
             return False
+
+        grouped_data = group_element_data(element_data)
+        if not grouped_data: # group_element_data might return empty if there was an error or no valid groups
+            logger.warning("Element data could not be grouped or resulted in no groups for materials report. Skipping generation.")
+            return False
+
         page_size = landscape(A3)
         left_margin = right_margin = top_margin = bottom_margin = 1.0 * cm
-        doc = SimpleDocTemplate(output_filename, pagesize=page_size, leftMargin=left_margin, rightMargin=right_margin, topMargin=top_margin, bottomMargin=bottom_margin)
-        width, _ = page_size
+        doc = SimpleDocTemplate(str(output_file_path), pagesize=page_size, leftMargin=left_margin, rightMargin=right_margin, topMargin=top_margin, bottomMargin=bottom_margin)
+        width, _ = page_size # height is not used, so _ is fine
         content_width = width - left_margin - right_margin
         styles = getSampleStyleSheet()
         title_style = styles['Heading1']
@@ -262,6 +288,16 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
         materials_table.setStyle(table_style)
         story.append(materials_table)
         doc.build(story)
+        logger.info(f"Successfully generated Materials report: {output_filename}")
         return True
-    except Exception as e:
-        raise RuntimeError(f"Error generating materials report: {e}")
+    except (IOError, OSError) as e:
+        error_message = f"Error during file operation for Materials report '{output_filename}': {e.strerror}"
+        logger.error(error_message, exc_info=True)
+        return False
+    except Exception as e: # Catch ReportLab specific errors or other unexpected issues
+        error_message = f"An unexpected error occurred while generating Materials report '{output_filename}': {type(e).__name__} - {str(e)}"
+        logger.error(error_message, exc_info=True)
+        return False
+    finally:
+        # SimpleDocTemplate's build method should handle closing the file.
+        pass

@@ -1,7 +1,6 @@
 """
 Generates reports for area-specific information extracted from IDF files.
 """
-from typing import Dict, Any, List
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import landscape, A4
@@ -9,160 +8,118 @@ from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from pathlib import Path
 import datetime
+import logging # Added for detailed error logging
 from collections import defaultdict
+
+logger = logging.getLogger(__name__) # Added logger instance
 
 def _format_construction_name(construction: str) -> str:
     """
     Format construction name for better display in the table.
     Adds line breaks for better readability.
-    
+
     Args:
         construction: Construction name
-        
+
     Returns:
         str: Formatted construction name
     """
-    # If the name is long, insert line breaks at meaningful places
-    if len(construction) > 18:  # Reduced threshold for breaking
-        # Try to break at spaces
-        parts = construction.split(' ')
-        if len(parts) > 1:
-            # Try to find optimal break points
-            result = ""
-            current_line = ""
-            
-            for part in parts:
-                if len(current_line) + len(part) + 1 > 18:  # +1 for space
-                    if current_line:
-                        result += current_line + "<br/>"
-                        current_line = part
-                    else:
-                        # Single part too long
-                        result += part + "<br/>"
-                        current_line = ""
-                else:
-                    current_line = f"{current_line} {part}".strip() if current_line else part
-            
-            # Add the last line
-            if current_line:
-                result += current_line
-                
-            return result
-        else:
-            # No spaces, insert break every ~15 characters
-            result = ""
-            for i in range(0, len(construction), 15):
-                result += construction[i:min(i+15, len(construction))]
-                if i + 15 < len(construction):
-                    result += "<br/>"
-            return result
-    
-    return construction
+    if len(construction) <= 18:
+        return construction
+
+    parts = construction.split(' ')
+    if len(parts) > 1:
+        lines = []
+        current_line = parts[0]
+        for part in parts[1:]:
+            # Check if adding the next part (plus a space) exceeds the limit
+            if len(current_line) + 1 + len(part) <= 18:
+                current_line += " " + part
+            else:
+                # Current line is full, or the new part makes it too long
+                lines.append(current_line)
+                current_line = part # Start a new line with the current part
+        lines.append(current_line) # Add the last processed line
+        return "<br/>".join(lines)
+    else:
+        # Single word, longer than 18 chars, break it every 15 chars
+        return "<br/>".join([construction[i:i + 15] for i in range(0, len(construction), 15)])
+
+def _normalize_glazing_str(s: str) -> str:
+    return "External glazing" if s == "External Glazing" else s
 
 def _clean_element_type(element_type) -> str:
     """
     Cleans the element type for display, removing list formatting, quotes, and boolean values.
-    
+
     Args:
         element_type: Element type which could be a string, tuple, or list,
                      potentially with a boolean value
-    
+
     Returns:
         str: Cleaned element type string for display
     """
-    cleaned_str = ""
-    # If it's already a string, process it
     if isinstance(element_type, str):
-        cleaned_str = element_type.strip()
-        if cleaned_str == "External Glazing":
-            return "External glazing"
-        return cleaned_str
-    
-    # If it's a tuple or list with boolean, extract just the element types
+        return _normalize_glazing_str(element_type.strip())
+
     if isinstance(element_type, (list, tuple)):
-        # Check if the second element is a boolean (from _get_element_type which returns (element_types, dont_use))
+        # Handle cases like (['Type A', 'Type B'], True)
         if len(element_type) == 2 and isinstance(element_type[1], bool):
             raw_element_types = element_type[0]
             if isinstance(raw_element_types, (list, tuple)):
-                # Process each element in the list/tuple
-                processed_elements = []
-                for et in raw_element_types:
-                    et_str = str(et).strip()
-                    if et_str == "External Glazing":
-                        processed_elements.append("External glazing")
-                    else:
-                        processed_elements.append(et_str)
-                return '\n'.join(processed_elements)
-            else:
-                # Single element type after boolean check
-                et_str = str(raw_element_types).strip()
-                if et_str == "External Glazing":
-                    return "External glazing"
-                return et_str
-        else:
-            # It's just a list/tuple of element types without a boolean
-            processed_elements = []
-            for et in element_type:
-                et_str = str(et).strip()
-                if et_str == "External Glazing":
-                    processed_elements.append("External glazing")
-                else:
-                    processed_elements.append(et_str)
-            return '\n'.join(processed_elements)
-    
-    # Fallback - convert whatever it is to a string and apply the specific replacement
-    fallback_str = str(element_type).strip()
-    if fallback_str == "External Glazing":
-        return "External glazing"
-    return fallback_str
+                return '\n'.join([_normalize_glazing_str(str(et).strip()) for et in raw_element_types])
+            else: # Single element in the first part of the tuple
+                return _normalize_glazing_str(str(raw_element_types).strip())
+        else: # Plain list or tuple of types
+            return '\n'.join([_normalize_glazing_str(str(et).strip()) for et in element_type])
+
+    # Fallback for other types
+    return _normalize_glazing_str(str(element_type).strip())
 
 def _get_element_type_sort_keys_area(element_type_val):
     """Assigns primary and secondary sort keys based on element type string for area report."""
-    # Use _clean_element_type to get a consistent string representation
     cleaned_element_type_str = _clean_element_type(element_type_val)
     element_type_lower = (cleaned_element_type_str or "").lower()
-    
-    primary_key = 99  # Default for unspecified types
-    secondary_key = 99 # Default for unspecified sub-types
 
-    # Prioritize based on keywords
+    primary_key = 99
+    secondary_key = 99
+
     if 'floor' in element_type_lower:
         primary_key = 0
     elif 'ceiling' in element_type_lower or 'roof' in element_type_lower:
         primary_key = 1
-    elif 'wall' in element_type_lower: # This will catch 'external wall', 'internal wall', etc.
+    elif 'wall' in element_type_lower:
         primary_key = 2
-        if 'internal' in element_type_lower: # Specifically 'internal wall'
+        if 'internal' in element_type_lower:
             secondary_key = 0
-        elif 'separation' in element_type_lower: # Specifically 'separation wall'
+        elif 'separation' in element_type_lower:
             secondary_key = 1
-        elif 'external' in element_type_lower: # Specifically 'external wall'
+        elif 'external' in element_type_lower:
             secondary_key = 2
-        else: # Other wall types or just 'wall'
+        else:
             secondary_key = 3
     elif 'glazing' in element_type_lower:
         primary_key = 3
-    # Add more specific checks if needed, e.g., for 'door', 'window' if they are distinct from 'glazing'
 
     return primary_key, secondary_key
 
 def custom_area_sort_key(item):
     """Create a custom sort key for area data based on zone, element type, and construction name."""
     zone = item.get('zone', '')
-    element_type = item.get('element_type', '') # Raw element_type from data
+    element_type = item.get('element_type', '')
     construction_name = item.get('construction', '')
-    
+
     primary_sort, secondary_sort = _get_element_type_sort_keys_area(element_type)
-    
+
     return (zone, primary_sort, secondary_sort, construction_name)
 
 def _area_table_data(merged_data):
     """
     Prepare and sort area table data for report generation using custom sort key.
-    
+
     Args:
         merged_data: Merged area data rows
-    
+
     Returns:
         Sorted list of area data rows
     """
@@ -185,24 +142,34 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
     Returns:
         bool: True if report generation was successful, False otherwise.
     """
+    doc = None
     try:
-        # Ensure output directory exists
-        output_path = Path(output_filename).parent
-        output_path.mkdir(exist_ok=True)
-        
-        # Create PDF document
-        doc = SimpleDocTemplate(output_filename, pagesize=landscape(A4))
+        output_file_path = Path(output_filename)
+        output_dir = output_file_path.parent
+        if not output_dir.exists():
+            try:
+                output_dir.mkdir(parents=True, exist_ok=True)
+                logger.info(f"Created output directory for area report: {output_dir}")
+            except OSError as e:
+                error_message = f"Error creating output directory '{output_dir}' for area report '{area_id}': {e.strerror}"
+                logger.error(error_message, exc_info=True)
+                return False
+        elif not output_dir.is_dir():
+            error_message = f"Error: Output path '{output_dir}' for area report '{area_id}' exists but is not a directory."
+            logger.error(error_message)
+            return False
+
+        doc = SimpleDocTemplate(str(output_file_path), pagesize=landscape(A4))
         styles = getSampleStyleSheet()
         story = []
-        
-        # Header Information
+
         now = datetime.datetime.now()
         header_style = ParagraphStyle(
             'HeaderInfo',
             parent=styles['Normal'],
             fontSize=9,
-            textColor=colors.black, # Changed from darkgrey to black
-            alignment=2 # Right aligned
+            textColor=colors.black,
+            alignment=2
         )
         header_text = f"""
         Project: {project_name}<br/>
@@ -211,9 +178,8 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         Report: Area {area_id} - Thermal Properties
         """
         story.append(Paragraph(header_text, header_style))
-        story.append(Spacer(1, 5)) # Add some space after header
+        story.append(Spacer(1, 5))
 
-        # Title
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
@@ -221,21 +187,16 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
             spaceAfter=20
         )
         story.append(Paragraph(f"Area {area_id} - Thermal Properties Report", title_style))
-        
-        # Data is now pre-merged before calling this function
-        merged_data = area_data # Use the pre-merged data passed in
-        
-        # Wall mass is now calculated and passed in
-        # wall_mass = 0.0 # Removed placeholder calculation
-        
-        # Generate summary section as a card (Table)
+
+        merged_data = area_data
+
         summary_content_style = ParagraphStyle(
             'SummaryContent',
             parent=styles['Normal'],
             fontSize=10,
             leading=12
         )
-        
+
         summary_text = f"""
         <b>Area Summary:</b><br/>
         ------------------------------------<br/>
@@ -245,43 +206,40 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         <b>Directions:</b> N, S, E, W<br/>
         <b>Wall Mass:</b> {wall_mass_per_area:.2f} kg/m²
         """
-        
+
         summary_paragraph = Paragraph(summary_text, summary_content_style)
-        
-        # Create a table to act as a card with a border
+
         summary_table_data = [[summary_paragraph]]
-        summary_table = Table(summary_table_data, colWidths=[doc.width - 2*cm]) # Adjust width as needed
-        
+        summary_table = Table(summary_table_data, colWidths=[doc.width - 2*cm])
+
         summary_table_style = TableStyle([
-            ('BOX', (0, 0), (-1, -1), 1, colors.black), # Border around the cell
-            ('PADDING', (0, 0), (-1, -1), 10),         # Padding inside the cell
-            ('BACKGROUND', (0, 0), (-1, -1), colors.whitesmoke) # Optional background color
+            ('BOX', (0, 0), (-1, -1), 1, colors.black),
+            ('PADDING', (0, 0), (-1, -1), 10),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.whitesmoke)
         ])
-        
+
         summary_table.setStyle(summary_table_style)
-        
+
         story.append(summary_table)
         story.append(Spacer(1, 15))
 
-        # Create cell styles for better formatting
         cell_style = ParagraphStyle(
             'CellStyle',
             parent=styles['Normal'],
-            fontSize=9,  # Smaller font for better fit
-            leading=10,  # Reduced line spacing
+            fontSize=9,
+            leading=10,
             spaceBefore=0,
             spaceAfter=0
         )
-        
+
         header_style = ParagraphStyle(
             'HeaderStyle',
             parent=styles['Heading4'],
             fontSize=10,
-            alignment=1,  # Center alignment
+            alignment=1,
             textColor=colors.whitesmoke
         )
-        
-        # Header row for the table as Paragraphs for consistent styling
+
         headers = [
             Paragraph("Zone", header_style),
             Paragraph("Construction", header_style),
@@ -289,41 +247,31 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
             Paragraph("Area", header_style),
             Paragraph("U-Value", header_style)
         ]
-        
-        # Prepare table data
+
         table_data = [headers]
-        
-        # Sort rows by zone and construction for better readability
+
         sorted_rows = _area_table_data(merged_data)
-        
-        # Track the last zone seen to avoid duplication
+
         last_zone = None
-        
-        # Format values and add to table
+
         for row in sorted_rows:
-            # Format construction name with line breaks
             construction_text = _format_construction_name(row['construction'])
 
-            # Create zone cell - only show zone if different from previous row
             if row['zone'] != last_zone:
                 zone_cell = Paragraph(row['zone'], cell_style)
                 last_zone = row['zone']
             else:
-                zone_cell = ""  # Empty cell if same zone as previous row
-                
+                zone_cell = ""
+
             construction_cell = Paragraph(construction_text, cell_style)
-            
-            # Handle element_type properly whether it's a string or a tuple/list
+
             element_type = row.get('element_type', '')
             element_type_cell = Paragraph(_clean_element_type(element_type), cell_style)
-            
-            # Format numeric values with proper alignment
+
             area_value = f"{row['area']:.2f}"
-            # Use weighted_u_value if available (for aggregated glazing), otherwise fallback to u_value
             u_value_to_format = row.get('weighted_u_value', row.get('u_value', 0.0))
             u_value = f"{u_value_to_format:.3f}"
-            
-            # Add all cells to row
+
             table_data.append([
                 zone_cell,
                 construction_cell,
@@ -331,56 +279,55 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
                 area_value,
                 u_value
             ])
-        
-        # Create the table with carefully adjusted column widths
+
         col_widths = [
-            5.0*cm,     # Zone - increased for long zone names
-            8.0*cm,     # Construction - increased for long names with breaks
-            3.5*cm,     # Element type
-            2.7*cm,     # Area
-            3.0*cm      # U-Value
+            5.0*cm,
+            8.0*cm,
+            3.5*cm,
+            2.7*cm,
+            3.0*cm
         ]
-        
-        # Create table with data and column widths
+
         area_table = Table(table_data, colWidths=col_widths, repeatRows=1)
-        
-        # Style the table
+
         table_style = TableStyle([
-            # Header style
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            # Data rows - numbers right aligned
             ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),
-            # Grid style
             ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-            # Enhanced cell padding for better spacing
             ('LEFTPADDING', (0, 0), (-1, -1), 6),
             ('RIGHTPADDING', (0, 0), (-1, -1), 6),
             ('TOPPADDING', (0, 0), (-1, -1), 4),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-            # Alternating row colors
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
-            # Extra - adjust vertical alignment
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ])
-        
+
         area_table.setStyle(table_style)
         story.append(area_table)
-        
-        # Build the document
+
         doc.build(story)
+        logger.info(f"Successfully generated Area report for {area_id}: {output_filename}")
         return True
-        
-    except Exception as e:
-        raise RuntimeError(f"Error generating area report PDF for Area {area_id}: {e}")
+    except (IOError, OSError) as e:
+        error_message = f"Error during file operation for Area report '{area_id}' (file: '{output_filename}'): {e.strerror}"
+        logger.error(error_message, exc_info=True)
+        return False
+    except Exception as e: # Catch ReportLab specific errors or other unexpected issues
+        error_message = f"An unexpected error occurred while generating Area report for '{area_id}' (file: '{output_filename}'): {type(e).__name__} - {str(e)}"
+        logger.error(error_message, exc_info=True)
+        return False
+    finally:
+        # SimpleDocTemplate's build method should handle closing the file.
+        pass
 
 def generate_area_reports(areas_data, output_dir: str = "output/areas",
                           project_name: str = "N/A", run_id: str = "N/A") -> bool:
     """
     Generate individual reports for each area, including header information.
-    
+
     Args:
         areas_data: AreaParser instance or dictionary of area information by zone.
         output_dir (str): Directory for output files.
@@ -390,102 +337,96 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
     Returns:
         bool: True if all report generation was successful, False otherwise.
     """
+    all_reports_successful = True
     try:
-        # Create output directory
         output_path = Path(output_dir)
-        output_path.mkdir(exist_ok=True, parents=True)
-        
-        # Get table data for each area
+        if not output_path.exists():
+            try:
+                output_path.mkdir(parents=True, exist_ok=True)
+                logger.info(f"Created base output directory for area reports: {output_path}")
+            except OSError as e:
+                error_message = f"Error creating base output directory '{output_path}' for area reports: {e.strerror}"
+                logger.error(error_message, exc_info=True)
+                return False # Cannot proceed if base output dir fails
+        elif not output_path.is_dir():
+            error_message = f"Error: Base output path '{output_path}' for area reports exists but is not a directory."
+            logger.error(error_message)
+            return False
+
         from parsers.materials_parser import MaterialsParser
-        from utils.data_loader import DataLoader
-        
-        # Initialize materials parser if needed
+
         materials_parser = None
         data_loader = None
-        
-        # Get the data loader from the areas_data if possible
+
         if hasattr(areas_data, 'data_loader'):
             data_loader = areas_data.data_loader
-        
-        # Create a materials parser to identify element types
-        try:
-            if data_loader:
+
+        if data_loader:
+            try:
                 materials_parser = MaterialsParser(data_loader)
-                materials_parser.process_idf(None)
-        except Exception as e:
-            materials_parser = None
-        
-        # Get surfaces if we have a data_loader
+                materials_parser.process_idf(None) # Assuming process_idf can handle None or has its own error handling
+            except Exception as e:
+                logger.warning(f"Could not initialize or process MaterialsParser for area reports: {e}", exc_info=True)
+                materials_parser = None # Ensure it's None if initialization fails
+
         surfaces = {}
         zones = {}
         if data_loader:
             surfaces = data_loader.get_surfaces()
             zones = data_loader.get_zones()
-        
-        # Convert the data to table rows by area
+
         area_table_data = {}
-        
-        # Calculate total floor area for each area
+
         area_floor_totals = {}
-        
-        # First, calculate total floor area by area ID
+
         if hasattr(areas_data, 'areas_by_zone'):
-            # If AreaParser is available, use its data structure
             for zone_id, zone_data in areas_data.areas_by_zone.items():
                 area_id = zone_data.get("area_id", "unknown")
                 if area_id not in area_floor_totals:
                     area_totals = areas_data.get_area_totals(area_id)
                     area_floor_totals[area_id] = area_totals.get("total_floor_area", 0.0)
         else:
-            # Otherwise calculate from zones dictionary
             for zone_id, zone_data in zones.items():
                 area_id = None
                 if hasattr(areas_data, 'get') and isinstance(areas_data.get(zone_id), dict):
                     area_id = areas_data.get(zone_id, {}).get("area_id", "unknown")
-                
+
                 if area_id:
                     if area_id not in area_floor_totals:
                         area_floor_totals[area_id] = 0.0
-                    
-                    # Add zone's floor area to area total
+
                     floor_area = zone_data.get("floor_area", 0.0)
                     multiplier = zone_data.get("multiplier", 1)
                     area_floor_totals[area_id] += floor_area * multiplier
-        
+
         if hasattr(areas_data, 'get_area_table_data'):
-            # Pass the materials_parser to get_area_table_data
             area_table_data = areas_data.get_area_table_data(materials_parser)
         else:
-            # Group zones by area and process reports
             areas_grouped = defaultdict(dict)
             for zone_id, zone_data in areas_data.items():
                 area_id = zone_data.get("area_id", "unknown")
                 if area_id not in areas_grouped:
                     areas_grouped[area_id] = {}
                 areas_grouped[area_id][zone_id] = zone_data
-            
-            # For each area, process all zone constructions
+
             for area_id, area_zones in areas_grouped.items():
                 rows = []
-                
+
                 for zone_id, zone_data in area_zones.items():
-                    # Process constructions for this zone
                     for construction_name, construction_data in zone_data.get("constructions", {}).items():
-                        # Sum all elements for this construction
                         total_area = construction_data.get("total_area", 0.0)
-                        total_u_value = construction_data.get("total_u_value", 0.0)
-                        
-                        # Determine element type using proper detection
-                        element_type = None  # Initialize to None to track if detection succeeded
-                        
-                        # Try using MaterialsParser first for element type detection
+                        construction_data.get("total_u_value", 0.0)
+
+                        element_type = None
+
                         if materials_parser and surfaces:
                             try:
                                 element_type = materials_parser._get_element_type(construction_name, surfaces)
-                            except Exception:
+                            except Exception as e_mat_type:
+                                logger.debug(f"Could not get element type via MaterialsParser for {construction_name}: {e_mat_type}", exc_info=True)
+                                # Pass and try fallback
                                 pass
-                        
-                        # Check if this is a glazing construction if element_type is still None
+
                         if not element_type:
                             for element in construction_data.get("elements", []):
                                 surface_name = element.get("surface_name")
@@ -494,15 +435,13 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                                     if surface.get('is_glazing', False):
                                         element_type = "Glazing"
                                         break
-                        
-                        # Fallback: only use if all other methods fail
+
                         if not element_type and construction_data.get("elements"):
                             fallback_type = construction_data["elements"][0].get("element_type", "Unknown")
                             element_type = fallback_type
                         elif not element_type:
                             element_type = "Unknown"
-                        
-                        # Add row for this construction
+
                         row = {
                             "zone": zone_id,
                             "construction": construction_name,
@@ -511,13 +450,9 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                             "u_value": construction_data.get("elements", [{}])[0].get("u_value", 0.0) if construction_data.get("elements") else 0.0
                         }
                         rows.append(row)
-                
-                area_table_data[area_id] = rows
-        
-        # --- Merging is now done in AreaParser, no need to call merge_reversed_constructions here ---
-        # The data in area_table_data is already merged.
 
-        # Get area locations from h_values if available
+                area_table_data[area_id] = rows
+
         area_locations = {}
         if hasattr(areas_data, 'get_area_h_values'):
             try:
@@ -527,98 +462,81 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                     location = item.get('location', 'Unknown')
                     if area_id:
                         area_locations[area_id] = location
-            except Exception as e:
-                pass
+            except Exception as e_hval:
+                logger.warning(f"Could not retrieve area H values for area reports: {e_hval}", exc_info=True)
+                # Continue without this data if it fails
 
-        # --- Generate a report for each area ---
-        successes = []
-        # Iterate directly over the already merged data
+        # successes = [] # Replaced by all_reports_successful
         for area_id, merged_rows in area_table_data.items():
-            # Get total floor area for this area
             total_floor_area = area_floor_totals.get(area_id, 0.0)
 
-            # --- Calculate Wall Mass Per Area ---
-            wall_mass_per_area = 0.0 # Initialize mass per area
+            wall_mass_per_area = 0.0
             largest_ext_wall_area = 0.0
             largest_ext_wall_construction = None
 
-            # Find the largest external wall in this area's data
             for row in merged_rows:
-                # Ensure element_type exists and is checked case-insensitively
-                # Handle element_type whether it's a string or a tuple/list
-                element_type = row.get('element_type', '')
+                raw_element_type = row.get('element_type', '')
+                # _clean_element_type returns a string, potentially with newlines.
+                # We check if 'external wall' is one of the types after cleaning and lowercasing.
+                cleaned_type_str = _clean_element_type(raw_element_type).lower()
                 
-                # Check if it's a string or a tuple/list (it might be either due to code changes)
-                if isinstance(element_type, (tuple, list)):
-                    # If it's a tuple or list (multiple element types), check each one
-                    for et in element_type:
-                        if isinstance(et, str) and et.lower() == 'external wall':
-                            current_area = row.get('area', 0.0)
-                            if current_area > largest_ext_wall_area:
-                                largest_ext_wall_area = current_area
-                                largest_ext_wall_construction = row.get('construction')
-                            break
-                else:
-                    # If it's a string (single element type), check it directly
-                    if isinstance(element_type, str) and element_type.lower() == 'external wall':
-                        current_area = row.get('area', 0.0)
-                        if current_area > largest_ext_wall_area:
-                            largest_ext_wall_area = current_area
-                            largest_ext_wall_construction = row.get('construction')
+                # Split by newline in case _clean_element_type produced a multi-line string (e.g. from a list)
+                # and check if 'external wall' is one of the distinct types.
+                if 'external wall' in cleaned_type_str.split('\n'):
+                    current_area = row.get('area', 0.0)
+                    if current_area > largest_ext_wall_area:
+                        largest_ext_wall_area = current_area
+                        largest_ext_wall_construction = row.get('construction')
 
-            # Calculate mass per area if the largest wall was found and parser is available
             if largest_ext_wall_construction and materials_parser:
                 try:
-                    # Replicate the mass calculation logic here, including the conductivity check
                     construction_data = materials_parser.constructions.get(largest_ext_wall_construction)
                     if construction_data:
                         calculated_mass_per_area = 0.0
-                        found_low_conductivity = False # Flag for the conductivity rule
+                        found_low_conductivity = False
                         for layer_id in construction_data.material_layers:
                             material_data = materials_parser.materials.get(layer_id)
                             if material_data:
                                 layer_mass = material_data.density * material_data.thickness
-                                # Apply the conductivity rule specifically for external walls
-                                if not found_low_conductivity: # Only apply to the first low-conductivity layer found
-                                    if material_data.conductivity < 0.2 and material_data.conductivity != 0: # Check conductivity is < 0.2 but not zero
+                                if not found_low_conductivity:
+                                    if material_data.conductivity < 0.2 and material_data.conductivity != 0:
                                         layer_mass /= 2
-                                        found_low_conductivity = True # Set flag so rule is only applied once per construction
+                                        found_low_conductivity = True
                                 calculated_mass_per_area += layer_mass
                         wall_mass_per_area = calculated_mass_per_area
                     else:
                          pass
 
-                except Exception as e:
-                    pass
-                    import traceback
-                    traceback.print_exc() # Add traceback for debugging calculation errors
+                except Exception as e_mass:
+                    logger.warning(f"Error calculating wall mass for area '{area_id}', construction '{largest_ext_wall_construction}': {e_mass}", exc_info=True)
+                    # Continue with default wall_mass_per_area = 0.0
             elif largest_ext_wall_construction:
-                 pass
-            # --- End Wall Mass Per Area Calculation ---
+                 logger.debug(f"MaterialsParser not available for wall mass calculation for area '{area_id}'.")
 
-            # Get location for this area
             location = area_locations.get(area_id, "Unknown")
-            
-            # Define output filename
+
             output_file = output_path / f"{area_id}.pdf"
 
-            # Generate the PDF report for this area, passing the calculated wall_mass_per_area and location
             success = generate_area_report_pdf(
                 area_id=area_id,
-                area_data=merged_rows, # Use merged rows
+                area_data=merged_rows,
                 output_filename=str(output_file),
                 total_floor_area=total_floor_area,
                 project_name=project_name,
                 run_id=run_id,
-                wall_mass_per_area=wall_mass_per_area, # Pass calculated mass per area
-                location=location # Use the determined location
+                wall_mass_per_area=wall_mass_per_area,
+                location=location
             )
-            successes.append(success)
+            if not success:
+                all_reports_successful = False # If any report fails, the overall result is False
+                logger.error(f"Failed to generate PDF report for Area ID: {area_id}")
+            # successes.append(success) # Removed
 
-            
-        return all(successes)
-        
+        return all_reports_successful
+
+    except ImportError as ie:
+        logger.error(f"Failed to import a required module (e.g., MaterialsParser) for generating area reports: {ie}", exc_info=True)
+        return False
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.error(f"An unexpected error occurred in generate_area_reports: {type(e).__name__} - {str(e)}", exc_info=True)
         return False

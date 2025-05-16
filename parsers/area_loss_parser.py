@@ -1,7 +1,7 @@
 """
 Extracts and processes area loss information for thermal performance analysis.
 """
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 import logging
 import re
 from parsers.area_parser import AreaParser
@@ -91,7 +91,6 @@ class AreaLossParser:
             "External Floor": "External Floor",
             "External Floor Below Unconditioned": "External Floor Below Unconditioned",
             "External Below Open Space": "External Below Open Space",
-            # Legacy
             "Below Open Space": "Ground Floor Below Open Space",
             "Over Close Space": "Separation Floor",
             "Over Open Space": "External Floor"

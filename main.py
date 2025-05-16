@@ -1,7 +1,6 @@
 import logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-# Add a test log message to confirm setup
 logger = logging.getLogger(__name__)
 logger.info("Logging configured at DEBUG level.")
 import argparse
@@ -9,42 +8,60 @@ import sys
 import os
 import time
 from colorama import Fore, Style, init
-from gui import IDFProcessorGUI, ProcessingManager # Import GUI and ProcessingManager
+from gui import IDFProcessorGUI, ProcessingManager
 
-# Initialize colorama
 init(autoreset=True)
 
 def ensure_directory_exists(file_path: str) -> None:
     """
     Ensure the directory for the given file path exists.
     Create it if it doesn't exist.
-    
+
     Args:
-        file_path: Path to the file
+        file_path: Path to the file.
     """
     directory = os.path.dirname(file_path)
     if directory and not os.path.exists(directory):
         os.makedirs(directory)
+        logger.info(f"Created directory: {directory}")
 
-# --- CLI Callback Functions ---
-def cli_status_update(message: str):
-    """Prints status messages to the console with color."""
-    if "error" in message.lower():
-        print(f"{Fore.RED}{message}{Style.RESET_ALL}")
-    elif "success" in message.lower():
-        print(f"{Fore.GREEN}{message}{Style.RESET_ALL}")
-    else:
-        print(f"{Fore.CYAN}{message}{Style.RESET_ALL}")
-
-def cli_progress_update(value: float):
-    """Prints a simple progress indicator to the console."""
-    # Simple text update, could be enhanced with a progress bar library if needed
-    print(f"Progress: {value*100:.0f}%")
-
-# --- Main CLI Function ---
-def main():
+def cli_status_update(message: str) -> None:
     """
-    Command-line interface for processing IDF files using ProcessingManager.
+    Prints status messages to the console with appropriate color coding.
+
+    Args:
+        message: The message string to print.
+    """
+    if "error" in message.lower() or "failed" in message.lower():
+        print(f"{Fore.RED}{message}{Style.RESET_ALL}")
+    elif "success" in message.lower() or "completed" in message.lower():
+        print(f"{Fore.GREEN}{message}{Style.RESET_ALL}")
+    elif "warning" in message.lower():
+        print(f"{Fore.YELLOW}{message}{Style.RESET_ALL}")
+    else:
+        print(message)
+
+def cli_progress_update(value: float) -> None:
+    """
+    Prints a simple progress bar to the console.
+
+    Args:
+        value: Progress value (0.0 to 1.0), where 1.0 is 100%.
+    """
+    bar_length = 40
+    filled_length = int(round(bar_length * value))
+    bar = '█' * filled_length + '-' * (bar_length - filled_length)
+    # Use \r to return to the beginning of the line, and end='' to prevent newline
+    print(f'\rProgress: |{bar}| {value*100:.1f}%', end='')
+    if value >= 1.0:
+        print()  # Add a newline when progress is complete
+
+def _parse_arguments() -> argparse.Namespace:
+    """
+    Parses command-line arguments for the IDF processor.
+
+    Returns:
+        An argparse.Namespace object containing the parsed arguments.
     """
     parser = argparse.ArgumentParser(
         description="Parse an EnergyPlus IDF file and generate reports using ProcessingManager."
@@ -60,17 +77,34 @@ def main():
     )
     parser.add_argument(
         "-o", "--output",
-        default="output", # Default output directory
+        default="output",
         help="Path to the output directory for reports (default: 'output')."
     )
+    return parser.parse_args()
 
-    args = parser.parse_args()
+def _handle_cli_error(message: str, exit_code: int = 1) -> None:
+    """
+    Handles CLI error reporting and exits the program.
+
+    Args:
+        message: The error message to display.
+        exit_code: The exit code for the program.
+    """
+    cli_status_update(message)
+    sys.exit(exit_code)
+
+def run_cli() -> None:
+    """
+    Runs the command-line interface for processing IDF files.
+    """
+    args = _parse_arguments()
 
     idf_file_path = args.idf_file
     idd_file_path = args.idd
     output_dir_path = args.output
 
-    # Ensure output directory exists (ProcessingManager also does this, but good practice)
+    # Ensure the base output directory exists.
+    # A dummy file path is used to extract the directory name.
     ensure_directory_exists(os.path.join(output_dir_path, "dummy.txt"))
 
     cli_status_update(f"Starting processing for IDF: {idf_file_path}")
@@ -80,13 +114,11 @@ def main():
     start_time = time.time()
 
     try:
-        # Instantiate ProcessingManager with CLI callbacks
         processor = ProcessingManager(
             status_callback=cli_status_update,
             progress_callback=cli_progress_update
         )
 
-        # Run the centralized processing logic
         success = processor.process_idf(
             input_file=idf_file_path,
             idd_path=idd_file_path,
@@ -101,30 +133,47 @@ def main():
             cli_status_update(f"Processing failed or was cancelled after {total_time:.2f}s")
 
     except FileNotFoundError as e:
-        cli_status_update(f"Error: File not found - {str(e)}")
-        sys.exit(1)
+        _handle_cli_error(f"Error: File not found - {str(e)}")
     except ImportError as import_err:
-        if 'reportlab' in str(import_err).lower():
-             cli_status_update("Error: 'reportlab' library required - install with: pip install reportlab")
-        elif 'eppy' in str(import_err).lower():
-             cli_status_update("Error: 'eppy' library required - install with: pip install eppy")
+        err_msg = str(import_err).lower()
+        if 'reportlab' in err_msg:
+            _handle_cli_error("Error: 'reportlab' library is required. Install with: pip install reportlab")
+        elif 'eppy' in err_msg:
+            _handle_cli_error("Error: 'eppy' library is required. Install with: pip install eppy")
         else:
-             cli_status_update(f"An unexpected import error occurred: {import_err}")
-        sys.exit(1)
+            _handle_cli_error(f"An unexpected import error occurred: {import_err}")
     except Exception as e:
-        cli_status_update(f"An unexpected error occurred: {e}")
-        # Consider adding traceback here for debugging
-        # import traceback
-        # traceback.print_exc()
-        sys.exit(1)
+        logger.error(f"An unexpected error occurred in CLI mode: {e}", exc_info=True)
+        _handle_cli_error(f"An unexpected error occurred: {e}")
 
-if __name__ == "__main__":
-    # Check if any arguments were passed (besides the script name)
-    if len(sys.argv) > 1:
-        # If arguments are provided, run the CLI main function
-        main()
-    else:
-        # If no arguments, run the GUI
-        print("No command-line arguments detected, launching GUI...")
+def run_gui() -> None:
+    """
+    Initializes and runs the IDF Processor GUI.
+    """
+    cli_status_update("No CLI arguments detected. Starting GUI mode...")
+    try:
         app = IDFProcessorGUI()
         app.run()
+    except ImportError as import_err:
+        err_msg = str(import_err).lower()
+        # GUI specific dependencies might differ or have different instructions
+        if 'tkinter' in err_msg: # Example, if Tkinter was optional and failed
+             _handle_cli_error("Error: Tkinter library is required for GUI mode. Please ensure it's installed.")
+        elif 'reportlab' in err_msg:
+             _handle_cli_error("Error: 'reportlab' library is required. Install with: pip install reportlab")
+        elif 'eppy' in err_msg:
+             _handle_cli_error("Error: 'eppy' library is required. Install with: pip install eppy")
+        else:
+            _handle_cli_error(f"An unexpected import error occurred while starting GUI: {import_err}")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred while starting GUI: {e}", exc_info=True)
+        _handle_cli_error(f"An unexpected error occurred while starting GUI: {e}")
+
+
+if __name__ == "__main__":
+    # If any arguments are passed (other than the script name itself), run CLI.
+    # Otherwise, run GUI.
+    if len(sys.argv) > 1:
+        run_cli()
+    else:
+        run_gui()

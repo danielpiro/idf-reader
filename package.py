@@ -4,13 +4,10 @@ import sys
 from pathlib import Path
 
 def create_exe():
-    # Get the current directory
     current_dir = Path.cwd()
-    
-    # Define the output directory for the executable
+
     dist_dir = current_dir / "dist"
-    
-    # Create version info file
+
     version_info = '''
 VSVersionInfo(
   ffi=FixedFileInfo(
@@ -40,47 +37,38 @@ VSVersionInfo(
   ]
 )
 '''
-    
+
     version_file = current_dir / "version_info.txt"
     with open(version_file, "w") as f:
         f.write(version_info)
 
-    # PyInstaller arguments
     args = [
-        'gui.py',  # Main script
+        'gui.py',
         '--name=IDF-Processor',
-        '--onefile',  # Create single executable
-        '--noconsole',  # Don't show console window
-        '--clean',  # Clean PyInstaller cache
-        # Add required data files
+        '--onefile',
+        '--noconsole',
+        '--clean',
         '--add-data=settings.json;.' if os.path.exists('settings.json') else None,
-        # Add version info and application configuration
         f'--version-file={version_file}',
-        '--uac-admin',  # Request admin privileges for long path support
-        # Hidden imports for dependencies
+        '--uac-admin',
         '--hidden-import=customtkinter',
         '--hidden-import=eppy',
         '--hidden-import=reportlab',
-        '--collect-all=customtkinter',  # Ensure all customtkinter resources are included
-        # Optimization and stability options
-        '--noupx',  # Disable UPX compression for better stability
-        '--noconfirm',  # Replace existing build without asking
+        '--collect-all=customtkinter',
+        '--noupx',
+        '--noconfirm',
     ]
-    
-    # Filter out None values
+
     args = [arg for arg in args if arg is not None]
-    
+
     try:
-        print("Starting build process...")
+
         PyInstaller.__main__.run(args)
-        print("\nBuild completed successfully!")
-        print(f"\nExecutable created at: {dist_dir / 'IDF-Processor.exe'}")
-        
-        # Cleanup version info file
+
         version_file.unlink()
-        
+
     except Exception as e:
-        print(f"Error during build process: {str(e)}")
+
         sys.exit(1)
 
 if __name__ == "__main__":

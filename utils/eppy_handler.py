@@ -1,9 +1,24 @@
 """
 Handles eppy IDF model loading, initialization and common operations.
 """
-from typing import Optional
 import os
 from eppy.modeleditor import IDF
+
+# Static list of settings object types
+SETTINGS_OBJECT_TYPES = [
+    "Version",
+    "RunPeriod",
+    "Timestep",
+    "ConvergenceLimits",
+    "SimulationControl",
+    "Site:Location",
+    "Site:GroundTemperature:BuildingSurface",
+    "Site:GroundTemperature:Deep",
+    "Site:GroundTemperature:Shallow",
+    "Site:GroundTemperature:FCfactorMethod",
+    "Site:GroundReflectance",
+    "Site:GroundReflectance:SnowModifier"
+]
 
 class EppyHandler:
     """Handles eppy IDF model loading and provides utility functions."""
@@ -29,20 +44,20 @@ class EppyHandler:
     def load_idf(self, idf_path: str) -> IDF:
         """
         Load and return an IDF model.
-        
+
         Args:
             idf_path: Path to the IDF file to load.
-            
+
         Returns:
             IDF: The loaded IDF model.
-            
+
         Raises:
             FileNotFoundError: If IDF file not found.
             Exception: For other eppy-related errors.
         """
         if not os.path.isfile(idf_path):
             raise FileNotFoundError(f"IDF file not found at '{idf_path}'")
-            
+
         try:
             return IDF(idf_path)
         except Exception as e:
@@ -51,11 +66,11 @@ class EppyHandler:
     def get_objects_by_type(self, idf: IDF, object_type: str) -> list:
         """
         Get all objects of a specific type from the IDF model.
-        
+
         Args:
             idf: The IDF model to query.
             object_type: The type of objects to retrieve (e.g., 'Schedule:Compact').
-            
+
         Returns:
             list: List of objects matching the specified type.
         """
@@ -67,10 +82,10 @@ class EppyHandler:
     def get_schedule_objects(self, idf: IDF) -> list:
         """
         Get all Schedule:Compact objects from the IDF model.
-        
+
         Args:
             idf: The IDF model to query.
-            
+
         Returns:
             list: List of Schedule:Compact objects.
         """
@@ -78,18 +93,4 @@ class EppyHandler:
 
     def get_settings_objects(self, idf: IDF) -> dict:
         """Return a dictionary of common settings objects from the IDF model by type."""
-        types = [
-            "Version",
-            "RunPeriod",
-            "Timestep",
-            "ConvergenceLimits",
-            "SimulationControl",
-            "Site:Location",
-            "Site:GroundTemperature:BuildingSurface",
-            "Site:GroundTemperature:Deep",
-            "Site:GroundTemperature:Shallow",
-            "Site:GroundTemperature:FCfactorMethod",
-            "Site:GroundReflectance",
-            "Site:GroundReflectance:SnowModifier"
-        ]
-        return {t: self.get_objects_by_type(idf, t) for t in types}
+        return {t: self.get_objects_by_type(idf, t) for t in SETTINGS_OBJECT_TYPES}

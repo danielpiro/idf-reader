@@ -4,179 +4,309 @@ from reportlab.lib.units import cm
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import Paragraph, Table, TableStyle
 from reportlab.lib import colors
-from reportlab.lib.colors import navy, black, grey, lightgrey, white
+from reportlab.lib.colors import navy, grey
 import datetime
+import logging # Added for detailed error logging
+from pathlib import Path # Added for path operations
 
-def parse_date_string(date_str):
+logger = logging.getLogger(__name__) # Added logger instance
+
+def parse_date_string(date_str: str) -> datetime.date:
+    """
+    Parses a 'DD/MM' date string into a datetime.date object (year 2000).
+    Returns a default date (end of year) if parsing fails.
+    """
     try:
+        if not isinstance(date_str, str) or '/' not in date_str:
+            raise ValueError("Date string must be in 'DD/MM' format.")
         day, month = map(int, date_str.split('/'))
         return datetime.date(2000, month, day)
-    except (ValueError, AttributeError):
-        return datetime.date(2000, 12, 31)
+    except (ValueError, AttributeError, TypeError) as e: # Added TypeError for non-string input
+        logger.warning(f"Could not parse date string '{date_str}': {e}. Using default date.", exc_info=True)
+        return datetime.date(2000, 12, 31) # Default to end of year
 
-def create_date_ranges(rule_blocks):
+def create_date_ranges(rule_blocks: list) -> list:
+    """Creates date ranges for rule blocks. Returns empty list on error or no input."""
     if not rule_blocks:
         return []
-    sorted_blocks = sorted(rule_blocks, key=lambda block: parse_date_string(block.get('through', '31/12')))
-    first_date = '01/01' if sorted_blocks and sorted_blocks[0].get('through') != '01/01' else None
-    result_blocks = []
-    prev_date = first_date
-    for i, block in enumerate(sorted_blocks):
-        current_date = block.get('through', '31/12')
-        if '/' not in current_date:
-            continue
-        if i == 0 and first_date:
-            date_range = f"{first_date} -> {current_date}"
-        elif i > 0:
-            prev_date = sorted_blocks[i-1].get('through', '31/12')
-            date_range = f"{prev_date} -> {current_date}"
-        else:
-            date_range = f"01/01 -> {current_date}"
-        new_block = block.copy()
-        new_block['date_range'] = date_range
-        result_blocks.append(new_block)
-    return result_blocks
+    try:
+        # Ensure all 'through' values are valid before sorting
+        for block in rule_blocks:
+            if not isinstance(block, dict) or 'through' not in block:
+                logger.warning(f"Invalid rule block encountered (missing 'through' or not a dict): {block}")
+                # Decide on handling: skip, use default, or raise error. Here, we'll try to proceed.
+                block.setdefault('through', '31/12') # Add default if missing
+            elif not isinstance(block.get('through'), str) or '/' not in block.get('through'):
+                 logger.warning(f"Invalid 'through' date format in block: {block.get('through')}. Using default.")
+                 block['through'] = '31/12' # Correct to a parsable default
 
-def create_hourly_schedule_table(rule_blocks, available_width):
+        sorted_blocks = sorted(rule_blocks, key=lambda block: parse_date_string(block.get('through', '31/12')))
+        
+        first_date_str_in_sorted = sorted_blocks[0].get('through') if sorted_blocks else '31/12'
+        # Determine if the first range should start from '01/01'
+        # This logic seems complex and might need review for edge cases.
+        # For now, assume it's intended.
+        first_range_start_date = '01/01' if parse_date_string(first_date_str_in_sorted) != parse_date_string('01/01') else None
+
+        result_blocks = []
+        # prev_date_str = first_range_start_date # Initialize for the first block if needed
+
+        for i, block in enumerate(sorted_blocks):
+            current_date_str = block.get('through', '31/12') # Already validated/defaulted
+
+            if i == 0:
+                if first_range_start_date:
+                    date_range = f"{first_range_start_date} -> {current_date_str}"
+                else: # First block itself starts from 01/01 or is the only block
+                    date_range = f"01/01 -> {current_date_str}"
+            else:
+                # Get the 'through' date of the *previous* block in the sorted list
+                prev_block_date_str = sorted_blocks[i-1].get('through', '31/12')
+                # The start of the current range is *after* the end of the previous one.
+                # This needs careful handling if dates are not contiguous or overlap.
+                # Assuming simple sequential ranges for now.
+                # To make it "previous_end_date + 1 day -> current_end_date" is more complex.
+                # The current logic is "previous_end_date -> current_end_date" which might be confusing.
+                # For simplicity, let's stick to the original logic's apparent intent:
+                date_range = f"{prev_block_date_str} -> {current_date_str}"
+
+
+            new_block = block.copy()
+            new_block['date_range'] = date_range
+            result_blocks.append(new_block)
+        return result_blocks
+    except Exception as e:
+        logger.error(f"Error creating date ranges: {type(e).__name__} - {str(e)}", exc_info=True)
+        return [] # Return empty list on error
+
+def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> Table | None:
+    """Creates a ReportLab Table for hourly schedules. Returns None on error or no input."""
     if not rule_blocks:
+        logger.info("No rule blocks provided for hourly schedule table.")
         return None
-    rule_blocks_with_ranges = create_date_ranges(rule_blocks)
-    period_col_width = 3.5 * cm
-    num_hour_cols = 24
-    hour_col_width = (available_width - period_col_width) / num_hour_cols
-    col_widths = [period_col_width] + [hour_col_width] * num_hour_cols
-    header = ["Date Ranges/Hours"] + [str(h+1) for h in range(num_hour_cols)]
-    table_data = [header]
-    cell_style = getSampleStyleSheet()['Normal']
-    cell_style.fontSize = 7
-    cell_style.alignment = 1
-    for block in rule_blocks_with_ranges:
-        period_text = block.get('date_range', 'N/A')
-        hourly_values = block.get('hourly_values', [''] * num_hour_cols)
-        row_data = [period_text] + [str(val) if val is not None else '' for val in hourly_values]
-        table_data.append(row_data)
-    style = TableStyle([
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 7),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('ALIGN', (0, 1), (0, -1), 'LEFT'),
-        ('LEFTPADDING', (0, 1), (0, -1), 6),
-        ('TOPPADDING', (1, 1), (-1, -1), 4),
-        ('BOTTOMPADDING', (1, 1), (-1, -1), 4),
-        ('LEFTPADDING', (1, 1), (-1, -1), 3),
-        ('RIGHTPADDING', (1, 1), (-1, -1), 3),
-    ])
-    schedule_table = Table(table_data, colWidths=col_widths)
-    schedule_table.setStyle(style)
-    return schedule_table
+    try:
+        rule_blocks_with_ranges = create_date_ranges(rule_blocks)
+        if not rule_blocks_with_ranges: # create_date_ranges might return empty on error
+            logger.warning("No valid date ranges could be created for schedule table.")
+            return None
 
-def generate_schedules_report_pdf(schedule_data, output_filename="output/schedules.pdf", project_name: str = "N/A", run_id: str = "N/A"):
+        period_col_width = 3.5 * cm
+        num_hour_cols = 24
+        if available_width <= period_col_width:
+            logger.error(f"Available width ({available_width}) is too small for period column ({period_col_width}). Cannot create table.")
+            return None
+        hour_col_width = (available_width - period_col_width) / num_hour_cols
+        col_widths = [period_col_width] + [hour_col_width] * num_hour_cols
+
+        header = ["Date Ranges/Hours"] + [str(h + 1) for h in range(num_hour_cols)]
+        table_data = [header]
+
+        cell_style = getSampleStyleSheet()['Normal'] # Get a fresh style object
+        cell_style.fontSize = 7
+        cell_style.alignment = 1 # TA_CENTER
+
+        for block in rule_blocks_with_ranges:
+            period_text = block.get('date_range', 'N/A')
+            hourly_values = block.get('hourly_values', [''] * num_hour_cols)
+            # Ensure hourly_values has 24 elements, padding if necessary
+            if len(hourly_values) < num_hour_cols:
+                hourly_values.extend([''] * (num_hour_cols - len(hourly_values)))
+            elif len(hourly_values) > num_hour_cols:
+                hourly_values = hourly_values[:num_hour_cols]
+
+            row_data = [period_text] + [str(val) if val is not None else '' for val in hourly_values]
+            table_data.append(row_data)
+
+        style = TableStyle([
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 7),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ALIGN', (0, 1), (0, -1), 'LEFT'), # Align date ranges to the left
+            ('LEFTPADDING', (0, 1), (0, -1), 6),
+            ('TOPPADDING', (1, 1), (-1, -1), 4), # Padding for hour cells
+            ('BOTTOMPADDING', (1, 1), (-1, -1), 4),
+            ('LEFTPADDING', (1, 1), (-1, -1), 3),
+            ('RIGHTPADDING', (1, 1), (-1, -1), 3),
+        ])
+        schedule_table = Table(table_data, colWidths=col_widths)
+        schedule_table.setStyle(style)
+        return schedule_table
+    except Exception as e:
+        logger.error(f"Error creating hourly schedule table: {type(e).__name__} - {str(e)}", exc_info=True)
+        return None
+
+
+def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "output/schedules.pdf",
+                                  project_name: str = "N/A", run_id: str = "N/A") -> bool:
     """
     Generates a PDF report containing schedule definitions, including a header.
+    Returns:
+        bool: True if report generation was successful, False otherwise.
     """
-    if canvas is None:
-        return False
-    c = canvas.Canvas(output_filename, pagesize=A4)
-    width, height = A4
-    margin_x = 2 * cm
-    margin_y = 2 * cm
-    content_width = width - 2 * margin_x
-    current_y = height - margin_y
-    styles = getSampleStyleSheet()
-    title_style = styles['h1']
-    title_style.textColor = navy
-    section_title_style = styles['h2']
-    section_title_style.spaceBefore = 0.5 * cm
-    section_title_style.spaceAfter = 0.3 * cm
-    schedule_name_style = ParagraphStyle(
-        name='ScheduleName', parent=styles['Normal'], fontName='Helvetica-Bold',
-        spaceBefore=0.4*cm, spaceAfter=0.1*cm
-    )
-    not_found_style = ParagraphStyle(
-        name='NotFound', parent=styles['Normal'], fontName='Helvetica-Oblique',
-        textColor=grey, leftIndent=0.5*cm, spaceAfter=0.4*cm
-    )
-    header_info_style = ParagraphStyle(
-        'HeaderInfo', parent=styles['Normal'], fontSize=9, textColor=colors.black, alignment=2
-    )
-    now = datetime.datetime.now()
-    header_text = f"""
-    Project: {project_name}<br/>
-    Run ID: {run_id}<br/>
-    Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
-    Report: Unique Schedule Definitions
-    """
-    p_header = Paragraph(header_text, header_info_style)
-    header_width, header_height = p_header.wrapOn(c, content_width, margin_y)
-    p_header.drawOn(c, width - margin_x - header_width, height - margin_y - header_height)
-    current_y -= (header_height + 0.2*cm)
-    title_text = "IDF Unique Schedule Definitions"
-    p_title = Paragraph(title_text, title_style)
-    p_title.wrapOn(c, content_width, margin_y)
-    title_height = p_title.height
-    p_title.drawOn(c, margin_x, current_y - title_height)
-    current_y -= (title_height + 1 * cm)
-    if not schedule_data:
-        p_empty = Paragraph("No relevant schedules found or extracted.", styles['Normal'])
-        p_empty.wrapOn(c, content_width, margin_y)
-        p_empty.drawOn(c, margin_x, current_y - p_empty.height)
-        try:
-            c.save()
-            return True
-        except Exception:
-            return False
-    space_after_table = 0.8 * cm
+    # Removed 'if canvas is None' check as canvas is imported directly.
+    # This check was likely a remnant from a different structure.
+
     try:
-        for schedule in schedule_data:
-            schedule_type = schedule.get('type', 'Unknown Type')
-            if ("activity" in schedule_type.lower() or "clothing" in schedule_type.lower()):
-                schedule_type = schedule_type.split(" ")[0] + " Schedule"
-            elif ("heating" in schedule_type.lower() or "cooling" in schedule_type.lower()):
-                schedule_type = schedule_type.split(" ")[1] + " " + schedule_type.split(" ")[2] + " Schedule"
-            rule_blocks = schedule.get('rule_blocks', [])
-            schedule_name = None
-            if any(x in schedule_type.lower() for x in ["activity", "clothing", "occupancy"]):
-                schedule_name = "People"
-            elif any(x in schedule_type.lower() for x in ["heating", "cooling"]):
-                schedule_name = "Temperature"
-            elif "ventilation" in schedule_type.lower():
-                schedule_name = "Ventilation"
-            elif "lighting" in schedule_type.lower():
-                schedule_name = "Lighting"
-            elif "shading" in schedule_type.lower():
-                schedule_name = "Shading"
-            elif "equipment" in schedule_type.lower():
-                schedule_name = "Equipment"
-            name_text = f"{schedule_type} [{schedule_name}]" if schedule_name else f"{schedule_type}"
+        output_file_path = Path(output_filename)
+        output_dir = output_file_path.parent
+        if not output_dir.exists():
+            try:
+                output_dir.mkdir(parents=True, exist_ok=True)
+                logger.info(f"Created output directory for schedules report: {output_dir}")
+            except OSError as e:
+                error_message = f"Error creating output directory '{output_dir}' for schedules report: {e.strerror}"
+                logger.error(error_message, exc_info=True)
+                return False
+        elif not output_dir.is_dir():
+            error_message = f"Error: Output path '{output_dir}' for schedules report exists but is not a directory."
+            logger.error(error_message)
+            return False
+
+        c = canvas.Canvas(str(output_file_path), pagesize=A4)
+    except (IOError, OSError) as e:
+        logger.error(f"Failed to create canvas for PDF '{output_filename}': {e.strerror}", exc_info=True)
+        return False
+
+    # This outer try now correctly encompasses the main PDF generation logic
+    try:
+        width, height = A4
+        margin_x = 2 * cm
+        margin_y = 2 * cm
+        content_width = width - 2 * margin_x
+        current_y = height - margin_y
+        styles = getSampleStyleSheet()
+        title_style = styles['h1']
+        title_style.textColor = navy
+        # section_title_style = styles['h2'] # Defined but not used in the loop directly
+        # section_title_style.spaceBefore = 0.5 * cm
+        # section_title_style.spaceAfter = 0.3 * cm
+        schedule_name_style = ParagraphStyle(
+            name='ScheduleName', parent=styles['Normal'], fontName='Helvetica-Bold',
+            spaceBefore=0.4*cm, spaceAfter=0.1*cm
+        )
+        not_found_style = ParagraphStyle(
+            name='NotFound', parent=styles['Normal'], fontName='Helvetica-Oblique',
+            textColor=grey, leftIndent=0.5*cm, spaceAfter=0.4*cm
+        )
+        header_info_style = ParagraphStyle(
+            'HeaderInfo', parent=styles['Normal'], fontSize=9, textColor=colors.black, alignment=2 # TA_RIGHT
+        )
+        now = datetime.datetime.now()
+        header_text = f"""
+        Project: {project_name}<br/>
+        Run ID: {run_id}<br/>
+        Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
+        Report: Unique Schedule Definitions
+        """
+        p_header = Paragraph(header_text, header_info_style)
+        header_width_actual, header_height = p_header.wrapOn(c, content_width, margin_y)
+        p_header.drawOn(c, width - margin_x - header_width_actual, height - margin_y - header_height)
+        current_y -= (header_height + 0.2*cm)
+
+        title_text = "IDF Unique Schedule Definitions"
+        p_title = Paragraph(title_text, title_style)
+        p_title.wrapOn(c, content_width, margin_y)
+        title_height = p_title.height
+        p_title.drawOn(c, margin_x, current_y - title_height)
+        current_y -= (title_height + 1 * cm)
+
+        if not schedule_data:
+            logger.info("No schedule data provided for the report.")
+            p_empty = Paragraph("No relevant schedules found or extracted.", styles['Normal'])
+            p_empty.wrapOn(c, content_width, margin_y)
+            p_empty.drawOn(c, margin_x, current_y - p_empty.height)
+            c.save()
+            logger.info(f"Empty schedules report generated: {output_filename}")
+            return True
+
+        space_after_table = 0.8 * cm
+        for schedule_item in schedule_data:
+            if not isinstance(schedule_item, dict):
+                logger.warning(f"Skipping invalid schedule item (not a dict): {schedule_item}")
+                continue
+
+            raw_schedule_type = schedule_item.get('type', 'Unknown Type')
+            schedule_type_lower = raw_schedule_type.lower()
+            # Original type processing logic
+            if "activity" in schedule_type_lower or "clothing" in schedule_type_lower:
+                parts = raw_schedule_type.split(" ")
+                schedule_type = f"{parts[0]} Schedule" if len(parts) > 1 else f"{raw_schedule_type} Schedule"
+            elif "heating" in schedule_type_lower or "cooling" in schedule_type_lower:
+                parts = raw_schedule_type.split(" ")
+                if len(parts) > 2: schedule_type = f"{parts[1]} {parts[2]} Schedule"
+                elif len(parts) > 1: schedule_type = f"{parts[0]} Schedule"
+                else: schedule_type = f"{raw_schedule_type} Schedule"
+            else:
+                schedule_type = raw_schedule_type
+
+            rule_blocks = schedule_item.get('rule_blocks', [])
+            
+            generic_name_map = {
+                "activity": "People", "clothing": "People", "occupancy": "People",
+                "heating": "Temperature", "cooling": "Temperature",
+                "ventilation": "Ventilation", "lighting": "Lighting",
+                "shading": "Shading", "equipment": "Equipment"
+            }
+            determined_schedule_name = None
+            for key, val_name in generic_name_map.items():
+                if key in schedule_type.lower(): # Check against the processed schedule_type
+                    determined_schedule_name = val_name
+                    break
+            
+            name_text = f"{schedule_type} [{determined_schedule_name}]" if determined_schedule_name else f"{schedule_type}"
             p_sched_name = Paragraph(name_text, schedule_name_style)
             p_sched_name.wrapOn(c, content_width, margin_y)
             name_height = p_sched_name.height
-            schedule_table = create_hourly_schedule_table(rule_blocks, content_width)
-            if schedule_table:
-                table_width_actual, table_height = schedule_table.wrapOn(c, content_width, margin_y)
+
+            schedule_table_obj = create_hourly_schedule_table(rule_blocks, content_width)
+
+            if schedule_table_obj:
+                table_width_actual_content, table_height = schedule_table_obj.wrapOn(c, content_width, margin_y) # Renamed var
                 total_element_height = name_height + schedule_name_style.spaceAfter + table_height + space_after_table
+                
                 if current_y - total_element_height < margin_y:
                     c.showPage()
                     current_y = height - margin_y
+                    p_header.drawOn(c, width - margin_x - header_width_actual, height - margin_y - header_height)
+
                 p_sched_name.drawOn(c, margin_x, current_y - name_height)
                 current_y -= (name_height + schedule_name_style.spaceAfter)
-                schedule_table.drawOn(c, margin_x, current_y - table_height)
+                schedule_table_obj.drawOn(c, margin_x, current_y - table_height)
                 current_y -= (table_height + space_after_table)
             else:
-                if current_y - (name_height + schedule_name_style.spaceAfter + 1*cm) < margin_y:
+                logger.warning(f"No table generated for schedule: {name_text}")
+                no_data_message_height_approx = styles['Normal'].leading * 2 # Approx for name + message
+                
+                if current_y - (name_height + schedule_name_style.spaceAfter + no_data_message_height_approx + space_after_table) < margin_y:
                     c.showPage()
                     current_y = height - margin_y
+                    p_header.drawOn(c, width - margin_x - header_width_actual, height - margin_y - header_height)
+
                 p_sched_name.drawOn(c, margin_x, current_y - name_height)
                 current_y -= (name_height + schedule_name_style.spaceAfter)
-                p_no_data = Paragraph("No rule data available to generate hourly table.", not_found_style)
+                p_no_data = Paragraph("No rule data available or error in generating hourly table.", not_found_style)
                 p_no_data.wrapOn(c, content_width, margin_y)
-                p_no_data.drawOn(c, margin_x, current_y - p_no_data.height)
-                current_y -= (p_no_data.height + space_after_table)
+                no_data_actual_height = p_no_data.height
+                p_no_data.drawOn(c, margin_x, current_y - no_data_actual_height)
+                current_y -= (no_data_actual_height + space_after_table)
+        
         c.save()
+        logger.info(f"Successfully generated Schedules report: {output_filename}")
         return True
-    except Exception:
+    # These except blocks are now correctly aligned with the try starting at line 174
+    except (IOError, OSError) as e:
+        logger.error(f"File operation error during schedules report generation for '{output_filename}': {e.strerror}", exc_info=True)
+        return False
+    except Exception as e:
+        logger.error(f"An unexpected error occurred while generating Schedules report '{output_filename}': {type(e).__name__} - {str(e)}", exc_info=True)
+        if 'c' in locals() and hasattr(c, '_filename') and c._filename: # Check if canvas 'c' was initialized
+            try:
+                # This might fail if the canvas is in a bad state, but worth a try
+                if not c._saved: c.save()
+            except Exception as save_err:
+                logger.error(f"Could not save PDF {output_filename} even after an error during generation: {save_err}", exc_info=True)
         return False

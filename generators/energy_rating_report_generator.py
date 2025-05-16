@@ -1,26 +1,18 @@
 """
 Generates energy rating reports from processed energy consumption data.
 """
-from typing import Dict, List, Any, Optional, Tuple, Union
 import logging
 import os
-import datetime
-import ast # Added import
+import ast
 
-from parsers.energy_rating_parser import EnergyRatingParser
-
-# Use platypus for automatic pagination
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer, PageBreak
-from reportlab.lib.pagesizes import A4, landscape, A3 # Added A3
-from reportlab.lib.units import cm, inch # Added inch
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.colors import navy, black, grey, lightgrey, white, darkgray # Added darkgray
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer
+from reportlab.lib.pagesizes import A4, landscape, A3
+from reportlab.lib.units import cm, inch
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.colors import navy, black, grey, lightgrey, white, darkgray
+from reportlab.lib.enums import TA_CENTER
 
 logger = logging.getLogger(__name__)
-# --- Explicitly set logging level for this module ---
-# logger.setLevel(logging.DEBUG) # Keep or remove as needed
-# ---
 
 def _get_table_style():
     return TableStyle([
@@ -83,16 +75,13 @@ def _energy_rating_table(energy_rating_parser):
     if not raw_table_data:
         return None
 
-    # Sort the raw_table_data
     def sort_key(item):
         floor_val = item.get('floor', '')
         try:
-            # Attempt to convert floor to int for numeric sorting
             floor_sort_val = int(floor_val)
         except ValueError:
-            # Fallback to string sorting if conversion fails
             floor_sort_val = str(floor_val)
-        
+
         area_id_val = str(item.get('area_id', ''))
         return (floor_sort_val, area_id_val)
 
@@ -111,7 +100,6 @@ def _energy_rating_table(energy_rating_parser):
     ]
     table_content = [header_row1, header_row2]
 
-    # Add actual data rows
     for row_dict in raw_table_data:
         table_content.append([
             str(row_dict.get('floor', '')),
@@ -157,14 +145,12 @@ class EnergyRatingReportGenerator:
                                     topMargin=self.margin, bottomMargin=self.margin)
             story = []
 
-            # Add report title
             title_style = self.styles['h1']
             title_style.alignment = TA_CENTER
             title_style.textColor = navy
             story.append(Paragraph("Energy Rating Report", title_style))
             story.append(Spacer(1, 0.5*cm))
 
-            # Add energy rating table
             energy_table = _energy_rating_table(self.energy_rating_parser)
             if energy_table:
                 story.append(energy_table)

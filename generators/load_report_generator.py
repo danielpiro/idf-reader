@@ -1,7 +1,6 @@
 """
 Generates PDF reports showing zone loads and their associated schedules.
 """
-# Use platypus for automatic pagination
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, Spacer
 from reportlab.lib.pagesizes import landscape, A3
 from reportlab.lib.units import cm
@@ -20,8 +19,8 @@ def create_cell_style(styles, is_header=False):
     style = ParagraphStyle(
         'Cell',
         parent=styles['Normal'],
-        fontSize=5, # Further reduced font size from 6 to 5
-        leading=6, # Reduced leading accordingly
+        fontSize=5,
+        leading=6,
         spaceBefore=1,
         spaceAfter=1,
         fontName='Helvetica-Bold' if is_header else 'Helvetica',
@@ -32,60 +31,51 @@ def create_cell_style(styles, is_header=False):
 
 def create_hierarchical_table_style():
     """Create table style for the main load table with hierarchical headers."""
-    # Spans for the first header row (categories)
-    # (start_col, start_row), (end_col, end_row)
     spans = [
-        ('SPAN', (0, 0), (0, 1)),  # Zone spans both header rows
-        ('SPAN', (1, 0), (3, 0)),  # Occupancy
-        ('SPAN', (4, 0), (5, 0)),  # Lighting
-        ('SPAN', (6, 0), (7, 0)),  # Non Fixed Equipment
-        ('SPAN', (8, 0), (9, 0)),  # Fixed Equipment
-        ('SPAN', (10, 0), (12, 0)), # Heating
-        ('SPAN', (13, 0), (15, 0)), # Cooling
-        ('SPAN', (16, 0), (17, 0)), # Infiltration
-        ('SPAN', (18, 0), (19, 0)), # Ventilation
-        ('SPAN', (20, 0), (21, 0))  # Mechanical Ventilation - New Span
+        ('SPAN', (0, 0), (0, 1)),
+        ('SPAN', (1, 0), (3, 0)),
+        ('SPAN', (4, 0), (5, 0)),
+        ('SPAN', (6, 0), (7, 0)),
+        ('SPAN', (8, 0), (9, 0)),
+        ('SPAN', (10, 0), (12, 0)),
+        ('SPAN', (13, 0), (15, 0)),
+        ('SPAN', (16, 0), (17, 0)),
+        ('SPAN', (18, 0), (19, 0)),
+        ('SPAN', (20, 0), (21, 0))
     ]
 
-    # Basic styling + spans
     style = [
-        # Header Row 1 (Categories) Styling
         ('BACKGROUND', (0, 0), (-1, 0), lightgrey),
         ('TEXTCOLOR', (0, 0), (-1, 0), black),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'), # Center align category headers
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 6), # Reduced category header font size
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 3), # Slightly reduce padding
+        ('FONTSIZE', (0, 0), (-1, 0), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 3),
 
-        # Header Row 2 (Sub-columns) Styling
         ('BACKGROUND', (1, 1), (-1, 1), lightgrey),
         ('TEXTCOLOR', (1, 1), (-1, 1), black),
         ('ALIGN', (1, 1), (-1, 1), 'CENTER'),
         ('VALIGN', (1, 1), (-1, 1), 'MIDDLE'),
         ('FONTNAME', (1, 1), (-1, 1), 'Helvetica-Bold'),
-        ('FONTSIZE', (1, 1), (-1, 1), 5), # Reduced sub-header font size
-        ('TOPPADDING', (1, 1), (-1, 1), 1), # Reduce padding
-        ('BOTTOMPADDING', (1, 1), (-1, 1), 1), # Reduce padding
+        ('FONTSIZE', (1, 1), (-1, 1), 5),
+        ('TOPPADDING', (1, 1), (-1, 1), 1),
+        ('BOTTOMPADDING', (1, 1), (-1, 1), 1),
 
-        # Zone Header Cell Specific Styling (spanning both rows)
         ('ALIGN', (0, 0), (0, 1), 'CENTER'),
         ('VALIGN', (0, 0), (0, 1), 'MIDDLE'),
 
-        # Data Rows Styling
-        ('BACKGROUND', (0, 2), (-1, -1), white), # Data rows start from row 2
+        ('BACKGROUND', (0, 2), (-1, -1), white),
         ('TEXTCOLOR', (0, 2), (-1, -1), black),
-        ('ALIGN', (0, 2), (-1, -1), 'LEFT'), # Left align data cells
+        ('ALIGN', (0, 2), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 2), (-1, -1), 'MIDDLE'),
         ('FONTNAME', (0, 2), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 2), (-1, -1), 5), # Reduced data font size
-        ('TOPPADDING', (0, 2), (-1, -1), 1), # Reduce padding
-        ('BOTTOMPADDING', (0, 2), (-1, -1), 1), # Reduce padding
+        ('FONTSIZE', (0, 2), (-1, -1), 5),
+        ('TOPPADDING', (0, 2), (-1, -1), 1),
+        ('BOTTOMPADDING', (0, 2), (-1, -1), 1),
 
-        # Grid lines for the entire table
         ('GRID', (0, 0), (-1, -1), 1, grey),
 
-        # Padding for all cells
         ('LEFTPADDING', (0, 0), (-1, -1), 3),
         ('RIGHTPADDING', (0, 0), (-1, -1), 3)
     ]
@@ -95,105 +85,87 @@ def create_hierarchical_table_style():
 def extract_setpoint(schedule_values, setpoint_type, zone_name=None, all_schedules=None):
     """
     Extracts a specific setpoint value from Schedule:Compact data, considering availability.
-    
+
     Args:
         schedule_values (list): The list of values from the Schedule:Compact object.
         setpoint_type (str): 'work' or 'non_work'.
         zone_name (str, optional): The name of the zone to get schedules for.
         all_schedules (dict, optional): Dictionary containing all schedules for the zone.
-        
+
     Returns:
         str: The extracted setpoint value or '-' if not found/invalid.
     """
-    # Check if schedule values available
     if not schedule_values:
         return '-'
-        
+
     if not all_schedules:
         return '-'
-        
-    # Determine if we're working with heating or cooling setpoint
+
     schedule_name = all_schedules.get('name', '')
-    
+
     is_heating = False
     is_cooling = False
-    
+
     if 'heating' in schedule_name.lower() or 'heat' in schedule_name.lower():
         is_heating = True
     elif 'cooling' in schedule_name.lower() or 'cool' in schedule_name.lower() or 'sp sch' in schedule_name.lower():
         is_cooling = True
-    
-    # Find availability key by checking each key in all_schedules
+
     avail_key = None
     for key in all_schedules:
         if isinstance(key, str) and 'availability' in key.lower():
             if (is_heating and 'heat' in key.lower()) or (is_cooling and 'cool' in key.lower()):
                 avail_key = key
                 break
-        
-    # Find the availability schedule
+
     avail_schedule = None
     active_periods = []
-    
+
     if avail_key and avail_key in all_schedules:
         avail_schedule = all_schedules[avail_key]
-            
-    # Process the availability schedule to find active periods
+
     if avail_schedule and isinstance(avail_schedule, dict) and 'schedule_values' in avail_schedule:
         avail_values = avail_schedule['schedule_values']
-        
-        # Track the current period being processed
+
         current_period = None
         for i, val in enumerate(avail_values):
             val_str = str(val).strip().lower()
-            
-            # Find period start
+
             if val_str.startswith('through:'):
                 current_period = val_str.replace('through:', '').strip()
-            # Find active value (1)
             elif val_str == '1' and current_period:
-                # This is an active period
                 active_periods.append(current_period)
-    
-    # Process setpoint values
-    all_values = {}  # {period: {work: value, non_work: value}}
-    active_values = {}  # {period: {work: value, non_work: value}}
-    
-    # Track the current period
+
+    all_values = {}
+    active_values = {}
+
     current_period = None
     for i, val in enumerate(schedule_values):
         val_str = str(val).strip().lower()
-        
-        # Find period start
+
         if val_str.startswith('through:'):
             current_period = val_str.replace('through:', '').strip()
             if current_period not in all_values:
                 all_values[current_period] = {'work': None, 'non_work': None}
-            
-            # Check if this period is in the active periods list
+
             is_active = current_period in active_periods
             if is_active and current_period not in active_values:
                 active_values[current_period] = {'work': None, 'non_work': None}
-            
-        # Find setpoint value after 'until:'
+
         elif current_period and val_str.startswith('until:'):
             time_str = val_str.replace('until:', '').strip()
             is_non_work = (time_str == '24:00')
-            
-            # Look for the temperature value (next item)
+
             if i+1 < len(schedule_values):
                 try:
                     temp_val = float(str(schedule_values[i+1]).strip())
-                    
-                    # Filter appropriate temperatures based on heating/cooling
-                    # For heating: keep if >= -10
-                    # For cooling: keep if < 100 and > 10
+
                     is_valid_temp = False
                     if is_heating and temp_val >= -10:
                         is_valid_temp = True
                     elif is_cooling and temp_val < 100 and temp_val > 10:
                         is_valid_temp = True
-                    
+
                     if is_valid_temp:
                         if is_non_work:
                             all_values[current_period]['non_work'] = temp_val
@@ -205,52 +177,44 @@ def extract_setpoint(schedule_values, setpoint_type, zone_name=None, all_schedul
                                 active_values[current_period]['work'] = temp_val
                 except (ValueError, TypeError):
                     pass
-    
-    # If we have active periods, use them for selection
+
     if active_values:
-        # Collect all active work and non-work temps
         work_temps = []
         non_work_temps = []
-        
+
         for period, temps in active_values.items():
             if temps['work'] is not None:
                 work_temps.append(temps['work'])
             if temps['non_work'] is not None:
                 non_work_temps.append(temps['non_work'])
-        
-        # For work setpoint (preferred)
+
         if setpoint_type == 'work':
             if work_temps:
-                # Choose based on heating or cooling mode
                 if is_heating:
-                    return str(max(work_temps))  # Highest heating setpoint
+                    return str(max(work_temps))
                 else:
-                    return str(min(work_temps))  # Lowest cooling setpoint
+                    return str(min(work_temps))
             elif non_work_temps:
-                # Fallback to non-work temps if no work temps found
                 if is_heating:
                     return str(max(non_work_temps))
                 else:
                     return str(min(non_work_temps))
-        
-        # For non-work setpoint
+
         elif setpoint_type == 'non_work' and non_work_temps:
             if is_heating:
-                return str(max(non_work_temps))  # Highest heating setpoint
+                return str(max(non_work_temps))
             else:
-                return str(min(non_work_temps))  # Lowest cooling setpoint
-    
-    # If no active periods were found, fall back to using all temps
+                return str(min(non_work_temps))
+
     work_temps = []
     non_work_temps = []
-    
+
     for period, temps in all_values.items():
         if temps['work'] is not None:
             work_temps.append(temps['work'])
         if temps['non_work'] is not None:
             non_work_temps.append(temps['non_work'])
-    
-    # Select appropriate values based on mode
+
     if setpoint_type == 'work':
         if work_temps:
             if is_heating:
@@ -268,7 +232,7 @@ def extract_setpoint(schedule_values, setpoint_type, zone_name=None, all_schedul
                 return str(max(non_work_temps))
             else:
                 return str(min(non_work_temps))
-    
+
     return '-'
 
 def _get_load_data(loads, load_type, key, default='-'):

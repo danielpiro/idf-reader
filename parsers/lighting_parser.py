@@ -71,17 +71,15 @@ class LightingParser:
                 min_power_frac = safe_float(getattr(control, "Minimum_Input_Power_Fraction_for_Continuous_or_ContinuousOff_Dimming_Control", 0.0))
                 min_output_frac = safe_float(getattr(control, "Minimum_Light_Output_Fraction_for_Continuous_or_ContinuousOff_Dimming_Control", 0.0))
 
-            for i in range(1, 11): # Check for up to 10 reference points
+            for i in range(1, 11):
                 ref_point_field_name = f"Daylighting_Reference_Point_{i}_Name"
                 fraction_field_name = f"Fraction_of_Zone_Controlled_by_Reference_Point_{i}"
                 setpoint_field_name = f"Illuminance_Setpoint_at_Reference_Point_{i}"
 
                 ref_point_name = str(getattr(control, ref_point_field_name, ""))
                 if not ref_point_name:
-                    # If the first ref point name is empty, stop checking for this control
                     if i == 1:
                         break
-                    # Otherwise, if a later ref point name is empty, assume no more points
                     continue
 
                 fraction = safe_float(getattr(control, fraction_field_name, 0.0))
@@ -126,24 +124,23 @@ class LightingParser:
                     min_power_frac_ref = safe_float(getattr(control_obj, "Minimum_Input_Power_Fraction_for_Continuous_or_ContinuousOff_Dimming_Control", 0.0))
                     min_output_frac_ref = safe_float(getattr(control_obj, "Minimum_Light_Output_Fraction_for_Continuous_or_ContinuousOff_Dimming_Control", 0.0))
 
-                for i in range(1, 11): # Check up to 10 points
+                for i in range(1, 11):
                     ref_point_field_name = f"Daylighting_Reference_Point_{i}_Name"
                     fraction_field_name = f"Fraction_of_Zone_Controlled_by_Reference_Point_{i}"
                     setpoint_field_name = f"Illuminance_Setpoint_at_Reference_Point_{i}"
 
                     control_ref_point_name = str(getattr(control_obj, ref_point_field_name, ""))
 
-                    # If this control uses the current reference point at this index (i)
                     if control_ref_point_name == ref_point_id:
                         fraction = safe_float(getattr(control_obj, fraction_field_name, 0.0))
                         setpoint = safe_float(getattr(control_obj, setpoint_field_name, 0.0))
 
                         reference_points.append({
-                            "Zone": zone_name, # Zone from the RefPoint object
+                            "Zone": zone_name,
                             "X-Coordinate": safe_float(getattr(ref_point, "XCoordinate_of_Reference_Point", 0.0)),
                             "Y-Coordinate": safe_float(getattr(ref_point, "YCoordinate_of_Reference_Point", 0.0)),
                             "Z-Coordinate": safe_float(getattr(ref_point, "ZCoordinate_of_Reference_Point", 0.0)),
-                            "Daylighting Reference": ref_point_id, # The reference point name
+                            "Daylighting Reference": ref_point_id,
                             "Fraction of Zone Controlled": fraction,
                             "Illuminance Setpoint": setpoint,
                             "Minimum Input Power Fraction": min_power_frac_ref,
