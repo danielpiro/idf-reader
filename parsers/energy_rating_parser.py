@@ -286,17 +286,21 @@ class EnergyRatingParser:
             #     # that needs clarification. For now, let's assume all are J and convert to kWh.
             #     return value / joules_to_kwh_factor
             # For now, using the original logic's distinct factors:
+            processed_val = 0.0
+            divisor_info = "None"
             if 'light' in header_lower:
-                return value / 3600000.0  # J to kWh
+                processed_val = value / 3600000.0  # J to kWh
+                divisor_info = "3.6M (J to kWh)"
             elif 'heating' in header_lower or 'cooling' in header_lower:
                 # This factor (10.8e6) is puzzling if input is Joules and output is kWh.
-                # It would be J / (3 * 3.6e6 J/kWh) = value / 3 kWh.
-                # Or, if the output is meant to be some other unit or scaled value.
-                # Let's assume it's intentional for now.
-                return value / 10800000.0
+                processed_val = value / 10800000.0
+                divisor_info = "10.8M"
+            else:
+                logger.warning(f"Header '{header_lower}' did not match known energy categories for unit conversion. Original value: {value} returned.")
+                processed_val = value # Return original value if category not matched
             
-            logger.warning(f"Header '{header_lower}' did not match known energy categories for unit conversion. Returning original value: {value}")
-            return value # Return original value if category not matched
+            logger.info(f"EnergyRatingParser._process_value: Header='{header_lower}', Input={value:.2f}, Output={processed_val:.4f}, DivisorFactor='{divisor_info}'")
+            return processed_val
         except TypeError: # If value is not a number
             logger.error(f"Cannot process non-numeric value '{value}' for header '{header_lower}'. Returning 0.0.", exc_info=True)
             return 0.0
@@ -458,37 +462,59 @@ class EnergyRatingParser:
             return table_data
 
         try:
+            # Pre-calculate sum of individual_zone_floor_area for each (floor_id, area_id) combination
+            floor_area_id_sums: Dict[tuple[str, str], float] = {}
+            for data_for_zone_pre_calc in self.energy_data_by_area.values():
+                floor_id = data_for_zone_pre_calc.get('floor_id_report', 'N/A')
+                area_id = data_for_zone_pre_calc.get('area_id_report', 'N/A')
+                individual_area = safe_float(data_for_zone_pre_calc.get('individual_zone_floor_area', 0.0), 0.0)
+                
+                key = (floor_id, area_id)
+                if key not in floor_area_id_sums:
+                    floor_area_id_sums[key] = 0.0
+                floor_area_id_sums[key] += individual_area
+
             for full_zone_id_key, data_for_zone in self.energy_data_by_area.items():
                 try:
+                    # This is the individual zone's area, used for the 'Zone area' column
                     current_zone_floor_area = safe_float(data_for_zone.get('individual_zone_floor_area', 0.0), 0.0)
                     
                     abs_lighting = safe_float(data_for_zone.get('lighting', 0.0), 0.0)
                     abs_heating = safe_float(data_for_zone.get('heating', 0.0), 0.0)
                     abs_cooling = safe_float(data_for_zone.get('cooling', 0.0), 0.0)
-                    abs_total = safe_float(data_for_zone.get('total', 0.0), 0.0)
+                    abs_total = safe_float(data_for_zone.get('total', 0.0), 0.0) # This is sum of abs_lighting, abs_heating, abs_cooling
 
-                    if current_zone_floor_area > 0:
-                        val_lighting = abs_lighting / current_zone_floor_area
-                        val_heating = abs_heating / current_zone_floor_area
-                        val_cooling = abs_cooling / current_zone_floor_area
-                        val_total = abs_total / current_zone_floor_area
+                    # Determine the correct total floor area for division
+                    report_floor_id = data_for_zone.get('floor_id_report', 'N/A')
+                    report_area_id = data_for_zone.get('area_id_report', 'N/A')
+                    group_lookup_key = (report_floor_id, report_area_id)
+                    correct_total_floor_area_for_group = floor_area_id_sums.get(group_lookup_key, 0.0)
+
+                    if correct_total_floor_area_for_group > 0:
+                        val_lighting = abs_lighting / correct_total_floor_area_for_group
+                        val_heating = abs_heating / correct_total_floor_area_for_group
+                        val_cooling = abs_cooling / correct_total_floor_area_for_group
+                        # Recalculate total based on per-area values if needed, or sum of per-area components
+                        # For consistency, let's sum the per-area components.
+                        # Or, divide the absolute total by the correct_total_floor_area_for_group
+                        val_total = (abs_lighting + abs_heating + abs_cooling) / correct_total_floor_area_for_group
                     else:
-                        logger.warning(f"Zone '{full_zone_id_key}' has floor area {current_zone_floor_area}. Energy values in report will be absolute (not per m^2).")
+                        logger.warning(f"Correct total floor area for group ('{report_floor_id}', '{report_area_id}') is {correct_total_floor_area_for_group} for zone '{full_zone_id_key}'. Energy values in report will be absolute (not per m^2).")
                         val_lighting = abs_lighting
                         val_heating = abs_heating
                         val_cooling = abs_cooling
-                        val_total = abs_total
+                        val_total = abs_lighting + abs_heating + abs_cooling # Sum of absolute values
 
                     row = {
-                        'floor_id_report': data_for_zone.get('floor_id_report', 'N/A'),
-                        'area_id_report': data_for_zone.get('area_id_report', 'N/A'),
+                        'floor_id_report': report_floor_id,
+                        'area_id_report': report_area_id,
                         'zone_name_report': data_for_zone.get('zone_name_report', 'N/A'),
                         'multiplier': data_for_zone.get('multiplier', 1),
-                        'total_area': current_zone_floor_area, # This is the individual zone floor area
-                        'lighting': val_lighting, # Now per area (if area > 0)
-                        'heating': val_heating,   # Now per area (if area > 0)
-                        'cooling': val_cooling,   # Now per area (if area > 0)
-                        'total': val_total,       # Now per area (if area > 0)
+                        'total_area': current_zone_floor_area, # Display individual zone area
+                        'lighting': val_lighting, # Divided by correct_total_floor_area_for_group
+                        'heating': val_heating,   # Divided by correct_total_floor_area_for_group
+                        'cooling': val_cooling,   # Divided by correct_total_floor_area_for_group
+                        'total': val_total,       # Divided by correct_total_floor_area_for_group
                         # Placeholders
                         'location': data_for_zone.get('location', 'Unknown'),
                         'energy_consumption_model': '',
