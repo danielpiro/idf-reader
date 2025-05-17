@@ -65,6 +65,13 @@ def _format_number(value):
     except Exception:
         return str(value)
 
+# Helper for safe float conversion, can be moved to a utility if used elsewhere
+def safe_float(value, default=0.0):
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
 def _energy_rating_table(energy_rating_parser):
     """
     Creates the energy rating table as a ReportLab Table object.
@@ -100,25 +107,90 @@ def _energy_rating_table(energy_rating_parser):
     ]
     table_content = [header_row1, header_row2]
 
-    for row_dict in raw_table_data:
+    span_commands = []
+    # Data rows in PDF start at index 2 (after two header rows)
+    pdf_data_start_row = 2
+    
+    # Pre-calculate group sums for the 'total' column (column index 8)
+    # The 'total' value from the parser is already (zone_L+H+C) / group_total_area.
+    # Summing these for a group gives (Group_L+H+C) / group_total_area.
+    group_sums_for_display = {}
+    if raw_table_data:
+        for row_dict in raw_table_data:
+            group_key = (str(row_dict.get('floor_id_report','N/A')), str(row_dict.get('area_id_report','N/A')))
+            if group_key not in group_sums_for_display:
+                group_sums_for_display[group_key] = 0.0
+            group_sums_for_display[group_key] += safe_float(row_dict.get('total', 0.0))
+
+    current_group_key = None
+    group_start_pdf_row_index_in_table_content = -1 # Tracks start row index in table_content (0-based for data rows)
+    
+    # Iterate through raw_table_data to build table_content and identify spans
+    for i, row_dict in enumerate(raw_table_data):
+        item_group_key = (str(row_dict.get('floor_id_report','N/A')), str(row_dict.get('area_id_report','N/A')))
+        
+        # Determine values for the current row
+        display_sum_for_row = ""
+        display_energy_consump = ""
+        display_improve_by = ""
+        display_energy_rating = ""
+        display_area_rating = ""
+
+        if item_group_key != current_group_key: # This is the first row of a new group
+            # Finalize spans for the PREVIOUS group
+            if current_group_key is not None and (i - group_start_pdf_row_index_in_table_content) > 1:
+                start_span_pdf_row = pdf_data_start_row + group_start_pdf_row_index_in_table_content
+                end_span_pdf_row = pdf_data_start_row + i - 1
+                for col_idx in range(8, 13): # Columns for Sum, Energy Consumption, Improve by %, Energy Rating, Area Rating
+                    span_commands.append(('SPAN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row)))
+                    span_commands.append(('VALIGN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row), 'MIDDLE'))
+            
+            # Reset for the new group
+            current_group_key = item_group_key
+            group_start_pdf_row_index_in_table_content = i
+            
+            # Values for the first row of this new group's summary columns
+            display_sum_for_row = _format_number(group_sums_for_display.get(current_group_key, 0.0))
+            # Placeholders for other summary columns, to be filled if data becomes available
+            display_energy_consump = ""
+            display_improve_by = ""
+            display_energy_rating = ""
+            display_area_rating = ""
+        else: # Not the first row of the group, so summary columns will be empty (covered by span)
+            pass # Values remain ""
+
         table_content.append([
-            str(row_dict.get('floor_id_report', '')),       # "Floor"
-            str(row_dict.get('area_id_report', '')),      # "Area id"
-            str(row_dict.get('zone_name_report', '')),    # "Zone id" (maps to zone name part)
-            _format_number(row_dict.get('total_area', 0)),  # "Zone area"
-            str(row_dict.get('multiplier', '')),          # "Zone multiplier"
+            str(row_dict.get('floor_id_report', '')),
+            str(row_dict.get('area_id_report', '')),
+            str(row_dict.get('zone_name_report', '')),
+            _format_number(row_dict.get('total_area', 0)), # Individual zone area
+            str(row_dict.get('multiplier', '')),
             _format_number(row_dict.get('lighting', 0)),
             _format_number(row_dict.get('cooling', 0)),
             _format_number(row_dict.get('heating', 0)),
-            _format_number(row_dict.get('total', 0)),
-            '',  # Placeholder for "Energy consumption"
-            '',  # Placeholder for "Improve by %"
-            '',  # Placeholder for "Energy rating"
-            ''   # Placeholder for "Area rating"
+            display_sum_for_row,
+            display_energy_consump,
+            display_improve_by,
+            display_energy_rating,
+            display_area_rating
         ])
 
+    # Finalize spans for the VERY LAST group processed
+    if current_group_key is not None and raw_table_data:
+        num_rows_in_last_group = len(raw_table_data) - group_start_pdf_row_index_in_table_content
+        if num_rows_in_last_group > 1:
+            start_span_pdf_row = pdf_data_start_row + group_start_pdf_row_index_in_table_content
+            end_span_pdf_row = pdf_data_start_row + len(raw_table_data) - 1
+            for col_idx in range(8, 13):
+                span_commands.append(('SPAN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row)))
+                span_commands.append(('VALIGN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row), 'MIDDLE'))
+
     table = Table(table_content)
-    table.setStyle(_get_table_style())
+    # Apply the base style and then add the dynamic span commands
+    style = _get_table_style()
+    for cmd in span_commands:
+        style.add(*cmd)
+    table.setStyle(style)
     return table
 
 class EnergyRatingReportGenerator:
