@@ -144,7 +144,6 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         if not output_dir.exists():
             try:
                 output_dir.mkdir(parents=True, exist_ok=True)
-                logger.info(f"Created output directory for area report: {output_dir}")
             except OSError as e:
                 error_message = f"Error creating output directory '{output_dir}' for area report '{area_id}': {e.strerror}"
                 logger.error(error_message, exc_info=True)
@@ -304,7 +303,6 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         story.append(area_table)
 
         doc.build(story)
-        logger.info(f"Successfully generated Area report for {area_id}: {output_filename}")
         return True
     except (IOError, OSError) as e:
         error_message = f"Error during file operation for Area report '{area_id}' (file: '{output_filename}'): {e.strerror}"
@@ -337,7 +335,6 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
         if not output_path.exists():
             try:
                 output_path.mkdir(parents=True, exist_ok=True)
-                logger.info(f"Created base output directory for area reports: {output_path}")
             except OSError as e:
                 error_message = f"Error creating base output directory '{output_path}' for area reports: {e.strerror}"
                 logger.error(error_message, exc_info=True)

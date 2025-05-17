@@ -18,11 +18,10 @@ class AreaParser:
         self.data_loader = data_loader
         try:
             self.glazing_data_from_csv = read_glazing_data_from_csv(csv_path)
-            logger.info(f"Successfully loaded glazing data from CSV: {csv_path if csv_path else 'default path used by read_glazing_data_from_csv'}.")
             if self.glazing_data_from_csv:
-                logger.debug(f"Glazing data from CSV (first 5 items): {dict(list(self.glazing_data_from_csv.items())[:5])}")
+                pass
             else:
-                logger.info("No glazing data loaded from CSV (file might be empty or not found).")
+                pass
         except FileNotFoundError:
             logger.warning(f"Glazing CSV file not found at the specified/default path. Proceeding without CSV glazing data.")
             self.glazing_data_from_csv = {}
@@ -47,12 +46,9 @@ class AreaParser:
             logger.error("AreaParser.process_idf called without a DataLoader instance.")
             raise ValueError("AreaParser requires a DataLoader instance.")
         if self.processed:
-            logger.info("Area information already processed. Skipping.")
             return
         try:
-            logger.info("Starting area information extraction process.")
             if self.materials_parser and not self.materials_parser.element_data:
-                logger.info("Materials data not yet processed. Processing now.")
                 self.materials_parser.process_idf(idf)
 
             self._process_zones()
@@ -62,7 +58,6 @@ class AreaParser:
                 self._merge_reverse_constructions(self.materials_parser)
 
             self.processed = True
-            logger.info("Successfully extracted and processed area information.")
         except ValueError as ve:
             logger.error(f"ValueError during area information extraction: {ve}", exc_info=True)
             raise
@@ -142,17 +137,14 @@ class AreaParser:
                 try:
                     zone_name = surface.get("zone_name")
                     if not zone_name or zone_name not in self.areas_by_zone:
-                        logger.debug(f"Surface '{surface_id}' skipped: zone '{zone_name}' not found or not in areas_by_zone.")
                         continue
 
                     construction_name = surface.get("construction_name")
                     if not construction_name:
-                        logger.debug(f"Surface '{surface_id}' in zone '{zone_name}' skipped: no construction name.")
                         continue
 
                     original_area = safe_float(surface.get("area", 0.0), 0.0)
                     if original_area <= 0.0:
-                        logger.debug(f"Surface '{surface_id}' (Construction: {construction_name}) in zone '{zone_name}' skipped: area is {original_area}.")
                         continue
 
                     area = original_area
@@ -176,7 +168,6 @@ class AreaParser:
 
                     if surface_id_upper and surface_id_upper in self.glazing_data_from_csv:
                         glazing_details_csv = self.glazing_data_from_csv[surface_id_upper]
-                        logger.debug(f"Found uppercased surface_id '{surface_id_upper}' (original: '{surface_id}') in glazing_data_from_csv. Data: {glazing_details_csv}")
 
                         csv_construction_name = glazing_details_csv.get('Construction')
                         if csv_construction_name and csv_construction_name != construction_name:
@@ -190,18 +181,15 @@ class AreaParser:
 
                         if u_value_from_glazing is not None:
                             u_value = safe_float(u_value_from_glazing, 0.0)
-                            logger.debug(f"Using U-Value from CSV for '{surface_id}' (lookup key '{surface_id_upper}'): {u_value}")
                         else:
                             logger.warning(f"U-Value missing for surface '{surface_id}' (lookup key '{surface_id_upper}', construction '{construction_name}') in glazing CSV data. Calculating.")
                             u_value = self._calculate_u_value(construction_name)
 
                         if area_from_glazing is not None:
                             glazing_area_override = safe_float(area_from_glazing, 0.0)
-                            logger.debug(f"Using Area from CSV for '{surface_id}' (lookup key '{surface_id_upper}'): {glazing_area_override}")
 
                         is_glazing_from_csv = True
                     else:
-                        logger.debug(f"Surface_id '{surface_id_upper}' (original: '{surface_id}', Construction: '{construction_name}') not found in glazing_data_from_csv. Will calculate U-value and use IDF area.")
                         u_value = self._calculate_u_value(construction_name)
 
                     surface_type = surface.get("surface_type", "wall")
@@ -227,12 +215,10 @@ class AreaParser:
                     final_area = area
                     if is_glazing and glazing_area_override is not None and glazing_area_override > 0:
                         final_area = glazing_area_override
-                        logger.debug(f"For glazing surface '{surface_id}', final_area set to CSV override: {final_area}")
                     elif is_glazing:
-                         logger.debug(f"For glazing surface '{surface_id}', no CSV area override or override is zero. Using IDF derived area: {final_area} (original: {original_area})")
+                         pass # No CSV area override or override is zero. Using IDF derived area.
 
                     if final_area <= 0.0 and not is_glazing_from_csv:
-                        logger.debug(f"Skipping element for surface '{surface_id}' as final_area is {final_area} and not explicitly from CSV.")
                         continue
 
                     element_data = {
@@ -240,7 +226,6 @@ class AreaParser:
                         "area": final_area, "original_area": original_area, "u_value": u_value,
                         "area_u_value": final_area * u_value
                     }
-                    logger.debug(f"Processed element: {element_data}")
 
                     constr_group = self.areas_by_zone[zone_name]["constructions"][construction_name]
                     constr_group["elements"].append(element_data)
@@ -293,7 +278,7 @@ class AreaParser:
                     elif conductivity > 0 and thickness > 0:
                         total_resistance += thickness / conductivity
                     else:
-                        logger.debug(f"Material layer '{layer_id}' in '{construction_name}' has zero resistance (thickness: {thickness}, conductivity: {conductivity}, explicit_R: {resistance}).")
+                        pass # Material layer has zero resistance
                 except (TypeError, ValueError) as e_mat:
                     logger.warning(f"Error processing material layer '{layer_id}' in construction '{construction_name}': {e_mat}. Skipping layer.", exc_info=True)
                     continue
@@ -318,7 +303,6 @@ class AreaParser:
         Prioritizes direct U-Factor for simple glazing, then uses CSV if available,
         otherwise calculates based on layer resistance including film resistance.
         """
-        logger.debug(f"Calculating U-Value for construction: '{construction_name}'")
         try:
 
             constructions_opaque = self.data_loader.get_constructions()
@@ -345,7 +329,6 @@ class AreaParser:
                         if u_factor is not None:
                             u_value_float = safe_float(u_factor, -1.0)
                             if u_value_float >= 0:
-                                logger.debug(f"Using U-Factor {u_value_float} from WindowMaterial:SimpleGlazingSystem for '{construction_name}'.")
                                 return u_value_float
                             else:
                                 logger.warning(f"Invalid U-Factor '{u_factor}' for SimpleGlazingSystem '{construction_name}'. Proceeding to calculate.")
@@ -373,7 +356,7 @@ class AreaParser:
                     elif thickness >= 0 and conductivity > 0:
                         layer_r = thickness / conductivity
                     else:
-                        logger.debug(f"Material layer '{layer_id}' in '{construction_name}' has insufficient data for R-value (thickness: {thickness}, conductivity: {conductivity}, explicit_R: {resistance}).")
+                        pass # Insufficient data for R-value
                     total_material_resistance += layer_r
                 except (TypeError, ValueError) as e_mat_calc:
                     logger.warning(f"Error calculating resistance for material layer '{layer_id}' in '{construction_name}': {e_mat_calc}. Skipping layer.", exc_info=True)
@@ -394,13 +377,12 @@ class AreaParser:
                    callable(getattr(self.materials_parser, '_get_surface_film_resistance')):
                     film_resistance = self.materials_parser._get_surface_film_resistance(element_type_for_film)
                 else:
-                    logger.debug(f"MaterialsParser or _get_surface_film_resistance not available for '{construction_name}'. Defaulting film_resistance to 0.")
+                    pass # MaterialsParser or _get_surface_film_resistance not available
             except Exception as e_film:
                 logger.warning(f"Error getting film resistance for '{construction_name}' (context type '{element_type_for_film}'): {e_film}. Defaulting film_resistance to 0.", exc_info=True)
 
             r_value_with_film = total_material_resistance + film_resistance
             u_value = 1.0 / r_value_with_film if r_value_with_film > 0 else 0.0
-            logger.debug(f"Calculated U-Value for '{construction_name}': {u_value} (R_material={total_material_resistance}, R_film={film_resistance}, R_total={r_value_with_film})")
             return u_value
 
         except (TypeError, ValueError, AttributeError, KeyError) as e:
@@ -420,7 +402,6 @@ class AreaParser:
         try:
             surfaces = self.data_loader.get_surfaces()
             if not self.areas_by_zone:
-                logger.info("No zones processed. Skipping reverse construction merging.")
                 return
 
             for zone_id, zone_data in self.areas_by_zone.items():
@@ -446,7 +427,6 @@ class AreaParser:
                             reverse_name = name
 
                             if base_name in self.glazing_data_from_csv or reverse_name in self.glazing_data_from_csv:
-                                logger.debug(f"Skipping merge for '{base_name}'/'{reverse_name}': one is in CSV glazing data.")
                                 continue
 
                             base_elements = constructions.get(base_name, {}).get("elements", [])
@@ -459,7 +439,6 @@ class AreaParser:
                                 element.get("element_type", "").endswith("Glazing") for element in reverse_elements
                             )
                             if has_base_glazing_element or has_reverse_glazing_element:
-                                logger.debug(f"Skipping merge for '{base_name}'/'{reverse_name}': one contains glazing elements.")
                                 continue
 
                             try:
@@ -467,14 +446,12 @@ class AreaParser:
                                 reverse_types_list, reverse_dont_use = materials_parser._get_element_type(reverse_name, surfaces)
 
                                 if base_dont_use or reverse_dont_use:
-                                    logger.debug(f"Skipping merge for '{base_name}'/'{reverse_name}': one is marked 'dont_use'.")
                                     continue
 
                                 base_types_set = set(bt for bt in base_types_list if bt and "Glazing" not in bt)
                                 reverse_types_set = set(rt for rt in reverse_types_list if rt and "Glazing" not in rt)
 
                                 if base_types_set and base_types_set == reverse_types_set:
-                                    logger.info(f"Merging '{reverse_name}' into '{base_name}' for zone '{zone_id}'. Matched types: {base_types_set}")
                                     base_constr = constructions[base_name]
                                     reverse_constr = constructions[reverse_name]
 
@@ -483,7 +460,7 @@ class AreaParser:
                                     base_constr["elements"].extend(reverse_constr.get("elements", []))
                                     to_remove.append(reverse_name)
                                 else:
-                                    logger.debug(f"Not merging '{base_name}' and '{reverse_name}': non-glazing element types do not match or one is empty. Base: {base_types_set}, Reverse: {reverse_types_set}")
+                                    pass # Not merging, types do not match or one is empty
 
                             except Exception as e_type:
                                 logger.warning(f"Error determining element types during merge check for '{base_name}'/'{reverse_name}' in zone '{zone_id}': {e_type}. Skipping merge for this pair.", exc_info=True)
@@ -491,7 +468,6 @@ class AreaParser:
                     for key_to_remove in to_remove:
                         if key_to_remove in constructions:
                             del constructions[key_to_remove]
-                            logger.debug(f"Removed '{key_to_remove}' from constructions in zone '{zone_id}' after merging.")
 
                 except (TypeError, ValueError, AttributeError, KeyError) as e_zone_merge:
                     logger.error(f"Error during reverse construction merging for zone '{zone_id}': {e_zone_merge}. Skipping zone.", exc_info=True)
@@ -558,7 +534,7 @@ class AreaParser:
                         continue
 
             if not found_area:
-                logger.info(f"No zones found for area_id '{area_id}' in get_area_totals.")
+                pass # No zones found, result will be empty or as calculated
             return result
         except Exception as e:
             logger.error(f"Error calculating area totals for area_id '{area_id}': {e}. Returning partially calculated or zeroed totals.", exc_info=True)
@@ -581,7 +557,6 @@ class AreaParser:
 
             surfaces = self.data_loader.get_surfaces()
             if not self.areas_by_zone:
-                logger.info("No zones processed (self.areas_by_zone is empty). Returning empty data for area table.")
                 return result_by_area
 
             for zone_id, zone_data in self.areas_by_zone.items():
@@ -596,21 +571,18 @@ class AreaParser:
                     zone_constructions_aggregated = {}
                     constructions_in_zone = zone_data.get("constructions", {})
                     if not constructions_in_zone:
-                        logger.debug(f"Zone '{zone_id}' in area '{area_id}' has no constructions. Skipping.")
                         continue
 
                     for construction_name, construction_data in constructions_in_zone.items():
                         try:
                             determined_element_types, dont_use = parser_to_use._get_element_type(construction_name, surfaces)
                             if dont_use or not determined_element_types:
-                                logger.debug(f"Construction '{construction_name}' in zone '{zone_id}' skipped: 'dont_use' is true or no element types determined.")
                                 continue
 
                             total_area_constr = safe_float(construction_data.get("total_area", 0.0), 0.0)
                             total_area_u_value_constr = safe_float(construction_data.get("total_u_value", 0.0), 0.0)
 
                             if total_area_constr <= 0.0:
-                                logger.debug(f"Construction '{construction_name}' in zone '{zone_id}' skipped: total_area is {total_area_constr}.")
                                 continue
 
                             construction_u_value_avg = total_area_u_value_constr / total_area_constr if total_area_constr > 0 else 0.0
@@ -620,14 +592,12 @@ class AreaParser:
 
                             elements = construction_data.get("elements", [])
                             if not elements:
-                                logger.debug(f"Construction '{construction_name}' in zone '{zone_id}' has no elements. Skipping.")
                                 continue
 
                             for element in elements:
                                 try:
                                     element_area = safe_float(element.get("area", 0.0), 0.0)
                                     if element_area <= 0.0:
-                                        logger.debug(f"Element in '{construction_name}', surface '{element.get('surface_name')}' skipped: area is {element_area}.")
                                         continue
 
                                     element_specific_type = element.get("element_type", "Unknown")

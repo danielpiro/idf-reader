@@ -32,7 +32,6 @@ class EnergyRatingParser:
                 r'\[([A-Za-z0-9/]+)\]'
                 r'\(([A-Za-z0-9]+)\)'
             )
-            logger.info("EnergyRatingParser initialized successfully.")
         except ValueError as ve:
             logger.error(f"Initialization error in EnergyRatingParser: {ve}", exc_info=True)
             raise
@@ -48,7 +47,6 @@ class EnergyRatingParser:
         Process EnergyPlus output file (eplusout.csv) to extract energy consumption data.
         """
         if self.processed:
-            logger.info("Energy data already processed. Skipping.")
             return
         if not self.zone_pattern:
             logger.error("Zone pattern regex not compiled. Cannot process output.")
@@ -74,7 +72,6 @@ class EnergyRatingParser:
                         normalized_path = os.path.normpath(path_candidate)
                         if os.path.basename(normalized_path).lower() == "eplusout.csv" and os.path.exists(normalized_path):
                             final_output_file_path = normalized_path
-                            logger.info(f"Found eplusout.csv at: {final_output_file_path}")
                             break
                     if not final_output_file_path:
                         logger.warning("Could not automatically find eplusout.csv based on IDF path or fallback locations.")
@@ -84,11 +81,9 @@ class EnergyRatingParser:
                 final_output_file_path = output_file_path
 
             if final_output_file_path and os.path.basename(final_output_file_path).lower() == "eplustbl.csv":
-                logger.info(f"Received eplustbl.csv path: {final_output_file_path}. Attempting to use eplusout.csv from the same directory.")
                 candidate_out = os.path.join(os.path.dirname(final_output_file_path), "eplusout.csv")
                 if os.path.exists(candidate_out):
                     final_output_file_path = candidate_out
-                    logger.info(f"Switched to eplusout.csv: {final_output_file_path}")
                 else:
                     logger.warning(f"eplustbl.csv provided, but eplusout.csv not found in the same directory ({os.path.dirname(final_output_file_path)}).")
 
@@ -97,10 +92,8 @@ class EnergyRatingParser:
                 self.processed = False
                 return
 
-            logger.info(f"Processing EnergyPlus output file: {final_output_file_path}")
 
             if not self.area_parser.processed:
-                logger.info("Area parser data not yet processed. Processing now.")
                 try:
                     self.area_parser.process_idf(None)
                 except Exception as ap_e:
@@ -126,7 +119,6 @@ class EnergyRatingParser:
                 self._process_headers_and_values(headers, last_row)
             self._calculate_totals()
             self.processed = True
-            logger.info("Successfully processed EnergyPlus output file.")
 
         except FileNotFoundError:
             logger.error(f"EnergyPlus output file not found (should have been caught earlier): {final_output_file_path}", exc_info=True)
@@ -166,12 +158,10 @@ class EnergyRatingParser:
                 if i == 0:
                     continue
                 if "X" not in header:
-                    logger.debug(f"Skipping header (no 'X'): '{header}'")
                     continue
 
                 match = self.zone_pattern.search(header)
                 if not match:
-                    logger.debug(f"Header '{header}' did not match zone pattern. Skipping.")
                     continue
 
                 groups = match.groups()
@@ -201,7 +191,6 @@ class EnergyRatingParser:
                         dl_zone_data = all_zones_data_from_loader[full_zone_id_key]
                         zone_multiplier = int(dl_zone_data.get('multiplier', 1))
                         individual_zone_floor_area = safe_float(dl_zone_data.get('floor_area', 0.0), 0.0)
-                        logger.debug(f"EnergyRatingParser: For key '{full_zone_id_key}', DataLoader provided: multiplier={zone_multiplier}, floor_area={individual_zone_floor_area}.")
                     elif isinstance(all_zones_data_from_loader, dict):
                         logger.warning(f"EnergyRatingParser: Key '{full_zone_id_key}' (from eplusout.csv) NOT FOUND in DataLoader's cached zones (which has {len(all_zones_data_from_loader)} items). Sample keys: {list(all_zones_data_from_loader.keys())[:20]}. Using defaults for multiplier/floor_area.")
                     else:
@@ -273,7 +262,6 @@ class EnergyRatingParser:
                 logger.warning(f"Header '{header_lower}' did not match known energy categories for unit conversion. Original value: {value} returned.")
                 processed_val = value
 
-            logger.info(f"EnergyRatingParser._process_value: Header='{header_lower}', Input={value:.2f}, Output={processed_val:.4f}, DivisorFactor='{divisor_info}'")
             return processed_val
         except TypeError:
             logger.error(f"Cannot process non-numeric value '{value}' for header '{header_lower}'. Returning 0.0.", exc_info=True)
@@ -284,7 +272,6 @@ class EnergyRatingParser:
         Calculate total energy consumption and per area values for each processed area.
         """
         if not self.energy_data_by_area:
-            logger.info("No energy data processed by area. Skipping total calculations.")
             return
 
         for full_zone_id_key, data_for_zone in self.energy_data_by_area.items():
@@ -365,7 +352,7 @@ class EnergyRatingParser:
                         if area_data.get('area_id') == area_id:
                             return area_data.get('location', unknown_location)
                 else:
-                    logger.info(f"No H-value data returned from AreaParser for area_id '{area_id}'. Falling back.")
+                    pass
 
             if len(area_id) >= 2 and area_id[:2].isdigit():
                 floor_num_str = area_id[:2]
@@ -376,7 +363,6 @@ class EnergyRatingParser:
                 except ValueError:
                     logger.warning(f"Could not parse floor number from area_id prefix '{floor_num_str}' for '{area_id}'.")
 
-            logger.info(f"Could not determine location for area_id '{area_id}' through H-values or basic logic.")
             return unknown_location
         except AttributeError:
             logger.error(f"AttributeError accessing AreaParser for location of area_id '{area_id}'. Returning '{unknown_location}'.", exc_info=True)
@@ -421,7 +407,6 @@ class EnergyRatingParser:
             logger.warning("Energy data not processed. Call process_output() first. Returning empty list for rating table.")
             return table_data
         if not self.energy_data_by_area:
-            logger.info("No energy data available by area. Returning empty list for rating table.")
             return table_data
 
         try:

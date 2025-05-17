@@ -196,7 +196,6 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
                     )
                     numeric_energy_consumption = float(energy_value_raw)
                     display_energy_consump = _format_number(numeric_energy_consumption)
-                    logger.info(f"ReportGen _energy_rating_table: OK. AreaDesc='{area_location_for_csv_lookup}', Year='{model_year}', AreaDef='{model_area_definition}', Value='{numeric_energy_consumption}'")
                 except FileNotFoundError as e_fnf:
                     logger.error(f"ReportGen _energy_rating_table: FileNotFoundError. AreaDesc='{area_location_for_csv_lookup}', Year='{model_year}', AreaDef='{model_area_definition}'. Error: {e_fnf}")
                     display_energy_consump = "FNF Error"
@@ -265,7 +264,6 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
             if isinstance(calculated_improve_by_value, (int, float)):
                  display_improve_by = _format_number(calculated_improve_by_value)
 
-            logger.info(f"ReportGen _energy_rating_table: Group processed. AreaDesc='{area_location_for_csv_lookup}', Year='{model_year}', AreaDef='{model_area_definition}', Resulting display_energy_consump='{display_energy_consump}', ImproveBy='{display_improve_by}', EnergyRating='{display_energy_rating}', AreaScore='{display_area_rating}' (Model Area Definition for report: '{model_area_definition}')")
 
         else:
             display_floor_id = ""
@@ -322,7 +320,7 @@ class EnergyRatingReportGenerator:
         self.styles = getSampleStyleSheet()
         self.margin = 1 * cm
         if self.selected_city_name:
-            logger.info(f"EnergyRatingReportGenerator initialized with City: '{self.selected_city_name}', Year: {self.model_year}, AreaDef: '{self.model_area_definition}'")
+            pass
         else:
             logger.warning(f"EnergyRatingReportGenerator initialized WITHOUT city. Year: {self.model_year}, AreaDef: '{self.model_area_definition}'")
 
@@ -363,7 +361,6 @@ class EnergyRatingReportGenerator:
                 story.append(Paragraph("No energy rating data available.", no_data_style))
 
             doc.build(story)
-            logger.info(f"Generated energy rating report: {output_path}")
             return output_path
 
         except Exception as e:

@@ -2,7 +2,6 @@ import logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 logger = logging.getLogger(__name__)
-logger.info("Logging configured at DEBUG level.")
 import argparse
 import sys
 import os
@@ -23,7 +22,6 @@ def ensure_directory_exists(file_path: str) -> None:
     directory = os.path.dirname(file_path)
     if directory and not os.path.exists(directory):
         os.makedirs(directory)
-        logger.info(f"Created directory: {directory}")
 
 def cli_status_update(message: str) -> None:
     """

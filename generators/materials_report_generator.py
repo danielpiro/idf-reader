@@ -217,7 +217,6 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
         if not output_dir.exists():
             try:
                 output_dir.mkdir(parents=True, exist_ok=True)
-                logger.info(f"Created output directory for materials report: {output_dir}")
             except OSError as e:
                 error_message = f"Error creating output directory '{output_dir}' for materials report: {e.strerror}"
                 logger.error(error_message, exc_info=True)
@@ -285,7 +284,6 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
         materials_table.setStyle(table_style)
         story.append(materials_table)
         doc.build(story)
-        logger.info(f"Successfully generated Materials report: {output_filename}")
         return True
     except (IOError, OSError) as e:
         error_message = f"Error during file operation for Materials report '{output_filename}': {e.strerror}"

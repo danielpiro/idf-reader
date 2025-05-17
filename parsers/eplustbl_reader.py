@@ -55,12 +55,10 @@ def _parse_exterior_fenestration_table(reader) -> Dict[str, Dict[str, Any]]:
             in_target_table = True
             headers_found = False
             col_indices = {}
-            logger.debug("Found 'Exterior Fenestration' table.")
             continue
         if in_target_table:
             if not headers_found:
                 current_headers_norm = [h.strip().lower() for h in row]
-                logger.debug(f"Attempting to find headers in row: {row}")
                 if "construction" in current_headers_norm and "glass u-factor [w/m2-k]" in current_headers_norm:
                     for key_map, expected_idx in header_map.items():
                         try:
@@ -75,7 +73,6 @@ def _parse_exterior_fenestration_table(reader) -> Dict[str, Dict[str, Any]]:
                         logger.error(f"Missing critical column indices for: {missing_keys} after parsing headers {current_headers_norm}")
 
                     headers_found = True
-                    logger.debug(f"Headers identified. Column indices: {col_indices}")
                 continue
             else:
                 suffixes_to_check = ["_WALL", "_ROOF", "_FLOOR", "_WIN", "_DOOR"]
@@ -83,7 +80,6 @@ def _parse_exterior_fenestration_table(reader) -> Dict[str, Dict[str, Any]]:
                 is_total_row = row[0].strip().lower().endswith("total or average")
                 is_blank_data_row = not row[0].strip() and (len(row) < 2 or not row[1].strip())
                 if is_total_row or is_blank_data_row:
-                    logger.debug(f"Exiting table parse due to total/blank row: {row}")
                     break
 
                 max_col_idx_needed = 0
@@ -118,12 +114,6 @@ def _parse_exterior_fenestration_table(reader) -> Dict[str, Dict[str, Any]]:
                         if ':' in parts[0]:
                             derived_zone_name = parts[0]
 
-                    logger.debug(
-                        f"Processing row: FenSurfName='{fenestration_surface_name}', "
-                        f"Constr='{construction_name}', Area='{area}', U-Val='{u_value}', "
-                        f"DerivedZone='{derived_zone_name}'"
-                    )
-
                     if fenestration_surface_name and construction_name:
                         result[fenestration_surface_name.upper()] = {
                             'Construction': construction_name,
@@ -131,7 +121,6 @@ def _parse_exterior_fenestration_table(reader) -> Dict[str, Dict[str, Any]]:
                             'U-Value': u_value,
                             'DerivedZone': derived_zone_name
                         }
-    logger.debug(f"Finished parsing 'Exterior Fenestration' table. Result (keys are uppercased): {result}")
     return result
 
 def read_glazing_data_from_csv(csv_path: Optional[str] = None) -> Dict[str, Dict[str, Any]]:

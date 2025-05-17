@@ -66,7 +66,6 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
         if not output_path.exists():
             try:
                 output_path.mkdir(parents=True, exist_ok=True)
-                logger.info(f"Created output directory: {output_path}")
             except OSError as e:
                 error_message = f"Error creating output directory '{output_path}': {e.strerror}"
                 logger.error(error_message, exc_info=True)
@@ -162,7 +161,6 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
         story.append(area_loss_table)
 
         doc.build(story)
-        logger.info(f"Successfully generated Area Loss report: {output_filename}")
         return True
     except (IOError, OSError) as e:
         error_message = f"Error during file operation for Area Loss report '{output_filename}': {e.strerror}"

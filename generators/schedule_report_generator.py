@@ -68,7 +68,6 @@ def create_date_ranges(rule_blocks: list) -> list:
 def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> Table | None:
     """Creates a ReportLab Table for hourly schedules. Returns None on error or no input."""
     if not rule_blocks:
-        logger.info("No rule blocks provided for hourly schedule table.")
         return None
     try:
         rule_blocks_with_ranges = create_date_ranges(rule_blocks)
@@ -138,7 +137,6 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
         if not output_dir.exists():
             try:
                 output_dir.mkdir(parents=True, exist_ok=True)
-                logger.info(f"Created output directory for schedules report: {output_dir}")
             except OSError as e:
                 error_message = f"Error creating output directory '{output_dir}' for schedules report: {e.strerror}"
                 logger.error(error_message, exc_info=True)
@@ -193,12 +191,10 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
         current_y -= (title_height + 1 * cm)
 
         if not schedule_data:
-            logger.info("No schedule data provided for the report.")
             p_empty = Paragraph("No relevant schedules found or extracted.", styles['Normal'])
             p_empty.wrapOn(c, content_width, margin_y)
             p_empty.drawOn(c, margin_x, current_y - p_empty.height)
             c.save()
-            logger.info(f"Empty schedules report generated: {output_filename}")
             return True
 
         space_after_table = 0.8 * cm
@@ -272,7 +268,6 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
                 current_y -= (no_data_actual_height + space_after_table)
 
         c.save()
-        logger.info(f"Successfully generated Schedules report: {output_filename}")
         return True
     except (IOError, OSError) as e:
         logger.error(f"File operation error during schedules report generation for '{output_filename}': {e.strerror}", exc_info=True)

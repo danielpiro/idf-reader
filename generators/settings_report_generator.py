@@ -82,7 +82,6 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
         if not output_dir.exists():
             try:
                 output_dir.mkdir(parents=True, exist_ok=True)
-                logger.info(f"Created output directory for settings report: {output_dir}")
             except OSError as e:
                 error_message = f"Error creating output directory '{output_dir}' for settings report: {e.strerror}"
                 logger.error(error_message, exc_info=True)
@@ -286,7 +285,6 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
             story.append(Paragraph("No settings data found to generate the report.", styles['Normal']))
 
         doc.build(story)
-        logger.info(f"Successfully generated Settings report: {output_filename}")
         return True
     except (IOError, OSError) as e:
         error_message = f"Error during file operation for Settings report '{output_filename}': {e.strerror}"

@@ -157,7 +157,6 @@ class LightingReportGenerator:
             if not output_dir.exists():
                 try:
                     output_dir.mkdir(parents=True, exist_ok=True)
-                    logger.info(f"Created output directory for lighting report: {output_dir}")
                 except OSError as e:
                     error_message = f"Error creating output directory '{output_dir}' for lighting report: {e.strerror}"
                     logger.error(error_message, exc_info=True)
@@ -365,7 +364,6 @@ class LightingReportGenerator:
                 self._story.append(Paragraph("No Task Lights data found.", self._styles['Normal']))
 
             doc.build(self._story, onFirstPage=self._add_header_footer, onLaterPages=self._add_header_footer)
-            logger.info(f"Successfully generated Lighting report: {self._output_path}")
             return True
         except (IOError, OSError) as e:
             error_message = f"Error during file operation for Lighting report '{self._output_path}': {e.strerror}"
