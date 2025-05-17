@@ -135,33 +135,47 @@ def _energy_rating_table(energy_rating_parser):
         display_improve_by = ""
         display_energy_rating = ""
         display_area_rating = ""
+        display_floor_id = str(row_dict.get('floor_id_report', ''))
+        display_area_id = str(row_dict.get('area_id_report', ''))
 
         if item_group_key != current_group_key: # This is the first row of a new group
             # Finalize spans for the PREVIOUS group
-            if current_group_key is not None and (i - group_start_pdf_row_index_in_table_content) > 1:
-                start_span_pdf_row = pdf_data_start_row + group_start_pdf_row_index_in_table_content
-                end_span_pdf_row = pdf_data_start_row + i - 1
-                for col_idx in range(8, 13): # Columns for Sum, Energy Consumption, Improve by %, Energy Rating, Area Rating
-                    span_commands.append(('SPAN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row)))
-                    span_commands.append(('VALIGN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row), 'MIDDLE'))
+            if current_group_key is not None:
+                num_rows_in_prev_group = i - group_start_pdf_row_index_in_table_content
+                if num_rows_in_prev_group > 1:
+                    start_span_pdf_row = pdf_data_start_row + group_start_pdf_row_index_in_table_content
+                    end_span_pdf_row = pdf_data_start_row + i - 1
+                    # Span for Floor (0), Area id (1), and Sum + summary columns (8-12)
+                    columns_to_span = [0, 1] + list(range(8, 13))
+                    for col_idx in columns_to_span:
+                        span_commands.append(('SPAN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row)))
+                        span_commands.append(('VALIGN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row), 'MIDDLE'))
             
             # Reset for the new group
             current_group_key = item_group_key
             group_start_pdf_row_index_in_table_content = i
             
-            # Values for the first row of this new group's summary columns
+            # Values for the first row of this new group
             display_sum_for_row = _format_number(group_sums_for_display.get(current_group_key, 0.0))
-            # Placeholders for other summary columns, to be filled if data becomes available
             display_energy_consump = ""
             display_improve_by = ""
             display_energy_rating = ""
             display_area_rating = ""
-        else: # Not the first row of the group, so summary columns will be empty (covered by span)
-            pass # Values remain ""
+            # display_floor_id and display_area_id are already set from current row_dict
+        else: # Not the first row of the group
+            # Floor and Area ID will be empty for subsequent rows in the group (covered by span)
+            display_floor_id = ""
+            display_area_id = ""
+            # Sum and summary columns also empty
+            display_sum_for_row = ""
+            display_energy_consump = ""
+            display_improve_by = ""
+            display_energy_rating = ""
+            display_area_rating = ""
 
         table_content.append([
-            str(row_dict.get('floor_id_report', '')),
-            str(row_dict.get('area_id_report', '')),
+            display_floor_id,
+            display_area_id,
             str(row_dict.get('zone_name_report', '')),
             _format_number(row_dict.get('total_area', 0)), # Individual zone area
             str(row_dict.get('multiplier', '')),
@@ -181,7 +195,8 @@ def _energy_rating_table(energy_rating_parser):
         if num_rows_in_last_group > 1:
             start_span_pdf_row = pdf_data_start_row + group_start_pdf_row_index_in_table_content
             end_span_pdf_row = pdf_data_start_row + len(raw_table_data) - 1
-            for col_idx in range(8, 13):
+            columns_to_span = [0, 1] + list(range(8, 13))
+            for col_idx in columns_to_span:
                 span_commands.append(('SPAN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row)))
                 span_commands.append(('VALIGN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row), 'MIDDLE'))
 
