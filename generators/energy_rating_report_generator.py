@@ -112,12 +112,15 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
     pdf_data_start_row = 2
     
     group_sums_for_display = {}
+    group_total_floor_areas = {} # To store total floor area for each group
     if raw_table_data:
         for row_dict in raw_table_data:
             group_key = (str(row_dict.get('floor_id_report','N/A')), str(row_dict.get('area_id_report','N/A')))
             if group_key not in group_sums_for_display:
                 group_sums_for_display[group_key] = 0.0
+                group_total_floor_areas[group_key] = 0.0 # Initialize for the group
             group_sums_for_display[group_key] += safe_float(row_dict.get('total', 0.0))
+            group_total_floor_areas[group_key] += safe_float(row_dict.get('total_area', 0.0)) # Accumulate total area
 
     current_group_key = None
     group_start_pdf_row_index_in_table_content = -1
@@ -147,33 +150,36 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
             current_group_key = item_group_key
             group_start_pdf_row_index_in_table_content = i
             
-            display_sum_for_row = _format_number(group_sums_for_display.get(current_group_key, 0.0))
-            display_energy_consump = "N/A"
-            display_improve_by = ""
-            display_energy_rating = ""
-            display_area_rating = ""
+            current_group_actual_sum = group_sums_for_display.get(current_group_key, 0.0)
+            display_sum_for_row = _format_number(current_group_actual_sum)
 
-            # Corrected: Use model_csv_area_description from row_dict for area_location_input
+            numeric_energy_consumption = None
+            display_energy_consump = "N/A" # Default for display
+            display_improve_by = ""       # Default for display
+            display_energy_rating = ""    # Placeholder
+            display_area_rating = ""      # Placeholder
+
             area_location_for_csv_lookup = row_dict.get('model_csv_area_description')
 
             if area_location_for_csv_lookup and model_year is not None and model_area_definition is not None:
                 try:
                     iso_type_for_file_selection = f"MODEL_YEAR_{model_year}"
                     
-                    energy_value = get_energy_consumption(
+                    energy_value_raw = get_energy_consumption(
                         iso_type_input=iso_type_for_file_selection,
-                        area_location_input=area_location_for_csv_lookup, # Use the description from AreaParser
+                        area_location_input=area_location_for_csv_lookup,
                         area_definition_input=model_area_definition
                     )
-                    display_energy_consump = _format_number(energy_value)
-                    logger.info(f"ReportGen _energy_rating_table: OK. AreaDesc='{area_location_for_csv_lookup}', Year='{model_year}', AreaDef='{model_area_definition}', Value='{energy_value}'")
+                    numeric_energy_consumption = float(energy_value_raw) # Store raw numeric value
+                    display_energy_consump = _format_number(numeric_energy_consumption) # Format for display
+                    logger.info(f"ReportGen _energy_rating_table: OK. AreaDesc='{area_location_for_csv_lookup}', Year='{model_year}', AreaDef='{model_area_definition}', Value='{numeric_energy_consumption}'")
                 except FileNotFoundError as e_fnf:
                     logger.error(f"ReportGen _energy_rating_table: FileNotFoundError. AreaDesc='{area_location_for_csv_lookup}', Year='{model_year}', AreaDef='{model_area_definition}'. Error: {e_fnf}")
                     display_energy_consump = "FNF Error"
-                except KeyError as e_key: # This will now use the more detailed error from data_loader
+                except KeyError as e_key:
                     logger.error(f"ReportGen _energy_rating_table: KeyError. AreaDesc='{area_location_for_csv_lookup}', Year='{model_year}', AreaDef='{model_area_definition}'. Error: {e_key}")
                     display_energy_consump = "Key Error"
-                except ValueError as e_val:
+                except ValueError as e_val: # Catches errors from float() conversion if getter returns non-numeric
                     logger.error(f"ReportGen _energy_rating_table: ValueError. AreaDesc='{area_location_for_csv_lookup}', Year='{model_year}', AreaDef='{model_area_definition}'. Error: {e_val}")
                     display_energy_consump = "Val Error"
                 except Exception as e_gen:
@@ -183,11 +189,34 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
                 if not area_location_for_csv_lookup:
                     logger.warning(f"ReportGen _energy_rating_table: 'model_csv_area_description' (for area_location_input) is missing or empty in row_dict for group {current_group_key}. display_energy_consump remains N/A.")
                 if model_year is None:
-                    logger.warning("ReportGen _energy_rating_table: model_year is None (for CSV lookup). display_energy_consump remains N/A.")
+                    logger.warning(f"ReportGen _energy_rating_table: model_year is None (for CSV lookup for group {current_group_key}). display_energy_consump remains N/A.")
                 if model_area_definition is None:
-                    logger.warning("ReportGen _energy_rating_table: model_area_definition is None (for CSV lookup). display_energy_consump remains N/A.")
+                    logger.warning(f"ReportGen _energy_rating_table: model_area_definition is None (for CSV lookup for group {current_group_key}). display_energy_consump remains N/A.")
+
+            # Calculate "Improve by %"
+            if numeric_energy_consumption is not None:
+                current_group_total_area_val = group_total_floor_areas.get(current_group_key, 0.0)
+                calculated_improve_by_value = None # Initialize for this calculation attempt
+
+                if current_group_total_area_val <= 70:
+                    adjusted_target_ec = 1.18 * numeric_energy_consumption
+                    if adjusted_target_ec != 0:
+                        calculated_improve_by_value = 100 * (adjusted_target_ec - current_group_actual_sum) / adjusted_target_ec
+                    else:
+                        display_improve_by = "N/A (Div0 Adj)" # Denominator is zero for adjusted calc
+                else: # current_group_total_area_val > 70
+                    if numeric_energy_consumption != 0:
+                        calculated_improve_by_value = 100 * (numeric_energy_consumption - current_group_actual_sum) / numeric_energy_consumption
+                    else:
+                        display_improve_by = "N/A (Div0 EC)" # Denominator is zero for standard calc
+                
+                if calculated_improve_by_value is not None: # If calculation was successful (not div by zero)
+                    display_improve_by = _format_number(calculated_improve_by_value)
+                # If display_improve_by was already set to an error (e.g., "N/A (Div0...)"), it remains.
+            else: # numeric_energy_consumption is None (i.e., energy consumption could not be determined)
+                display_improve_by = "N/A (No EC)"
             
-            logger.info(f"ReportGen _energy_rating_table: Group processed. AreaDesc='{area_location_for_csv_lookup}', Year='{model_year}', AreaDef='{model_area_definition}', Resulting display_energy_consump='{display_energy_consump}' (Selected City for report: '{selected_city_name}')")
+            logger.info(f"ReportGen _energy_rating_table: Group processed. AreaDesc='{area_location_for_csv_lookup}', Year='{model_year}', AreaDef='{model_area_definition}', Resulting display_energy_consump='{display_energy_consump}', ImproveBy='{display_improve_by}' (Selected City for report: '{selected_city_name}')")
 
         else: # Not the first row of the group
             display_floor_id = ""
