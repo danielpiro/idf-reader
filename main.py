@@ -33,14 +33,13 @@ def cli_status_update(message: str) -> None:
         message: The message string to print.
     """
     if "error" in message.lower() or "failed" in message.lower():
-        print(f"{Fore.RED}{message}{Style.RESET_ALL}")
+        print(f"{Fore.RED}{Style.BRIGHT}Error: {message}{Style.RESET_ALL}")
     elif "success" in message.lower() or "completed" in message.lower():
-        print(f"{Fore.GREEN}{message}{Style.RESET_ALL}")
+        print(f"{Fore.GREEN}{Style.BRIGHT}{message}{Style.RESET_ALL}")
     elif "warning" in message.lower():
-        print(f"{Fore.YELLOW}{message}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}{Style.BRIGHT}Warning: {message}{Style.RESET_ALL}")
     else:
-        print(message)
-
+        print(f"{Fore.CYAN}{message}{Style.RESET_ALL}")
 def cli_progress_update(value: float) -> None:
     """
     Prints a simple progress bar to the console.
@@ -51,11 +50,11 @@ def cli_progress_update(value: float) -> None:
     bar_length = 40
     filled_length = int(round(bar_length * value))
     bar = '█' * filled_length + '-' * (bar_length - filled_length)
-    # Use \r to return to the beginning of the line, and end='' to prevent newline
-    print(f'\rProgress: |{bar}| {value*100:.1f}%', end='')
-    if value >= 1.0:
-        print()  # Add a newline when progress is complete
 
+    if value >= 1.0:
+        print(f"\rProgress: [{Fore.GREEN}{bar}{Style.RESET_ALL}] {value*100:.0f}% Complete", end='\n')
+    else:
+        print(f"\rProgress: [{Fore.GREEN}{bar}{Style.RESET_ALL}] {value*100:.0f}%", end='')
 def _parse_arguments() -> argparse.Namespace:
     """
     Parses command-line arguments for the IDF processor.
@@ -103,8 +102,6 @@ def run_cli() -> None:
     idd_file_path = args.idd
     output_dir_path = args.output
 
-    # Ensure the base output directory exists.
-    # A dummy file path is used to extract the directory name.
     ensure_directory_exists(os.path.join(output_dir_path, "dummy.txt"))
 
     cli_status_update(f"Starting processing for IDF: {idf_file_path}")
@@ -156,8 +153,7 @@ def run_gui() -> None:
         app.run()
     except ImportError as import_err:
         err_msg = str(import_err).lower()
-        # GUI specific dependencies might differ or have different instructions
-        if 'tkinter' in err_msg: # Example, if Tkinter was optional and failed
+        if 'tkinter' in err_msg:
              _handle_cli_error("Error: Tkinter library is required for GUI mode. Please ensure it's installed.")
         elif 'reportlab' in err_msg:
              _handle_cli_error("Error: 'reportlab' library is required. Install with: pip install reportlab")
@@ -169,10 +165,7 @@ def run_gui() -> None:
         logger.error(f"An unexpected error occurred while starting GUI: {e}", exc_info=True)
         _handle_cli_error(f"An unexpected error occurred while starting GUI: {e}")
 
-
 if __name__ == "__main__":
-    # If any arguments are passed (other than the script name itself), run CLI.
-    # Otherwise, run GUI.
     if len(sys.argv) > 1:
         run_cli()
     else:

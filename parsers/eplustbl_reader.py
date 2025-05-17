@@ -78,34 +78,25 @@ def _parse_exterior_fenestration_table(reader) -> Dict[str, Dict[str, Any]]:
                     logger.debug(f"Headers identified. Column indices: {col_indices}")
                 continue
             else:
-                # Define suffixes_to_check once before processing rows if it's not already global or class level
-                # For this function, defining it here is fine as it's only used within this 'else' block for data rows.
-                # If this function were called repeatedly, moving it out further would be better.
-                # However, given it processes a reader, it's likely called once per table.
                 suffixes_to_check = ["_WALL", "_ROOF", "_FLOOR", "_WIN", "_DOOR"]
 
                 is_total_row = row[0].strip().lower().endswith("total or average")
                 is_blank_data_row = not row[0].strip() and (len(row) < 2 or not row[1].strip())
                 if is_total_row or is_blank_data_row:
                     logger.debug(f"Exiting table parse due to total/blank row: {row}")
-                    break # End of table data
+                    break
 
                 max_col_idx_needed = 0
-                if col_indices: # Ensure col_indices is populated
-                    # Get max index needed from the populated col_indices for required data
-                    # Default to 0 if a key is missing, though they should be present if headers_found is True
-                    # and required_cols_for_data check passes.
+                if col_indices:
                     max_col_idx_needed = max(
                         col_indices.get("construction", 0),
                         col_indices.get("area of multiplied openings [m2]", 0),
                         col_indices.get("glass u-factor [w/m2-k]", 0)
                     )
-                
-                # Ensure the row has enough columns and the fenestration surface name (row[1]) is present
+
                 if len(row) > 1 and row[1].strip() and len(row) > max_col_idx_needed:
                     fenestration_surface_name = row[1].strip()
-                    
-                    # Check if all necessary column indices for data extraction were found
+
                     required_cols_for_data = ["construction", "area of multiplied openings [m2]", "glass u-factor [w/m2-k]"]
                     if not all(col_name in col_indices for col_name in required_cols_for_data):
                         logger.warning(f"Skipping row due to missing critical column indices for data extraction: {row}. Found indices: {col_indices}")
@@ -115,8 +106,7 @@ def _parse_exterior_fenestration_table(reader) -> Dict[str, Dict[str, Any]]:
                     area = safe_float(row[col_indices["area of multiplied openings [m2]"]])
                     u_value = safe_float(row[col_indices["glass u-factor [w/m2-k]"]])
 
-                    derived_zone_name = fenestration_surface_name # Default
-                    # suffixes_to_check is now defined above the loop at line 85
+                    derived_zone_name = fenestration_surface_name
                     found_suffix = False
                     for suffix in suffixes_to_check:
                         if suffix in fenestration_surface_name:

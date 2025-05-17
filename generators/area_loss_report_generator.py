@@ -4,14 +4,14 @@ Generates reports for area loss information extracted from IDF files.
 from typing import Dict, Any, List
 from pathlib import Path
 import datetime
-import logging # Added for detailed error logging
+import logging
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
-logger = logging.getLogger(__name__) # Added logger instance
+logger = logging.getLogger(__name__)
 
 def _compatibility_color(compatible: str) -> colors.Color:
     """Returns green if compatible is 'Yes', otherwise red."""
@@ -70,14 +70,13 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
             except OSError as e:
                 error_message = f"Error creating output directory '{output_path}': {e.strerror}"
                 logger.error(error_message, exc_info=True)
-                # No need to display to user here, caller (GUI) should handle status.
                 return False
         elif not output_path.is_dir():
             error_message = f"Error: Output path '{output_path}' exists but is not a directory."
             logger.error(error_message)
             return False
 
-        doc = SimpleDocTemplate(str(output_filename), pagesize=A4) # Ensure output_filename is string
+        doc = SimpleDocTemplate(str(output_filename), pagesize=A4)
         styles = getSampleStyleSheet()
         story = []
 
@@ -169,12 +168,9 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
         error_message = f"Error during file operation for Area Loss report '{output_filename}': {e.strerror}"
         logger.error(error_message, exc_info=True)
         return False
-    except Exception as e: # Catch ReportLab specific errors or other unexpected issues
-        # ReportLab errors can be varied. Logging them is key.
+    except Exception as e:
         error_message = f"An unexpected error occurred while generating Area Loss report '{output_filename}': {type(e).__name__} - {str(e)}"
         logger.error(error_message, exc_info=True)
         return False
     finally:
-        # SimpleDocTemplate's build method should handle closing the file.
-        # No explicit file resource to close here unless we were manually opening/writing.
         pass

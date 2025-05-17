@@ -6,7 +6,7 @@ from pathlib import Path
 def create_exe():
     current_dir = Path.cwd()
 
-    dist_dir = current_dir / "dist"
+    current_dir / "dist"
 
     version_info = '''
 VSVersionInfo(

@@ -8,10 +8,10 @@ from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from pathlib import Path
 import datetime
-import logging # Added for detailed error logging
+import logging
 from collections import defaultdict
 
-logger = logging.getLogger(__name__) # Added logger instance
+logger = logging.getLogger(__name__)
 
 def _format_construction_name(construction: str) -> str:
     """
@@ -32,17 +32,14 @@ def _format_construction_name(construction: str) -> str:
         lines = []
         current_line = parts[0]
         for part in parts[1:]:
-            # Check if adding the next part (plus a space) exceeds the limit
             if len(current_line) + 1 + len(part) <= 18:
                 current_line += " " + part
             else:
-                # Current line is full, or the new part makes it too long
                 lines.append(current_line)
-                current_line = part # Start a new line with the current part
-        lines.append(current_line) # Add the last processed line
+                current_line = part
+        lines.append(current_line)
         return "<br/>".join(lines)
     else:
-        # Single word, longer than 18 chars, break it every 15 chars
         return "<br/>".join([construction[i:i + 15] for i in range(0, len(construction), 15)])
 
 def _normalize_glazing_str(s: str) -> str:
@@ -63,17 +60,15 @@ def _clean_element_type(element_type) -> str:
         return _normalize_glazing_str(element_type.strip())
 
     if isinstance(element_type, (list, tuple)):
-        # Handle cases like (['Type A', 'Type B'], True)
         if len(element_type) == 2 and isinstance(element_type[1], bool):
             raw_element_types = element_type[0]
             if isinstance(raw_element_types, (list, tuple)):
                 return '\n'.join([_normalize_glazing_str(str(et).strip()) for et in raw_element_types])
-            else: # Single element in the first part of the tuple
+            else:
                 return _normalize_glazing_str(str(raw_element_types).strip())
-        else: # Plain list or tuple of types
+        else:
             return '\n'.join([_normalize_glazing_str(str(et).strip()) for et in element_type])
 
-    # Fallback for other types
     return _normalize_glazing_str(str(element_type).strip())
 
 def _get_element_type_sort_keys_area(element_type_val):
@@ -315,12 +310,11 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         error_message = f"Error during file operation for Area report '{area_id}' (file: '{output_filename}'): {e.strerror}"
         logger.error(error_message, exc_info=True)
         return False
-    except Exception as e: # Catch ReportLab specific errors or other unexpected issues
+    except Exception as e:
         error_message = f"An unexpected error occurred while generating Area report for '{area_id}' (file: '{output_filename}'): {type(e).__name__} - {str(e)}"
         logger.error(error_message, exc_info=True)
         return False
     finally:
-        # SimpleDocTemplate's build method should handle closing the file.
         pass
 
 def generate_area_reports(areas_data, output_dir: str = "output/areas",
@@ -347,7 +341,7 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
             except OSError as e:
                 error_message = f"Error creating base output directory '{output_path}' for area reports: {e.strerror}"
                 logger.error(error_message, exc_info=True)
-                return False # Cannot proceed if base output dir fails
+                return False
         elif not output_path.is_dir():
             error_message = f"Error: Base output path '{output_path}' for area reports exists but is not a directory."
             logger.error(error_message)
@@ -364,10 +358,10 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
         if data_loader:
             try:
                 materials_parser = MaterialsParser(data_loader)
-                materials_parser.process_idf(None) # Assuming process_idf can handle None or has its own error handling
+                materials_parser.process_idf(None)
             except Exception as e:
                 logger.warning(f"Could not initialize or process MaterialsParser for area reports: {e}", exc_info=True)
-                materials_parser = None # Ensure it's None if initialization fails
+                materials_parser = None
 
         surfaces = {}
         zones = {}
@@ -424,8 +418,6 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                                 element_type = materials_parser._get_element_type(construction_name, surfaces)
                             except Exception as e_mat_type:
                                 logger.debug(f"Could not get element type via MaterialsParser for {construction_name}: {e_mat_type}", exc_info=True)
-                                # Pass and try fallback
-                                pass
 
                         if not element_type:
                             for element in construction_data.get("elements", []):
@@ -464,9 +456,7 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                         area_locations[area_id] = location
             except Exception as e_hval:
                 logger.warning(f"Could not retrieve area H values for area reports: {e_hval}", exc_info=True)
-                # Continue without this data if it fails
 
-        # successes = [] # Replaced by all_reports_successful
         for area_id, merged_rows in area_table_data.items():
             total_floor_area = area_floor_totals.get(area_id, 0.0)
 
@@ -476,12 +466,8 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
 
             for row in merged_rows:
                 raw_element_type = row.get('element_type', '')
-                # _clean_element_type returns a string, potentially with newlines.
-                # We check if 'external wall' is one of the types after cleaning and lowercasing.
                 cleaned_type_str = _clean_element_type(raw_element_type).lower()
-                
-                # Split by newline in case _clean_element_type produced a multi-line string (e.g. from a list)
-                # and check if 'external wall' is one of the distinct types.
+
                 if 'external wall' in cleaned_type_str.split('\n'):
                     current_area = row.get('area', 0.0)
                     if current_area > largest_ext_wall_area:
@@ -509,7 +495,6 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
 
                 except Exception as e_mass:
                     logger.warning(f"Error calculating wall mass for area '{area_id}', construction '{largest_ext_wall_construction}': {e_mass}", exc_info=True)
-                    # Continue with default wall_mass_per_area = 0.0
             elif largest_ext_wall_construction:
                  logger.debug(f"MaterialsParser not available for wall mass calculation for area '{area_id}'.")
 
@@ -528,9 +513,8 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                 location=location
             )
             if not success:
-                all_reports_successful = False # If any report fails, the overall result is False
+                all_reports_successful = False
                 logger.error(f"Failed to generate PDF report for Area ID: {area_id}")
-            # successes.append(success) # Removed
 
         return all_reports_successful
 

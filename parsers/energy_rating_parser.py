@@ -25,13 +25,12 @@ class EnergyRatingParser:
             self.area_parser = area_parser
             self.energy_data_by_area: Dict[str, Dict[str, Any]] = {}
             self.processed = False
-            # Regex to capture: Floor, Area ID, Zone Name, Optional Equipment Type, Metric, Unit, Period
             self.zone_pattern = re.compile(
-                r'(\d{2}):(\d{2})X([A-Za-z0-9_]+)'  # Floor:AreaIDXZoneName
-                r'(?:\s+([A-Za-z0-9_ ]+))?:'         # Optional Equipment Type then :
-                r'([A-Za-z0-9_ ]+(?:\s+[A-Za-z0-9_ ]+)*)\s+' # Metric (can have spaces)
-                r'\[([A-Za-z0-9/]+)\]'              # [Unit]
-                r'\(([A-Za-z0-9]+)\)'               # (Period)
+                r'(\d{2}):(\d{2})X([A-Za-z0-9_]+)'
+                r'(?:\s+([A-Za-z0-9_ ]+))?:'
+                r'([A-Za-z0-9_ ]+(?:\s+[A-Za-z0-9_ ]+)*)\s+'
+                r'\[([A-Za-z0-9/]+)\]'
+                r'\(([A-Za-z0-9]+)\)'
             )
             logger.info("EnergyRatingParser initialized successfully.")
         except ValueError as ve:
@@ -39,11 +38,10 @@ class EnergyRatingParser:
             raise
         except Exception as e:
             logger.error(f"Unexpected error during EnergyRatingParser initialization: {e}", exc_info=True)
-            # Ensure a consistent state even if regex compilation fails, though unlikely with a fixed pattern
             self.energy_data_by_area = {}
             self.processed = False
-            self.zone_pattern = None # Indicate pattern compilation failure
-            raise # Re-raise to signal a critical initialization failure
+            self.zone_pattern = None
+            raise
 
     def process_output(self, output_file_path: Optional[str] = None) -> None:
         """
@@ -52,10 +50,10 @@ class EnergyRatingParser:
         if self.processed:
             logger.info("Energy data already processed. Skipping.")
             return
-        if not self.zone_pattern: # Check if regex compiled successfully during init
+        if not self.zone_pattern:
             logger.error("Zone pattern regex not compiled. Cannot process output.")
-            self.processed = False # Ensure not marked as processed
-            return # Or raise an error
+            self.processed = False
+            return
 
         final_output_file_path = None
         try:
@@ -68,7 +66,7 @@ class EnergyRatingParser:
                         os.path.join("..", "tests", "eplusout.csv")
                     ]
                     script_dir_fallback = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "simulation_output", "eplusout.csv")
-                    
+
                     candidate_paths = [os.path.join(idf_dir, p) for p in possible_paths_relative_to_idf_dir]
                     candidate_paths.append(script_dir_fallback)
 
@@ -82,10 +80,9 @@ class EnergyRatingParser:
                         logger.warning("Could not automatically find eplusout.csv based on IDF path or fallback locations.")
                 else:
                     logger.warning("IDF path not available from DataLoader, cannot automatically find eplusout.csv.")
-            else: # output_file_path was provided
+            else:
                 final_output_file_path = output_file_path
 
-            # If eplustbl.csv was given, try to switch to eplusout.csv in the same dir
             if final_output_file_path and os.path.basename(final_output_file_path).lower() == "eplustbl.csv":
                 logger.info(f"Received eplustbl.csv path: {final_output_file_path}. Attempting to use eplusout.csv from the same directory.")
                 candidate_out = os.path.join(os.path.dirname(final_output_file_path), "eplusout.csv")
@@ -94,36 +91,33 @@ class EnergyRatingParser:
                     logger.info(f"Switched to eplusout.csv: {final_output_file_path}")
                 else:
                     logger.warning(f"eplustbl.csv provided, but eplusout.csv not found in the same directory ({os.path.dirname(final_output_file_path)}).")
-            
+
             if not final_output_file_path or not os.path.exists(final_output_file_path):
                 logger.error(f"EnergyPlus output file (eplusout.csv) not found. Tried path: {final_output_file_path if final_output_file_path else 'auto-detection failed'}.")
-                # Not raising FileNotFoundError here to allow GUI to handle it, but logging error.
-                self.processed = False # Ensure not marked as processed
-                return # Exit if file not found
+                self.processed = False
+                return
 
             logger.info(f"Processing EnergyPlus output file: {final_output_file_path}")
 
             if not self.area_parser.processed:
                 logger.info("Area parser data not yet processed. Processing now.")
                 try:
-                    self.area_parser.process_idf(None) # Assuming IDF object isn't strictly needed if data_loader is primary
+                    self.area_parser.process_idf(None)
                 except Exception as ap_e:
                     logger.error(f"Error processing area data via AreaParser: {ap_e}. Energy processing may be incomplete.", exc_info=True)
-                    # Decide if this is critical enough to stop, or proceed with potentially missing area data
-                    # For now, proceed but log heavily.
 
             with open(final_output_file_path, 'r', encoding='utf-8') as csvfile:
                 reader = csv.reader(csvfile)
-                headers = next(reader, None) # Read headers, default to None if empty
+                headers = next(reader, None)
                 if headers is None:
                     logger.error(f"CSV file '{final_output_file_path}' is empty or has no headers.")
                     self.processed = False
                     return
 
                 last_row = None
-                for row in reader: # Efficiently get the last row
+                for row in reader:
                     last_row = row
-                
+
                 if not last_row:
                     logger.error(f"No data rows found in EnergyPlus output file '{final_output_file_path}'.")
                     self.processed = False
@@ -134,31 +128,30 @@ class EnergyRatingParser:
             self.processed = True
             logger.info("Successfully processed EnergyPlus output file.")
 
-        except FileNotFoundError: # Should be caught by the check above, but as a safeguard
+        except FileNotFoundError:
             logger.error(f"EnergyPlus output file not found (should have been caught earlier): {final_output_file_path}", exc_info=True)
             self.processed = False
-        except StopIteration: # If `next(reader)` fails on an empty file after header check (unlikely with current logic but safe)
+        except StopIteration:
             logger.error(f"CSV file '{final_output_file_path}' seems to be empty after headers.", exc_info=True)
             self.processed = False
         except csv.Error as csv_e:
             logger.error(f"CSV formatting error in '{final_output_file_path}': {csv_e}", exc_info=True)
             self.processed = False
-        except ValueError as val_e: # Catch ValueErrors from _process_headers_and_values or other places
+        except ValueError as val_e:
             logger.error(f"ValueError during processing of '{final_output_file_path}': {val_e}", exc_info=True)
             self.processed = False
-        except RuntimeError as run_e: # Catch RuntimeErrors from _process_headers_and_values
+        except RuntimeError as run_e:
             logger.error(f"RuntimeError during processing of '{final_output_file_path}': {run_e}", exc_info=True)
             self.processed = False
-        except Exception as e: # Catch-all for any other unexpected error
+        except Exception as e:
             logger.error(f"Unexpected error processing EnergyPlus output file '{final_output_file_path}': {e}", exc_info=True)
             self.processed = False
-        # Do not re-raise here to allow the application to continue if possible, errors are logged.
 
     def _process_headers_and_values(self, headers: List[str], values: List[str]) -> None:
         """
         Process headers to extract zone information and corresponding values.
         """
-        self.energy_data_by_area = {} # Reset data
+        self.energy_data_by_area = {}
         if not headers or not values:
             logger.warning("Headers or values list is empty in _process_headers_and_values. Skipping.")
             return
@@ -166,13 +159,13 @@ class EnergyRatingParser:
             logger.error("Zone pattern regex not compiled in _process_headers_and_values. Skipping.")
             return
 
-        all_zones_data_from_loader = self.data_loader.get_zones() # Get all zones data once
+        all_zones_data_from_loader = self.data_loader.get_zones()
 
         for i, header in enumerate(headers):
             try:
-                if i == 0: # Skip first column (timestamp)
+                if i == 0:
                     continue
-                if "X" not in header: # Quick check for relevant headers
+                if "X" not in header:
                     logger.debug(f"Skipping header (no 'X'): '{header}'")
                     continue
 
@@ -185,9 +178,9 @@ class EnergyRatingParser:
                 if len(groups) != 7:
                     logger.warning(f"Regex match for header '{header}' yielded unexpected number of groups ({len(groups)}). Expected 7. Groups: {groups}. Skipping.")
                     continue
-                
+
                 floor, area_id_from_header, zone_name_from_header, equipment_type, metric, unit, period = groups
-                
+
                 if period != "RunPeriod":
                     continue
 
@@ -198,38 +191,32 @@ class EnergyRatingParser:
                 if zone_name_from_header is None:
                     logger.warning(f"Zone name part is None for header '{header}' after regex match. Skipping this header.")
                     continue
-                # Construct the full_zone_id key to match DataLoader keys (e.g., "00:01XLIVING")
                 full_zone_id_key = f"{floor}:{area_id_from_header}X{zone_name_from_header}"
 
                 if full_zone_id_key not in self.energy_data_by_area:
-                    # Get multiplier and individual zone floor area directly from DataLoader
-                    zone_multiplier = 1 # Default
-                    individual_zone_floor_area = 0.0 # Default
-                    
-                    # Check if all_zones_data_from_loader is a valid dictionary before accessing
+                    zone_multiplier = 1
+                    individual_zone_floor_area = 0.0
+
                     if isinstance(all_zones_data_from_loader, dict) and full_zone_id_key in all_zones_data_from_loader:
                         dl_zone_data = all_zones_data_from_loader[full_zone_id_key]
                         zone_multiplier = int(dl_zone_data.get('multiplier', 1))
                         individual_zone_floor_area = safe_float(dl_zone_data.get('floor_area', 0.0), 0.0)
                         logger.debug(f"EnergyRatingParser: For key '{full_zone_id_key}', DataLoader provided: multiplier={zone_multiplier}, floor_area={individual_zone_floor_area}.")
-                    elif isinstance(all_zones_data_from_loader, dict): # It's a dict, but key is not in it
+                    elif isinstance(all_zones_data_from_loader, dict):
                         logger.warning(f"EnergyRatingParser: Key '{full_zone_id_key}' (from eplusout.csv) NOT FOUND in DataLoader's cached zones (which has {len(all_zones_data_from_loader)} items). Sample keys: {list(all_zones_data_from_loader.keys())[:20]}. Using defaults for multiplier/floor_area.")
-                    else: # all_zones_data_from_loader was not a dict (e.g. None or empty after initial check)
+                    else:
                         logger.warning(f"EnergyRatingParser: DataLoader's cached zones is not a valid dictionary or is empty when trying to get key '{full_zone_id_key}'. Using defaults for multiplier/floor_area.")
-                        # Defaults for zone_multiplier (1) and individual_zone_floor_area (0.0) are already set
 
-                    # For location and total_area_of_legacy_grouping (these still use AreaParser for broader context)
-                    # area_id_from_header is the '01' part, used for legacy grouping.
                     total_area_for_legacy_grouping = self._get_area_total_for_area_id(area_id_from_header)
                     location_for_grouping = self._determine_location(area_id_from_header)
-                    
+
                     self.energy_data_by_area[full_zone_id_key] = {
                         'floor_id_report': floor,
                         'area_id_report': area_id_from_header,
                         'zone_name_report': zone_name_from_header,
                         'multiplier': zone_multiplier,
                         'individual_zone_floor_area': individual_zone_floor_area,
-                        'lighting': 0.0, 'heating': 0.0, 'cooling': 0.0, 'total': 0.0, # Absolute energy
+                        'lighting': 0.0, 'heating': 0.0, 'cooling': 0.0, 'total': 0.0,
                         'location': location_for_grouping,
                         'total_area_of_legacy_grouping': total_area_for_legacy_grouping
                     }
@@ -255,7 +242,6 @@ class EnergyRatingParser:
                 logger.error(f"Unexpected error processing header '{header}': {e}. Skipping this header.", exc_info=True)
                 continue
 
-
     def _process_value(self, value: float, header_lower: str) -> float:
         """
         Process value based on header type (energy unit conversion).
@@ -273,38 +259,25 @@ class EnergyRatingParser:
         For now, assuming input 'value' is in Joules as per typical E+ detailed CSV outputs.
         """
         try:
-            # Standard conversion from Joules to kWh
-            joules_to_kwh_factor = 3600000.0
+            pass
 
-            # It's safer to check the unit from the header if available, but the regex doesn't always capture it cleanly for this decision.
-            # The original logic used different factors for light vs. heat/cool.
-            # If 'light' in header_lower:
-            #     return value / joules_to_kwh_factor
-            # elif 'heating' in header_lower or 'cooling' in header_lower:
-            #     # The original factor 10.8e6 is 3 * 3.6e6. This is unusual.
-            #     # If the intent was to scale heating/cooling differently or they are reported in different base units
-            #     # that needs clarification. For now, let's assume all are J and convert to kWh.
-            #     return value / joules_to_kwh_factor
-            # For now, using the original logic's distinct factors:
             processed_val = 0.0
             divisor_info = "None"
             if 'light' in header_lower:
-                processed_val = value / 3600000.0  # J to kWh
+                processed_val = value / 3600000.0
                 divisor_info = "3.6M (J to kWh)"
             elif 'heating' in header_lower or 'cooling' in header_lower:
-                # This factor (10.8e6) is puzzling if input is Joules and output is kWh.
                 processed_val = value / 10800000.0
                 divisor_info = "10.8M"
             else:
                 logger.warning(f"Header '{header_lower}' did not match known energy categories for unit conversion. Original value: {value} returned.")
-                processed_val = value # Return original value if category not matched
-            
+                processed_val = value
+
             logger.info(f"EnergyRatingParser._process_value: Header='{header_lower}', Input={value:.2f}, Output={processed_val:.4f}, DivisorFactor='{divisor_info}'")
             return processed_val
-        except TypeError: # If value is not a number
+        except TypeError:
             logger.error(f"Cannot process non-numeric value '{value}' for header '{header_lower}'. Returning 0.0.", exc_info=True)
             return 0.0
-
 
     def _calculate_totals(self) -> None:
         """
@@ -313,22 +286,20 @@ class EnergyRatingParser:
         if not self.energy_data_by_area:
             logger.info("No energy data processed by area. Skipping total calculations.")
             return
-        
+
         for full_zone_id_key, data_for_zone in self.energy_data_by_area.items():
             try:
-                # Ensure all required keys exist and are numbers before summing
                 lighting = safe_float(data_for_zone.get('lighting', 0.0), 0.0)
                 heating = safe_float(data_for_zone.get('heating', 0.0), 0.0)
                 cooling = safe_float(data_for_zone.get('cooling', 0.0), 0.0)
-                # total_area_of_grouping is used for per-area calculations
                 total_area_group = safe_float(data_for_zone.get('total_area_of_grouping', 0.0), 0.0)
 
-                data_for_zone['lighting'] = lighting # Update with safe_float version
+                data_for_zone['lighting'] = lighting
                 data_for_zone['heating'] = heating
                 data_for_zone['cooling'] = cooling
-                data_for_zone['total_area_of_legacy_grouping'] = total_area_group # Update with safe_float
+                data_for_zone['total_area_of_legacy_grouping'] = total_area_group
 
-                data_for_zone['total'] = lighting + heating + cooling # This is the sum of absolute energy values
+                data_for_zone['total'] = lighting + heating + cooling
 
                 if total_area_group > 0:
                     data_for_zone['lighting_per_area'] = lighting / total_area_group
@@ -341,12 +312,9 @@ class EnergyRatingParser:
                     data_for_zone['heating_per_area'] = heating
                     data_for_zone['cooling_per_area'] = cooling
                     data_for_zone['total_per_area'] = data_for_zone['total']
-                
-                # 'zones' set is no longer part of data_for_zone structure at this level
 
             except (TypeError, KeyError, ZeroDivisionError) as e:
                 logger.error(f"Error calculating totals for zone '{full_zone_id_key}': {e}. Data for this zone might be incomplete.", exc_info=True)
-                # Ensure problematic zone still has default/zeroed fields
                 data_for_zone.setdefault('total', 0.0)
                 data_for_zone.setdefault('lighting_per_area', 0.0)
                 data_for_zone.setdefault('heating_per_area', 0.0)
@@ -354,7 +322,6 @@ class EnergyRatingParser:
                 data_for_zone.setdefault('total_per_area', 0.0)
             except Exception as e_unexp:
                  logger.critical(f"Unexpected error calculating totals for area '{area_key}': {e_unexp}.", exc_info=True)
-
 
     def _get_area_total_for_area_id(self, area_id: str) -> float:
         """
@@ -368,16 +335,15 @@ class EnergyRatingParser:
             if not self.area_parser or not self.area_parser.processed:
                 logger.warning(f"AreaParser not available or not processed when getting total for area_id '{area_id}'. Returning 0.0.")
                 return 0.0
-            
-            area_totals = self.area_parser.get_area_totals(area_id) # This method in AreaParser should also be robust
+
+            area_totals = self.area_parser.get_area_totals(area_id)
             return safe_float(area_totals.get("total_floor_area", 0.0), 0.0)
-        except AttributeError: # If area_parser is None or methods are missing (should be caught by above)
+        except AttributeError:
             logger.error(f"AttributeError accessing AreaParser for area_id '{area_id}'. Returning 0.0.", exc_info=True)
             return 0.0
         except Exception as e:
             logger.error(f"Error getting total area for area_id '{area_id}': {e}. Returning 0.0.", exc_info=True)
             return 0.0
-
 
     def _determine_location(self, area_id: str) -> str:
         """
@@ -393,35 +359,32 @@ class EnergyRatingParser:
             if not self.area_parser or not self.area_parser.processed:
                 logger.warning(f"AreaParser not available or not processed for determining location of area_id '{area_id}'. Falling back to basic logic.")
             else:
-                area_h_values = self.area_parser.get_area_h_values() # This method in AreaParser should be robust
-                if area_h_values: # Check if it returned data
+                area_h_values = self.area_parser.get_area_h_values()
+                if area_h_values:
                     for area_data in area_h_values:
                         if area_data.get('area_id') == area_id:
                             return area_data.get('location', unknown_location)
                 else:
                     logger.info(f"No H-value data returned from AreaParser for area_id '{area_id}'. Falling back.")
 
-            # Fallback logic based on area_id format (e.g., "00", "01")
             if len(area_id) >= 2 and area_id[:2].isdigit():
                 floor_num_str = area_id[:2]
                 try:
                     floor_num = int(floor_num_str)
                     if floor_num == 0: return "Ground Floor"
-                    # Add more sophisticated logic if needed, e.g., max floor from IDF to determine "Top Floor"
                     return "Intermediate Floor"
                 except ValueError:
                     logger.warning(f"Could not parse floor number from area_id prefix '{floor_num_str}' for '{area_id}'.")
-            
+
             logger.info(f"Could not determine location for area_id '{area_id}' through H-values or basic logic.")
             return unknown_location
-        except AttributeError: # If area_parser is None or methods are missing
+        except AttributeError:
             logger.error(f"AttributeError accessing AreaParser for location of area_id '{area_id}'. Returning '{unknown_location}'.", exc_info=True)
             return unknown_location
         except Exception as e:
             logger.error(f"Error determining location for area_id '{area_id}': {e}. Returning '{unknown_location}'.", exc_info=True)
             return unknown_location
 
-    # New method to provide raw energy data keyed by full_zone_id
     def get_raw_energy_data_by_full_zone_id(self) -> Dict[str, Dict[str, Any]]:
         """
         Get the processed energy data, keyed by full_zone_id, containing absolute energy values.
@@ -432,7 +395,7 @@ class EnergyRatingParser:
             return {}
         return self.energy_data_by_area
 
-    def get_energy_data_by_area(self) -> Dict[str, Dict[str, Any]]: # Original method, might be deprecated or refactored later
+    def get_energy_data_by_area(self) -> Dict[str, Dict[str, Any]]:
         """
         Get the processed energy data, traditionally keyed by a simpler area_key.
         NOTE: With changes to use full_zone_id as primary key in self.energy_data_by_area,
@@ -444,9 +407,9 @@ class EnergyRatingParser:
         if not self.processed:
             logger.warning("Energy data not processed yet. Call process_output() first. Returning empty dict for get_energy_data_by_area.")
             return {}
-        return self.energy_data_by_area # Returns the dict keyed by full_zone_id
+        return self.energy_data_by_area
 
-    def get_energy_rating_table_data(self) -> List[Dict[str, Any]]: # This method prepares data for a specific report
+    def get_energy_rating_table_data(self) -> List[Dict[str, Any]]:
         """
         Get data for energy rating reports in table format.
         This method iterates over self.energy_data_by_area (keyed by full_zone_id)
@@ -462,13 +425,12 @@ class EnergyRatingParser:
             return table_data
 
         try:
-            # Pre-calculate sum of individual_zone_floor_area for each (floor_id, area_id) combination
             floor_area_id_sums: Dict[tuple[str, str], float] = {}
             for data_for_zone_pre_calc in self.energy_data_by_area.values():
                 floor_id = data_for_zone_pre_calc.get('floor_id_report', 'N/A')
                 area_id = data_for_zone_pre_calc.get('area_id_report', 'N/A')
                 individual_area = safe_float(data_for_zone_pre_calc.get('individual_zone_floor_area', 0.0), 0.0)
-                
+
                 key = (floor_id, area_id)
                 if key not in floor_area_id_sums:
                     floor_area_id_sums[key] = 0.0
@@ -476,15 +438,13 @@ class EnergyRatingParser:
 
             for full_zone_id_key, data_for_zone in self.energy_data_by_area.items():
                 try:
-                    # This is the individual zone's area, used for the 'Zone area' column
                     current_zone_floor_area = safe_float(data_for_zone.get('individual_zone_floor_area', 0.0), 0.0)
-                    
+
                     abs_lighting = safe_float(data_for_zone.get('lighting', 0.0), 0.0)
                     abs_heating = safe_float(data_for_zone.get('heating', 0.0), 0.0)
                     abs_cooling = safe_float(data_for_zone.get('cooling', 0.0), 0.0)
-                    abs_total = safe_float(data_for_zone.get('total', 0.0), 0.0) # This is sum of abs_lighting, abs_heating, abs_cooling
+                    abs_total = safe_float(data_for_zone.get('total', 0.0), 0.0)
 
-                    # Determine the correct total floor area for division
                     report_floor_id = data_for_zone.get('floor_id_report', 'N/A')
                     report_area_id = data_for_zone.get('area_id_report', 'N/A')
                     group_lookup_key = (report_floor_id, report_area_id)
@@ -494,30 +454,26 @@ class EnergyRatingParser:
                         val_lighting = abs_lighting / correct_total_floor_area_for_group
                         val_heating = abs_heating / correct_total_floor_area_for_group
                         val_cooling = abs_cooling / correct_total_floor_area_for_group
-                        # Recalculate total based on per-area values if needed, or sum of per-area components
-                        # For consistency, let's sum the per-area components.
-                        # Or, divide the absolute total by the correct_total_floor_area_for_group
                         val_total = (abs_lighting + abs_heating + abs_cooling) / correct_total_floor_area_for_group
                     else:
                         logger.warning(f"Correct total floor area for group ('{report_floor_id}', '{report_area_id}') is {correct_total_floor_area_for_group} for zone '{full_zone_id_key}'. Energy values in report will be absolute (not per m^2).")
                         val_lighting = abs_lighting
                         val_heating = abs_heating
                         val_cooling = abs_cooling
-                        val_total = abs_lighting + abs_heating + abs_cooling # Sum of absolute values
+                        val_total = abs_lighting + abs_heating + abs_cooling
 
                     row = {
                         'floor_id_report': report_floor_id,
                         'area_id_report': report_area_id,
                         'zone_name_report': data_for_zone.get('zone_name_report', 'N/A'),
                         'multiplier': data_for_zone.get('multiplier', 1),
-                        'total_area': current_zone_floor_area, # Display individual zone area
-                        'lighting': val_lighting, # Divided by correct_total_floor_area_for_group
-                        'heating': val_heating,   # Divided by correct_total_floor_area_for_group
-                        'cooling': val_cooling,   # Divided by correct_total_floor_area_for_group
-                        'total': val_total,       # Divided by correct_total_floor_area_for_group
-                        # Placeholders
-                        'location': data_for_zone.get('location', 'Unknown'), # This is the general location
-                        'model_csv_area_description': data_for_zone.get('location', 'Unknown'), # Assuming this 'location' is the key for the model CSV
+                        'total_area': current_zone_floor_area,
+                        'lighting': val_lighting,
+                        'heating': val_heating,
+                        'cooling': val_cooling,
+                        'total': val_total,
+                        'location': data_for_zone.get('location', 'Unknown'),
+                        'model_csv_area_description': data_for_zone.get('location', 'Unknown'),
                         'energy_consumption_model': '',
                         'better_percent': '',
                         'energy_rating': '',
@@ -525,8 +481,8 @@ class EnergyRatingParser:
                     table_data.append(row)
                 except (TypeError, KeyError) as e_row:
                     logger.error(f"Error creating table row for full_zone_id_key '{full_zone_id_key}': {e_row}. Skipping this zone.", exc_info=True)
-                    continue # Skip to the next zone
+                    continue
             return table_data
         except Exception as e:
             logger.error(f"Unexpected error generating energy rating table data: {e}", exc_info=True)
-            return [] # Return empty list on major failure
+            return []

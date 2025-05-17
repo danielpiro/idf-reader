@@ -8,11 +8,11 @@ from reportlab.lib import colors
 from reportlab.lib.units import cm
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import datetime
-import logging # Added for detailed error logging
+import logging
 from typing import Dict, List, Any
-from pathlib import Path # Added for path operations
+from pathlib import Path
 
-logger = logging.getLogger(__name__) # Added logger instance
+logger = logging.getLogger(__name__)
 
 def wrap_text(text, style):
     """Helper function to create wrapped text in a cell."""
@@ -149,8 +149,8 @@ class LightingReportGenerator:
         Returns:
             bool: True if report generation was successful, False otherwise.
         """
-        doc = None # Initialize doc to None
-        self._story = [] # Ensure story is reset for each call if instance is reused
+        doc = None
+        self._story = []
         try:
             output_file_path = Path(self._output_path)
             output_dir = output_file_path.parent
@@ -173,7 +173,7 @@ class LightingReportGenerator:
             bottom_margin = 1.5*cm
             page_size = landscape(A3)
 
-            doc = SimpleDocTemplate(str(self._output_path), pagesize=page_size, # Ensure path is string
+            doc = SimpleDocTemplate(str(self._output_path), pagesize=page_size,
                                     leftMargin=left_margin, rightMargin=right_margin,
                                     topMargin=top_margin, bottomMargin=bottom_margin)
 
@@ -187,9 +187,8 @@ class LightingReportGenerator:
             cell_style = create_cell_style(self._styles, font_size=5, leading=6)
             header_cell_style = create_cell_style(self._styles, is_header=True, font_size=6, leading=7)
 
-            # --- Controls Data Table ---
             controls_data = self._data.get("controls", [])
-            controls_data.sort(key=lambda x: x.get("Zone", "")) # Sort before processing
+            controls_data.sort(key=lambda x: x.get("Zone", ""))
 
             if controls_data:
                 headers_controls = [
@@ -231,34 +230,30 @@ class LightingReportGenerator:
                         header_text = headers_controls[i]
                         precision = precisions[i]
                         row_values.append(format_num(val, precision, header_text))
-                    
+
                     styled_row = [wrap_text(val, cell_style) for val in row_values]
                     table_data_controls.append(styled_row)
 
                 num_cols_controls = len(headers_controls)
                 col_percentages_controls = [14, 15, 10, 8, 15, 10, 10, 9, 9]
                 total_percentage = sum(col_percentages_controls)
-                if not (99.9 < total_percentage < 100.1) or num_cols_controls == 0: # Added check for num_cols_controls
+                if not (99.9 < total_percentage < 100.1) or num_cols_controls == 0:
                     col_widths_controls = [(doc.width - 1*cm) / num_cols_controls if num_cols_controls > 0 else 0] * num_cols_controls
                 else:
                     col_widths_controls = [(p / total_percentage) * (doc.width - 1*cm) for p in col_percentages_controls]
 
-
-                span_commands_controls = [] # Renamed for clarity
+                span_commands_controls = []
                 base_table_style_commands = table_style.getCommands()
-                # Spanning logic for controls table (simplified for brevity, assume it's correct or reviewed separately)
                 for j in range(num_cols_controls):
-                    start_row = 1 # Header is row 0
+                    start_row = 1
                     while start_row < len(table_data_controls):
-                        # Boundary checks
                         if not (start_row < len(table_data_controls) and j < len(table_data_controls[start_row])): break
                         current_val_obj = table_data_controls[start_row][j]
                         current_val = getattr(current_val_obj, 'text', str(current_val_obj))
-                        # Ensure zone data is also accessible for comparison
                         if not (start_row < len(table_data_controls) and 0 < len(table_data_controls[start_row])): break
                         current_zone_obj = table_data_controls[start_row][0]
                         current_zone = getattr(current_zone_obj, 'text', str(current_zone_obj))
-                        
+
                         count = 1
                         for i in range(start_row + 1, len(table_data_controls)):
                             if not (i < len(table_data_controls) and j < len(table_data_controls[i]) and 0 < len(table_data_controls[i])): break
@@ -270,17 +265,16 @@ class LightingReportGenerator:
                             if next_zone == current_zone and next_val == current_val:
                                 count += 1
                                 if getattr(table_data_controls[i][j], 'text', '') != "":
-                                    table_data_controls[i][j] = wrap_text("", cell_style) # Clear text for spanned cells
+                                    table_data_controls[i][j] = wrap_text("", cell_style)
                             else:
                                 break
                         if count > 1:
                             span_commands_controls.append(('SPAN', (j, start_row), (j, start_row + count - 1)))
-                            # Add white lines to hide internal grid lines for spanned cells
                             for r_idx in range(start_row, start_row + count - 1):
                                 span_commands_controls.append(('LINEBELOW', (j, r_idx), (j, r_idx), 0.5, colors.white))
                                 span_commands_controls.append(('LINEABOVE', (j, r_idx + 1), (j, r_idx + 1), 0.5, colors.white))
                         start_row += count
-                
+
                 final_controls_table_style = TableStyle(base_table_style_commands + span_commands_controls)
                 table_controls = Table(table_data_controls, colWidths=col_widths_controls, repeatRows=1)
                 table_controls.setStyle(final_controls_table_style)
@@ -290,7 +284,6 @@ class LightingReportGenerator:
 
             self._story.append(Spacer(1, 0.5*cm))
 
-            # --- Exterior Lights Table ---
             self._story.append(Paragraph("Exterior Lights", self._styles['h2']))
             self._story.append(Spacer(1, 0.2*cm))
             exterior_lights_data = self._data.get("exterior_lights", [])
@@ -308,18 +301,17 @@ class LightingReportGenerator:
                     ]
                     styled_row = [wrap_text(val, cell_style) for val in row_values]
                     table_data_ext_lights.append(styled_row)
-                
+
                 num_cols_ext = len(headers_ext_lights)
                 col_widths_ext = [(doc.width - 1*cm) / num_cols_ext if num_cols_ext > 0 else 0] * num_cols_ext
                 table_ext_lights = Table(table_data_ext_lights, colWidths=col_widths_ext, repeatRows=1)
-                table_ext_lights.setStyle(table_style) # Using the base table_style
+                table_ext_lights.setStyle(table_style)
                 self._story.append(table_ext_lights)
             else:
                 self._story.append(Paragraph("No Exterior Lights data found.", self._styles['Normal']))
 
             self._story.append(Spacer(1, 0.5*cm))
 
-            # --- Task Lights Table ---
             self._story.append(Paragraph("Task Lights", self._styles['h2']))
             self._story.append(Spacer(1, 0.2*cm))
             task_lights_data = self._data.get("task_lights", [])
@@ -339,11 +331,10 @@ class LightingReportGenerator:
 
                 num_cols_task = len(headers_task_lights)
                 col_widths_task = [(doc.width - 1*cm) / num_cols_task if num_cols_task > 0 else 0] * num_cols_task
-                
-                task_table_style_commands = list(table_style.getCommands()) # Start with base style
+
+                task_table_style_commands = list(table_style.getCommands())
                 span_commands_task = []
-                # Spanning logic for task lights table (Zone Name column)
-                start_row_task = 1 # Header is row 0
+                start_row_task = 1
                 while start_row_task < len(table_data_task_lights):
                     if not (start_row_task < len(table_data_task_lights) and 0 < len(table_data_task_lights[start_row_task])): break
                     current_zone_obj = table_data_task_lights[start_row_task][0]
@@ -365,7 +356,7 @@ class LightingReportGenerator:
                             span_commands_task.append(('LINEBELOW', (0, r_idx), (0, r_idx), 0.5, colors.white))
                             span_commands_task.append(('LINEABOVE', (0, r_idx + 1), (0, r_idx + 1), 0.5, colors.white))
                     start_row_task += count_task
-                
+
                 final_task_table_style = TableStyle(task_table_style_commands + span_commands_task)
                 table_task_lights = Table(table_data_task_lights, colWidths=col_widths_task, repeatRows=1)
                 table_task_lights.setStyle(final_task_table_style)
@@ -380,18 +371,14 @@ class LightingReportGenerator:
             error_message = f"Error during file operation for Lighting report '{self._output_path}': {e.strerror}"
             logger.error(error_message, exc_info=True)
             return False
-        except Exception as e: # Catch ReportLab specific errors or other unexpected issues
+        except Exception as e:
             error_message = f"An unexpected error occurred while generating Lighting report '{self._output_path}': {type(e).__name__} - {str(e)}"
             logger.error(error_message, exc_info=True)
             return False
         finally:
-            # SimpleDocTemplate's build method should handle closing the file.
-            # No explicit file resource to close here unless we were manually opening/writing.
             pass
 
-
 if __name__ == '__main__':
-    # Configure basic logging for the __main__ block for testing
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
     dummy_data = {
         "controls": [

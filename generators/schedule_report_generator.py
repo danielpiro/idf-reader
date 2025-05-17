@@ -6,10 +6,10 @@ from reportlab.platypus import Paragraph, Table, TableStyle
 from reportlab.lib import colors
 from reportlab.lib.colors import navy, grey
 import datetime
-import logging # Added for detailed error logging
-from pathlib import Path # Added for path operations
+import logging
+from pathlib import Path
 
-logger = logging.getLogger(__name__) # Added logger instance
+logger = logging.getLogger(__name__)
 
 def parse_date_string(date_str: str) -> datetime.date:
     """
@@ -21,55 +21,41 @@ def parse_date_string(date_str: str) -> datetime.date:
             raise ValueError("Date string must be in 'DD/MM' format.")
         day, month = map(int, date_str.split('/'))
         return datetime.date(2000, month, day)
-    except (ValueError, AttributeError, TypeError) as e: # Added TypeError for non-string input
+    except (ValueError, AttributeError, TypeError) as e:
         logger.warning(f"Could not parse date string '{date_str}': {e}. Using default date.", exc_info=True)
-        return datetime.date(2000, 12, 31) # Default to end of year
+        return datetime.date(2000, 12, 31)
 
 def create_date_ranges(rule_blocks: list) -> list:
     """Creates date ranges for rule blocks. Returns empty list on error or no input."""
     if not rule_blocks:
         return []
     try:
-        # Ensure all 'through' values are valid before sorting
         for block in rule_blocks:
             if not isinstance(block, dict) or 'through' not in block:
                 logger.warning(f"Invalid rule block encountered (missing 'through' or not a dict): {block}")
-                # Decide on handling: skip, use default, or raise error. Here, we'll try to proceed.
-                block.setdefault('through', '31/12') # Add default if missing
+                block.setdefault('through', '31/12')
             elif not isinstance(block.get('through'), str) or '/' not in block.get('through'):
                  logger.warning(f"Invalid 'through' date format in block: {block.get('through')}. Using default.")
-                 block['through'] = '31/12' # Correct to a parsable default
+                 block['through'] = '31/12'
 
         sorted_blocks = sorted(rule_blocks, key=lambda block: parse_date_string(block.get('through', '31/12')))
-        
+
         first_date_str_in_sorted = sorted_blocks[0].get('through') if sorted_blocks else '31/12'
-        # Determine if the first range should start from '01/01'
-        # This logic seems complex and might need review for edge cases.
-        # For now, assume it's intended.
         first_range_start_date = '01/01' if parse_date_string(first_date_str_in_sorted) != parse_date_string('01/01') else None
 
         result_blocks = []
-        # prev_date_str = first_range_start_date # Initialize for the first block if needed
 
         for i, block in enumerate(sorted_blocks):
-            current_date_str = block.get('through', '31/12') # Already validated/defaulted
+            current_date_str = block.get('through', '31/12')
 
             if i == 0:
                 if first_range_start_date:
                     date_range = f"{first_range_start_date} -> {current_date_str}"
-                else: # First block itself starts from 01/01 or is the only block
+                else:
                     date_range = f"01/01 -> {current_date_str}"
             else:
-                # Get the 'through' date of the *previous* block in the sorted list
                 prev_block_date_str = sorted_blocks[i-1].get('through', '31/12')
-                # The start of the current range is *after* the end of the previous one.
-                # This needs careful handling if dates are not contiguous or overlap.
-                # Assuming simple sequential ranges for now.
-                # To make it "previous_end_date + 1 day -> current_end_date" is more complex.
-                # The current logic is "previous_end_date -> current_end_date" which might be confusing.
-                # For simplicity, let's stick to the original logic's apparent intent:
                 date_range = f"{prev_block_date_str} -> {current_date_str}"
-
 
             new_block = block.copy()
             new_block['date_range'] = date_range
@@ -77,7 +63,7 @@ def create_date_ranges(rule_blocks: list) -> list:
         return result_blocks
     except Exception as e:
         logger.error(f"Error creating date ranges: {type(e).__name__} - {str(e)}", exc_info=True)
-        return [] # Return empty list on error
+        return []
 
 def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> Table | None:
     """Creates a ReportLab Table for hourly schedules. Returns None on error or no input."""
@@ -86,7 +72,7 @@ def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> T
         return None
     try:
         rule_blocks_with_ranges = create_date_ranges(rule_blocks)
-        if not rule_blocks_with_ranges: # create_date_ranges might return empty on error
+        if not rule_blocks_with_ranges:
             logger.warning("No valid date ranges could be created for schedule table.")
             return None
 
@@ -101,14 +87,13 @@ def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> T
         header = ["Date Ranges/Hours"] + [str(h + 1) for h in range(num_hour_cols)]
         table_data = [header]
 
-        cell_style = getSampleStyleSheet()['Normal'] # Get a fresh style object
+        cell_style = getSampleStyleSheet()['Normal']
         cell_style.fontSize = 7
-        cell_style.alignment = 1 # TA_CENTER
+        cell_style.alignment = 1
 
         for block in rule_blocks_with_ranges:
             period_text = block.get('date_range', 'N/A')
             hourly_values = block.get('hourly_values', [''] * num_hour_cols)
-            # Ensure hourly_values has 24 elements, padding if necessary
             if len(hourly_values) < num_hour_cols:
                 hourly_values.extend([''] * (num_hour_cols - len(hourly_values)))
             elif len(hourly_values) > num_hour_cols:
@@ -125,9 +110,9 @@ def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> T
             ('FONTSIZE', (0, 0), (-1, -1), 7),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('ALIGN', (0, 1), (0, -1), 'LEFT'), # Align date ranges to the left
+            ('ALIGN', (0, 1), (0, -1), 'LEFT'),
             ('LEFTPADDING', (0, 1), (0, -1), 6),
-            ('TOPPADDING', (1, 1), (-1, -1), 4), # Padding for hour cells
+            ('TOPPADDING', (1, 1), (-1, -1), 4),
             ('BOTTOMPADDING', (1, 1), (-1, -1), 4),
             ('LEFTPADDING', (1, 1), (-1, -1), 3),
             ('RIGHTPADDING', (1, 1), (-1, -1), 3),
@@ -139,7 +124,6 @@ def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> T
         logger.error(f"Error creating hourly schedule table: {type(e).__name__} - {str(e)}", exc_info=True)
         return None
 
-
 def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "output/schedules.pdf",
                                   project_name: str = "N/A", run_id: str = "N/A") -> bool:
     """
@@ -147,8 +131,6 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
     Returns:
         bool: True if report generation was successful, False otherwise.
     """
-    # Removed 'if canvas is None' check as canvas is imported directly.
-    # This check was likely a remnant from a different structure.
 
     try:
         output_file_path = Path(output_filename)
@@ -171,7 +153,6 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
         logger.error(f"Failed to create canvas for PDF '{output_filename}': {e.strerror}", exc_info=True)
         return False
 
-    # This outer try now correctly encompasses the main PDF generation logic
     try:
         width, height = A4
         margin_x = 2 * cm
@@ -181,9 +162,6 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
         styles = getSampleStyleSheet()
         title_style = styles['h1']
         title_style.textColor = navy
-        # section_title_style = styles['h2'] # Defined but not used in the loop directly
-        # section_title_style.spaceBefore = 0.5 * cm
-        # section_title_style.spaceAfter = 0.3 * cm
         schedule_name_style = ParagraphStyle(
             name='ScheduleName', parent=styles['Normal'], fontName='Helvetica-Bold',
             spaceBefore=0.4*cm, spaceAfter=0.1*cm
@@ -193,7 +171,7 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
             textColor=grey, leftIndent=0.5*cm, spaceAfter=0.4*cm
         )
         header_info_style = ParagraphStyle(
-            'HeaderInfo', parent=styles['Normal'], fontSize=9, textColor=colors.black, alignment=2 # TA_RIGHT
+            'HeaderInfo', parent=styles['Normal'], fontSize=9, textColor=colors.black, alignment=2
         )
         now = datetime.datetime.now()
         header_text = f"""
@@ -231,7 +209,6 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
 
             raw_schedule_type = schedule_item.get('type', 'Unknown Type')
             schedule_type_lower = raw_schedule_type.lower()
-            # Original type processing logic
             if "activity" in schedule_type_lower or "clothing" in schedule_type_lower:
                 parts = raw_schedule_type.split(" ")
                 schedule_type = f"{parts[0]} Schedule" if len(parts) > 1 else f"{raw_schedule_type} Schedule"
@@ -244,7 +221,7 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
                 schedule_type = raw_schedule_type
 
             rule_blocks = schedule_item.get('rule_blocks', [])
-            
+
             generic_name_map = {
                 "activity": "People", "clothing": "People", "occupancy": "People",
                 "heating": "Temperature", "cooling": "Temperature",
@@ -253,10 +230,10 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
             }
             determined_schedule_name = None
             for key, val_name in generic_name_map.items():
-                if key in schedule_type.lower(): # Check against the processed schedule_type
+                if key in schedule_type.lower():
                     determined_schedule_name = val_name
                     break
-            
+
             name_text = f"{schedule_type} [{determined_schedule_name}]" if determined_schedule_name else f"{schedule_type}"
             p_sched_name = Paragraph(name_text, schedule_name_style)
             p_sched_name.wrapOn(c, content_width, margin_y)
@@ -265,9 +242,9 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
             schedule_table_obj = create_hourly_schedule_table(rule_blocks, content_width)
 
             if schedule_table_obj:
-                table_width_actual_content, table_height = schedule_table_obj.wrapOn(c, content_width, margin_y) # Renamed var
+                table_width_actual_content, table_height = schedule_table_obj.wrapOn(c, content_width, margin_y)
                 total_element_height = name_height + schedule_name_style.spaceAfter + table_height + space_after_table
-                
+
                 if current_y - total_element_height < margin_y:
                     c.showPage()
                     current_y = height - margin_y
@@ -279,8 +256,8 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
                 current_y -= (table_height + space_after_table)
             else:
                 logger.warning(f"No table generated for schedule: {name_text}")
-                no_data_message_height_approx = styles['Normal'].leading * 2 # Approx for name + message
-                
+                no_data_message_height_approx = styles['Normal'].leading * 2
+
                 if current_y - (name_height + schedule_name_style.spaceAfter + no_data_message_height_approx + space_after_table) < margin_y:
                     c.showPage()
                     current_y = height - margin_y
@@ -293,19 +270,17 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
                 no_data_actual_height = p_no_data.height
                 p_no_data.drawOn(c, margin_x, current_y - no_data_actual_height)
                 current_y -= (no_data_actual_height + space_after_table)
-        
+
         c.save()
         logger.info(f"Successfully generated Schedules report: {output_filename}")
         return True
-    # These except blocks are now correctly aligned with the try starting at line 174
     except (IOError, OSError) as e:
         logger.error(f"File operation error during schedules report generation for '{output_filename}': {e.strerror}", exc_info=True)
         return False
     except Exception as e:
         logger.error(f"An unexpected error occurred while generating Schedules report '{output_filename}': {type(e).__name__} - {str(e)}", exc_info=True)
-        if 'c' in locals() and hasattr(c, '_filename') and c._filename: # Check if canvas 'c' was initialized
+        if 'c' in locals() and hasattr(c, '_filename') and c._filename:
             try:
-                # This might fail if the canvas is in a bad state, but worth a try
                 if not c._saved: c.save()
             except Exception as save_err:
                 logger.error(f"Could not save PDF {output_filename} even after an error during generation: {save_err}", exc_info=True)

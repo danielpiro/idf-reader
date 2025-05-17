@@ -4,7 +4,6 @@ Handles eppy IDF model loading, initialization and common operations.
 import os
 from eppy.modeleditor import IDF
 
-# Static list of settings object types
 SETTINGS_OBJECT_TYPES = [
     "Version",
     "RunPeriod",

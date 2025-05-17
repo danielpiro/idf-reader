@@ -8,10 +8,10 @@ from reportlab.platypus import Paragraph, Table, TableStyle, SimpleDocTemplate, 
 from reportlab.lib.colors import navy, black, grey, lightgrey
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import datetime
-import logging # Added for detailed error logging
-from pathlib import Path # Added for path operations
+import logging
+from pathlib import Path
 
-logger = logging.getLogger(__name__) # Added logger instance
+logger = logging.getLogger(__name__)
 
 def wrap_text(text, style):
     """Create wrapped text in a cell."""
@@ -49,7 +49,7 @@ def create_table_style():
 
 def _get_element_type_sort_keys(element_type_str):
     """Assigns primary and secondary sort keys based on element type string."""
-    element_type_lower = element_type_str.lower() # Assumes element_type_str is always a string
+    element_type_lower = element_type_str.lower()
     primary_key = 99
     secondary_key = 99
 
@@ -137,13 +137,10 @@ def group_element_data(element_data):
         return grouped_data
     except (TypeError, ValueError, KeyError, AttributeError) as e:
         logger.error(f"Error processing or grouping element data: {type(e).__name__} - {str(e)}. Problematic item might be missing expected keys or have incorrect data types.", exc_info=True)
-        # Depending on desired behavior, you might return an empty list or re-raise a custom error
-        # For now, let's return an empty list to prevent further processing if data is malformed.
         return []
-    except Exception as e: # Catch-all for other unexpected errors
+    except Exception as e:
         logger.error(f"Unexpected error grouping element data: {type(e).__name__} - {str(e)}", exc_info=True)
         return []
-
 
 def safe_value(value, default=""):
     """Safely convert a value to string, handling None."""
@@ -211,7 +208,7 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
     """
     if not element_data:
         logger.warning("No element data provided for materials report. Skipping generation.")
-        return False # No data, no report.
+        return False
 
     doc = None
     try:
@@ -231,14 +228,14 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
             return False
 
         grouped_data = group_element_data(element_data)
-        if not grouped_data: # group_element_data might return empty if there was an error or no valid groups
+        if not grouped_data:
             logger.warning("Element data could not be grouped or resulted in no groups for materials report. Skipping generation.")
             return False
 
         page_size = landscape(A3)
         left_margin = right_margin = top_margin = bottom_margin = 1.0 * cm
         doc = SimpleDocTemplate(str(output_file_path), pagesize=page_size, leftMargin=left_margin, rightMargin=right_margin, topMargin=top_margin, bottomMargin=bottom_margin)
-        width, _ = page_size # height is not used, so _ is fine
+        width, _ = page_size
         content_width = width - left_margin - right_margin
         styles = getSampleStyleSheet()
         title_style = styles['Heading1']
@@ -294,10 +291,9 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
         error_message = f"Error during file operation for Materials report '{output_filename}': {e.strerror}"
         logger.error(error_message, exc_info=True)
         return False
-    except Exception as e: # Catch ReportLab specific errors or other unexpected issues
+    except Exception as e:
         error_message = f"An unexpected error occurred while generating Materials report '{output_filename}': {type(e).__name__} - {str(e)}"
         logger.error(error_message, exc_info=True)
         return False
     finally:
-        # SimpleDocTemplate's build method should handle closing the file.
         pass

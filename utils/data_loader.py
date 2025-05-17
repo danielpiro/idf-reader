@@ -36,11 +36,7 @@ def get_energy_consumption(iso_type_input: str, area_location_input: str, area_d
     if not area_definition_input or area_definition_input.upper() not in ['A', 'B', 'C', 'D']:
         raise ValueError(f"Invalid area definition: '{area_definition_input}'. Must be A, B, C, or D.")
 
-    # Assuming the script runs from the project root, so 'data/' is a subdirectory.
-    # If this script is run from utils/, the path needs to be adjusted (e.g., Path(__file__).parent.parent / 'data')
-    # For now, assuming direct relative path from project root.
     file_name = f"{year}_model.csv"
-    # Construct path relative to the current file's directory's parent (i.e., project root)
     data_dir = Path(__file__).resolve().parent.parent / "data"
     file_path = data_dir / file_name
 
@@ -48,49 +44,38 @@ def get_energy_consumption(iso_type_input: str, area_location_input: str, area_d
         raise FileNotFoundError(f"Model file not found: {file_path}")
 
     try:
-        # Assuming the first column of your CSV contains the city names (area_location)
         df = pd.read_csv(file_path)
         if df.empty:
             raise ValueError(f"CSV file {file_path} is empty.")
-        
-        # Let's assume the column with city names is the first one if not explicitly named 'area_location'
-        # For robustness, it's better if this column has a consistent name like 'area_location'
-        # and you use index_col='area_location'. For now, let's try to be flexible.
-        
-        # Attempt to set index to 'area_location' if it exists, otherwise use first column.
+
         if 'area_location' in df.columns:
             df = df.set_index('area_location')
-        elif df.columns[0]: # Check if there's at least one column
+        elif df.columns[0]:
             df = df.set_index(df.columns[0])
         else:
             raise ValueError(f"CSV file {file_path} has no columns to set as index.")
-            
-    except FileNotFoundError: # Should be caught by earlier check, but good practice
+
+    except FileNotFoundError:
         raise
     except pd.errors.EmptyDataError:
        raise ValueError(f"CSV file {file_path} is empty or not valid CSV.")
     except Exception as e:
         raise ValueError(f"Error reading or parsing CSV file {file_path}: {e}")
 
-    # Log DataFrame info for debugging
-    # print(f"DataLoader: Loaded CSV {file_path}. Index: {df.index.name}, Columns: {list(df.columns)}")
-    # print(f"DataLoader: Attempting lookup with area_location_input='{area_location_input}', area_definition_input='{area_definition_input.upper()}'")
-
     if area_location_input not in df.index:
         available_indices = list(df.index)
-        # Truncate for logging if too long
         if len(available_indices) > 20: available_indices = available_indices[:20] + ['...']
         raise KeyError(f"Area location '{area_location_input}' not found in index of {file_path}. Available index values (sample): {available_indices}")
-    
+
     target_column = area_definition_input.upper()
     if target_column not in df.columns:
         raise KeyError(f"Area definition column '{target_column}' not found in columns of {file_path}. Available columns: {list(df.columns)}")
 
     try:
         value_str = df.loc[area_location_input, target_column]
-    except KeyError as e: # Should be caught by the checks above, but as a fallback
+    except KeyError as e:
         raise KeyError(f"Data not found for location '{area_location_input}' and definition '{target_column}' in {file_path}. Original error: {e}")
-    except Exception as e: # Catch other potential pandas errors during .loc
+    except Exception as e:
         raise RuntimeError(f"Unexpected error during data lookup in {file_path} for loc='{area_location_input}', col='{target_column}'. Error: {e}")
 
     try:
@@ -139,7 +124,7 @@ class DataLoader:
         self._window_gas_cache = {}
         self._window_shade_cache = {}
         self._window_simple_glazing_cache = {}
-        self._all_materials_cache_complete = {} # Cache for merged materials
+        self._all_materials_cache_complete = {}
         self._window_shading_control_cache = {}
         self._frame_divider_cache = {}
         self._daylighting_controls_cache = {}
@@ -192,7 +177,7 @@ class DataLoader:
         self._cache_zones()
         self._cache_surfaces()
         self._cache_materials()
-        self._build_all_materials_cache() # Build the complete materials cache after sub-caches are populated
+        self._build_all_materials_cache()
         self._cache_constructions()
         self._cache_loads()
         self._cache_window_shading_controls()
@@ -586,7 +571,6 @@ class DataLoader:
         if not window_shading_control_objects:
             return
 
-        # Determine fenestration_fields from the first object, assuming all have the same field structure
         first_control = window_shading_control_objects[0]
         fenestration_fields = [f for f in first_control.fieldnames
                                if f.startswith('Fenestration_Surface_') and f.endswith('_Name')]
@@ -596,7 +580,6 @@ class DataLoader:
             zone_name = str(getattr(shading_control, "Zone_Name", ""))
 
             window_names = []
-            # fenestration_fields is now pre-calculated using the first object's fieldnames
             for field in fenestration_fields:
                 window_name = str(getattr(shading_control, field, ""))
                 if window_name:
@@ -721,8 +704,7 @@ class DataLoader:
         if not self._idf:
             return
         self._all_materials_cache_complete.clear()
-        
-        # Consolidate all material objects from their specific caches
+
         temp_merged_materials = {
             **self._materials_cache,
             **self._window_glazing_cache,
@@ -732,10 +714,8 @@ class DataLoader:
         }
 
         for mat_id, mat_data_original in temp_merged_materials.items():
-            # It's crucial to copy the dictionary if it's going to be modified (e.g., adding 'type')
-            # and the original caches might be used elsewhere without this 'type' field.
             mat_data = mat_data_original.copy()
-            
+
             if mat_id in self._materials_cache:
                 mat_data['type'] = 'Material'
             elif mat_id in self._window_glazing_cache:
@@ -747,8 +727,8 @@ class DataLoader:
             elif mat_id in self._window_simple_glazing_cache:
                 mat_data['type'] = 'WindowMaterial:SimpleGlazingSystem'
             else:
-                mat_data['type'] = 'UnknownMaterialType' # Should not happen if logic is correct
-            
+                mat_data['type'] = 'UnknownMaterialType'
+
             self._all_materials_cache_complete[mat_id] = mat_data
 
     def get_materials(self) -> Dict[str, Dict[str, Any]]:

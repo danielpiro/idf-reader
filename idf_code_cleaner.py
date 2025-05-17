@@ -59,7 +59,6 @@ def run_autoflake(filepath):
             # Autoflake can have non-zero exit if it makes changes, so check stderr for actual errors
             if result.stderr and "Traceback" in result.stderr: # A more specific error check might be needed
                  print(f"Autoflake error on {filepath}: {result.stderr}")
-        # print(f"Autoflake ran on {filepath}. Output: {result.stdout} Err: {result.stderr}")
     except Exception as e:
         print(f"Failed to run autoflake on {filepath}: {e}")
 
@@ -162,7 +161,6 @@ def main():
             if cleaned_content != original_content:
                 with open(filepath, 'w', encoding='utf-8') as f:
                     f.write(cleaned_content)
-                # print(f"Cleaned (comments/prints): {filepath}")
                 custom_cleaned_files_count +=1
         except Exception as e:
             print(f"Error processing {filepath} for comments/prints: {e}")

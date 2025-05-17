@@ -5,10 +5,10 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 import datetime
-import logging # Added for detailed error logging
-from pathlib import Path # Added for path operations
+import logging
+from pathlib import Path
 
-logger = logging.getLogger(__name__) # Added logger instance
+logger = logging.getLogger(__name__)
 
 def format_dict_value(value_dict):
     """Format dictionary values for display in the report"""
@@ -102,10 +102,6 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
         styles = getSampleStyleSheet()
         story = []
 
-        # All of the following code, from defining 'now' to 'return True',
-        # needs to be inside the try block that starts at line 79.
-        # This means it needs to be indented one level further.
-
         now = datetime.datetime.now()
         header_style = ParagraphStyle(
             'HeaderInfo',
@@ -134,7 +130,7 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
         )
         story.append(Paragraph("Energy Plus Settings Summary", title_style))
 
-        header_style = ParagraphStyle( # This redefines header_style, consider renaming one
+        header_style = ParagraphStyle(
             name='TableHeader',
             parent=styles['Normal'],
             fontSize=10,
@@ -155,7 +151,7 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
             alignment=TA_LEFT
         )
 
-        value_cell_style = ParagraphStyle( # Defined twice, the second one overwrites the first.
+        value_cell_style = ParagraphStyle(
             name='ValueCell',
             parent=styles['Normal'],
             fontSize=9,
@@ -166,7 +162,6 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
             alignment=TA_LEFT
         )
 
-        # Define category_style once, as it's the same for all categories
         category_style = ParagraphStyle(
             name='CategoryHeader',
             parent=styles['Heading2'],
@@ -204,7 +199,6 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
                         ])
 
                 if len(db_table_data) > 1:
-                    # Assuming 'doc' is available here from the outer scope of the try block
                     db_col_widths = [doc.width * 0.30, doc.width * 0.70]
                     db_table_style = TableStyle([
                         ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
@@ -255,8 +249,7 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
 
                 key_para = Paragraph(display_key, key_cell_style)
                 table_data.append([key_para, value_para])
-            
-            # Assuming 'doc' is available here
+
             col_widths = [doc.width * 0.30, doc.width * 0.70]
 
             style = TableStyle([
@@ -288,20 +281,13 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
             story.append(_make_table(table_data, col_widths, style))
             story.append(Spacer(1, 0.8*cm))
 
-        # The doc.build() call and subsequent logging/return True are part of the main try block
-            # that starts at line 79.
-            # The except and finally clauses below must align with that 'try' at line 79.
-
-            # Build the PDF
-        if not story: # Should not happen if title is always added, but as a safeguard
+        if not story:
             logger.warning("No content was added to the story for settings report. PDF will be empty or may fail.")
-            # Optionally, add a message to the PDF itself
             story.append(Paragraph("No settings data found to generate the report.", styles['Normal']))
 
         doc.build(story)
         logger.info(f"Successfully generated Settings report: {output_filename}")
         return True
-# The following except and finally blocks must be aligned with the 'try' at line 79
     except (IOError, OSError) as e:
         error_message = f"Error during file operation for Settings report '{output_filename}': {e.strerror}"
         logger.error(error_message, exc_info=True)
@@ -316,6 +302,4 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
                 logger.error(f"Could not save PDF {output_filename} via doc.canv.save() after an error: {save_err}", exc_info=True)
         return False
     finally:
-        # SimpleDocTemplate's build method should handle closing the file if successful.
-        # No explicit file object to close here that isn't handled by SimpleDocTemplate.
         pass

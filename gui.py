@@ -5,7 +5,7 @@ import json
 import os
 import subprocess
 import threading
-import logging # Added for detailed error logging
+import logging
 from pathlib import Path
 from datetime import datetime
 from utils.data_loader import DataLoader
@@ -29,7 +29,7 @@ from parsers.area_parser import AreaParser
 from parsers.glazing_parser import GlazingParser
 from parsers.lighting_parser import LightingParser
 
-logger = logging.getLogger(__name__) # Added logger instance
+logger = logging.getLogger(__name__)
 
 class ProcessingManager:
     """
@@ -49,7 +49,7 @@ class ProcessingManager:
         self.progress_callback = progress_callback
         self.is_cancelled = False
         self.simulation_output_csv = simulation_output_csv
-        self.city_info = {} # Stores city related info if provided by GUI
+        self.city_info = {}
 
     def update_status(self, message: str) -> None:
         """Sends a status update message via the callback."""
@@ -72,13 +72,12 @@ class ProcessingManager:
                 error_message = f"Error: Could not create directory '{directory}'. Reason: {e.strerror}"
                 self.update_status(error_message)
                 logger.error(f"OSError creating directory {directory}: {e}", exc_info=True)
-                raise  # Re-raise to allow caller to handle if creation is critical
+                raise
         elif directory and os.path.exists(directory) and not os.path.isdir(directory):
             error_message = f"Error: Path '{directory}' exists but is not a directory."
             self.update_status(error_message)
             logger.error(error_message)
             raise OSError(error_message)
-
 
     def _setup_output_paths(self, output_dir: str) -> dict:
         """
@@ -100,12 +99,11 @@ class ProcessingManager:
             "lighting": os.path.join(base_output, "lighting.pdf"),
             "area_loss": os.path.join(base_output, "area-loss.pdf"),
             "energy_rating": os.path.join(base_output, "energy-rating.pdf"),
-            "zones_dir": os.path.join(base_output, "zones") # For area reports
+            "zones_dir": os.path.join(base_output, "zones")
         }
         for path_key, path_value in paths.items():
-            # For directories, ensure they exist. For files, ensure their parent dir exists.
             dir_to_check = path_value if path_key.endswith("_dir") else os.path.dirname(path_value)
-            self._ensure_directory_exists(os.path.join(dir_to_check, "dummy.txt")) # ensure_directory_exists expects a file path
+            self._ensure_directory_exists(os.path.join(dir_to_check, "dummy.txt"))
         return paths
 
     def _initialize_core_components(self, input_file: str, idd_path: str):
@@ -155,7 +153,7 @@ class ProcessingManager:
                 simulation_output_csv=self.simulation_output_csv,
                 frame_divider_cache=data_loader._frame_divider_cache
             ),
-            "area": area_parser_for_loss, # Re-use the instance passed
+            "area": area_parser_for_loss,
             "lighting": LightingParser(data_loader),
             "area_loss": AreaLossParser(area_parser_for_loss, city_area_name),
             "energy_rating": EnergyRatingParser(data_loader, area_parser_for_loss)
@@ -178,9 +176,9 @@ class ProcessingManager:
         self.update_status("Processing other data (loads, materials, area)...")
         parsers["load"].process_idf(idf)
         parsers["materials"].process_idf(idf)
-        parsers["area"].process_idf(idf) # AreaParser
-        parsers["lighting"].parse() # LightingParser
-        parsers["glazing"].parse_glazing_data() # GlazingParser
+        parsers["area"].process_idf(idf)
+        parsers["lighting"].parse()
+        parsers["glazing"].parse_glazing_data()
 
         if self.is_cancelled: return
 
@@ -189,7 +187,7 @@ class ProcessingManager:
         if simulation_output_csv:
             energy_rating_parser.process_output(simulation_output_csv)
         else:
-            energy_rating_parser.process_output() # Assumes default eplustbl.csv
+            energy_rating_parser.process_output()
 
     def _extract_data_from_parsers(self, parsers: dict) -> dict:
         """
@@ -202,10 +200,8 @@ class ProcessingManager:
             "loads": parsers["load"].get_parsed_zone_loads(),
             "materials": parsers["materials"].get_element_data(),
             "glazing": parsers["glazing"].parsed_glazing_data,
-            "lighting": parsers["lighting"].parse(), # Assuming get_parsed_data() exists
-            "area_loss": parsers["area_loss"].parse(), # AreaLossParser
-            # Area data is used by AreaLoss and EnergyRating, and for its own report via AreaParser instance
-            # EnergyRating data is generated via its own generator using the parser instance
+            "lighting": parsers["lighting"].parse(),
+            "area_loss": parsers["area_loss"].parse(),
         }
 
     def _generate_report_item(self, report_name: str, generation_function,
@@ -231,46 +227,41 @@ class ProcessingManager:
         success = False
         try:
             if is_generator_class:
-                # For classes like LightingReportGenerator, EnergyRatingReportGenerator
                 generator_instance = generation_function(data, output_path, project_name=project_name, run_id=run_id, **kwargs)
                 if hasattr(generator_instance, 'generate_report'):
                      success = generator_instance.generate_report()
-                elif 'output_filename' in kwargs and hasattr(generator_instance, 'generate_report'): # Specific for EnergyRating
+                elif 'output_filename' in kwargs and hasattr(generator_instance, 'generate_report'):
                      success = generator_instance.generate_report(output_filename=kwargs['output_filename'])
 
             else:
-                # For direct functions like generate_settings_report_pdf
-                # Some functions might return success, others might not. Assume success if no exception.
                 generation_function(data, output_path, project_name=project_name, run_id=run_id, **kwargs)
-                success = True # Assuming success if no error, or function returns True
+                success = True
 
             if success:
                 self.update_status(f"{report_name} report generated successfully.")
             else:
                 self.update_status(f"{report_name} report generation failed or returned False (check console).")
             return success
-        except Exception as e: # Keep generic here as report functions can vary
+        except Exception as e:
             error_message = f"Error generating {report_name} report: {type(e).__name__} - {str(e)}"
             self.update_status(error_message)
             logger.error(f"Exception in _generate_report_item for {report_name}: {e}", exc_info=True)
             return False
-
 
     def _generate_all_reports(self, extracted_data: dict, report_paths: dict,
                               project_name: str, run_id: str,
                               area_parser_instance: 'AreaParser',
                               energy_rating_parser_instance: 'EnergyRatingParser',
                               base_output_dir_for_reports: str,
-                              iso_type_selection: str, # Added
-                              city_area_name_selection: str # Added (e.g., "א", "ב")
+                              iso_type_selection: str,
+                              city_area_name_selection: str
                               ) -> None:
         """
         Generates all PDF reports.
         """
-        # Corrected indentation for the entire method body starts here
         self.update_status("Generating reports...")
-        progress_step = 0.7 # Starting progress for report generation
-        num_reports = 8 # Approximate number of reports for progress calculation
+        progress_step = 0.7
+        num_reports = 8
         progress_increment = (1.0 - progress_step) / num_reports
 
         self._generate_report_item("Settings", generate_settings_report_pdf, extracted_data["settings"], report_paths["settings"], project_name, run_id)
@@ -289,12 +280,11 @@ class ProcessingManager:
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
-        # Area reports (special case, uses parser instance and specific output dir)
         self.update_status("Generating Area reports...")
         try:
             generate_area_reports(area_parser_instance, output_dir=report_paths["zones_dir"], project_name=project_name, run_id=run_id)
             self.update_status("Area reports generation attempted.")
-        except Exception as e: # Keep generic here as report functions can vary
+        except Exception as e:
             error_message = f"Error generating Area reports: {type(e).__name__} - {str(e)}"
             self.update_status(error_message)
             logger.error(f"Exception in generate_area_reports: {e}", exc_info=True)
@@ -313,54 +303,44 @@ class ProcessingManager:
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
-        # Energy Rating report (special case, uses parser instance and different output structure)
         self.update_status("Generating Energy Rating report (PDF)...")
         try:
-            # EnergyRatingReportGenerator constructor: parser, output_dir, model_year, model_area_definition
-            # generate_report method: output_filename
 
             derived_model_year = None
             derived_model_area_definition = None
 
             if "2017" in iso_type_selection:
                 derived_model_year = 2017
-            elif "2023" in iso_type_selection: # Assuming "RESIDNTIAL 2023" or similar
+            elif "2023" in iso_type_selection:
                 derived_model_year = 2023
-            
-            # Determine model_area_definition (A,B,C,D)
-            # This currently assumes the city_area_name_selection ("א", "ב", "ג", "ד") maps to A,B,C,D
+
             area_name_map_to_letter = {"א": "A", "ב": "B", "ג": "C", "ד": "D"}
             derived_model_area_definition = area_name_map_to_letter.get(city_area_name_selection)
 
             if derived_model_year and derived_model_area_definition:
-                # Retrieve the actual selected city name from self.city_info
-                # self.city_info is populated in _initiate_report_processing
-                # current_iso_type and current_city_area (area_name like "א") are already parameters of this function
-                # We need the full city name like "Tel Aviv"
-                actual_selected_city_name = self.city_info.get('city', None) # Get the full city name
-                
+                actual_selected_city_name = self.city_info.get('city', None)
+
                 self.update_status(f"Energy Rating Report: Using City='{actual_selected_city_name}', Year={derived_model_year}, AreaDef='{derived_model_area_definition}'")
                 energy_rating_gen = EnergyRatingReportGenerator(
                     energy_rating_parser_instance,
                     output_dir=base_output_dir_for_reports,
                     model_year=derived_model_year,
                     model_area_definition=derived_model_area_definition,
-                    selected_city_name=actual_selected_city_name # Pass the city name
+                    selected_city_name=actual_selected_city_name
                 )
                 success_er = energy_rating_gen.generate_report(output_filename=os.path.basename(report_paths["energy_rating"]))
                 if success_er:
                     self.update_status("Energy Rating report generated successfully.")
                 else:
                     self.update_status("Energy Rating report generation failed (check console for details).")
-            else: # This 'else' corresponds to 'if derived_model_year and derived_model_area_definition:'
+            else:
                 self.update_status(f"Energy Rating Report: Could not determine model_year ('{derived_model_year}') or model_area_definition ('{derived_model_area_definition}') from ISO type '{iso_type_selection}' and city area '{city_area_name_selection}'. Skipping report.", "warning")
                 logger.warning(f"Energy Rating Report: Skipping due to missing derived_model_year or derived_model_area_definition. ISO: {iso_type_selection}, City Area: {city_area_name_selection}")
-        except Exception as e: # Keep generic here as report functions can vary
+        except Exception as e:
             error_message = f"Error generating Energy Rating PDF report: {type(e).__name__} - {str(e)}"
             self.update_status(error_message)
             logger.error(f"Exception in EnergyRatingReportGenerator: {e}", exc_info=True)
         self.update_progress(1.0)
-
 
     def process_idf(self, input_file: str, idd_path: str, output_dir: str) -> bool:
         """
@@ -382,7 +362,7 @@ class ProcessingManager:
             self.update_status("Initializing...")
 
             report_paths = self._setup_output_paths(output_dir)
-            base_reports_dir = os.path.join(output_dir, "reports") # Used by EnergyRatingReportGenerator
+            base_reports_dir = os.path.join(output_dir, "reports")
 
             if self.is_cancelled: return False
             self.update_progress(0.1)
@@ -392,68 +372,41 @@ class ProcessingManager:
             if self.is_cancelled: return False
             self.update_progress(0.2)
 
-            # Determine city_area_name for AreaLossParser
-            city_area_name = "א" # Default
+            city_area_name = "א"
             if self.city_info and 'area_name' in self.city_info:
                 city_area_name = self.city_info.get('area_name', "א")
                 self.update_status(f"Using city area '{city_area_name}' for thermal loss calculations.")
 
-            # AreaParser is needed by AreaLossParser and EnergyRatingParser
-            # MaterialsParser is needed by AreaParser
-            # Initialize them in an order that respects dependencies or pass them around.
-            # For simplicity, initialize MaterialsParser and AreaParser first.
             temp_materials_parser = MaterialsParser(data_loader)
-            # Pass simulation_output_csv to AreaParser if available
             temp_area_parser = AreaParser(data_loader, temp_materials_parser, self.simulation_output_csv)
 
-
             parsers = self._initialize_parsers(data_loader, temp_area_parser, city_area_name)
-            # Ensure the temp_materials_parser and temp_area_parser are the ones used if they were pre-initialized
             parsers["materials"] = temp_materials_parser
             parsers["area"] = temp_area_parser
 
-
             if self.is_cancelled: return False
-            self.update_progress(0.3) # Progress after parser init
+            self.update_progress(0.3)
 
             self._process_data_sources(parsers, idf, eppy_handler, data_loader, self.simulation_output_csv)
 
             if self.is_cancelled: return False
-            self.update_progress(0.6) # Progress after data processing
+            self.update_progress(0.6)
 
             extracted_data = self._extract_data_from_parsers(parsers)
 
             if self.is_cancelled: return False
-            self.update_progress(0.7) # Progress before report generation
+            self.update_progress(0.7)
 
-            # Get iso_type and city_area_name from the main GUI context or pass them down
-            # Assuming self.iso_type.get() and self.city_area_name.get() are available from the GUI instance
-            # This part needs to be called from where these GUI variables are accessible.
-            # For now, I'll assume they are passed into process_idf and then down to here.
-            # Let's modify process_idf to get them from self (the GUI instance)
-            # and then pass them to _generate_all_reports.
-
-            # This requires user_inputs to be available here or passed down.
-            # Let's assume user_inputs (from _get_user_inputs_for_processing) is available
-            # or its relevant parts are passed to _generate_all_reports.
-            # For now, I'll assume iso_type and city_info are passed to _generate_all_reports.
-            # This will require changes in the call to _generate_all_reports.
-
-            # The call to _generate_all_reports in process_idf needs to be updated.
-            # I will update that in the next step.
-            # For now, assuming iso_type_selection and city_area_name_selection are parameters of this function.
-            # Corrected: city_info is directly on the ProcessingManager instance (self)
             current_iso_type = self.city_info.get('iso_type', '')
             current_city_area = self.city_info.get('area_name', '')
-
 
             self._generate_all_reports(
                 extracted_data,
                 report_paths,
                 project_name,
                 run_id,
-                parsers["area"], # Pass the AreaParser instance
-                parsers["energy_rating"], # Pass the EnergyRatingParser instance
+                parsers["area"],
+                parsers["energy_rating"],
                 base_reports_dir,
                 iso_type_selection=current_iso_type,
                 city_area_name_selection=current_city_area
@@ -475,8 +428,7 @@ class ProcessingManager:
             self.update_status(user_message)
             logger.error(user_message, exc_info=True)
             raise
-        # Add more specific exceptions from Eppy or DataLoader if known, e.g., EppyParsingError
-        except Exception as e: # General catch-all for unexpected errors
+        except Exception as e:
             user_message = f"An unexpected error occurred during IDF processing: {type(e).__name__} - {str(e)}"
             self.update_status(user_message)
             logger.error(f"Unexpected error in process_idf: {e}", exc_info=True)
@@ -555,13 +507,13 @@ class IDFProcessorGUI(ctk.CTk):
                             cities_data[city_name] = {'area_name': area_name, 'area_code': area_code}
             else:
                 self.show_status(f"Warning: City data file not found at '{csv_path}'. City-dependent features may be affected.")
-        except FileNotFoundError: # Should be caught by os.path.exists, but good practice
+        except FileNotFoundError:
             self.show_status(f"Error: City data file not found at '{csv_path}'. Please ensure 'data/countries-selection.csv' exists.")
             logger.error(f"FileNotFoundError for city data file: {csv_path}")
         except IOError as e:
             self.show_status(f"Error: Could not read city data file at '{csv_path}'. Reason: {e.strerror}")
             logger.error(f"IOError reading city data file {csv_path}: {e}", exc_info=True)
-        except Exception as e: # Catch other parsing errors or unexpected issues
+        except Exception as e:
             self.show_status(f"Error loading or parsing city data from '{csv_path}': {type(e).__name__} - {str(e)}")
             logger.error(f"Unexpected error loading city data from {csv_path}: {e}", exc_info=True)
         return cities_data
@@ -607,7 +559,7 @@ class IDFProcessorGUI(ctk.CTk):
         header_frame = ctk.CTkFrame(self, height=60, corner_radius=0)
         header_frame.grid(row=0, column=0, sticky="ew")
         header_frame.grid_columnconfigure(0, weight=1)
-        header_frame.grid_propagate(False) # Prevent frame from shrinking to content
+        header_frame.grid_propagate(False)
 
         app_title = ctk.CTkLabel(
             header_frame,
@@ -712,7 +664,7 @@ class IDFProcessorGUI(ctk.CTk):
         progress_label = ctk.CTkLabel(progress_frame, text="Processing Status:", anchor="w")
         progress_label.grid(row=0, column=0, padx=10, pady=(10, 0), sticky="w")
 
-        self.progress_var = tk.DoubleVar() # Keep if used elsewhere, otherwise can be local
+        self.progress_var = tk.DoubleVar()
         self.progress_bar = ctk.CTkProgressBar(
             progress_frame, height=15, corner_radius=5,
             progress_color=("#3a7ebf", "#1f538d"), fg_color=("#E0E0E0", "#2D2D2D")
@@ -725,7 +677,7 @@ class IDFProcessorGUI(ctk.CTk):
         status_frame = ctk.CTkFrame(parent_frame, corner_radius=10)
         status_frame.grid(row=6, column=0, padx=10, pady=5, sticky="nsew")
         status_frame.grid_columnconfigure(0, weight=1)
-        status_frame.grid_rowconfigure(1, weight=1) # Make textbox expandable
+        status_frame.grid_rowconfigure(1, weight=1)
 
         status_label = ctk.CTkLabel(status_frame, text="Log Messages:", anchor="w")
         status_label.grid(row=0, column=0, padx=10, pady=(10, 0), sticky="w")
@@ -736,7 +688,6 @@ class IDFProcessorGUI(ctk.CTk):
         )
         self.status_text.grid(row=1, column=0, padx=10, pady=(5, 10), sticky="nsew")
 
-        # Configure tags for colored text
         self.status_text.tag_config("error", foreground="#E74C3C")
         self.status_text.tag_config("success", foreground="#2CC985")
         self.status_text.tag_config("warning", foreground="#F39C12")
@@ -747,7 +698,7 @@ class IDFProcessorGUI(ctk.CTk):
         """Creates the frame for control buttons (Generate, Cancel)."""
         button_frame = ctk.CTkFrame(parent_frame, fg_color="transparent")
         button_frame.grid(row=7, column=0, padx=10, pady=(15, 10), sticky="ew")
-        button_frame.grid_columnconfigure((0, 1), weight=1) # Make buttons expand equally
+        button_frame.grid_columnconfigure((0, 1), weight=1)
 
         self.process_button = ctk.CTkButton(
             button_frame, text="Generate Reports", command=self.start_processing, height=40,
@@ -765,19 +716,15 @@ class IDFProcessorGUI(ctk.CTk):
 
     def create_widgets(self) -> None:
         """Creates and configures all widgets for the GUI."""
-        self.configure(fg_color=("#F0F0F0", "#2B2B2B")) # Main window background
+        self.configure(fg_color=("#F0F0F0", "#2B2B2B"))
 
         self._create_header_frame()
 
-        # Main content area
-        content_frame = ctk.CTkFrame(self) # No specific styling, acts as a container
+        content_frame = ctk.CTkFrame(self)
         content_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=10)
         content_frame.grid_columnconfigure(0, weight=1)
-        # Configure row containing content_frame to expand
         self.grid_rowconfigure(1, weight=1)
 
-
-        # Create sections within the content_frame
         self._create_input_file_frame(content_frame)
         self._create_energyplus_dir_frame(content_frame)
         self._create_output_dir_frame(content_frame)
@@ -787,8 +734,7 @@ class IDFProcessorGUI(ctk.CTk):
         self._create_status_log_frame(content_frame)
         self._create_control_buttons_frame(content_frame)
 
-        # Ensure the status log (inside status_frame, which is in content_frame) expands
-        content_frame.grid_rowconfigure(6, weight=1) # Row index of status_frame in content_frame
+        content_frame.grid_rowconfigure(6, weight=1)
 
         self.show_status("Welcome to IDF Report Generator. Please select all required files to continue.")
 
@@ -840,7 +786,6 @@ class IDFProcessorGUI(ctk.CTk):
                     self.iso_type.set(settings.get('last_iso_type', ''))
         except FileNotFoundError:
             self.show_status(f"Info: Settings file '{self.settings_file}' not found. Using default values or creating a new one on save.")
-            # This is not strictly an error, so no logger.error
         except json.JSONDecodeError as jde:
             self.show_status(f"Error: Could not parse settings file '{self.settings_file}'. File might be corrupted. Invalid JSON: {jde.msg}")
             logger.error(f"JSONDecodeError for settings file {self.settings_file}: {jde}", exc_info=True)
@@ -863,7 +808,7 @@ class IDFProcessorGUI(ctk.CTk):
                 'last_iso_type': self.iso_type.get()
             }
             with open(self.settings_file, 'w') as f:
-                json.dump(settings, f, indent=4) # Added indent for readability
+                json.dump(settings, f, indent=4)
             self.show_status(f"Settings saved to '{self.settings_file}'.")
         except (IOError, OSError) as e:
             self.show_status(f"Error: Could not write settings to '{self.settings_file}'. Reason: {e.strerror}")
@@ -872,13 +817,12 @@ class IDFProcessorGUI(ctk.CTk):
             self.show_status(f"Unexpected error saving settings to '{self.settings_file}': {type(e).__name__} - {str(e)}")
             logger.error(f"Unexpected error saving settings to {self.settings_file}: {e}", exc_info=True)
 
-    def show_status(self, message, level="info"): # Added level parameter
+    def show_status(self, message, level="info"):
         timestamp = datetime.now().strftime('%H:%M:%S')
         full_message = f"{timestamp} - {message}\n"
 
-        # Determine tag based on level or message content
-        tag = level # Default to the provided level
-        if level == "info": # For backward compatibility if level is not passed
+        tag = level
+        if level == "info":
             message_lower = message.lower()
             if "error" in message_lower or "failed" in message_lower:
                 tag = "error"
@@ -886,15 +830,13 @@ class IDFProcessorGUI(ctk.CTk):
                 tag = "success"
             elif "warning" in message_lower or "cancelled" in message_lower:
                 tag = "warning"
-        
-        # Ensure tag is one of the configured tags
+
         valid_tags = ["info", "error", "success", "warning"]
         if tag not in valid_tags:
-            tag = "info" # Fallback to info if an invalid level string is passed
+            tag = "info"
 
         self.status_text.insert(tk.END, full_message, (tag,))
         self.status_text.see(tk.END)
-        # Log errors and warnings to logger as well
         if tag == "error":
             logger.error(f"GUI Status: {message}")
         elif tag == "warning":
@@ -987,19 +929,17 @@ class IDFProcessorGUI(ctk.CTk):
         selected_area_code = self.city_area_code.get()
         selected_iso_type = self.iso_type.get()
 
-        # Ensure city area name and code are populated if a city is selected
         if selected_city and not selected_area_name:
             if selected_city in self.city_data:
                 city_info_lookup = self.city_data[selected_city]
                 self.city_area_name.set(city_info_lookup['area_name'])
                 self.city_area_code.set(city_info_lookup['area_code'])
-                selected_area_name = self.city_area_name.get() # Update local var
-                selected_area_code = self.city_area_code.get() # Update local var
+                selected_area_name = self.city_area_name.get()
+                selected_area_code = self.city_area_code.get()
                 self.show_status(f"Updated city information: {selected_city}, Area: {selected_area_name}, Code: {selected_area_code}")
             else:
-                # This case should ideally be caught by validate_inputs or earlier checks
                 self.show_status("Error: Selected city data is incomplete. Please re-select the city.")
-                return None # Indicate failure
+                return None
 
         return {
             "input_file": input_file,
@@ -1020,7 +960,7 @@ class IDFProcessorGUI(ctk.CTk):
         area_name = city_info['area_name']
         area_code = city_info['area_code']
 
-        if not area_name or not area_code: # Should be caught earlier
+        if not area_name or not area_code:
             self.show_status("Error: City area name or code is missing for EPW selection.")
             return None
 
@@ -1029,7 +969,7 @@ class IDFProcessorGUI(ctk.CTk):
             self.show_status(f"Using RESIDENTIAL 2023 standard - selecting weather file by area code: {area_code}")
         else:
             area_name_map = {"א": "a", "ב": "b", "ג": "c", "ד": "d"}
-            latin_letter = area_name_map.get(area_name, area_name) # Fallback to area_name if not in map
+            latin_letter = area_name_map.get(area_name, area_name)
             epw_filename = f"{latin_letter}.epw"
             self.show_status(f"Using ISO type {iso_type} - selecting weather file: {epw_filename}")
 
@@ -1045,7 +985,7 @@ class IDFProcessorGUI(ctk.CTk):
         """Ensures required output variables are in the IDF for Energy Rating."""
         self.show_status("Ensuring required output variables for Energy Rating...")
         try:
-            data_loader = DataLoader() # Consider if this can be a member or passed
+            data_loader = DataLoader()
             output_variables_added = data_loader.ensure_output_variables(
                 idf_path=idf_path,
                 idd_path=idd_path
@@ -1055,17 +995,16 @@ class IDFProcessorGUI(ctk.CTk):
                 return True
             else:
                 self.show_status("Warning: Failed to add required output variables. Energy Rating may not work correctly.", "warning")
-                return False # Or True if non-critical
+                return False
         except FileNotFoundError as e:
             self.show_status(f"Warning: Could not find IDF/IDD for ensuring output variables: {e.filename}. Energy Rating may be affected.", "warning")
             logger.warning(f"FileNotFoundError in _ensure_idf_output_variables: {e}", exc_info=True)
             return False
-        # Add EppyRelatedError if such a specific error exists and is raised by DataLoader
         except (IOError, OSError) as e:
             self.show_status(f"Warning: File error when ensuring output variables for '{idf_path}': {e.strerror}. Energy Rating may be affected.", "warning")
             logger.warning(f"IOError/OSError in _ensure_idf_output_variables: {e}", exc_info=True)
             return False
-        except Exception as e: # General catch-all
+        except Exception as e:
             self.show_status(f"Warning: Unexpected error ensuring output variables: {type(e).__name__} - {str(e)}. Energy Rating may be affected.", "warning")
             logger.warning(f"Unexpected error in _ensure_idf_output_variables: {e}", exc_info=True)
             return False
@@ -1088,17 +1027,16 @@ class IDFProcessorGUI(ctk.CTk):
             if os.path.exists(output_csv_path):
                 self.show_status(f"EnergyPlus simulation successful. Output CSV: {output_csv_path}")
                 simulation_successful = True
-                # Basic check for file content (e.g., not empty)
                 try:
                     with open(output_csv_path, 'r', encoding='utf-8') as f:
-                        if not f.readline(): # Check if first line is empty
+                        if not f.readline():
                              self.show_status(f"Warning: Simulation output file {output_csv_path} appears to be empty.")
-                             simulation_successful = False # Treat as failure if empty
+                             simulation_successful = False
                 except IOError as read_err:
                     self.show_status(f"Warning: Simulation output file '{output_csv_path}' generated but could not be read. Reason: {read_err.strerror}", "warning")
                     logger.warning(f"IOError reading simulation output {output_csv_path}: {read_err}", exc_info=True)
                     simulation_successful = False
-                except Exception as read_err: # For other unexpected errors during read check
+                except Exception as read_err:
                     self.show_status(f"Warning: Unexpected error checking simulation output file '{output_csv_path}': {type(read_err).__name__} - {str(read_err)}", "warning")
                     logger.warning(f"Unexpected error checking simulation output {output_csv_path}: {read_err}", exc_info=True)
                     simulation_successful = False
@@ -1118,7 +1056,7 @@ class IDFProcessorGUI(ctk.CTk):
         finally:
             self.progress_bar.stop()
             self.progress_bar.configure(mode='determinate')
-            self.progress_bar.set(0) # Reset progress bar
+            self.progress_bar.set(0)
             self.update_idletasks()
 
         return output_csv_path if simulation_successful else None
@@ -1127,7 +1065,7 @@ class IDFProcessorGUI(ctk.CTk):
                                    simulation_csv_path: str, city_details: dict, iso_type: str) -> bool:
         """Initializes and runs the ProcessingManager for report generation."""
         self.show_status("Simulation complete. Starting IDF processing and report generation...")
-        self.processor = ProcessingManager( # Store processor instance on self
+        self.processor = ProcessingManager(
             status_callback=self.show_status,
             progress_callback=lambda x: (
                 self.progress_bar.set(x),
@@ -1139,18 +1077,17 @@ class IDFProcessorGUI(ctk.CTk):
 
         idf_processing_success = self.processor.process_idf(input_file, idd_path, output_dir)
 
-        if self.processor.is_cancelled: # Check self.processor
+        if self.processor.is_cancelled:
             self.show_status("Processing cancelled during IDF stage.")
             return False
         return idf_processing_success
-
 
     def process_file(self):
         """Orchestrates the file processing workflow."""
         try:
             user_inputs = self._get_user_inputs_for_processing()
-            if not user_inputs: # Error already shown by _get_user_inputs_for_processing
-                return # _finalize_processing_attempt will be called in finally
+            if not user_inputs:
+                return
 
             input_file = user_inputs["input_file"]
             output_dir = user_inputs["output_dir"]
@@ -1160,12 +1097,11 @@ class IDFProcessorGUI(ctk.CTk):
             iso_type = user_inputs["iso_type"]
 
             epw_file_path = self._determine_epw_file_path(city_info, iso_type)
-            if not epw_file_path: # Error already shown by _determine_epw_file_path
+            if not epw_file_path:
                 return
 
-            # Ensure output variables, continue with warning if it fails
             self._ensure_idf_output_variables(input_file, idd_path)
-            if not self.is_processing: return # Check for cancellation
+            if not self.is_processing: return
 
             reports_dir = os.path.join(output_dir, "reports")
             simulation_output_dir = os.path.join(reports_dir, "simulation_output")
@@ -1182,7 +1118,7 @@ class IDFProcessorGUI(ctk.CTk):
                     energyplus_exe, epw_file_path, simulation_output_dir, input_file
                 )
 
-            if not self.is_processing: # Check for cancellation after simulation
+            if not self.is_processing:
                 self.show_status("Processing cancelled after simulation attempt.", "warning")
                 return
 
@@ -1190,7 +1126,7 @@ class IDFProcessorGUI(ctk.CTk):
                 idf_processing_success = self._initiate_report_processing(
                     input_file, idd_path, output_dir, simulation_csv_path, city_info, iso_type
                 )
-                if not self.is_processing: # Check for cancellation during IDF processing
+                if not self.is_processing:
                     self.show_status("Processing cancelled during report generation stage.", "warning")
                     return
 
@@ -1200,32 +1136,28 @@ class IDFProcessorGUI(ctk.CTk):
                 else:
                     self.show_status("IDF processing or report generation failed. Check messages above.", "error")
                     messagebox.showerror("Error", "IDF Processing or report generation failed.")
-            else: # Simulation failed or produced no CSV
+            else:
                 self.show_status("Skipping report generation due to simulation failure or missing output.", "error")
                 messagebox.showerror("Error", "Simulation failed or did not produce output. Cannot proceed with report generation.")
 
-        except Exception as e: # Catch any unexpected error in the thread
+        except Exception as e:
             self.show_status(f"A critical error occurred in the processing thread: {type(e).__name__} - {str(e)}", "error")
             logger.critical(f"Critical error in IDFProcessorGUI.process_file thread: {e}", exc_info=True)
-            if self.is_processing : # If not already marked as cancelled by user
+            if self.is_processing :
                  messagebox.showerror("Critical Error", f"A critical error occurred: {str(e)}. Please check the log for details.")
         finally:
-            # Ensure UI updates are on main thread. self.after schedules the call.
             self.after(0, self._finalize_processing_attempt)
-
 
     def _finalize_processing_attempt(self):
         """Resets UI elements after a processing attempt (success, failure, or cancellation)."""
-        self.is_processing = False # Ensure this is set regardless of how processing ended
+        self.is_processing = False
         self.process_button.configure(state="normal")
         self.cancel_button.configure(state="disabled")
-        self.progress_bar.configure(mode='determinate') # Ensure it's determinate
-        self.progress_bar.set(0) # Reset progress
+        self.progress_bar.configure(mode='determinate')
+        self.progress_bar.set(0)
         self.update_idletasks()
-        # Clear processor instance if it exists
         if hasattr(self, 'processor'):
             del self.processor
-
 
     def cancel_processing(self) -> None:
         """
@@ -1233,12 +1165,10 @@ class IDFProcessorGUI(ctk.CTk):
         updates the status log, and calls the cancel method on the
         ProcessingManager instance if it exists.
         """
-        self.is_processing = False # Set this first to prevent new operations
+        self.is_processing = False
         self.show_status("Cancellation request received. Attempting to stop processing...", "warning")
-        if self.processor: # Check if processor instance exists
+        if self.processor:
             self.processor.cancel()
-        # UI updates (like button states) will be handled by _finalize_processing_attempt
-        # or when the thread naturally concludes after cancellation.
 
     def run(self) -> None:
         """Starts the Tkinter main event loop."""

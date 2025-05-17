@@ -320,7 +320,6 @@ class GlazingParser:
                     'raw_object': construction_data.get('raw_object')
                 }
 
-        keys_to_delete = []
         for construction_id, construction_data in self._constructions_glazing_cache.items():
             if construction_id in processed_data:
                 continue
