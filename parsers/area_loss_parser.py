@@ -78,39 +78,21 @@ class AreaLossParser:
         return wall_mass_data
 
     def _calculate_h_needed(self, location: str, total_floor_area: float, wall_mass_per_area: float, area_id: str) -> float:
-        detailed_location_map = {
-            "Ground Floor": "Ground Floor",
-            "Ground Floor Below Unconditioned": "Ground Floor Below Unconditioned",
-            "Ground Floor Below Open Space": "Ground Floor Below Open Space",
-            "Intermediate Floor": "Intermediate Floor",
-            "Intermediate Floor Below Unconditioned": "Intermediate Floor Below Unconditioned",
-            "Intermediate Floor Below Open Space": "Intermediate Floor Below Open Space",
-            "Separation Floor": "Separation Floor",
-            "Separation Floor Below Unconditioned": "Separation Floor Below Unconditioned",
-            "Separation Floor Below Open Space": "Separation Floor Below Open Space",
-            "External Floor": "External Floor",
-            "External Floor Below Unconditioned": "External Floor Below Unconditioned",
-            "External Below Open Space": "External Below Open Space",
-            "Below Open Space": "Ground Floor Below Open Space",
-            "Over Close Space": "Separation Floor",
-            "Over Open Space": "External Floor"
-        }
         final_location_map = {
-            "Ground Floor": 1,
-            "Intermediate Floor": 1,
-            "Ground Floor Below Unconditioned": 1,
-            "Intermediate Floor Below Unconditioned": 1,
-            "Separation Floor": 2,
-            "Separation Floor Below Unconditioned": 2,
-            "Ground Floor Below Open Space": 3,
-            "External Below Open Space": 3,
-            "Separation Floor Below Open Space": 3,
-            "Intermediate Floor Below Open Space": 3,
-            "External Floor": 4,
-            "External Floor Below Unconditioned": 4
+            "Ground Floor & Intermediate ceiling": 1,
+            "Ground Floor & Separation ceiling": 1,
+            "Intermediate Floor & Intermediate ceiling": 1,
+            "Intermediate Floor & Separation ceiling": 1,
+            "Separation Floor & Intermediate ceiling": 2,
+            "Separation Floor & Separation ceiling": 2,
+            "Ground Floor & External ceiling": 3,
+            "External Floor & External ceiling": 3,
+            "Separation Floor & External ceiling": 3,
+            "Intermediate Floor & External ceiling": 3,
+            "External Floor & Intermediate ceiling": 4,
+            "External Floor & Separation ceiling": 4
         }
-        detailed_location = detailed_location_map.get(location, location)
-        location_num = final_location_map.get(detailed_location, 1)
+        location_num = final_location_map.get(location, 1)
         area_col = {"א": 0, "ב": 1, "ג": 2, "ד": 3}
         col_idx = area_col.get(self.city_area_name, 0)
         if location_num == 3:

@@ -808,22 +808,22 @@ class AreaParser:
                     location = "Unknown" # Default
                     # This mapping logic can be complex and error-prone; consider a more structured approach if issues persist
                     if max_floor_type == "ground_floor":
-                        if max_ceiling_type == "intermediate_ceiling": location = "Ground Floor"
-                        elif max_ceiling_type == "roof": location = "Ground Floor Below Open Space"
-                        elif max_ceiling_type == "separation_ceiling": location = "Ground Floor Below Unconditioned"
+                        if max_ceiling_type == "intermediate_ceiling": location = "Ground Floor & Intermediate ceiling"
+                        elif max_ceiling_type == "roof": location = "Ground Floor & External ceiling"
+                        elif max_ceiling_type == "separation_ceiling": location = "Ground Floor & Separation ceiling"
                     elif max_floor_type == "external_floor":
-                        if max_ceiling_type == "roof": location = "External Below Open Space"
-                        elif max_ceiling_type == "intermediate_ceiling": location = "External Floor"
-                        elif max_ceiling_type == "separation_ceiling": location = "External Floor Below Unconditioned"
+                        if max_ceiling_type == "roof": location = "External Floor & External ceiling"
+                        elif max_ceiling_type == "intermediate_ceiling": location = "External Floor & Intermediate ceiling"
+                        elif max_ceiling_type == "separation_ceiling": location = "External Floor & Separation ceiling"
                     # ... (add other combinations as per original logic, ensuring robustness)
                     elif max_floor_type == "intermediate_floor":
-                         if max_ceiling_type == "intermediate_ceiling": location = "Intermediate Floor"
-                         elif max_ceiling_type == "roof": location = "Intermediate Floor Below Open Space"
-                         elif max_ceiling_type == "separation_ceiling": location = "Intermediate Floor Below Unconditioned"
+                         if max_ceiling_type == "intermediate_ceiling": location = "Intermediate Floor & Intermediate ceiling"
+                         elif max_ceiling_type == "roof": location = "Intermediate Floor & External ceiling"
+                         elif max_ceiling_type == "separation_ceiling": location = "Intermediate Floor & Separation ceiling"
                     elif max_floor_type == "separation_floor":
-                         if max_ceiling_type == "intermediate_ceiling": location = "Separation Floor"
-                         elif max_ceiling_type == "roof": location = "Separation Floor Below Open Space"
-                         elif max_ceiling_type == "separation_ceiling": location = "Separation Floor Below Unconditioned"
+                         if max_ceiling_type == "intermediate_ceiling": location = "Separation Floor & Intermediate ceiling"
+                         elif max_ceiling_type == "roof": location = "Separation Floor & External ceiling"
+                         elif max_ceiling_type == "separation_ceiling": location = "Separation Floor & Separation ceiling"
 
 
                     h_values_by_area.append({
