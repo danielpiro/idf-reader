@@ -104,7 +104,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
     header_row2 = [
         "Floor", "Area id", "Zone id", "Zone area", "Zone multiplier",
         "Lighting", "Cooling", "Heating", "Sum",
-        "Energy consumption", "Improve by %", "Energy rating", "Area rating"
+        "Energy consumption", "Improve by %", "Energy rating", "Area score"
     ]
     table_content = [header_row1, header_row2]
 
