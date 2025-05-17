@@ -15,6 +15,35 @@ from reportlab.lib.enums import TA_CENTER
 
 logger = logging.getLogger(__name__)
 
+# Data for energy rating based on 2017 standards (from the provided image)
+ENERGY_RATING_DATA_2017 = {
+    # Climate Zone: [(min_IP_for_this_rating, rating_letter, rating_score), ...]
+    # Sorted from highest rating to lowest. IP is "Improve by %".
+    "אזור א": [
+        (35, "+A", 5), (30, "A", 4), (25, "B", 3), (20, "C", 2), (10, "D", 1),
+        (0, "E", 0), (-float('inf'), "F", -1)
+    ],
+    "אזור ב": [
+        (35, "+A", 5), (30, "A", 4), (25, "B", 3), (20, "C", 2), (10, "D", 1),
+        (0, "E", 0), (-float('inf'), "F", -1)
+    ],
+    "אזור ג": [
+        (40, "+A", 5), (34, "A", 4), (27, "B", 3), (20, "C", 2), (10, "D", 1),
+        (0, "E", 0), (-float('inf'), "F", -1)
+    ],
+    "אזור ד": [
+        (29, "+A", 5), (26, "A", 4), (23, "B", 3), (20, "C", 2), (10, "D", 1),
+        (0, "E", 0), (-float('inf'), "F", -1)
+    ]
+}
+
+CLIMATE_ZONE_MAP = {
+    "a": "אזור א", "A": "אזור א", "אזור א": "אזור א",
+    "b": "אזור ב", "B": "אזור ב", "אזור ב": "אזור ב",
+    "c": "אזור ג", "C": "אזור ג", "אזור ג": "אזור ג",
+    "d": "אזור ד", "D": "אזור ד", "אזור ד": "אזור ד",
+}
+
 def _get_table_style():
     return TableStyle([
         ('BACKGROUND', (0,0), (-1,0), lightgrey),
@@ -81,7 +110,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
     raw_table_data = energy_rating_parser.get_energy_rating_table_data()
 
     if not raw_table_data:
-        return None
+        return None # Added return None if no data
 
     def sort_key(item):
         floor_val = item.get('floor', '')
@@ -115,12 +144,14 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
     group_total_floor_areas = {} # To store total floor area for each group
     if raw_table_data:
         for row_dict in raw_table_data:
-            group_key = (str(row_dict.get('floor_id_report','N/A')), str(row_dict.get('area_id_report','N/A')))
-            if group_key not in group_sums_for_display:
-                group_sums_for_display[group_key] = 0.0
-                group_total_floor_areas[group_key] = 0.0 # Initialize for the group
-            group_sums_for_display[group_key] += safe_float(row_dict.get('total', 0.0))
-            group_total_floor_areas[group_key] += safe_float(row_dict.get('total_area', 0.0)) # Accumulate total area
+            item_group_key_for_sum = (str(row_dict.get('floor_id_report','N/A')), str(row_dict.get('area_id_report','N/A')))
+            # Calculate sum for the current row from its components
+            current_row_energy_sum = safe_float(row_dict.get('lighting', 0.0)) + \
+                                     safe_float(row_dict.get('cooling', 0.0)) + \
+                                     safe_float(row_dict.get('heating', 0.0))
+            group_sums_for_display[item_group_key_for_sum] = group_sums_for_display.get(item_group_key_for_sum, 0.0) + current_row_energy_sum
+            group_total_floor_areas[item_group_key_for_sum] = group_total_floor_areas.get(item_group_key_for_sum, 0.0) + safe_float(row_dict.get('total_area', 0.0))
+
 
     current_group_key = None
     group_start_pdf_row_index_in_table_content = -1
@@ -156,8 +187,8 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
             numeric_energy_consumption = None
             display_energy_consump = "N/A" # Default for display
             display_improve_by = ""       # Default for display
-            display_energy_rating = ""    # Placeholder
-            display_area_rating = ""      # Placeholder
+            display_energy_rating = ""    # Placeholder, will be updated
+            display_area_rating = ""      # Placeholder, will be updated
 
             area_location_for_csv_lookup = row_dict.get('model_csv_area_description')
 
@@ -216,7 +247,41 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
             else: # numeric_energy_consumption is None (i.e., energy consumption could not be determined)
                 display_improve_by = "N/A (No EC)"
             
-            logger.info(f"ReportGen _energy_rating_table: Group processed. AreaDesc='{area_location_for_csv_lookup}', Year='{model_year}', AreaDef='{model_area_definition}', Resulting display_energy_consump='{display_energy_consump}', ImproveBy='{display_improve_by}' (Selected City for report: '{selected_city_name}')")
+            # Determine Energy Rating and Area Score
+            current_display_energy_rating = "N/A"
+            current_display_area_score = "N/A"
+
+            if calculated_improve_by_value is not None: # Ensure we have a numeric IP value
+                if model_year == 2017:
+                    # Use model_area_definition to get the key for ENERGY_RATING_DATA_2017
+                    climate_zone_lookup_key = CLIMATE_ZONE_MAP.get(model_area_definition) # Changed from selected_city_name
+
+                    if climate_zone_lookup_key and climate_zone_lookup_key in ENERGY_RATING_DATA_2017:
+                        thresholds = ENERGY_RATING_DATA_2017[climate_zone_lookup_key]
+                        for min_ip, rating_letter, rating_score_val in thresholds:
+                            if calculated_improve_by_value >= min_ip:
+                                current_display_energy_rating = rating_letter
+                                current_display_area_score = str(rating_score_val)
+                                break # Found the highest applicable rating
+                    elif not climate_zone_lookup_key:
+                        logger.warning(f"ReportGen _energy_rating_table: Could not map model_area_definition '{model_area_definition}' to a known climate zone. Rating/Score will be N/A.")
+                    else: # Mapped key not in ENERGY_RATING_DATA_2017 (e.g. if map is outdated)
+                        logger.warning(f"ReportGen _energy_rating_table: Climate zone '{climate_zone_lookup_key}' (from model_area_definition '{model_area_definition}') not found in ENERGY_RATING_DATA_2017 for year {model_year}. Rating/Score will be N/A.")
+                else:
+                    logger.warning(f"ReportGen _energy_rating_table: Energy rating logic currently implemented for model_year 2017. Found {model_year}. Rating/Score will be N/A.")
+            # If calculated_improve_by_value is None, current_display_energy_rating/score remain "N/A"
+            
+            display_energy_rating = current_display_energy_rating
+            display_area_rating = current_display_area_score
+            
+            # Format display_improve_by (numeric calculated_improve_by_value to string)
+            # This was potentially set to an error string like "N/A (Div0 EC)" or "N/A (No EC)" earlier
+            # Only format if it's still the numeric value (i.e., calculation was successful)
+            if isinstance(calculated_improve_by_value, (int, float)):
+                 display_improve_by = _format_number(calculated_improve_by_value)
+
+
+            logger.info(f"ReportGen _energy_rating_table: Group processed. AreaDesc='{area_location_for_csv_lookup}', Year='{model_year}', AreaDef='{model_area_definition}', Resulting display_energy_consump='{display_energy_consump}', ImproveBy='{display_improve_by}', EnergyRating='{display_energy_rating}', AreaScore='{display_area_rating}' (Model Area Definition for report: '{model_area_definition}')")
 
         else: # Not the first row of the group
             display_floor_id = ""
