@@ -28,9 +28,9 @@ def _get_table_style():
         ('VALIGN', (0,1), (-1,1), 'MIDDLE'),
         ('FONTNAME', (0,1), (-1,1), 'Helvetica-Bold'),
         ('FONTSIZE', (0,1), (-1,1), 8),
-        ('SPAN', (0,0), (3,0)),
-        ('SPAN', (4,0), (7,0)),
-        ('SPAN', (9,0), (10,0)),
+        ('SPAN', (0,0), (4,0)),  # Building Details
+        ('SPAN', (5,0), (8,0)),  # Energy Consumption per Meter
+        ('SPAN', (9,0), (12,0)), # Summary and Calculation by 5282
         ('FONTNAME', (0,2), (-1,-1), 'Helvetica'),
         ('FONTSIZE', (0,2), (-1,-1), 8),
         ('ALIGN', (0,2), (-1,-1), 'CENTER'),
@@ -78,42 +78,43 @@ def _energy_rating_table(energy_rating_parser):
     def sort_key(item):
         floor_val = item.get('floor', '')
         try:
-            floor_sort_val = int(floor_val)
+            floor_sort_val = int(floor_val) # Attempt to sort numerically if possible
         except ValueError:
-            floor_sort_val = str(floor_val)
+            floor_sort_val = str(floor_val) # Fallback to string sort
 
         area_id_val = str(item.get('area_id', ''))
-        return (floor_sort_val, area_id_val)
+        zone_id_val = str(item.get('zone_id', '')) # Add zone_id for sorting
+        return (floor_sort_val, area_id_val, zone_id_val)
 
     raw_table_data.sort(key=sort_key)
 
     header_row1 = [
-        "Building Details", None, None, None,
+        "Building Details", None, None, None, None,
         "Energy Consumption per Meter", None, None, None,
-        "Energy Consumption by Model",
-        "Summary and Calculation by 5282", None,
-        "Multiplier"
+        "Summary and Calculation by 5282", None, None, None
     ]
     header_row2 = [
-        "Floor", "Area ID", "Total Area", "Location", "Lighting", "Heating", "Cooling", "Total",
-        "", "Better %", "Energy Rating", "Amount"
+        "Floor", "Area id", "Zone id", "Zone area", "Zone multiplier",
+        "Lighting", "Cooling", "Heating", "Sum",
+        "Energy consumption", "Improve by %", "Energy rating", "Area rating"
     ]
     table_content = [header_row1, header_row2]
 
     for row_dict in raw_table_data:
         table_content.append([
-            str(row_dict.get('floor', '')),
-            str(row_dict.get('area_id', '')),
-            _format_number(row_dict.get('total_area', 0)),
-            str(row_dict.get('location', '')),
+            str(row_dict.get('floor_id_report', '')),       # "Floor"
+            str(row_dict.get('area_id_report', '')),      # "Area id"
+            str(row_dict.get('zone_name_report', '')),    # "Zone id" (maps to zone name part)
+            _format_number(row_dict.get('total_area', 0)),  # "Zone area"
+            str(row_dict.get('multiplier', '')),          # "Zone multiplier"
             _format_number(row_dict.get('lighting', 0)),
-            _format_number(row_dict.get('heating', 0)),
             _format_number(row_dict.get('cooling', 0)),
+            _format_number(row_dict.get('heating', 0)),
             _format_number(row_dict.get('total', 0)),
-            str(row_dict.get('energy_consumption_model', '')),
-            str(row_dict.get('better_percent', '')),
-            str(row_dict.get('energy_rating', '')),
-            str(row_dict.get('multiplier', ''))
+            '',  # Placeholder for "Energy consumption"
+            '',  # Placeholder for "Improve by %"
+            '',  # Placeholder for "Energy rating"
+            ''   # Placeholder for "Area rating"
         ])
 
     table = Table(table_content)
