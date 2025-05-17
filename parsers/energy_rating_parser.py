@@ -516,7 +516,8 @@ class EnergyRatingParser:
                         'cooling': val_cooling,   # Divided by correct_total_floor_area_for_group
                         'total': val_total,       # Divided by correct_total_floor_area_for_group
                         # Placeholders
-                        'location': data_for_zone.get('location', 'Unknown'),
+                        'location': data_for_zone.get('location', 'Unknown'), # This is the general location
+                        'model_csv_area_description': data_for_zone.get('location', 'Unknown'), # Assuming this 'location' is the key for the model CSV
                         'energy_consumption_model': '',
                         'better_percent': '',
                         'energy_rating': '',

@@ -260,10 +260,14 @@ class ProcessingManager:
                               project_name: str, run_id: str,
                               area_parser_instance: 'AreaParser',
                               energy_rating_parser_instance: 'EnergyRatingParser',
-                              base_output_dir_for_reports: str) -> None:
+                              base_output_dir_for_reports: str,
+                              iso_type_selection: str, # Added
+                              city_area_name_selection: str # Added (e.g., "א", "ב")
+                              ) -> None:
         """
         Generates all PDF reports.
         """
+        # Corrected indentation for the entire method body starts here
         self.update_status("Generating reports...")
         progress_step = 0.7 # Starting progress for report generation
         num_reports = 8 # Approximate number of reports for progress calculation
@@ -312,14 +316,45 @@ class ProcessingManager:
         # Energy Rating report (special case, uses parser instance and different output structure)
         self.update_status("Generating Energy Rating report (PDF)...")
         try:
-            # EnergyRatingReportGenerator constructor: parser, output_dir
+            # EnergyRatingReportGenerator constructor: parser, output_dir, model_year, model_area_definition
             # generate_report method: output_filename
-            energy_rating_gen = EnergyRatingReportGenerator(energy_rating_parser_instance, output_dir=base_output_dir_for_reports)
-            success_er = energy_rating_gen.generate_report(output_filename=os.path.basename(report_paths["energy_rating"]))
-            if success_er:
-                self.update_status("Energy Rating report generated successfully.")
-            else:
-                self.update_status("Energy Rating report generation failed (check console for details).")
+
+            derived_model_year = None
+            derived_model_area_definition = None
+
+            if "2017" in iso_type_selection:
+                derived_model_year = 2017
+            elif "2023" in iso_type_selection: # Assuming "RESIDNTIAL 2023" or similar
+                derived_model_year = 2023
+            
+            # Determine model_area_definition (A,B,C,D)
+            # This currently assumes the city_area_name_selection ("א", "ב", "ג", "ד") maps to A,B,C,D
+            area_name_map_to_letter = {"א": "A", "ב": "B", "ג": "C", "ד": "D"}
+            derived_model_area_definition = area_name_map_to_letter.get(city_area_name_selection)
+
+            if derived_model_year and derived_model_area_definition:
+                # Retrieve the actual selected city name from self.city_info
+                # self.city_info is populated in _initiate_report_processing
+                # current_iso_type and current_city_area (area_name like "א") are already parameters of this function
+                # We need the full city name like "Tel Aviv"
+                actual_selected_city_name = self.city_info.get('city', None) # Get the full city name
+                
+                self.update_status(f"Energy Rating Report: Using City='{actual_selected_city_name}', Year={derived_model_year}, AreaDef='{derived_model_area_definition}'")
+                energy_rating_gen = EnergyRatingReportGenerator(
+                    energy_rating_parser_instance,
+                    output_dir=base_output_dir_for_reports,
+                    model_year=derived_model_year,
+                    model_area_definition=derived_model_area_definition,
+                    selected_city_name=actual_selected_city_name # Pass the city name
+                )
+                success_er = energy_rating_gen.generate_report(output_filename=os.path.basename(report_paths["energy_rating"]))
+                if success_er:
+                    self.update_status("Energy Rating report generated successfully.")
+                else:
+                    self.update_status("Energy Rating report generation failed (check console for details).")
+            else: # This 'else' corresponds to 'if derived_model_year and derived_model_area_definition:'
+                self.update_status(f"Energy Rating Report: Could not determine model_year ('{derived_model_year}') or model_area_definition ('{derived_model_area_definition}') from ISO type '{iso_type_selection}' and city area '{city_area_name_selection}'. Skipping report.", "warning")
+                logger.warning(f"Energy Rating Report: Skipping due to missing derived_model_year or derived_model_area_definition. ISO: {iso_type_selection}, City Area: {city_area_name_selection}")
         except Exception as e: # Keep generic here as report functions can vary
             error_message = f"Error generating Energy Rating PDF report: {type(e).__name__} - {str(e)}"
             self.update_status(error_message)
@@ -391,6 +426,27 @@ class ProcessingManager:
             if self.is_cancelled: return False
             self.update_progress(0.7) # Progress before report generation
 
+            # Get iso_type and city_area_name from the main GUI context or pass them down
+            # Assuming self.iso_type.get() and self.city_area_name.get() are available from the GUI instance
+            # This part needs to be called from where these GUI variables are accessible.
+            # For now, I'll assume they are passed into process_idf and then down to here.
+            # Let's modify process_idf to get them from self (the GUI instance)
+            # and then pass them to _generate_all_reports.
+
+            # This requires user_inputs to be available here or passed down.
+            # Let's assume user_inputs (from _get_user_inputs_for_processing) is available
+            # or its relevant parts are passed to _generate_all_reports.
+            # For now, I'll assume iso_type and city_info are passed to _generate_all_reports.
+            # This will require changes in the call to _generate_all_reports.
+
+            # The call to _generate_all_reports in process_idf needs to be updated.
+            # I will update that in the next step.
+            # For now, assuming iso_type_selection and city_area_name_selection are parameters of this function.
+            # Corrected: city_info is directly on the ProcessingManager instance (self)
+            current_iso_type = self.city_info.get('iso_type', '')
+            current_city_area = self.city_info.get('area_name', '')
+
+
             self._generate_all_reports(
                 extracted_data,
                 report_paths,
@@ -398,7 +454,9 @@ class ProcessingManager:
                 run_id,
                 parsers["area"], # Pass the AreaParser instance
                 parsers["energy_rating"], # Pass the EnergyRatingParser instance
-                base_reports_dir
+                base_reports_dir,
+                iso_type_selection=current_iso_type,
+                city_area_name_selection=current_city_area
             )
 
             if self.is_cancelled:

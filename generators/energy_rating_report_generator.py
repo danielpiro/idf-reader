@@ -8,6 +8,7 @@ import ast
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer
 from reportlab.lib.pagesizes import A4, landscape, A3
 from reportlab.lib.units import cm, inch
+from utils.data_loader import get_energy_consumption # Added import
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.colors import navy, black, grey, lightgrey, white, darkgray
 from reportlab.lib.enums import TA_CENTER
@@ -72,7 +73,7 @@ def safe_float(value, default=0.0):
     except (ValueError, TypeError):
         return default
 
-def _energy_rating_table(energy_rating_parser):
+def _energy_rating_table(energy_rating_parser, model_year: int, model_area_definition: str, selected_city_name: str): # Added selected_city_name
     """
     Creates the energy rating table as a ReportLab Table object.
     Returns Table object or None if no data.
@@ -108,12 +109,8 @@ def _energy_rating_table(energy_rating_parser):
     table_content = [header_row1, header_row2]
 
     span_commands = []
-    # Data rows in PDF start at index 2 (after two header rows)
     pdf_data_start_row = 2
     
-    # Pre-calculate group sums for the 'total' column (column index 8)
-    # The 'total' value from the parser is already (zone_L+H+C) / group_total_area.
-    # Summing these for a group gives (Group_L+H+C) / group_total_area.
     group_sums_for_display = {}
     if raw_table_data:
         for row_dict in raw_table_data:
@@ -123,13 +120,11 @@ def _energy_rating_table(energy_rating_parser):
             group_sums_for_display[group_key] += safe_float(row_dict.get('total', 0.0))
 
     current_group_key = None
-    group_start_pdf_row_index_in_table_content = -1 # Tracks start row index in table_content (0-based for data rows)
+    group_start_pdf_row_index_in_table_content = -1
     
-    # Iterate through raw_table_data to build table_content and identify spans
     for i, row_dict in enumerate(raw_table_data):
         item_group_key = (str(row_dict.get('floor_id_report','N/A')), str(row_dict.get('area_id_report','N/A')))
         
-        # Determine values for the current row
         display_sum_for_row = ""
         display_energy_consump = ""
         display_improve_by = ""
@@ -138,35 +133,65 @@ def _energy_rating_table(energy_rating_parser):
         display_floor_id = str(row_dict.get('floor_id_report', ''))
         display_area_id = str(row_dict.get('area_id_report', ''))
 
-        if item_group_key != current_group_key: # This is the first row of a new group
-            # Finalize spans for the PREVIOUS group
+        if item_group_key != current_group_key:
             if current_group_key is not None:
                 num_rows_in_prev_group = i - group_start_pdf_row_index_in_table_content
                 if num_rows_in_prev_group > 1:
                     start_span_pdf_row = pdf_data_start_row + group_start_pdf_row_index_in_table_content
                     end_span_pdf_row = pdf_data_start_row + i - 1
-                    # Span for Floor (0), Area id (1), and Sum + summary columns (8-12)
                     columns_to_span = [0, 1] + list(range(8, 13))
                     for col_idx in columns_to_span:
                         span_commands.append(('SPAN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row)))
                         span_commands.append(('VALIGN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row), 'MIDDLE'))
             
-            # Reset for the new group
             current_group_key = item_group_key
             group_start_pdf_row_index_in_table_content = i
             
-            # Values for the first row of this new group
             display_sum_for_row = _format_number(group_sums_for_display.get(current_group_key, 0.0))
-            display_energy_consump = ""
+            display_energy_consump = "N/A"
             display_improve_by = ""
             display_energy_rating = ""
             display_area_rating = ""
-            # display_floor_id and display_area_id are already set from current row_dict
+
+            # Corrected: Use model_csv_area_description from row_dict for area_location_input
+            area_location_for_csv_lookup = row_dict.get('model_csv_area_description')
+
+            if area_location_for_csv_lookup and model_year is not None and model_area_definition is not None:
+                try:
+                    iso_type_for_file_selection = f"MODEL_YEAR_{model_year}"
+                    
+                    energy_value = get_energy_consumption(
+                        iso_type_input=iso_type_for_file_selection,
+                        area_location_input=area_location_for_csv_lookup, # Use the description from AreaParser
+                        area_definition_input=model_area_definition
+                    )
+                    display_energy_consump = _format_number(energy_value)
+                    logger.info(f"ReportGen _energy_rating_table: OK. AreaDesc='{area_location_for_csv_lookup}', Year='{model_year}', AreaDef='{model_area_definition}', Value='{energy_value}'")
+                except FileNotFoundError as e_fnf:
+                    logger.error(f"ReportGen _energy_rating_table: FileNotFoundError. AreaDesc='{area_location_for_csv_lookup}', Year='{model_year}', AreaDef='{model_area_definition}'. Error: {e_fnf}")
+                    display_energy_consump = "FNF Error"
+                except KeyError as e_key: # This will now use the more detailed error from data_loader
+                    logger.error(f"ReportGen _energy_rating_table: KeyError. AreaDesc='{area_location_for_csv_lookup}', Year='{model_year}', AreaDef='{model_area_definition}'. Error: {e_key}")
+                    display_energy_consump = "Key Error"
+                except ValueError as e_val:
+                    logger.error(f"ReportGen _energy_rating_table: ValueError. AreaDesc='{area_location_for_csv_lookup}', Year='{model_year}', AreaDef='{model_area_definition}'. Error: {e_val}")
+                    display_energy_consump = "Val Error"
+                except Exception as e_gen:
+                    logger.error(f"ReportGen _energy_rating_table: Exception. AreaDesc='{area_location_for_csv_lookup}', Year='{model_year}', AreaDef='{model_area_definition}'. Error: {e_gen}", exc_info=True)
+                    display_energy_consump = "Exc Error"
+            else:
+                if not area_location_for_csv_lookup:
+                    logger.warning(f"ReportGen _energy_rating_table: 'model_csv_area_description' (for area_location_input) is missing or empty in row_dict for group {current_group_key}. display_energy_consump remains N/A.")
+                if model_year is None:
+                    logger.warning("ReportGen _energy_rating_table: model_year is None (for CSV lookup). display_energy_consump remains N/A.")
+                if model_area_definition is None:
+                    logger.warning("ReportGen _energy_rating_table: model_area_definition is None (for CSV lookup). display_energy_consump remains N/A.")
+            
+            logger.info(f"ReportGen _energy_rating_table: Group processed. AreaDesc='{area_location_for_csv_lookup}', Year='{model_year}', AreaDef='{model_area_definition}', Resulting display_energy_consump='{display_energy_consump}' (Selected City for report: '{selected_city_name}')")
+
         else: # Not the first row of the group
-            # Floor and Area ID will be empty for subsequent rows in the group (covered by span)
             display_floor_id = ""
             display_area_id = ""
-            # Sum and summary columns also empty
             display_sum_for_row = ""
             display_energy_consump = ""
             display_improve_by = ""
@@ -177,7 +202,7 @@ def _energy_rating_table(energy_rating_parser):
             display_floor_id,
             display_area_id,
             str(row_dict.get('zone_name_report', '')),
-            _format_number(row_dict.get('total_area', 0)), # Individual zone area
+            _format_number(row_dict.get('total_area', 0)),
             str(row_dict.get('multiplier', '')),
             _format_number(row_dict.get('lighting', 0)),
             _format_number(row_dict.get('cooling', 0)),
@@ -189,7 +214,6 @@ def _energy_rating_table(energy_rating_parser):
             display_area_rating
         ])
 
-    # Finalize spans for the VERY LAST group processed
     if current_group_key is not None and raw_table_data:
         num_rows_in_last_group = len(raw_table_data) - group_start_pdf_row_index_in_table_content
         if num_rows_in_last_group > 1:
@@ -201,7 +225,6 @@ def _energy_rating_table(energy_rating_parser):
                 span_commands.append(('VALIGN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row), 'MIDDLE'))
 
     table = Table(table_content)
-    # Apply the base style and then add the dynamic span commands
     style = _get_table_style()
     for cmd in span_commands:
         style.add(*cmd)
@@ -210,11 +233,20 @@ def _energy_rating_table(energy_rating_parser):
 
 class EnergyRatingReportGenerator:
     """Generates PDF reports showing energy consumption and rating information."""
-    def __init__(self, energy_rating_parser, output_dir="output/reports"):
+    def __init__(self, energy_rating_parser, output_dir="output/reports",
+                 model_year: int = None, model_area_definition: str = None,
+                 selected_city_name: str = None): # Added selected_city_name
         self.energy_rating_parser = energy_rating_parser
         self.output_dir = output_dir
+        self.model_year = model_year
+        self.model_area_definition = model_area_definition
+        self.selected_city_name = selected_city_name # Store it
         self.styles = getSampleStyleSheet()
         self.margin = 1 * cm
+        if self.selected_city_name:
+            logger.info(f"EnergyRatingReportGenerator initialized with City: '{self.selected_city_name}', Year: {self.model_year}, AreaDef: '{self.model_area_definition}'")
+        else:
+            logger.warning(f"EnergyRatingReportGenerator initialized WITHOUT city. Year: {self.model_year}, AreaDef: '{self.model_area_definition}'")
 
     def generate_report(self, output_filename="energy-rating.pdf"):
         """
@@ -239,7 +271,12 @@ class EnergyRatingReportGenerator:
             story.append(Paragraph("Energy Rating Report", title_style))
             story.append(Spacer(1, 0.5*cm))
 
-            energy_table = _energy_rating_table(self.energy_rating_parser)
+            energy_table = _energy_rating_table(
+                self.energy_rating_parser,
+                self.model_year,
+                self.model_area_definition,
+                self.selected_city_name # Pass selected_city_name
+            )
             if energy_table:
                 story.append(energy_table)
             else:

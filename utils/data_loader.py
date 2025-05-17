@@ -5,6 +5,98 @@ Provides simplified data loading and retrieval functionality.
 from typing import Dict, Optional, List, Any
 from pathlib import Path
 import re
+import pandas as pd
+
+def get_energy_consumption(iso_type_input: str, area_location_input: str, area_definition_input: str) -> float:
+    """
+    Retrieves the energy consumption value based on ISO type, area location, and area definition.
+
+    Args:
+        iso_type_input: User's selection for ISO type (e.g., "ISO_TYPE_2017_A", "ISO_TYPE_2023_B").
+        area_location_input: The descriptive string for the area type (e.g., "Ground Floor & Intermediate ceiling").
+        area_definition_input: The character 'A', 'B', 'C', or 'D', corresponding to CSV column headers.
+
+    Returns:
+        The energy consumption value as a float.
+
+    Raises:
+        ValueError: If iso_type_input is invalid, area_definition_input is invalid,
+                    or if data in CSV cannot be converted to float.
+        FileNotFoundError: If the required model CSV file is not found.
+        KeyError: If area_location_input or area_definition_input is not found in the CSV.
+    """
+    year = None
+    if "2017" in iso_type_input:
+        year = 2017
+    elif "2023" in iso_type_input:
+        year = 2023
+    else:
+        raise ValueError(f"Invalid ISO type format: {iso_type_input}. Cannot determine year.")
+
+    if not area_definition_input or area_definition_input.upper() not in ['A', 'B', 'C', 'D']:
+        raise ValueError(f"Invalid area definition: '{area_definition_input}'. Must be A, B, C, or D.")
+
+    # Assuming the script runs from the project root, so 'data/' is a subdirectory.
+    # If this script is run from utils/, the path needs to be adjusted (e.g., Path(__file__).parent.parent / 'data')
+    # For now, assuming direct relative path from project root.
+    file_name = f"{year}_model.csv"
+    # Construct path relative to the current file's directory's parent (i.e., project root)
+    data_dir = Path(__file__).resolve().parent.parent / "data"
+    file_path = data_dir / file_name
+
+    if not file_path.exists():
+        raise FileNotFoundError(f"Model file not found: {file_path}")
+
+    try:
+        # Assuming the first column of your CSV contains the city names (area_location)
+        df = pd.read_csv(file_path)
+        if df.empty:
+            raise ValueError(f"CSV file {file_path} is empty.")
+        
+        # Let's assume the column with city names is the first one if not explicitly named 'area_location'
+        # For robustness, it's better if this column has a consistent name like 'area_location'
+        # and you use index_col='area_location'. For now, let's try to be flexible.
+        
+        # Attempt to set index to 'area_location' if it exists, otherwise use first column.
+        if 'area_location' in df.columns:
+            df = df.set_index('area_location')
+        elif df.columns[0]: # Check if there's at least one column
+            df = df.set_index(df.columns[0])
+        else:
+            raise ValueError(f"CSV file {file_path} has no columns to set as index.")
+            
+    except FileNotFoundError: # Should be caught by earlier check, but good practice
+        raise
+    except pd.errors.EmptyDataError:
+       raise ValueError(f"CSV file {file_path} is empty or not valid CSV.")
+    except Exception as e:
+        raise ValueError(f"Error reading or parsing CSV file {file_path}: {e}")
+
+    # Log DataFrame info for debugging
+    # print(f"DataLoader: Loaded CSV {file_path}. Index: {df.index.name}, Columns: {list(df.columns)}")
+    # print(f"DataLoader: Attempting lookup with area_location_input='{area_location_input}', area_definition_input='{area_definition_input.upper()}'")
+
+    if area_location_input not in df.index:
+        available_indices = list(df.index)
+        # Truncate for logging if too long
+        if len(available_indices) > 20: available_indices = available_indices[:20] + ['...']
+        raise KeyError(f"Area location '{area_location_input}' not found in index of {file_path}. Available index values (sample): {available_indices}")
+    
+    target_column = area_definition_input.upper()
+    if target_column not in df.columns:
+        raise KeyError(f"Area definition column '{target_column}' not found in columns of {file_path}. Available columns: {list(df.columns)}")
+
+    try:
+        value_str = df.loc[area_location_input, target_column]
+    except KeyError as e: # Should be caught by the checks above, but as a fallback
+        raise KeyError(f"Data not found for location '{area_location_input}' and definition '{target_column}' in {file_path}. Original error: {e}")
+    except Exception as e: # Catch other potential pandas errors during .loc
+        raise RuntimeError(f"Unexpected error during data lookup in {file_path} for loc='{area_location_input}', col='{target_column}'. Error: {e}")
+
+    try:
+        return float(value_str)
+    except ValueError:
+        raise ValueError(f"Invalid data format in CSV. Cannot convert '{value_str}' to float for location '{area_location_input}', definition '{area_definition_input.upper()}' in {file_path}")
 from utils.eppy_handler import EppyHandler
 
 AREA_ID_REGEX = re.compile(r"^\d{2}")
