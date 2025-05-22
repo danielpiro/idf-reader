@@ -9,35 +9,39 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
 from utils.data_loader import get_energy_consumption
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.colors import navy, black, grey, lightgrey
-from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.colors import navy, black, grey, lightgrey, blue, green, limegreen, yellow, orange, darkgrey, Color # Added Color
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+from reportlab.graphics.shapes import Drawing, Rect, Polygon, String # Added Polygon and String
+import math # Ensure math is imported
+import logging # Ensure logging is imported
+import os # Ensure os is imported
 
 logger = logging.getLogger(__name__)
 
 ENERGY_RATING_DATA_2017 = {
-    "אזור א": [
+    "Zone A": [
         (35, "+A", 5), (30, "A", 4), (25, "B", 3), (20, "C", 2), (10, "D", 1),
         (0, "E", 0), (-float('inf'), "F", -1)
     ],
-    "אזור ב": [
+    "Zone B": [
         (35, "+A", 5), (30, "A", 4), (25, "B", 3), (20, "C", 2), (10, "D", 1),
         (0, "E", 0), (-float('inf'), "F", -1)
     ],
-    "אזור ג": [
+    "Zone C": [
         (40, "+A", 5), (34, "A", 4), (27, "B", 3), (20, "C", 2), (10, "D", 1),
         (0, "E", 0), (-float('inf'), "F", -1)
     ],
-    "אזור ד": [
+    "Zone D": [
         (29, "+A", 5), (26, "A", 4), (23, "B", 3), (20, "C", 2), (10, "D", 1),
         (0, "E", 0), (-float('inf'), "F", -1)
     ]
 }
 
 CLIMATE_ZONE_MAP = {
-    "a": "אזור א", "A": "אזור א", "אזור א": "אזור א",
-    "b": "אזור ב", "B": "אזור ב", "אזור ב": "אזור ב",
-    "c": "אזור ג", "C": "אזור ג", "אזור ג": "אזור ג",
-    "d": "אזור ד", "D": "אזור ד", "אזור ד": "אזור ד",
+    "a": "Zone A", "A": "Zone A", "אזור א": "Zone A",
+    "b": "Zone B", "B": "Zone B", "אזור ב": "Zone B",
+    "c": "Zone C", "C": "Zone C", "אזור ג": "Zone C",
+    "d": "Zone D", "D": "Zone D", "אזור ד": "Zone D",
 }
 
 def _get_table_style():
@@ -275,37 +279,108 @@ def _get_letter_grade_for_score(score):
     return score_to_grade.get(score, "N/A")
 
 def _create_total_energy_rating_table(total_score, letter_grade):
-    """Create a table to display the total energy rating"""
-    if total_score is None:
-        data = [
-            ["Total Energy Rating"],
-            ["No data available for calculation"]
-        ]
-    else:
-        data = [
-            ["Total Energy Rating"],
-            [f"Score: {total_score} ({letter_grade})"]
-        ]
+    """Create a graphical representation of the total energy rating."""
+    elements = []
+    styles = getSampleStyleSheet()
+    title_style = styles['h2']
+    title_style.alignment = TA_CENTER
+    title_style.textColor = navy
+    elements.append(Paragraph("Total Energy Rating", title_style))
+    elements.append(Spacer(1, 0.5 * cm))
+
+    if total_score is None or letter_grade == "N/A":
+        no_data_style = styles['Normal']
+        no_data_style.alignment = TA_CENTER
+        elements.append(Paragraph("Cannot calculate total energy rating.", no_data_style))
+        return elements
+
+    drawing_width = 18 * cm
+    bar_height = 0.8 * cm
+    bar_spacing = 0.3 * cm
+    label_offset_x = 0.5 * cm
+    hebrew_label_offset_x = 4 * cm # Adjusted for longer Hebrew text
+    arrow_width = 0.5 * cm
+    arrow_height = bar_height
     
-    table = Table(data, colWidths=[10*cm])
-    style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), navy),
-        ('TEXTCOLOR', (0, 0), (-1, 0), lightgrey),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 14),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
-        ('FONTSIZE', (0, 1), (-1, 1), 12),
-        ('BOX', (0, 0), (-1, -1), 1, black),
-        ('GRID', (0, 0), (-1, -1), 0.5, grey),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('TOPPADDING', (0, 0), (-1, 0), 8),
-        ('BOTTOMPADDING', (0, 1), (-1, 1), 12),
-        ('TOPPADDING', (0, 1), (-1, 1), 12),
-    ])
-    table.setStyle(style)
-    return table
+    # Define rating levels, colors (approximated from image), and Hebrew labels
+    rating_levels = [
+        { "grade": "+A", "label_en": "Diamond", "color": Color(0/255, 114/255, 198/255) }, # Blue
+        { "grade": "A",  "label_en": "Platinum", "color": Color(34/255, 139/255, 34/255) },  # Forest Green
+        { "grade": "B",  "label_en": "Gold", "color": Color(50/255, 205/255, 50/255) },   # Lime Green
+        { "grade": "C",  "label_en": "Silver", "color": Color(154/255, 205/255, 50/255) },  # Yellow Green (approximated)
+        { "grade": "D",  "label_en": "Bronze", "color": Color(255/255, 215/255, 0/255) },   # Gold (Yellow)
+        { "grade": "E",  "label_en": "Base Level", "color": Color(255/255, 165/255, 0/255) }, # Orange
+        { "grade": "F",  "label_en": "Below Base", "color": Color(105/255, 105/255, 105/255) } # Dim Gray, shortened label
+    ]
+
+    drawing_height = (bar_height + bar_spacing) * len(rating_levels)
+    drawing = Drawing(drawing_width, drawing_height)
+
+    y_position = drawing_height - bar_height 
+
+    for level in rating_levels:
+        # Bar
+        # Adjusted width calculation for right label space: drawing_width - (arrow_width + label_offset_x (for left grade) + space_for_right_label + arrow_space_if_on_right)
+        # Let's allocate more space for the right label by reducing the constant subtracted.
+        # Old: drawing_width - (arrow_width + label_offset_x + label_offset_x + 2*cm)
+        # New: drawing_width - (arrow_width + label_offset_x + hebrew_label_offset_x + 0.5*cm) # Using hebrew_label_offset_x as it was intended for longer text
+        bar_width = drawing_width - (arrow_width + label_offset_x + hebrew_label_offset_x + 0.5*cm)
+        bar = Rect(arrow_width + label_offset_x, y_position, bar_width, bar_height)
+        bar.fillColor = level["color"]
+        bar.strokeColor = black
+        bar.strokeWidth = 0.5
+        drawing.add(bar)
+
+        # English Label
+        eng_label = String(arrow_width + label_offset_x * 2, y_position + bar_height / 4, level["grade"])
+        eng_label.fontName = "Helvetica" # Ensure this font supports the characters
+        eng_label.fontSize = 10
+        eng_label.textAnchor = 'start'
+        drawing.add(eng_label)
+        
+        # English Label (aligned to the right of the bar)
+        # For ReportLab, positive X is right, positive Y is up.
+        # We position the text using textAnchor = 'end' relative to a point to the right of the bar.
+        # The x-position for the right label should be to the right of the bar.
+        # Bar ends at: arrow_width + label_offset_x + bar_width
+        # Place label slightly after that.
+        english_label_x_pos = arrow_width + label_offset_x + bar_width + 0.2*cm # Position for start of text
+        eng_label_right = String(english_label_x_pos, y_position + bar_height / 4, level["label_en"])
+        eng_label_right.fontName = "Helvetica"
+        eng_label_right.fontSize = 9 # Reduced font size slightly for "Below Base"
+        eng_label_right.textAnchor = 'start'
+        drawing.add(eng_label_right)
+
+
+        # Arrow if this is the current grade
+        if level["grade"] == letter_grade:
+            # Arrow pointing right, to the left of the bar
+            arrow_tip_x = arrow_width + label_offset_x - 0.2*cm # Tip slightly before the bar starts
+            arrow_base_x = label_offset_x # Base further left
+            
+            arrow_points = [
+                arrow_tip_x, y_position + arrow_height / 2,     # Tip
+                arrow_base_x, y_position + arrow_height,        # Top left base
+                arrow_base_x, y_position                        # Bottom left base
+            ]
+            arrow = Polygon(arrow_points)
+            arrow.fillColor = black
+            arrow.strokeColor = black
+            drawing.add(arrow)
+
+        y_position -= (bar_height + bar_spacing)
+
+    elements.append(drawing)
+    
+    # Display the score and letter grade textually below the graphic
+    score_text = f"Score: {total_score} ({letter_grade})"
+    score_paragraph_style = styles['Normal']
+    score_paragraph_style.alignment = TA_CENTER
+    score_paragraph_style.fontName = "Helvetica" # Ensure this font supports Hebrew for the grade
+    elements.append(Spacer(1, 0.5 * cm))
+    elements.append(Paragraph(score_text, score_paragraph_style))
+
+    return elements
 
 def _energy_rating_table(energy_rating_parser, model_year: int, model_area_definition: str, selected_city_name: str):
     """
@@ -624,20 +699,17 @@ class EnergyRatingReportGenerator:
             story.append(Spacer(1, 1*cm))
             
             # Create and add the total rating table
-            rating_table = _create_total_energy_rating_table(total_score, letter_grade)
-            story.append(rating_table)
-            story.append(Spacer(1, 1*cm))
-            
-            # Add explanation about the calculation
-            explanation = """
-            <b>Calculation Method:</b><br/>
-            The total energy rating is a weighted average of all area scores, weighted by the area of each zone.<br/>
-            Formula: sum(for each area | zone area * zone multiplier * area score) / sum(for all areas zone area)<br/><br/>
-            The result is rounded to the nearest integer, with .5 values always rounded up.
-            """
-            explanation_style = self.styles['Normal']
-            story.append(Paragraph(explanation, explanation_style))
-            
+            if total_score is not None and letter_grade != "N/A":
+                rating_table = _create_total_energy_rating_table(total_score, letter_grade)
+                if rating_table:
+                    story.append(Spacer(1, 1*cm))
+                    story.extend(rating_table) # Changed append to extend
+            else:
+                styles = getSampleStyleSheet()
+                unavailable_style = styles['Normal']
+                unavailable_style.alignment = TA_CENTER
+                story.append(Paragraph("Total energy rating not available.", unavailable_style))
+
             # Build the PDF
             doc.build(story)
             logger.info(f"Generated total energy rating report: {output_path}")
