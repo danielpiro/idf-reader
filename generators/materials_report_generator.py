@@ -47,26 +47,70 @@ def create_table_style():
         ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
     ])
 
-def _get_element_type_sort_keys(element_type_str):
-    """Assigns primary and secondary sort keys based on element type string."""
-    element_type_lower = element_type_str.lower()
+# Helper functions adapted from area_report_generator.py
+def _normalize_glazing_str(s: str) -> str:
+    return "External glazing" if s == "External Glazing" else s
+
+def _clean_element_type(element_type) -> str:
+    """
+    Cleans the element type for display, removing list formatting, quotes, and boolean values.
+    Args:
+        element_type: Element type which could be a string, tuple, or list,
+                     potentially with a boolean value
+    Returns:
+        str: Cleaned element type string for display
+    """
+    if isinstance(element_type, str):
+        return _normalize_glazing_str(element_type.strip())
+
+    if isinstance(element_type, (list, tuple)):
+        if len(element_type) == 2 and isinstance(element_type[1], bool):
+            raw_element_types = element_type[0]
+            if isinstance(raw_element_types, (list, tuple)):
+                return '\n'.join([_normalize_glazing_str(str(et).strip()) for et in raw_element_types])
+            else:
+                return _normalize_glazing_str(str(raw_element_types).strip())
+        else:
+            return '\n'.join([_normalize_glazing_str(str(et).strip()) for et in element_type])
+
+    return _normalize_glazing_str(str(element_type).strip())
+
+# Updated _get_element_type_sort_keys for materials_report_generator.py
+def _get_element_type_sort_keys(element_type_val):
+    """Assigns primary and secondary sort keys based on element type string,
+    using cleaning logic consistent with area_report_generator.py."""
+    cleaned_element_type_str = _clean_element_type(element_type_val)
+    element_type_lower = (cleaned_element_type_str or "").lower()
+
     primary_key = 99
     secondary_key = 99
 
-    if 'floor' in element_type_lower:
+    if 'ground floor' in element_type_lower:
         primary_key = 0
+        secondary_key = 0
+    elif 'intermediate floor' in element_type_lower:
+        primary_key = 0
+        secondary_key = 1
+    elif 'separation floor' in element_type_lower:
+        primary_key = 0
+        secondary_key = 2
+    elif 'floor' in element_type_lower:  # Catches 'external floor' and other unspecified floor types
+        primary_key = 0
+        secondary_key = 3
     elif 'ceiling' in element_type_lower or 'roof' in element_type_lower:
         primary_key = 1
     elif 'wall' in element_type_lower:
         primary_key = 2
         if 'internal' in element_type_lower:
             secondary_key = 0
-        elif 'separation' in element_type_lower:
+        elif 'intermediate' in element_type_lower:
             secondary_key = 1
-        elif 'external' in element_type_lower:
+        elif 'separation' in element_type_lower:
             secondary_key = 2
-        else:
+        elif 'external' in element_type_lower:
             secondary_key = 3
+        else:
+            secondary_key = 4  # Fallback for other walls
     elif 'glazing' in element_type_lower:
         primary_key = 3
 

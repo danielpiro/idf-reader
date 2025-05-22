@@ -69,7 +69,16 @@ class SettingsExtractor:
                 'sizing_system': None,
                 'sizing_plant': None,
                 'design_day': None,
-                'weather_file': None
+                'weather_file': None,
+                'shadow_calculation': {
+                    'shading_calculation_method': None,
+                    'shading_calculation_update_frequency_method': None,
+                    'shading_calculation_update_frequency': None,
+                    'maximum_figures_in_shadow_overlap_calculations': None,
+                    'polygon_clipping_algorithm': None,
+                    'pixel_counting_resolution': None,
+                    'sky_diffuse_modeling_algorithm': None
+                }
             }
         }
 
@@ -179,6 +188,15 @@ class SettingsExtractor:
             'CONVERGENCELIMITS': {
                 'Minimum_System_Time_Step': ('simulation', 'convergence_min_timestep'),
                 'Maximum_HVAC_Iterations': ('simulation', 'convergence_max_hvac_iterations')
+            },
+            'SHADOWCALCULATION': {
+                'Shading_Calculation_Method': ('simulation', 'shadow_calculation', 'shading_calculation_method'),
+                'Shading_Calculation_Update_Frequency_Method': ('simulation', 'shadow_calculation', 'shading_calculation_update_frequency_method'),
+                'Shading_Calculation_Update_Frequency': ('simulation', 'shadow_calculation', 'shading_calculation_update_frequency'),
+                'Maximum_Figures_in_Shadow_Overlap_Calculations': ('simulation', 'shadow_calculation', 'maximum_figures_in_shadow_overlap_calculations'),
+                'Polygon_Clipping_Algorithm': ('simulation', 'shadow_calculation', 'polygon_clipping_algorithm'),
+                'Pixel_Counting_Resolution': ('simulation', 'shadow_calculation', 'pixel_counting_resolution'),
+                'Sky_Diffuse_Modeling_Algorithm': ('simulation', 'shadow_calculation', 'sky_diffuse_modeling_algorithm')
             }
         }
 
@@ -296,6 +314,9 @@ class SettingsExtractor:
             if 'CONVERGENCELIMITS' in idf.idfobjects:
                 for obj in idf.idfobjects['CONVERGENCELIMITS']:
                     self.process_eppy_object('CONVERGENCELIMITS', obj)
+            if 'SHADOWCALCULATION' in idf.idfobjects:
+                for obj in idf.idfobjects['SHADOWCALCULATION']:
+                    self.process_eppy_object('SHADOWCALCULATION', obj)
 
         except Exception as e:
             pass
