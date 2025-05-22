@@ -327,12 +327,36 @@ class ProcessingManager:
                     model_year=derived_model_year,
                     model_area_definition=derived_model_area_definition,
                     selected_city_name=actual_selected_city_name
-                )
+                )                
                 success_er = energy_rating_gen.generate_report(output_filename=os.path.basename(report_paths["energy_rating"]))
                 if success_er:
                     self.update_status("Energy Rating report generated successfully.")
                 else:
                     self.update_status("Energy Rating report generation failed (check console for details).")
+                
+                # Generate the total energy rating report
+                try:
+                    total_rating_path = energy_rating_gen.generate_total_energy_rating_report(output_filename="total_energy_rating.pdf")
+                    if total_rating_path:
+                        self.update_status("Total Energy Rating report generated successfully.")
+                    else:
+                        self.update_status("Total Energy Rating report generation failed (check console for details).")
+                except Exception as e_total:
+                    error_message = f"Error generating Total Energy Rating PDF report: {type(e_total).__name__} - {str(e_total)}"
+                    self.update_status(error_message)
+                    logger.error(f"Exception in Total Energy Rating report generation: {e_total}", exc_info=True)
+                
+                # Generate the total energy rating report
+                try:
+                    total_rating_path = energy_rating_gen.generate_total_energy_rating_report(output_filename="total_energy_rating.pdf")
+                    if total_rating_path:
+                        self.update_status("Total Energy Rating report generated successfully.")
+                    else:
+                        self.update_status("Total Energy Rating report generation failed (check console for details).")
+                except Exception as e_total:
+                    error_message = f"Error generating Total Energy Rating PDF report: {type(e_total).__name__} - {str(e_total)}"
+                    self.update_status(error_message)
+                    logger.error(f"Exception in Total Energy Rating report generation: {e_total}", exc_info=True)
             else:
                 self.update_status(f"Energy Rating Report: Could not determine model_year ('{derived_model_year}') or model_area_definition ('{derived_model_area_definition}') from ISO type '{iso_type_selection}' and city area '{city_area_name_selection}'. Skipping report.", "warning")
                 logger.warning(f"Energy Rating Report: Skipping due to missing derived_model_year or derived_model_area_definition. ISO: {iso_type_selection}, City Area: {city_area_name_selection}")

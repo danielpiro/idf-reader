@@ -3,7 +3,7 @@ Generates energy rating reports from processed energy consumption data.
 """
 import logging
 import os
-
+import math
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
@@ -97,6 +97,216 @@ def safe_float(value, default=0.0):
     except (ValueError, TypeError):
         return default
 
+def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_total_area, group_model_csv_area_desc, model_year, model_area_definition):
+    """
+    Calculates the numeric area score for a group based on its aggregated data.
+    This function encapsulates logic similar to that in _energy_rating_table for determining area score.
+    Returns an integer score or None.
+    """
+    logger.debug(f"Attempting to get score for group. Inputs: group_sum_energy_components={group_sum_energy_components}, group_sum_total_area={group_sum_total_area}, group_model_csv_area_desc='{group_model_csv_area_desc}', model_year={model_year}, model_area_definition='{model_area_definition}'")
+    numeric_energy_consumption = None
+    if group_model_csv_area_desc and model_year is not None and model_area_definition is not None:
+        try:
+            iso_type_for_file_selection = f"MODEL_YEAR_{model_year}"
+            energy_value_raw = get_energy_consumption(
+                iso_type_input=iso_type_for_file_selection,
+                area_location_input=group_model_csv_area_desc,
+                area_definition_input=model_area_definition
+            )
+            numeric_energy_consumption = float(energy_value_raw)
+            logger.debug(f"Retrieved numeric_energy_consumption: {numeric_energy_consumption} for '{group_model_csv_area_desc}'")
+        except Exception as e:
+            logger.error(f"Error in _get_numeric_area_score_for_group getting energy consumption for '{group_model_csv_area_desc}': {e}")
+            # numeric_energy_consumption remains None
+    else:
+        logger.debug(f"Skipping energy consumption lookup for group '{group_model_csv_area_desc}' due to missing inputs (model_year, model_area_definition, or desc).")
+
+
+    calculated_improve_by_value = None
+    if numeric_energy_consumption is not None:
+        logger.debug(f"Calculating improve_by_value: numeric_energy_consumption={numeric_energy_consumption}, group_sum_total_area={group_sum_total_area}, group_sum_energy_components={group_sum_energy_components}")
+        if group_sum_total_area <= 70:
+            adjusted_target_ec = 1.18 * numeric_energy_consumption
+            logger.debug(f"Area <= 70. adjusted_target_ec = {adjusted_target_ec}")
+            if adjusted_target_ec != 0:
+                calculated_improve_by_value = 100 * (adjusted_target_ec - group_sum_energy_components) / adjusted_target_ec
+            else:
+                logger.debug("adjusted_target_ec is 0, cannot calculate improve_by_value.")
+        else:
+            logger.debug("Area > 70.")
+            if numeric_energy_consumption != 0:
+                calculated_improve_by_value = 100 * (numeric_energy_consumption - group_sum_energy_components) / numeric_energy_consumption
+            else:
+                logger.debug("numeric_energy_consumption is 0, cannot calculate improve_by_value.")
+        logger.debug(f"Calculated_improve_by_value: {calculated_improve_by_value}")
+    else:
+        logger.debug("numeric_energy_consumption is None, cannot calculate improve_by_value.")
+
+    
+    if calculated_improve_by_value is not None:
+        if model_year == 2017:
+            climate_zone_lookup_key = CLIMATE_ZONE_MAP.get(model_area_definition)
+            logger.debug(f"Model year 2017. Climate zone lookup key for '{model_area_definition}': '{climate_zone_lookup_key}'")
+            if climate_zone_lookup_key and climate_zone_lookup_key in ENERGY_RATING_DATA_2017:
+                thresholds = ENERGY_RATING_DATA_2017[climate_zone_lookup_key]
+                for min_ip, _, rating_score_val in thresholds:
+                    if calculated_improve_by_value >= min_ip:
+                        logger.debug(f"Found score: {rating_score_val} (improve_by {calculated_improve_by_value} >= min_ip {min_ip})")
+                        return int(rating_score_val)
+            elif not climate_zone_lookup_key:
+                logger.warning(f"_get_numeric_area_score_for_group: Could not map model_area_definition '{model_area_definition}' to a known climate zone.")
+            else:
+                logger.warning(f"_get_numeric_area_score_for_group: Climate zone '{climate_zone_lookup_key}' not found in ENERGY_RATING_DATA_2017 for year {model_year}.")
+        else:
+            logger.warning(f"_get_numeric_area_score_for_group: Energy rating logic for model_year {model_year} not implemented (only 2017).")
+    
+    logger.debug(f"Returning None for score for group '{group_model_csv_area_desc}'.")
+    return None
+
+def _calculate_total_energy_rating(raw_table_data, model_year, model_area_definition):
+    """
+    Calculate the total energy rating.
+    Formula: sum(for each area | zone area * zone multiplier * area score) / sum(for all areas zone area)
+    Returns a tuple containing (numeric_score, letter_grade)
+    """
+    logger.debug(f"_calculate_total_energy_rating received raw_table_data (count: {len(raw_table_data) if raw_table_data else 0}), model_year: {model_year}, model_area_definition: {model_area_definition}")
+    if not raw_table_data:
+        logger.warning("_calculate_total_energy_rating: raw_table_data is empty or None.")
+        return None, None
+
+    # Step 1: Aggregate data per group from raw_table_data (zones)
+    # grouped_data[group_key] will store:
+    #   'sum_energy_components': sum of (lighting+cooling+heating) for the group
+    #   'sum_total_area': sum of 'total_area' for the group
+    #   'model_csv_area_description': from one of the zones in the group
+    #   'area_effective_for_numerator': sum of (zone_area * zone_multiplier)
+    #   'raw_zone_area_sum_for_denominator': sum of (zone_area)
+    #   'calculated_score': to be filled in Step 2
+    grouped_data = {}
+    for row in raw_table_data:
+        group_key = (str(row.get('floor_id_report', 'N/A')), str(row.get('area_id_report', 'N/A')))
+        if group_key not in grouped_data:
+            grouped_data[group_key] = {
+                'sum_energy_components': 0.0,
+                'sum_total_area': 0.0,
+                'model_csv_area_description': row.get('model_csv_area_description'),
+                'area_effective_for_numerator': 0.0,
+                'raw_zone_area_sum_for_denominator': 0.0,
+                'calculated_score': None
+            }
+        
+        zone_area = safe_float(row.get('total_area', 0))
+        zone_multiplier = safe_float(row.get('multiplier', 1))
+        
+        grouped_data[group_key]['sum_energy_components'] += safe_float(row.get('lighting', 0.0)) + \
+                                                              safe_float(row.get('cooling', 0.0)) + \
+                                                              safe_float(row.get('heating', 0.0))
+        grouped_data[group_key]['sum_total_area'] += zone_area
+        grouped_data[group_key]['area_effective_for_numerator'] += zone_area * zone_multiplier
+        grouped_data[group_key]['raw_zone_area_sum_for_denominator'] += zone_area
+
+    logger.debug(f"_calculate_total_energy_rating: grouped_data after aggregation: {grouped_data}")
+
+    # Step 2: Calculate score for each group
+    for group_key, data_item in grouped_data.items():
+        score = _get_numeric_area_score_for_group(
+            group_sum_energy_components=data_item['sum_energy_components'],
+            group_sum_total_area=data_item['sum_total_area'],
+            group_model_csv_area_desc=data_item['model_csv_area_description'],
+            model_year=model_year,
+            model_area_definition=model_area_definition
+        )
+        data_item['calculated_score'] = score
+        if score is None:
+            logger.warning(f"Score calculation for group {group_key} resulted in None.")
+
+
+    logger.debug(f"_calculate_total_energy_rating: grouped_data after score calculation: {grouped_data}")
+    
+    # Step 3: Calculate final weighted average using the calculated scores
+    weighted_score_sum_numerator = 0.0
+    total_raw_area_sum_denominator = 0.0
+    
+    for group_key, data_item in grouped_data.items():
+        if data_item['calculated_score'] is not None:
+            group_score = safe_float(data_item['calculated_score'])
+            group_effective_area = data_item['area_effective_for_numerator']
+            # Denominator uses raw zone area of groups that have a score
+            group_raw_area_for_denom = data_item['raw_zone_area_sum_for_denominator']
+
+            term_numerator = group_effective_area * group_score
+            weighted_score_sum_numerator += term_numerator
+            total_raw_area_sum_denominator += group_raw_area_for_denom
+            logger.debug(f"  Group {group_key}: score={group_score}, effective_area={group_effective_area}, raw_area_for_denom={group_raw_area_for_denom}. Adding {term_numerator} to numerator, {group_raw_area_for_denom} to denominator.")
+        else:
+            logger.debug(f"  Group {group_key}: score is None. Skipping from weighted average.")
+            
+    logger.debug(f"_calculate_total_energy_rating: final weighted_score_sum_numerator = {weighted_score_sum_numerator}, final total_raw_area_sum_denominator = {total_raw_area_sum_denominator}")
+            
+    if total_raw_area_sum_denominator > 0:
+        raw_average = weighted_score_sum_numerator / total_raw_area_sum_denominator
+        logger.debug(f"Calculated raw_average: {raw_average} ({weighted_score_sum_numerator}/{total_raw_area_sum_denominator})")
+        
+        if raw_average % 1 >= 0.5:
+            final_score = math.ceil(raw_average)
+            logger.debug(f"Rounding up: final_score = {final_score}")
+        else:
+            final_score = math.floor(raw_average)
+            logger.debug(f"Rounding down: final_score = {final_score}")
+        
+        letter_grade = _get_letter_grade_for_score(final_score)
+        logger.info(f"_calculate_total_energy_rating: Calculated final_score = {final_score}, letter_grade = {letter_grade}")
+        return final_score, letter_grade
+    
+    logger.warning("_calculate_total_energy_rating: total_raw_area_sum_denominator is 0 or less. Cannot calculate average.")
+    return None, None
+
+def _get_letter_grade_for_score(score):
+    """Map a numeric score to its corresponding letter grade"""
+    score_to_grade = {
+        5: "+A",
+        4: "A",
+        3: "B",
+        2: "C",
+        1: "D",
+        0: "E",
+        -1: "F"
+    }
+    return score_to_grade.get(score, "N/A")
+
+def _create_total_energy_rating_table(total_score, letter_grade):
+    """Create a table to display the total energy rating"""
+    if total_score is None:
+        data = [
+            ["Total Energy Rating"],
+            ["No data available for calculation"]
+        ]
+    else:
+        data = [
+            ["Total Energy Rating"],
+            [f"Score: {total_score} ({letter_grade})"]
+        ]
+    
+    table = Table(data, colWidths=[10*cm])
+    style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), navy),
+        ('TEXTCOLOR', (0, 0), (-1, 0), lightgrey),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 14),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
+        ('FONTSIZE', (0, 1), (-1, 1), 12),
+        ('BOX', (0, 0), (-1, -1), 1, black),
+        ('GRID', (0, 0), (-1, -1), 0.5, grey),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        ('BOTTOMPADDING', (0, 1), (-1, 1), 12),
+        ('TOPPADDING', (0, 1), (-1, 1), 12),
+    ])
+    table.setStyle(style)
+    return table
+
 def _energy_rating_table(energy_rating_parser, model_year: int, model_area_definition: str, selected_city_name: str):
     """
     Creates the energy rating table as a ReportLab Table object.
@@ -108,7 +318,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
         return None
 
     def sort_key(item):
-        floor_val = item.get('floor', '')
+        floor_val = item.get('floor_id_report', '') # Changed from 'floor' to 'floor_id_report'
         try:
             floor_sort_val = int(floor_val)
         except ValueError:
@@ -365,3 +575,75 @@ class EnergyRatingReportGenerator:
 
         except Exception as e:
             raise RuntimeError(f"Error generating energy rating report: {e}")
+            
+    def generate_total_energy_rating_report(self, output_filename="total_energy_rating.pdf"):
+        """
+        Generate total energy rating report PDF using ReportLab.
+        The total rating is a weighted average of area scores based on each area's size.
+        """
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
+        output_path = os.path.join(self.output_dir, output_filename)
+
+        try:
+            if not self.energy_rating_parser.processed:
+                self.energy_rating_parser.process_output()
+                
+            # Get the table data which contains area scores
+            raw_table_data = self.energy_rating_parser.get_energy_rating_table_data()
+            
+            # Calculate the total energy rating (numeric score and letter grade)
+            total_score, letter_grade = _calculate_total_energy_rating(
+                raw_table_data,
+                self.model_year,
+                self.model_area_definition
+            )
+            
+            # Create the PDF document
+            doc = SimpleDocTemplate(output_path, pagesize=A4,
+                                   leftMargin=self.margin, rightMargin=self.margin,
+                                   topMargin=self.margin, bottomMargin=self.margin)
+            story = []
+
+            # Add title
+            title_style = self.styles['h1']
+            title_style.alignment = TA_CENTER
+            title_style.textColor = navy
+            story.append(Paragraph("Total Energy Rating Report", title_style))
+            story.append(Spacer(1, 1*cm))
+            
+            # Add project information
+            info_style = self.styles['Normal']
+            if self.selected_city_name:
+                story.append(Paragraph(f"City: {self.selected_city_name}", info_style))
+            if self.model_year:
+                story.append(Paragraph(f"Model Year: {self.model_year}", info_style))
+            if self.model_area_definition:
+                climate_zone = CLIMATE_ZONE_MAP.get(self.model_area_definition, self.model_area_definition)
+                story.append(Paragraph(f"Climate Zone: {climate_zone}", info_style))
+            story.append(Spacer(1, 1*cm))
+            
+            # Create and add the total rating table
+            rating_table = _create_total_energy_rating_table(total_score, letter_grade)
+            story.append(rating_table)
+            story.append(Spacer(1, 1*cm))
+            
+            # Add explanation about the calculation
+            explanation = """
+            <b>Calculation Method:</b><br/>
+            The total energy rating is a weighted average of all area scores, weighted by the area of each zone.<br/>
+            Formula: sum(for each area | zone area * zone multiplier * area score) / sum(for all areas zone area)<br/><br/>
+            The result is rounded to the nearest integer, with .5 values always rounded up.
+            """
+            explanation_style = self.styles['Normal']
+            story.append(Paragraph(explanation, explanation_style))
+            
+            # Build the PDF
+            doc.build(story)
+            logger.info(f"Generated total energy rating report: {output_path}")
+            return output_path
+
+        except Exception as e:
+            error_message = f"Error generating total energy rating report: {e}"
+            logger.error(error_message, exc_info=True)
+            raise RuntimeError(error_message)
