@@ -12,9 +12,6 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.colors import navy, black, grey, lightgrey, blue, green, limegreen, yellow, orange, darkgrey, Color # Added Color
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.graphics.shapes import Drawing, Rect, Polygon, String # Added Polygon and String
-import math # Ensure math is imported
-import logging # Ensure logging is imported
-import os # Ensure os is imported
 
 logger = logging.getLogger(__name__)
 
