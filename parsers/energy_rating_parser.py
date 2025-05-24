@@ -308,7 +308,7 @@ class EnergyRatingParser:
                 data_for_zone.setdefault('cooling_per_area', 0.0)
                 data_for_zone.setdefault('total_per_area', 0.0)
             except Exception as e_unexp:
-                 logger.critical(f"Unexpected error calculating totals for area '{area_key}': {e_unexp}.", exc_info=True)
+                 logger.critical(f"Unexpected error calculating totals for {e_unexp}.", exc_info=True)
 
     def _get_area_total_for_area_id(self, area_id: str) -> float:
         """
