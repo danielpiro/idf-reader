@@ -3,7 +3,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
-from reportlab.lib.colors import navy, black, grey, lightgrey
+from reportlab.lib import colors
 import datetime
 import pandas as pd
 
@@ -27,17 +27,18 @@ def create_cell_style(styles, is_header=False, is_subheader=False, align=TA_LEFT
 
 def create_base_table_style():
     return TableStyle([
-        ('GRID', (0, 0), (-1, -1), 0.5, grey),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 4),
         ('RIGHTPADDING', (0, 0), (-1, -1), 4),
         ('TOPPADDING', (0, 0), (-1, -1), 3),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
     ])
 
 def apply_header_style(table_style, row_index=0):
-    table_style.add('BACKGROUND', (0, row_index), (-1, row_index), lightgrey)
-    table_style.add('TEXTCOLOR', (0, row_index), (-1, row_index), black)
+    table_style.add('BACKGROUND', (0, row_index), (-1, row_index), colors.grey)
+    table_style.add('TEXTCOLOR', (0, row_index), (-1, row_index), colors.whitesmoke)
     table_style.add('ALIGN', (0, row_index), (-1, row_index), 'CENTER')
     table_style.add('FONTNAME', (0, row_index), (-1, row_index), 'Helvetica-Bold')
     return table_style
@@ -75,7 +76,7 @@ class GlazingReportGenerator:
                 'HeaderInfo',
                 parent=self.styles['Normal'],
                 fontSize=9,
-                textColor=black,
+                textColor=colors.black,
                 alignment=2
             )
             header_text = f"""
@@ -88,7 +89,7 @@ class GlazingReportGenerator:
             story.append(Spacer(1, 5))
             title_style = self.styles['h3']
             title_style.alignment = TA_CENTER
-            title_style.textColor = navy
+            title_style.textColor = colors.navy
             story.append(Paragraph("Glazing Constructions Report", title_style))
             story.append(Spacer(1, 0.5*cm))
             for construction_id, data in self.glazing_data.items():
@@ -185,6 +186,7 @@ class GlazingReportGenerator:
         table = Table(data, colWidths=col_widths)
         style = create_base_table_style()
         apply_header_style(style)
+        style.add('ALIGN', (2, 1), (-1, -1), 'RIGHT')
         table.setStyle(style)
         return table
 
@@ -206,6 +208,7 @@ class GlazingReportGenerator:
         table = Table(data, colWidths=col_widths)
         style = create_base_table_style()
         apply_header_style(style)
+        style.add('ALIGN', (2, 1), (-1, -1), 'RIGHT')
         table.setStyle(style)
         return table
 
@@ -227,6 +230,7 @@ class GlazingReportGenerator:
         table = Table(data, colWidths=col_widths)
         style = create_base_table_style()
         apply_header_style(style)
+        style.add('ALIGN', (1, 1), (4, -1), 'RIGHT')
         table.setStyle(style)
         return table
 
@@ -246,6 +250,7 @@ class GlazingReportGenerator:
         table = Table(data, colWidths=col_widths)
         style = create_base_table_style()
         apply_header_style(style)
+        style.add('ALIGN', (1, 1), (-1, -1), 'RIGHT')
         table.setStyle(style)
         return table
 
