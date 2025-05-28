@@ -202,10 +202,10 @@ class ProcessingManager:
             "glazing": parsers["glazing"].parsed_glazing_data,
             "lighting": parsers["lighting"].parse(),
             "area_loss": parsers["area_loss"].parse(),
-        }
-
+        }    
     def _generate_report_item(self, report_name: str, generation_function,
                               data, output_path: str, project_name: str, run_id: str,
+                              city_name: str = "N/A", area_name: str = "N/A",
                               is_generator_class: bool = False, **kwargs) -> bool:
         """
         Helper to generate a single report item.
@@ -217,6 +217,8 @@ class ProcessingManager:
             output_path: Path to save the report.
             project_name: Name of the project.
             run_id: Unique run ID.
+            city_name: Name of the city (in Hebrew from GUI).
+            area_name: Area designation (א,ב,ג,ד from GUI).
             is_generator_class: True if generation_function is a class to be instantiated.
             **kwargs: Additional arguments for the generation_function.
 
@@ -227,14 +229,16 @@ class ProcessingManager:
         success = False
         try:
             if is_generator_class:
-                generator_instance = generation_function(data, output_path, project_name=project_name, run_id=run_id, **kwargs)
+                generator_instance = generation_function(data, output_path, project_name=project_name, run_id=run_id, 
+                                                       city_name=city_name, area_name=area_name, **kwargs)
                 if hasattr(generator_instance, 'generate_report'):
                      success = generator_instance.generate_report()
                 elif 'output_filename' in kwargs and hasattr(generator_instance, 'generate_report'):
                      success = generator_instance.generate_report(output_filename=kwargs['output_filename'])
 
             else:
-                generation_function(data, output_path, project_name=project_name, run_id=run_id, **kwargs)
+                generation_function(data, output_path, project_name=project_name, run_id=run_id,
+                                 city_name=city_name, area_name=area_name, **kwargs)
                 success = True
 
             if success:
@@ -264,25 +268,29 @@ class ProcessingManager:
         num_reports = 8
         progress_increment = (1.0 - progress_step) / num_reports
 
-        self._generate_report_item("Settings", generate_settings_report_pdf, extracted_data["settings"], report_paths["settings"], project_name, run_id)
+        # Extract city and area information from city_info
+        city_name = self.city_info.get('city', 'N/A') if hasattr(self, 'city_info') and self.city_info else 'N/A'
+        area_name = city_area_name_selection if city_area_name_selection else 'N/A'
+
+        self._generate_report_item("Settings", generate_settings_report_pdf, extracted_data["settings"], report_paths["settings"], project_name, run_id, city_name, area_name)
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
-        self._generate_report_item("Schedules", generate_schedules_report_pdf, extracted_data["schedules"], report_paths["schedules"], project_name, run_id)
+        self._generate_report_item("Schedules", generate_schedules_report_pdf, extracted_data["schedules"], report_paths["schedules"], project_name, run_id, city_name, area_name)
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
-        self._generate_report_item("Loads", generate_loads_report_pdf, extracted_data["loads"], report_paths["loads"], project_name, run_id)
+        self._generate_report_item("Loads", generate_loads_report_pdf, extracted_data["loads"], report_paths["loads"], project_name, run_id, city_name, area_name)
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
-        self._generate_report_item("Materials", generate_materials_report_pdf, extracted_data["materials"], report_paths["materials"], project_name, run_id)
+        self._generate_report_item("Materials", generate_materials_report_pdf, extracted_data["materials"], report_paths["materials"], project_name, run_id, city_name, area_name)
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
         self.update_status("Generating Area reports...")
         try:
-            generate_area_reports(area_parser_instance, output_dir=report_paths["zones_dir"], project_name=project_name, run_id=run_id)
+            generate_area_reports(area_parser_instance, output_dir=report_paths["zones_dir"], project_name=project_name, run_id=run_id, city_name=city_name, area_name=area_name)
             self.update_status("Area reports generation attempted.")
         except Exception as e:
             error_message = f"Error generating Area reports: {type(e).__name__} - {str(e)}"
@@ -291,15 +299,15 @@ class ProcessingManager:
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
-        self._generate_report_item("Glazing", generate_glazing_report_pdf, extracted_data["glazing"], report_paths["glazing"], project_name, run_id)
+        self._generate_report_item("Glazing", generate_glazing_report_pdf, extracted_data["glazing"], report_paths["glazing"], project_name, run_id, city_name, area_name)
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
-        self._generate_report_item("Lighting", LightingReportGenerator, extracted_data["lighting"], report_paths["lighting"], project_name, run_id, is_generator_class=True)
+        self._generate_report_item("Lighting", LightingReportGenerator, extracted_data["lighting"], report_paths["lighting"], project_name, run_id, city_name, area_name, is_generator_class=True)
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
-        self._generate_report_item("Area Loss", generate_area_loss_report_pdf, extracted_data["area_loss"], report_paths["area_loss"], project_name, run_id)
+        self._generate_report_item("Area Loss", generate_area_loss_report_pdf, extracted_data["area_loss"], report_paths["area_loss"], project_name, run_id, city_name, area_name)
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 

@@ -3,10 +3,41 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
+from reportlab.lib.colors import Color
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 import datetime
 import logging
 from pathlib import Path
+
+# Modern Blue/Gray Color Palette
+COLORS = {
+    'primary_blue': Color(0.2, 0.4, 0.7),      # #3366B2 - Primary blue
+    'secondary_blue': Color(0.4, 0.6, 0.85),   # #6699D9 - Secondary blue
+    'light_blue': Color(0.9, 0.94, 0.98),      # #E6F0FA - Light blue background
+    'dark_gray': Color(0.2, 0.2, 0.2),         # #333333 - Dark gray text
+    'medium_gray': Color(0.5, 0.5, 0.5),       # #808080 - Medium gray
+    'light_gray': Color(0.9, 0.9, 0.9),        # #E6E6E6 - Light gray
+    'white': Color(1, 1, 1),                   # #FFFFFF - White
+    'border_gray': Color(0.8, 0.8, 0.8),       # #CCCCCC - Border gray
+}
+
+# Typography Settings
+FONTS = {
+    'title': 'Helvetica-Bold',
+    'heading': 'Helvetica-Bold',
+    'body': 'Helvetica',
+    'table_header': 'Helvetica-Bold',
+    'table_body': 'Helvetica',
+}
+
+FONT_SIZES = {
+    'title': 16,
+    'heading': 12,
+    'body': 10,
+    'table_header': 9,
+    'table_body': 8,
+    'small': 7,
+}
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +93,8 @@ def _make_table(data, col_widths, style):
     return table
 
 def generate_settings_report_pdf(settings_data, output_filename="output/settings.pdf",
-                                 project_name: str = "N/A", run_id: str = "N/A"):
+                                 project_name: str = "N/A", run_id: str = "N/A",
+                                 city_name: str = "N/A", area_name: str = "N/A"):
     """
     Generates a PDF report showing all extracted settings, including a header.
 
@@ -105,14 +137,15 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
         header_style = ParagraphStyle(
             'HeaderInfo',
             parent=styles['Normal'],
-            fontSize=9,
-            textColor=colors.black,
+            fontSize=9,            textColor=colors.black,
             alignment=2
         )
         header_text = f"""
         Project: {project_name}<br/>
         Run ID: {run_id}<br/>
         Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
+        City: {city_name}<br/>
+        Area: {area_name}<br/>
         Report: Settings Summary
         """
         story.append(Paragraph(header_text, header_style))
@@ -121,9 +154,10 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
         title_style = ParagraphStyle(
             name='CustomTitle',
             parent=styles['Heading1'],
-            fontSize=18,
+            fontSize=FONT_SIZES['title'],
+            fontName=FONTS['title'],
             alignment=TA_CENTER,
-            textColor=colors.navy,
+            textColor=COLORS['primary_blue'],
             spaceBefore=0.5*cm,
             spaceAfter=1*cm
         )
@@ -200,24 +234,35 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
                 if len(db_table_data) > 1:
                     db_col_widths = [doc.width * 0.30, doc.width * 0.70]
                     db_table_style = TableStyle([
-                        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                        # Header row styling - primary blue background
+                        ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
                         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
                         ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
-                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                        ('FONTSIZE', (0, 0), (-1, 0), 10),
-                        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-                        ('TOPPADDING', (0, 0), (-1, 0), 8),
-                        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                        ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
+                        ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),
+                        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+                        ('TOPPADDING', (0, 0), (-1, 0), 6),
+                        
+                        # Data rows styling
+                        ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
+                        ('FONTSIZE', (0, 1), (-1, -1), FONT_SIZES['table_body']),
+                        ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
                         ('VALIGN', (0, 1), (-1, -1), 'TOP'),
                         ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
+                        
+                        # Zebra striping for data rows
+                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
+                        
+                        # Borders - subtle gray lines
+                        ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
+                        ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
+                        
+                        # Padding for better readability
                         ('LEFTPADDING', (0, 1), (-1, -1), 6),
                         ('RIGHTPADDING', (0, 1), (-1, -1), 6),
                         ('TOPPADDING', (0, 1), (-1, -1), 4),
                         ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
-                        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                        ('BOX', (0, 0), (-1, -1), 1, colors.black),
-                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.whitesmoke])
                     ])
                     story.append(_make_table(db_table_data, db_col_widths, db_table_style))
                     story.append(Spacer(1, 0.8*cm))
@@ -252,29 +297,36 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
             col_widths = [doc.width * 0.30, doc.width * 0.70]
 
             style = TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                # Header row styling - primary blue background
+                ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
+                ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
                 ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
                 ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-                ('TOPPADDING', (0, 0), (-1, 0), 8),
+                ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
+                ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+                ('TOPPADDING', (0, 0), (-1, 0), 6),
 
-                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                # Data rows styling
+                ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
+                ('FONTSIZE', (0, 1), (-1, -1), FONT_SIZES['table_body']),
+                ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
                 ('VALIGN', (0, 1), (-1, -1), 'TOP'),
                 ('ALIGN', (0, 1), (0, -1), 'LEFT'),
                 ('ALIGN', (1, 1), (1, -1), 'LEFT'),
 
+                # Zebra striping for data rows
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
+
+                # Borders - subtle gray lines
+                ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
+                ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
+
+                # Padding for better readability
                 ('LEFTPADDING', (0, 1), (-1, -1), 6),
                 ('RIGHTPADDING', (0, 1), (-1, -1), 6),
                 ('TOPPADDING', (0, 1), (-1, -1), 4),
                 ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
-
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                ('BOX', (0, 0), (-1, -1), 1, colors.black),
-
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.whitesmoke])
             ])
 
             story.append(_make_table(table_data, col_widths, style))

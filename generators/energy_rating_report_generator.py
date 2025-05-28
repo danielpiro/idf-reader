@@ -4,12 +4,43 @@ Generates energy rating reports from processed energy consumption data.
 import logging
 import os
 import math
+import datetime
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
 from utils.data_loader import get_energy_consumption
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.colors import navy, black, grey, lightgrey, blue, green, limegreen, yellow, orange, darkgrey, Color # Added Color
+
+# Modern Blue/Gray Color Palette
+COLORS = {
+    'primary_blue': Color(0.2, 0.4, 0.7),      # #3366B2 - Primary blue
+    'secondary_blue': Color(0.4, 0.6, 0.85),   # #6699D9 - Secondary blue
+    'light_blue': Color(0.9, 0.94, 0.98),      # #E6F0FA - Light blue background
+    'dark_gray': Color(0.2, 0.2, 0.2),         # #333333 - Dark gray text
+    'medium_gray': Color(0.5, 0.5, 0.5),       # #808080 - Medium gray
+    'light_gray': Color(0.9, 0.9, 0.9),        # #E6E6E6 - Light gray
+    'white': Color(1, 1, 1),                   # #FFFFFF - White
+    'border_gray': Color(0.8, 0.8, 0.8),       # #CCCCCC - Border gray
+}
+
+# Typography Settings
+FONTS = {
+    'title': 'Helvetica-Bold',
+    'heading': 'Helvetica-Bold',
+    'body': 'Helvetica',
+    'table_header': 'Helvetica-Bold',
+    'table_body': 'Helvetica',
+}
+
+FONT_SIZES = {
+    'title': 16,
+    'heading': 12,
+    'body': 10,
+    'table_header': 9,
+    'table_body': 8,
+    'small': 7,
+}
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.graphics.shapes import Drawing, Rect, Polygon, String # Added Polygon and String
 
@@ -43,31 +74,48 @@ CLIMATE_ZONE_MAP = {
 
 def _get_table_style():
     return TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), lightgrey),
-        ('TEXTCOLOR', (0,0), (-1,0), black),
+        # Header row styling - primary blue background
+        ('BACKGROUND', (0,0), (-1,0), COLORS['primary_blue']),
+        ('TEXTCOLOR', (0,0), (-1,0), COLORS['white']),
         ('ALIGN', (0,0), (-1,0), 'CENTER'),
         ('VALIGN', (0,0), (-1,0), 'MIDDLE'),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,0), (-1,0), 10),
-        ('BACKGROUND', (0,1), (-1,1), lightgrey),
-        ('TEXTCOLOR', (0,1), (-1,1), black),
+        ('FONTNAME', (0,0), (-1,0), FONTS['table_header']),
+        ('FONTSIZE', (0,0), (-1,0), FONT_SIZES['table_header']),
+        
+        # Sub-header row styling - secondary blue background
+        ('BACKGROUND', (0,1), (-1,1), COLORS['secondary_blue']),
+        ('TEXTCOLOR', (0,1), (-1,1), COLORS['white']),
         ('ALIGN', (0,1), (-1,1), 'CENTER'),
         ('VALIGN', (0,1), (-1,1), 'MIDDLE'),
-        ('FONTNAME', (0,1), (-1,1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,1), (-1,1), 8),
+        ('FONTNAME', (0,1), (-1,1), FONTS['table_header']),
+        ('FONTSIZE', (0,1), (-1,1), FONT_SIZES['table_body']),
+        
+        # Header spans
         ('SPAN', (0,0), (4,0)),
         ('SPAN', (5,0), (8,0)),
         ('SPAN', (9,0), (12,0)),
-        ('FONTNAME', (0,2), (-1,-1), 'Helvetica'),
-        ('FONTSIZE', (0,2), (-1,-1), 8),
+        
+        # Data rows styling
+        ('FONTNAME', (0,2), (-1,-1), FONTS['table_body']),
+        ('FONTSIZE', (0,2), (-1,-1), FONT_SIZES['table_body']),
         ('ALIGN', (0,2), (-1,-1), 'CENTER'),
         ('VALIGN', (0,2), (-1,-1), 'MIDDLE'),
-        ('GRID', (0,0), (-1,-1), 1, grey),
-        ('BOX', (0,0), (-1,-1), 1, black),
-        ('LEFTPADDING', (0,0), (-1,-1), 3),
-        ('RIGHTPADDING', (0,0), (-1,-1), 3),
-        ('TOPPADDING', (0,0), (-1,-1), 2),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+        ('TEXTCOLOR', (0,2), (-1,-1), COLORS['dark_gray']),
+        
+        # Zebra striping for data rows (every other row)
+        ('ROWBACKGROUNDS', (0,2), (-1,-1), [COLORS['white'], COLORS['light_blue']]),
+        
+        # Borders - subtle gray lines
+        ('LINEBELOW', (0,0), (-1,0), 1, COLORS['border_gray']),
+        ('LINEBELOW', (0,1), (-1,1), 1, COLORS['border_gray']),
+        ('GRID', (0,2), (-1,-1), 0.5, COLORS['border_gray']),
+        ('BOX', (0,0), (-1,-1), 1, COLORS['medium_gray']),
+        
+        # Padding for better readability
+        ('LEFTPADDING', (0,0), (-1,-1), 6),
+        ('RIGHTPADDING', (0,0), (-1,-1), 6),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
     ])
 
 def _format_number(value):
@@ -281,13 +329,18 @@ def _create_total_energy_rating_table(total_score, letter_grade):
     styles = getSampleStyleSheet()
     title_style = styles['h2']
     title_style.alignment = TA_CENTER
-    title_style.textColor = navy
+    title_style.textColor = COLORS['primary_blue']
+    title_style.fontName = FONTS['heading']
+    title_style.fontSize = FONT_SIZES['heading']
     elements.append(Paragraph("Total Energy Rating", title_style))
     elements.append(Spacer(1, 0.5 * cm))
 
     if total_score is None or letter_grade == "N/A":
         no_data_style = styles['Normal']
         no_data_style.alignment = TA_CENTER
+        no_data_style.fontName = FONTS['body']
+        no_data_style.fontSize = FONT_SIZES['body']
+        no_data_style.textColor = COLORS['medium_gray']
         elements.append(Paragraph("Cannot calculate total energy rating.", no_data_style))
         return elements
 
@@ -299,15 +352,15 @@ def _create_total_energy_rating_table(total_score, letter_grade):
     arrow_width = 0.5 * cm
     arrow_height = bar_height
     
-    # Define rating levels, colors (approximated from image), and Hebrew labels
+    # Define rating levels with modern blue/gray color palette
     rating_levels = [
-        { "grade": "+A", "label_en": "Diamond", "color": Color(0/255, 114/255, 198/255) }, # Blue
-        { "grade": "A",  "label_en": "Platinum", "color": Color(34/255, 139/255, 34/255) },  # Forest Green
-        { "grade": "B",  "label_en": "Gold", "color": Color(50/255, 205/255, 50/255) },   # Lime Green
-        { "grade": "C",  "label_en": "Silver", "color": Color(154/255, 205/255, 50/255) },  # Yellow Green (approximated)
-        { "grade": "D",  "label_en": "Bronze", "color": Color(255/255, 215/255, 0/255) },   # Gold (Yellow)
-        { "grade": "E",  "label_en": "Base Level", "color": Color(255/255, 165/255, 0/255) }, # Orange
-        { "grade": "F",  "label_en": "Below Base", "color": Color(105/255, 105/255, 105/255) } # Dim Gray, shortened label
+        { "grade": "+A", "label_en": "Diamond", "color": COLORS['primary_blue'] },     # Deep blue for highest rating
+        { "grade": "A",  "label_en": "Platinum", "color": COLORS['secondary_blue'] },  # Medium blue
+        { "grade": "B",  "label_en": "Gold", "color": Color(0.3, 0.5, 0.8) },         # Light blue
+        { "grade": "C",  "label_en": "Silver", "color": Color(0.5, 0.6, 0.7) },       # Blue-gray
+        { "grade": "D",  "label_en": "Bronze", "color": COLORS['medium_gray'] },       # Medium gray
+        { "grade": "E",  "label_en": "Base Level", "color": Color(0.6, 0.6, 0.6) },   # Light gray
+        { "grade": "F",  "label_en": "Below Base", "color": Color(0.7, 0.7, 0.7) }    # Lightest gray
     ]
 
     drawing_height = (bar_height + bar_spacing) * len(rating_levels)
@@ -324,45 +377,41 @@ def _create_total_energy_rating_table(total_score, letter_grade):
         bar_width = drawing_width - (arrow_width + label_offset_x + hebrew_label_offset_x + 0.5*cm)
         bar = Rect(arrow_width + label_offset_x, y_position, bar_width, bar_height)
         bar.fillColor = level["color"]
-        bar.strokeColor = black
+        bar.strokeColor = COLORS['border_gray']
         bar.strokeWidth = 0.5
         drawing.add(bar)
 
-        # English Label
-        eng_label = String(arrow_width + label_offset_x * 2, y_position + bar_height / 4, level["grade"])
-        eng_label.fontName = "Helvetica" # Ensure this font supports the characters
-        eng_label.fontSize = 10
+        # Grade Label (left side of bar)
+        eng_label = String(arrow_width + label_offset_x * 2, y_position + bar_height / 2.5, level["grade"])
+        eng_label.fontName = FONTS['table_header']
+        eng_label.fontSize = FONT_SIZES['table_body']
         eng_label.textAnchor = 'start'
+        eng_label.fillColor = COLORS['white']
         drawing.add(eng_label)
         
-        # English Label (aligned to the right of the bar)
-        # For ReportLab, positive X is right, positive Y is up.
-        # We position the text using textAnchor = 'end' relative to a point to the right of the bar.
-        # The x-position for the right label should be to the right of the bar.
-        # Bar ends at: arrow_width + label_offset_x + bar_width
-        # Place label slightly after that.
-        english_label_x_pos = arrow_width + label_offset_x + bar_width + 0.2*cm # Position for start of text
-        eng_label_right = String(english_label_x_pos, y_position + bar_height / 4, level["label_en"])
-        eng_label_right.fontName = "Helvetica"
-        eng_label_right.fontSize = 9 # Reduced font size slightly for "Below Base"
+        # Description Label (right side of bar)
+        english_label_x_pos = arrow_width + label_offset_x + bar_width + 0.2*cm
+        eng_label_right = String(english_label_x_pos, y_position + bar_height / 2.5, level["label_en"])
+        eng_label_right.fontName = FONTS['body']
+        eng_label_right.fontSize = FONT_SIZES['table_body']
         eng_label_right.textAnchor = 'start'
+        eng_label_right.fillColor = COLORS['dark_gray']
         drawing.add(eng_label_right)
 
-
-        # Arrow if this is the current grade
+        # Arrow if this is the current grade - modernized design
         if level["grade"] == letter_grade:
-            # Arrow pointing right, to the left of the bar
-            arrow_tip_x = arrow_width + label_offset_x - 0.2*cm # Tip slightly before the bar starts
-            arrow_base_x = label_offset_x # Base further left
+            arrow_tip_x = arrow_width + label_offset_x - 0.2*cm
+            arrow_base_x = label_offset_x
             
             arrow_points = [
                 arrow_tip_x, y_position + arrow_height / 2,     # Tip
-                arrow_base_x, y_position + arrow_height,        # Top left base
-                arrow_base_x, y_position                        # Bottom left base
+                arrow_base_x, y_position + arrow_height * 0.75, # Top left base
+                arrow_base_x, y_position + arrow_height * 0.25  # Bottom left base
             ]
             arrow = Polygon(arrow_points)
-            arrow.fillColor = black
-            arrow.strokeColor = black
+            arrow.fillColor = COLORS['primary_blue']
+            arrow.strokeColor = COLORS['primary_blue']
+            arrow.strokeWidth = 1
             drawing.add(arrow)
 
         y_position -= (bar_height + bar_spacing)
@@ -373,7 +422,9 @@ def _create_total_energy_rating_table(total_score, letter_grade):
     score_text = f"Score: {total_score} ({letter_grade})"
     score_paragraph_style = styles['Normal']
     score_paragraph_style.alignment = TA_CENTER
-    score_paragraph_style.fontName = "Helvetica" # Ensure this font supports Hebrew for the grade
+    score_paragraph_style.fontName = FONTS['body']
+    score_paragraph_style.fontSize = FONT_SIZES['body']
+    score_paragraph_style.textColor = COLORS['dark_gray']
     elements.append(Spacer(1, 0.5 * cm))
     elements.append(Paragraph(score_text, score_paragraph_style))
 
@@ -460,6 +511,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
             display_sum_for_row = _format_number(current_group_actual_sum)
 
             numeric_energy_consumption = None
+            calculated_improve_by_value = None
             display_energy_consump = "N/A"
             display_improve_by = ""
             display_energy_rating = ""
@@ -591,14 +643,19 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
 
 class EnergyRatingReportGenerator:
     """Generates PDF reports showing energy consumption and rating information."""
+    
     def __init__(self, energy_rating_parser, output_dir="output/reports",
                  model_year: int = None, model_area_definition: str = None,
-                 selected_city_name: str = None):
+                 selected_city_name: str = None, project_name: str = "N/A", 
+                 run_id: str = "N/A", area_name: str = "N/A"):
         self.energy_rating_parser = energy_rating_parser
         self.output_dir = output_dir
         self.model_year = model_year
         self.model_area_definition = model_area_definition
         self.selected_city_name = selected_city_name
+        self.project_name = project_name
+        self.run_id = run_id
+        self.area_name = area_name
         self.styles = getSampleStyleSheet()
         self.margin = 1 * cm
         if self.selected_city_name:
@@ -623,11 +680,35 @@ class EnergyRatingReportGenerator:
                                     topMargin=self.margin, bottomMargin=self.margin)
             story = []
 
+            # Add header information
+            from reportlab.lib.styles import ParagraphStyle
+            from reportlab.lib.enums import TA_RIGHT
+            header_info_style = ParagraphStyle(
+                'HeaderInfo', 
+                parent=self.styles['Normal'], 
+                fontSize=9, 
+                textColor=black, 
+                alignment=TA_RIGHT
+            )
+            now = datetime.datetime.now()
+            header_text = f"""
+            Project: {self.project_name}<br/>
+            Run ID: {self.run_id}<br/>
+            Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
+            City: {self.selected_city_name or 'N/A'}<br/>
+            Area: {self.area_name}<br/>
+            Report: Energy Rating Report
+            """
+            story.append(Paragraph(header_text, header_info_style))
+            story.append(Spacer(1, 5))
+
             title_style = self.styles['h1']
             title_style.alignment = TA_CENTER
-            title_style.textColor = navy
+            title_style.textColor = COLORS['primary_blue']
+            title_style.fontName = FONTS['title']
+            title_style.fontSize = FONT_SIZES['title']
             story.append(Paragraph("Energy Rating Report", title_style))
-            story.append(Spacer(1, 0.5*cm))
+            story.append(Spacer(1, 0.7*cm))
 
             energy_table = _energy_rating_table(
                 self.energy_rating_parser,
@@ -640,6 +721,9 @@ class EnergyRatingReportGenerator:
             else:
                 no_data_style = self.styles['Normal']
                 no_data_style.alignment = TA_CENTER
+                no_data_style.fontName = FONTS['body']
+                no_data_style.fontSize = FONT_SIZES['body']
+                no_data_style.textColor = COLORS['medium_gray']
                 story.append(Paragraph("No energy rating data available.", no_data_style))
 
             doc.build(story)
@@ -670,29 +754,41 @@ class EnergyRatingReportGenerator:
                 self.model_year,
                 self.model_area_definition
             )
-            
             # Create the PDF document
             doc = SimpleDocTemplate(output_path, pagesize=A4,
                                    leftMargin=self.margin, rightMargin=self.margin,
                                    topMargin=self.margin, bottomMargin=self.margin)
             story = []
 
+            # Add header information
+            from reportlab.lib.styles import ParagraphStyle
+            from reportlab.lib.enums import TA_RIGHT
+            header_info_style = ParagraphStyle(
+                'HeaderInfo', 
+                parent=self.styles['Normal'], 
+                fontSize=9, 
+                textColor=black, 
+                alignment=TA_RIGHT
+            )
+            now = datetime.datetime.now()
+            header_text = f"""
+            Project: {self.project_name}<br/>
+            Run ID: {self.run_id}<br/>
+            Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
+            City: {self.selected_city_name or 'N/A'}<br/>
+            Area: {self.area_name}<br/>
+            Report: Total Energy Rating Report
+            """
+            story.append(Paragraph(header_text, header_info_style))
+            story.append(Spacer(1, 5))
+
             # Add title
             title_style = self.styles['h1']
             title_style.alignment = TA_CENTER
-            title_style.textColor = navy
+            title_style.textColor = COLORS['primary_blue']
+            title_style.fontName = FONTS['title']
+            title_style.fontSize = FONT_SIZES['title']
             story.append(Paragraph("Total Energy Rating Report", title_style))
-            story.append(Spacer(1, 1*cm))
-            
-            # Add project information
-            info_style = self.styles['Normal']
-            if self.selected_city_name:
-                story.append(Paragraph(f"City: {self.selected_city_name}", info_style))
-            if self.model_year:
-                story.append(Paragraph(f"Model Year: {self.model_year}", info_style))
-            if self.model_area_definition:
-                climate_zone = CLIMATE_ZONE_MAP.get(self.model_area_definition, self.model_area_definition)
-                story.append(Paragraph(f"Climate Zone: {climate_zone}", info_style))
             story.append(Spacer(1, 1*cm))
             
             # Create and add the total rating table
@@ -705,6 +801,9 @@ class EnergyRatingReportGenerator:
                 styles = getSampleStyleSheet()
                 unavailable_style = styles['Normal']
                 unavailable_style.alignment = TA_CENTER
+                unavailable_style.fontName = FONTS['body']
+                unavailable_style.fontSize = FONT_SIZES['body']
+                unavailable_style.textColor = COLORS['medium_gray']
                 story.append(Paragraph("Total energy rating not available.", unavailable_style))
 
             # Build the PDF

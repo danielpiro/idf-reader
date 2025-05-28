@@ -6,10 +6,41 @@ from pathlib import Path
 import datetime
 import logging
 from reportlab.lib import colors
+from reportlab.lib.colors import Color
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+
+# Modern Blue/Gray Color Palette
+COLORS = {
+    'primary_blue': Color(0.2, 0.4, 0.7),      # #3366B2 - Primary blue
+    'secondary_blue': Color(0.4, 0.6, 0.85),   # #6699D9 - Secondary blue
+    'light_blue': Color(0.9, 0.94, 0.98),      # #E6F0FA - Light blue background
+    'dark_gray': Color(0.2, 0.2, 0.2),         # #333333 - Dark gray text
+    'medium_gray': Color(0.5, 0.5, 0.5),       # #808080 - Medium gray
+    'light_gray': Color(0.9, 0.9, 0.9),        # #E6E6E6 - Light gray
+    'white': Color(1, 1, 1),                   # #FFFFFF - White
+    'border_gray': Color(0.8, 0.8, 0.8),       # #CCCCCC - Border gray
+}
+
+# Typography Settings
+FONTS = {
+    'title': 'Helvetica-Bold',
+    'heading': 'Helvetica-Bold',
+    'body': 'Helvetica',
+    'table_header': 'Helvetica-Bold',
+    'table_body': 'Helvetica',
+}
+
+FONT_SIZES = {
+    'title': 16,
+    'heading': 12,
+    'body': 10,
+    'table_header': 9,
+    'table_body': 8,
+    'small': 7,
+}
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +78,9 @@ def _area_loss_table_data(area_loss_data, cell_style, compatibility_style):
 def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
                              output_filename: str,
                              project_name: str = "N/A", 
-                             run_id: str = "N/A") -> bool:
+                             run_id: str = "N/A",
+                             city_name: str = "N/A",
+                             area_name: str = "N/A") -> bool:
     """
     Generate a PDF report with area loss information, including H-values.
 
@@ -91,6 +124,8 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
         Project: {project_name}<br/>
         Run ID: {run_id}<br/>
         Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
+        City: {city_name}<br/>
+        Area: {area_name}<br/>
         Report: Area Loss - Thermal Performance
         """
         story.append(Paragraph(header_text, header_style))
@@ -99,7 +134,9 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
-            fontSize=18,
+            fontSize=FONT_SIZES['title'],
+            fontName=FONTS['title'],
+            textColor=COLORS['primary_blue'],
             spaceAfter=20
         )
         story.append(Paragraph("Area Loss - Thermal Performance Report", title_style))
@@ -143,18 +180,33 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
         area_loss_table = Table(table_data, colWidths=col_widths, repeatRows=1)
 
         table_style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            # Header row styling - primary blue background
+            ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
+            ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
+            ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),
+            ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+            
+            # Data rows styling
+            ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
+            ('FONTSIZE', (0, 1), (-1, -1), FONT_SIZES['table_body']),
+            ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
             ('ALIGN', (2, 1), (3, -1), 'RIGHT'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            
+            # Zebra striping for data rows
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
+            
+            # Borders - subtle gray lines
+            ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
+            ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
+            
+            # Padding for better readability
             ('LEFTPADDING', (0, 0), (-1, -1), 6),
             ('RIGHTPADDING', (0, 0), (-1, -1), 6),
             ('TOPPADDING', (0, 0), (-1, -1), 4),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE')
         ])
 
         area_loss_table.setStyle(table_style)

@@ -4,8 +4,39 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
 from reportlab.lib import colors
+from reportlab.lib.colors import Color
 import datetime
 import pandas as pd
+
+# Modern Blue/Gray Color Palette
+COLORS = {
+    'primary_blue': Color(0.2, 0.4, 0.7),      # #3366B2 - Primary blue
+    'secondary_blue': Color(0.4, 0.6, 0.85),   # #6699D9 - Secondary blue
+    'light_blue': Color(0.9, 0.94, 0.98),      # #E6F0FA - Light blue background
+    'dark_gray': Color(0.2, 0.2, 0.2),         # #333333 - Dark gray text
+    'medium_gray': Color(0.5, 0.5, 0.5),       # #808080 - Medium gray
+    'light_gray': Color(0.9, 0.9, 0.9),        # #E6E6E6 - Light gray
+    'white': Color(1, 1, 1),                   # #FFFFFF - White
+    'border_gray': Color(0.8, 0.8, 0.8),       # #CCCCCC - Border gray
+}
+
+# Typography Settings
+FONTS = {
+    'title': 'Helvetica-Bold',
+    'heading': 'Helvetica-Bold',
+    'body': 'Helvetica',
+    'table_header': 'Helvetica-Bold',
+    'table_body': 'Helvetica',
+}
+
+FONT_SIZES = {
+    'title': 16,
+    'heading': 12,
+    'body': 10,
+    'table_header': 9,
+    'table_body': 8,
+    'small': 7,
+}
 
 def wrap_text(text, style):
     return Paragraph(str(text), style)
@@ -27,20 +58,25 @@ def create_cell_style(styles, is_header=False, is_subheader=False, align=TA_LEFT
 
 def create_base_table_style():
     return TableStyle([
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
+        ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 4),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
-        ('TOPPADDING', (0, 0), (-1, -1), 3),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
+        ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
+        ('FONTSIZE', (0, 1), (-1, -1), FONT_SIZES['table_body']),
+        ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
     ])
 
 def apply_header_style(table_style, row_index=0):
-    table_style.add('BACKGROUND', (0, row_index), (-1, row_index), colors.grey)
-    table_style.add('TEXTCOLOR', (0, row_index), (-1, row_index), colors.whitesmoke)
+    table_style.add('BACKGROUND', (0, row_index), (-1, row_index), COLORS['primary_blue'])
+    table_style.add('TEXTCOLOR', (0, row_index), (-1, row_index), COLORS['white'])
     table_style.add('ALIGN', (0, row_index), (-1, row_index), 'CENTER')
-    table_style.add('FONTNAME', (0, row_index), (-1, row_index), 'Helvetica-Bold')
+    table_style.add('FONTNAME', (0, row_index), (-1, row_index), FONTS['table_header'])
+    table_style.add('FONTSIZE', (0, row_index), (-1, row_index), FONT_SIZES['table_header'])
     return table_style
 
 def format_value(value, precision=3, na_rep='-'):
@@ -53,10 +89,12 @@ def format_value(value, precision=3, na_rep='-'):
 
 class GlazingReportGenerator:
     """Generates a PDF report summarizing glazing constructions using ReportLab."""
-    def __init__(self, parsed_glazing_data, project_name="N/A", run_id="N/A"):
+    def __init__(self, parsed_glazing_data, project_name="N/A", run_id="N/A", city_name="N/A", area_name="N/A"):
         self.glazing_data = parsed_glazing_data
         self.project_name = project_name
         self.run_id = run_id
+        self.city_name = city_name
+        self.area_name = area_name        
         self.styles = getSampleStyleSheet()
         self.cell_style = create_cell_style(self.styles)
         self.header_style = create_cell_style(self.styles, is_header=True, align=TA_CENTER)
@@ -83,13 +121,17 @@ class GlazingReportGenerator:
             Project: {self.project_name}<br/>
             Run ID: {self.run_id}<br/>
             Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
+            City: {self.city_name}<br/>
+            Area: {self.area_name}<br/>
             Report: Glazing Constructions
             """
             story.append(Paragraph(header_text, header_info_style))
             story.append(Spacer(1, 5))
             title_style = self.styles['h3']
             title_style.alignment = TA_CENTER
-            title_style.textColor = colors.navy
+            title_style.textColor = COLORS['primary_blue']
+            title_style.fontName = FONTS['title']
+            title_style.fontSize = FONT_SIZES['title']
             story.append(Paragraph("Glazing Constructions Report", title_style))
             story.append(Spacer(1, 0.5*cm))
             for construction_id, data in self.glazing_data.items():
@@ -254,8 +296,10 @@ class GlazingReportGenerator:
         table.setStyle(style)
         return table
 
-def generate_glazing_report_pdf(parsed_glazing_data, output_filename, project_name="N/A", run_id="N/A"):
-    generator = GlazingReportGenerator(parsed_glazing_data, project_name=project_name, run_id=run_id)
+def generate_glazing_report_pdf(parsed_glazing_data, output_filename, project_name="N/A", run_id="N/A",
+                               city_name="N/A", area_name="N/A"):
+    generator = GlazingReportGenerator(parsed_glazing_data, project_name=project_name, run_id=run_id, 
+                                      city_name=city_name, area_name=area_name)
     return generator.generate_report_pdf(output_filename)
 
 if __name__ == '__main__':

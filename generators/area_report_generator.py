@@ -2,6 +2,7 @@
 Generates reports for area-specific information extracted from IDF files.
 """
 from reportlab.lib import colors
+from reportlab.lib.colors import Color
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import landscape, A4
 from reportlab.lib.units import cm
@@ -10,6 +11,36 @@ from pathlib import Path
 import datetime
 import logging
 from collections import defaultdict
+
+# Modern Blue/Gray Color Palette
+COLORS = {
+    'primary_blue': Color(0.2, 0.4, 0.7),      # #3366B2 - Primary blue
+    'secondary_blue': Color(0.4, 0.6, 0.85),   # #6699D9 - Secondary blue
+    'light_blue': Color(0.9, 0.94, 0.98),      # #E6F0FA - Light blue background
+    'dark_gray': Color(0.2, 0.2, 0.2),         # #333333 - Dark gray text
+    'medium_gray': Color(0.5, 0.5, 0.5),       # #808080 - Medium gray
+    'light_gray': Color(0.9, 0.9, 0.9),        # #E6E6E6 - Light gray
+    'white': Color(1, 1, 1),                   # #FFFFFF - White
+    'border_gray': Color(0.8, 0.8, 0.8),       # #CCCCCC - Border gray
+}
+
+# Typography Settings
+FONTS = {
+    'title': 'Helvetica-Bold',
+    'heading': 'Helvetica-Bold',
+    'body': 'Helvetica',
+    'table_header': 'Helvetica-Bold',
+    'table_body': 'Helvetica',
+}
+
+FONT_SIZES = {
+    'title': 16,
+    'heading': 12,
+    'body': 10,
+    'table_header': 9,
+    'table_body': 8,
+    'small': 7,
+}
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +151,8 @@ def _area_table_data(merged_data):
     """
     return sorted(merged_data, key=custom_area_sort_key)
 
-def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_area=0.0, project_name="N/A", run_id="N/A", wall_mass_per_area=0.0, location="Unknown"):
+def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_area=0.0, project_name="N/A", run_id="N/A", 
+                            city_name="N/A", area_name="N/A", wall_mass_per_area=0.0, location="Unknown"):
     """
     Generate a PDF report with area information, including a header.
 
@@ -169,6 +201,8 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         Project: {project_name}<br/>
         Run ID: {run_id}<br/>
         Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
+        City: {city_name}<br/>
+        Area: {area_name}<br/>
         Report: Area {area_id} - Thermal Properties
         """
         story.append(Paragraph(header_text, header_style))
@@ -177,7 +211,9 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
-            fontSize=18,
+            fontSize=FONT_SIZES['title'],
+            fontName=FONTS['title'],
+            textColor=COLORS['primary_blue'],
             spaceAfter=20
         )
         story.append(Paragraph(f"Area {area_id} - Thermal Properties Report", title_style))
@@ -285,18 +321,33 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         area_table = Table(table_data, colWidths=col_widths, repeatRows=1)
 
         table_style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            # Header row styling - primary blue background
+            ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
+            ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
+            ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),
+            ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+            
+            # Data rows styling
+            ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
+            ('FONTSIZE', (0, 1), (-1, -1), FONT_SIZES['table_body']),
+            ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
             ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            
+            # Zebra striping for data rows
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
+            
+            # Borders - subtle gray lines
+            ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
+            ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
+            
+            # Padding for better readability
             ('LEFTPADDING', (0, 0), (-1, -1), 6),
             ('RIGHTPADDING', (0, 0), (-1, -1), 6),
             ('TOPPADDING', (0, 0), (-1, -1), 4),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ])
 
         area_table.setStyle(table_style)
@@ -316,7 +367,8 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         pass
 
 def generate_area_reports(areas_data, output_dir: str = "output/areas",
-                          project_name: str = "N/A", run_id: str = "N/A") -> bool:
+                          project_name: str = "N/A", run_id: str = "N/A",
+                          city_name: str = "N/A", area_name: str = "N/A") -> bool:
     """
     Generate individual reports for each area, including header information.
 
@@ -506,6 +558,8 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                 total_floor_area=total_floor_area,
                 project_name=project_name,
                 run_id=run_id,
+                city_name=city_name,
+                area_name=area_name,
                 wall_mass_per_area=wall_mass_per_area,
                 location=location
             )

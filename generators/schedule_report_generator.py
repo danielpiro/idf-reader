@@ -4,10 +4,40 @@ from reportlab.lib.units import cm
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import Paragraph, Table, TableStyle
 from reportlab.lib import colors
-from reportlab.lib.colors import navy, grey
+from reportlab.lib.colors import navy, grey, Color
 import datetime
 import logging
 from pathlib import Path
+
+# Modern Blue/Gray Color Palette
+COLORS = {
+    'primary_blue': Color(0.2, 0.4, 0.7),      # #3366B2 - Primary blue
+    'secondary_blue': Color(0.4, 0.6, 0.85),   # #6699D9 - Secondary blue
+    'light_blue': Color(0.9, 0.94, 0.98),      # #E6F0FA - Light blue background
+    'dark_gray': Color(0.2, 0.2, 0.2),         # #333333 - Dark gray text
+    'medium_gray': Color(0.5, 0.5, 0.5),       # #808080 - Medium gray
+    'light_gray': Color(0.9, 0.9, 0.9),        # #E6E6E6 - Light gray
+    'white': Color(1, 1, 1),                   # #FFFFFF - White
+    'border_gray': Color(0.8, 0.8, 0.8),       # #CCCCCC - Border gray
+}
+
+# Typography Settings
+FONTS = {
+    'title': 'Helvetica-Bold',
+    'heading': 'Helvetica-Bold',
+    'body': 'Helvetica',
+    'table_header': 'Helvetica-Bold',
+    'table_body': 'Helvetica',
+}
+
+FONT_SIZES = {
+    'title': 16,
+    'heading': 12,
+    'body': 10,
+    'table_header': 9,
+    'table_body': 8,
+    'small': 7,
+}
 
 logger = logging.getLogger(__name__)
 
@@ -102,15 +132,30 @@ def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> T
             table_data.append(row_data)
 
         style = TableStyle([
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            # Header row styling - primary blue background
+            ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
+            ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 7),
+            ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
+            ('FONTSIZE', (0, 0), (-1, -1), FONT_SIZES['small']),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('TOPPADDING', (0, 0), (-1, 0), 6),
+            
+            # Data rows styling
+            ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
+            ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
+            
+            # Borders - subtle gray lines
+            ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
+            ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
+            
+            # Period column alignment
             ('ALIGN', (0, 1), (0, -1), 'LEFT'),
             ('LEFTPADDING', (0, 1), (0, -1), 6),
+            
+            # Hour columns padding
             ('TOPPADDING', (1, 1), (-1, -1), 4),
             ('BOTTOMPADDING', (1, 1), (-1, -1), 4),
             ('LEFTPADDING', (1, 1), (-1, -1), 3),
@@ -124,7 +169,8 @@ def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> T
         return None
 
 def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "output/schedules.pdf",
-                                  project_name: str = "N/A", run_id: str = "N/A") -> bool:
+                                  project_name: str = "N/A", run_id: str = "N/A", 
+                                  city_name: str = "N/A", area_name: str = "N/A") -> bool:
     """
     Generates a PDF report containing schedule definitions, including a header.
     Returns:
@@ -159,7 +205,9 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
         current_y = height - margin_y
         styles = getSampleStyleSheet()
         title_style = styles['h1']
-        title_style.textColor = navy
+        title_style.textColor = COLORS['primary_blue']
+        title_style.fontName = FONTS['title']
+        title_style.fontSize = FONT_SIZES['title']
         schedule_name_style = ParagraphStyle(
             name='ScheduleName', parent=styles['Normal'], fontName='Helvetica-Bold',
             spaceBefore=0.4*cm, spaceAfter=0.1*cm
@@ -169,13 +217,14 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
             textColor=grey, leftIndent=0.5*cm, spaceAfter=0.4*cm
         )
         header_info_style = ParagraphStyle(
-            'HeaderInfo', parent=styles['Normal'], fontSize=9, textColor=colors.black, alignment=2
-        )
+            'HeaderInfo', parent=styles['Normal'], fontSize=9, textColor=colors.black, alignment=2        )
         now = datetime.datetime.now()
         header_text = f"""
         Project: {project_name}<br/>
         Run ID: {run_id}<br/>
         Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
+        City: {city_name}<br/>
+        Area: {area_name}<br/>
         Report: Unique Schedule Definitions
         """
         p_header = Paragraph(header_text, header_info_style)

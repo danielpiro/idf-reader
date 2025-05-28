@@ -5,10 +5,40 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, Spacer
 from reportlab.lib.pagesizes import landscape, A3
 from reportlab.lib.units import cm
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.colors import navy, black, lightgrey, white, grey
+from reportlab.lib.colors import navy, black, lightgrey, white, grey, Color
 from reportlab.lib.enums import TA_CENTER
 import datetime
 from reportlab.platypus import TableStyle
+
+# Modern Blue/Gray Color Palette
+COLORS = {
+    'primary_blue': Color(0.2, 0.4, 0.7),      # #3366B2 - Primary blue
+    'secondary_blue': Color(0.4, 0.6, 0.85),   # #6699D9 - Secondary blue
+    'light_blue': Color(0.9, 0.94, 0.98),      # #E6F0FA - Light blue background
+    'dark_gray': Color(0.2, 0.2, 0.2),         # #333333 - Dark gray text
+    'medium_gray': Color(0.5, 0.5, 0.5),       # #808080 - Medium gray
+    'light_gray': Color(0.9, 0.9, 0.9),        # #E6E6E6 - Light gray
+    'white': Color(1, 1, 1),                   # #FFFFFF - White
+    'border_gray': Color(0.8, 0.8, 0.8),       # #CCCCCC - Border gray
+}
+
+# Typography Settings
+FONTS = {
+    'title': 'Helvetica-Bold',
+    'heading': 'Helvetica-Bold',
+    'body': 'Helvetica',
+    'table_header': 'Helvetica-Bold',
+    'table_body': 'Helvetica',
+}
+
+FONT_SIZES = {
+    'title': 16,
+    'heading': 12,
+    'body': 10,
+    'table_header': 9,
+    'table_body': 8,
+    'small': 7,
+}
 
 def wrap_text(text, style):
     """Helper function to create wrapped text in a cell."""
@@ -45,39 +75,48 @@ def create_hierarchical_table_style():
     ]
 
     style = [
-        ('BACKGROUND', (0, 0), (-1, 0), lightgrey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), black),
+        # Primary header row styling - primary blue background
+        ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
+        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 3),
+        ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
+        ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_body']),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
+        ('TOPPADDING', (0, 0), (-1, 0), 4),
 
-        ('BACKGROUND', (1, 1), (-1, 1), lightgrey),
-        ('TEXTCOLOR', (1, 1), (-1, 1), black),
+        # Secondary header row styling - secondary blue background
+        ('BACKGROUND', (1, 1), (-1, 1), COLORS['secondary_blue']),
+        ('TEXTCOLOR', (1, 1), (-1, 1), COLORS['white']),
         ('ALIGN', (1, 1), (-1, 1), 'CENTER'),
         ('VALIGN', (1, 1), (-1, 1), 'MIDDLE'),
-        ('FONTNAME', (1, 1), (-1, 1), 'Helvetica-Bold'),
-        ('FONTSIZE', (1, 1), (-1, 1), 5),
-        ('TOPPADDING', (1, 1), (-1, 1), 1),
-        ('BOTTOMPADDING', (1, 1), (-1, 1), 1),
+        ('FONTNAME', (1, 1), (-1, 1), FONTS['table_header']),
+        ('FONTSIZE', (1, 1), (-1, 1), FONT_SIZES['small']),
+        ('TOPPADDING', (1, 1), (-1, 1), 2),
+        ('BOTTOMPADDING', (1, 1), (-1, 1), 2),
 
+        # Zone column spans both header rows
         ('ALIGN', (0, 0), (0, 1), 'CENTER'),
         ('VALIGN', (0, 0), (0, 1), 'MIDDLE'),
 
-        ('BACKGROUND', (0, 2), (-1, -1), white),
-        ('TEXTCOLOR', (0, 2), (-1, -1), black),
+        # Data rows styling
+        ('TEXTCOLOR', (0, 2), (-1, -1), COLORS['dark_gray']),
         ('ALIGN', (0, 2), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 2), (-1, -1), 'MIDDLE'),
-        ('FONTNAME', (0, 2), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 2), (-1, -1), 5),
-        ('TOPPADDING', (0, 2), (-1, -1), 1),
-        ('BOTTOMPADDING', (0, 2), (-1, -1), 1),
+        ('FONTNAME', (0, 2), (-1, -1), FONTS['table_body']),
+        ('FONTSIZE', (0, 2), (-1, -1), FONT_SIZES['small']),
+        ('TOPPADDING', (0, 2), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 2), (-1, -1), 2),
 
-        ('GRID', (0, 0), (-1, -1), 1, grey),
+        # Zebra striping for data rows
+        ('ROWBACKGROUNDS', (0, 2), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
 
-        ('LEFTPADDING', (0, 0), (-1, -1), 3),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 3)
+        # Borders - subtle gray lines
+        ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
+        ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
+
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4)
     ]
 
     return TableStyle(spans + style)
@@ -254,7 +293,8 @@ def _to_str(val, precision=None):
             return str(val)
     return str(val)
 
-def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", project_name="N/A", run_id="N/A"):
+def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", project_name="N/A", run_id="N/A", 
+                             city_name="N/A", area_name="N/A"):
     """
     Generates a PDF report containing zone loads, including a header.
 
@@ -280,15 +320,18 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
     cell_style = create_cell_style(styles)
     header_cell_style = create_cell_style(styles, is_header=True)
     title_style = styles['h1']
-    title_style.textColor = navy
+    title_style.textColor = COLORS['primary_blue']
+    title_style.fontName = FONTS['title']
+    title_style.fontSize = FONT_SIZES['title']
     title_style.alignment = TA_CENTER
-    header_info_style = ParagraphStyle(
-        'HeaderInfo', parent=styles['Normal'], fontSize=9, textColor=black, alignment=2)
+    header_info_style = ParagraphStyle(        'HeaderInfo', parent=styles['Normal'], fontSize=9, textColor=black, alignment=2)
     now = datetime.datetime.now()
     header_text = f"""
     Project: {project_name}<br/>
     Run ID: {run_id}<br/>
     Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
+    City: {city_name}<br/>
+    Area: {area_name}<br/>
     Report: Zone Loads Summary
     """
     story.append(Paragraph(header_text, header_info_style))

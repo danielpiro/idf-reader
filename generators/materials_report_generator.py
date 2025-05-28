@@ -5,11 +5,41 @@ from reportlab.lib.pagesizes import landscape, A3
 from reportlab.lib.units import cm
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import Paragraph, Table, TableStyle, SimpleDocTemplate, Spacer
-from reportlab.lib.colors import navy, black, grey, lightgrey
+from reportlab.lib.colors import navy, black, grey, lightgrey, Color
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import datetime
 import logging
 from pathlib import Path
+
+# Modern Blue/Gray Color Palette
+COLORS = {
+    'primary_blue': Color(0.2, 0.4, 0.7),      # #3366B2 - Primary blue
+    'secondary_blue': Color(0.4, 0.6, 0.85),   # #6699D9 - Secondary blue
+    'light_blue': Color(0.9, 0.94, 0.98),      # #E6F0FA - Light blue background
+    'dark_gray': Color(0.2, 0.2, 0.2),         # #333333 - Dark gray text
+    'medium_gray': Color(0.5, 0.5, 0.5),       # #808080 - Medium gray
+    'light_gray': Color(0.9, 0.9, 0.9),        # #E6E6E6 - Light gray
+    'white': Color(1, 1, 1),                   # #FFFFFF - White
+    'border_gray': Color(0.8, 0.8, 0.8),       # #CCCCCC - Border gray
+}
+
+# Typography Settings
+FONTS = {
+    'title': 'Helvetica-Bold',
+    'heading': 'Helvetica-Bold',
+    'body': 'Helvetica',
+    'table_header': 'Helvetica-Bold',
+    'table_body': 'Helvetica',
+}
+
+FONT_SIZES = {
+    'title': 16,
+    'heading': 12,
+    'body': 10,
+    'table_header': 9,
+    'table_body': 8,
+    'small': 7,
+}
 
 logger = logging.getLogger(__name__)
 
@@ -34,17 +64,32 @@ def create_cell_style(styles, is_header=False, total_row=False):
 def create_table_style():
     """Create a consistent table style for materials table."""
     return TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), lightgrey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), black),
+        # Header row styling - primary blue background
+        ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
+        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('GRID', (0, 0), (-1, -1), 0.5, grey),
+        ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
+        ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),
+        
+        # Data rows styling
+        ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
+        ('FONTSIZE', (0, 1), (-1, -1), FONT_SIZES['table_body']),
+        ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 4),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
-        ('TOPPADDING', (0, 0), (-1, -1), 3),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        
+        # Zebra striping for data rows
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
+        
+        # Borders - subtle gray lines
+        ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
+        ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
+        
+        # Padding for better readability
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ])
 
 # Helper functions adapted from area_report_generator.py
@@ -239,7 +284,8 @@ def _build_table_data(grouped_data, cell_style, header_cell_style, total_style):
         row_index += 1
     return table_data, total_rows
 
-def generate_materials_report_pdf(element_data, output_filename="output/materials.pdf", project_name="N/A", run_id="N/A"):
+def generate_materials_report_pdf(element_data, output_filename="output/materials.pdf", project_name="N/A", run_id="N/A",
+                                  city_name="N/A", area_name="N/A"):
     """
     Generates a PDF report containing materials thermal properties, including a header.
     Args:
@@ -283,7 +329,9 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
         styles = getSampleStyleSheet()
         title_style = styles['Heading1']
         title_style.alignment = TA_CENTER
-        title_style.textColor = navy
+        title_style.textColor = COLORS['primary_blue']
+        title_style.fontName = FONTS['title']
+        title_style.fontSize = FONT_SIZES['title']
         title_style.spaceAfter = 0.5 * cm
         cell_style = create_cell_style(styles)
         header_cell_style = create_cell_style(styles, is_header=True)
@@ -293,13 +341,14 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
             parent=styles['Normal'],
             fontSize=9,
             textColor=black,
-            alignment=2
-        )
+            alignment=2        )
         now = datetime.datetime.now()
         header_text = f"""
         Project: {project_name}<br/>
         Run ID: {run_id}<br/>
         Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
+        City: {city_name}<br/>
+        Area: {area_name}<br/>
         Report: Building Elements Materials Properties
         """
         story = [

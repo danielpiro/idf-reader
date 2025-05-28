@@ -5,12 +5,43 @@ from reportlab.lib.pagesizes import A3, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+from reportlab.lib.colors import Color
 from reportlab.lib.units import cm
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import datetime
 import logging
 from typing import Dict, List, Any
 from pathlib import Path
+
+# Modern Blue/Gray Color Palette
+COLORS = {
+    'primary_blue': Color(0.2, 0.4, 0.7),      # #3366B2 - Primary blue
+    'secondary_blue': Color(0.4, 0.6, 0.85),   # #6699D9 - Secondary blue
+    'light_blue': Color(0.9, 0.94, 0.98),      # #E6F0FA - Light blue background
+    'dark_gray': Color(0.2, 0.2, 0.2),         # #333333 - Dark gray text
+    'medium_gray': Color(0.5, 0.5, 0.5),       # #808080 - Medium gray
+    'light_gray': Color(0.9, 0.9, 0.9),        # #E6E6E6 - Light gray
+    'white': Color(1, 1, 1),                   # #FFFFFF - White
+    'border_gray': Color(0.8, 0.8, 0.8),       # #CCCCCC - Border gray
+}
+
+# Typography Settings
+FONTS = {
+    'title': 'Helvetica-Bold',
+    'heading': 'Helvetica-Bold',
+    'body': 'Helvetica',
+    'table_header': 'Helvetica-Bold',
+    'table_body': 'Helvetica',
+}
+
+FONT_SIZES = {
+    'title': 16,
+    'heading': 12,
+    'body': 10,
+    'table_header': 9,
+    'table_body': 8,
+    'small': 7,
+}
 
 logger = logging.getLogger(__name__)
 
@@ -34,29 +65,36 @@ def create_cell_style(styles, is_header=False, font_size=6, leading=7):
     return style
 
 def create_lighting_table_style(header_rows=1):
-    """Create table style similar to load report but simpler header."""
+    """Create table style with modern blue/gray palette."""
     style = [
-        ('BACKGROUND', (0, 0), (-1, header_rows - 1), colors.lightgrey),
-        ('TEXTCOLOR', (0, 0), (-1, header_rows - 1), colors.black),
+        # Header styling - primary blue background
+        ('BACKGROUND', (0, 0), (-1, header_rows - 1), COLORS['primary_blue']),
+        ('TEXTCOLOR', (0, 0), (-1, header_rows - 1), COLORS['white']),
         ('ALIGN', (0, 0), (-1, header_rows - 1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, header_rows - 1), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, header_rows - 1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, header_rows - 1), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, header_rows - 1), 3),
+        ('FONTNAME', (0, 0), (-1, header_rows - 1), FONTS['table_header']),
+        ('FONTSIZE', (0, 0), (-1, header_rows - 1), FONT_SIZES['table_body']),
+        ('BOTTOMPADDING', (0, 0), (-1, header_rows - 1), 4),
+        ('TOPPADDING', (0, 0), (-1, header_rows - 1), 4),
 
-        ('BACKGROUND', (0, header_rows), (-1, -1), colors.white),
-        ('TEXTCOLOR', (0, header_rows), (-1, -1), colors.black),
+        # Data rows styling
+        ('TEXTCOLOR', (0, header_rows), (-1, -1), COLORS['dark_gray']),
         ('ALIGN', (0, header_rows), (-1, -1), 'LEFT'),
         ('VALIGN', (0, header_rows), (-1, -1), 'MIDDLE'),
-        ('FONTNAME', (0, header_rows), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, header_rows), (-1, -1), 5),
-        ('TOPPADDING', (0, header_rows), (-1, -1), 1),
-        ('BOTTOMPADDING', (0, header_rows), (-1, -1), 1),
+        ('FONTNAME', (0, header_rows), (-1, -1), FONTS['table_body']),
+        ('FONTSIZE', (0, header_rows), (-1, -1), FONT_SIZES['small']),
+        ('TOPPADDING', (0, header_rows), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, header_rows), (-1, -1), 2),
 
-        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+        # Zebra striping for data rows
+        ('ROWBACKGROUNDS', (0, header_rows), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
 
-        ('LEFTPADDING', (0, 0), (-1, -1), 3),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 3)
+        # Borders - subtle gray lines
+        ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
+        ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
+
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4)
     ]
     return TableStyle(style)
 
@@ -106,8 +144,10 @@ def _span_table(table_data, col_idx):
 
 class LightingReportGenerator:
     """Generates a PDF report for parsed Daylighting data."""
+    
     def __init__(self, data: Dict[str, List[Dict[str, Any]]], output_path: str,
-                 project_name: str = "N/A", run_id: str = "N/A"):
+                 project_name: str = "N/A", run_id: str = "N/A",
+                 city_name: str = "N/A", area_name: str = "N/A"):
         """
         Initializes the LightingReportGenerator.
 
@@ -115,12 +155,13 @@ class LightingReportGenerator:
             data: The parsed daylighting data from LightingParser.
             output_path: The path to save the generated PDF report.
             project_name: Name of the project for the header.
-            run_id: Identifier for the current run for the header.
-        """
+            run_id: Identifier for the current run for the header.        """
         self._data = data
         self._output_path = output_path
         self._project_name = project_name
         self._run_id = run_id
+        self._city_name = city_name
+        self._area_name = area_name
         self._styles = getSampleStyleSheet()
         self._story = []
 
@@ -128,7 +169,7 @@ class LightingReportGenerator:
         """Adds header and footer to each page."""
         canvas.saveState()
         now = datetime.datetime.now()
-        header_text = f"Project: {self._project_name} | Run ID: {self._run_id} | Date: {now.strftime('%Y-%m-%d %H:%M:%S')} | Report: Daylighting Summary"
+        header_text = f"Project: {self._project_name} | Run ID: {self._run_id} | Date: {now.strftime('%Y-%m-%d %H:%M:%S')} | City: {self._city_name} | Area: {self._area_name} | Report: Daylighting Summary"
         header_style = ParagraphStyle('HeaderStyle', parent=self._styles['Normal'], fontSize=8, alignment=TA_LEFT)
         p = Paragraph(header_text, header_style)
         w, h = p.wrap(doc.width, doc.topMargin)
@@ -177,7 +218,9 @@ class LightingReportGenerator:
                                     topMargin=top_margin, bottomMargin=bottom_margin)
 
             title_style = self._styles['h1']
-            title_style.textColor = colors.navy
+            title_style.textColor = COLORS['primary_blue']
+            title_style.fontName = FONTS['title']
+            title_style.fontSize = FONT_SIZES['title']
             title_style.alignment = TA_CENTER
             self._story.append(Paragraph("Daylighting Report", title_style))
             self._story.append(Spacer(1, 0.5*cm))
