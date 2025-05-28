@@ -10,7 +10,7 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
 from utils.data_loader import get_energy_consumption
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.colors import navy, black, grey, lightgrey, blue, green, limegreen, yellow, orange, darkgrey, Color # Added Color
+from reportlab.lib.colors import navy, black, grey, lightgrey, blue, green, limegreen, yellow, orange, red, darkred, darkgrey, Color # Added Color and energy rating colors
 
 # Modern Blue/Gray Color Palette
 COLORS = {
@@ -326,14 +326,6 @@ def _get_letter_grade_for_score(score):
 def _create_total_energy_rating_table(total_score, letter_grade):
     """Create a graphical representation of the total energy rating."""
     elements = []
-    styles = getSampleStyleSheet()
-    title_style = styles['h2']
-    title_style.alignment = TA_CENTER
-    title_style.textColor = COLORS['primary_blue']
-    title_style.fontName = FONTS['heading']
-    title_style.fontSize = FONT_SIZES['heading']
-    elements.append(Paragraph("Total Energy Rating", title_style))
-    elements.append(Spacer(1, 0.5 * cm))
 
     if total_score is None or letter_grade == "N/A":
         no_data_style = styles['Normal']
@@ -349,18 +341,19 @@ def _create_total_energy_rating_table(total_score, letter_grade):
     bar_spacing = 0.3 * cm
     label_offset_x = 0.5 * cm
     hebrew_label_offset_x = 4 * cm # Adjusted for longer Hebrew text
-    arrow_width = 0.5 * cm
-    arrow_height = bar_height
+    left_arrow_width = 0.5 * cm  # Left side arrow (original)
+    right_arrow_width = 1.5 * cm  # Right side arrow (new)
+    right_arrow_height = bar_height
     
-    # Define rating levels with modern blue/gray color palette
+    # Define rating levels with exact hex colors (best to worst)
     rating_levels = [
-        { "grade": "+A", "label_en": "Diamond", "color": COLORS['primary_blue'] },     # Deep blue for highest rating
-        { "grade": "A",  "label_en": "Platinum", "color": COLORS['secondary_blue'] },  # Medium blue
-        { "grade": "B",  "label_en": "Gold", "color": Color(0.3, 0.5, 0.8) },         # Light blue
-        { "grade": "C",  "label_en": "Silver", "color": Color(0.5, 0.6, 0.7) },       # Blue-gray
-        { "grade": "D",  "label_en": "Bronze", "color": COLORS['medium_gray'] },       # Medium gray
-        { "grade": "E",  "label_en": "Base Level", "color": Color(0.6, 0.6, 0.6) },   # Light gray
-        { "grade": "F",  "label_en": "Below Base", "color": Color(0.7, 0.7, 0.7) }    # Lightest gray
+        { "grade": "+A", "label_en": "Diamond", "color": Color(0.0157, 0.4549, 0.7686) },      # #0474c4
+        { "grade": "A",  "label_en": "Platinum", "color": Color(0.1059, 0.5059, 0.2353) },    # #1b813c
+        { "grade": "B",  "label_en": "Gold", "color": Color(0.1608, 0.6824, 0.3098) },        # #29ae4f
+        { "grade": "C",  "label_en": "Silver", "color": Color(0.2000, 0.8000, 0.2000) },      # #33cc33
+        { "grade": "D",  "label_en": "Bronze", "color": Color(1.0000, 0.8000, 0.0000) },      # #ffcc00
+        { "grade": "E",  "label_en": "Base Level", "color": Color(0.9843, 0.3961, 0.0000) },  # #fb6500
+        { "grade": "F",  "label_en": "Below Base", "color": Color(0.3451, 0.3451, 0.3451) }   # #585858
     ]
 
     drawing_height = (bar_height + bar_spacing) * len(rating_levels)
@@ -369,28 +362,28 @@ def _create_total_energy_rating_table(total_score, letter_grade):
     y_position = drawing_height - bar_height 
 
     for level in rating_levels:
-        # Bar
-        # Adjusted width calculation for right label space: drawing_width - (arrow_width + label_offset_x (for left grade) + space_for_right_label + arrow_space_if_on_right)
-        # Let's allocate more space for the right label by reducing the constant subtracted.
-        # Old: drawing_width - (arrow_width + label_offset_x + label_offset_x + 2*cm)
-        # New: drawing_width - (arrow_width + label_offset_x + hebrew_label_offset_x + 0.5*cm) # Using hebrew_label_offset_x as it was intended for longer text
-        bar_width = drawing_width - (arrow_width + label_offset_x + hebrew_label_offset_x + 0.5*cm)
-        bar = Rect(arrow_width + label_offset_x, y_position, bar_width, bar_height)
+        # Bar - adjust width to make room for right-side arrow and labels
+        bar_width = drawing_width - (left_arrow_width + label_offset_x + hebrew_label_offset_x + right_arrow_width + 1*cm)
+        bar = Rect(left_arrow_width + label_offset_x, y_position, bar_width, bar_height)
         bar.fillColor = level["color"]
         bar.strokeColor = COLORS['border_gray']
         bar.strokeWidth = 0.5
         drawing.add(bar)
 
-        # Grade Label (left side of bar)
-        eng_label = String(arrow_width + label_offset_x * 2, y_position + bar_height / 2.5, level["grade"])
+        # Grade Label (left side of bar) - adjust text color based on background
+        eng_label = String(left_arrow_width + label_offset_x * 2, y_position + bar_height / 2.5, level["grade"])
         eng_label.fontName = FONTS['table_header']
         eng_label.fontSize = FONT_SIZES['table_body']
         eng_label.textAnchor = 'start'
-        eng_label.fillColor = COLORS['white']
+        # Use white text for dark backgrounds and dark text for light backgrounds
+        if level["grade"] in ["+A", "A", "B", "F"]:  # Dark Blue, Dark Green, Green, Dark Gray
+            eng_label.fillColor = COLORS['white']  # White text on dark backgrounds
+        else:  # C, D, E - Light Green, Yellow, Orange
+            eng_label.fillColor = COLORS['dark_gray']  # Dark text on light backgrounds
         drawing.add(eng_label)
         
         # Description Label (right side of bar)
-        english_label_x_pos = arrow_width + label_offset_x + bar_width + 0.2*cm
+        english_label_x_pos = left_arrow_width + label_offset_x + bar_width + 0.2*cm
         eng_label_right = String(english_label_x_pos, y_position + bar_height / 2.5, level["label_en"])
         eng_label_right.fontName = FONTS['body']
         eng_label_right.fontSize = FONT_SIZES['table_body']
@@ -398,35 +391,48 @@ def _create_total_energy_rating_table(total_score, letter_grade):
         eng_label_right.fillColor = COLORS['dark_gray']
         drawing.add(eng_label_right)
 
-        # Arrow if this is the current grade - modernized design
+        # Right-side arrow pointing left toward the bars if this is the current grade
         if level["grade"] == letter_grade:
-            arrow_tip_x = arrow_width + label_offset_x - 0.2*cm
-            arrow_base_x = label_offset_x
+            # Position the arrow on the right side
+            arrow_base_x = drawing_width - right_arrow_width - 0.2*cm
+            arrow_tip_x = arrow_base_x - 0.3*cm  # Point extends left toward bars
             
+            # Create left-pointing arrow shape (rectangular body with left arrowhead)
             arrow_points = [
-                arrow_tip_x, y_position + arrow_height / 2,     # Tip
-                arrow_base_x, y_position + arrow_height * 0.75, # Top left base
-                arrow_base_x, y_position + arrow_height * 0.25  # Bottom left base
+                arrow_tip_x, y_position + right_arrow_height / 2,           # Left tip point
+                arrow_base_x, y_position + right_arrow_height * 0.25,       # Bottom right of head
+                arrow_base_x, y_position + right_arrow_height * 0.4,        # Bottom of body
+                arrow_base_x + right_arrow_width, y_position + right_arrow_height * 0.4,  # Bottom right of body
+                arrow_base_x + right_arrow_width, y_position + right_arrow_height * 0.6,  # Top right of body
+                arrow_base_x, y_position + right_arrow_height * 0.6,        # Top of body
+                arrow_base_x, y_position + right_arrow_height * 0.75        # Top right of head
             ]
+            
+            # Use the same color as the matching rating bar
             arrow = Polygon(arrow_points)
-            arrow.fillColor = COLORS['primary_blue']
-            arrow.strokeColor = COLORS['primary_blue']
+            arrow.fillColor = level["color"]
+            arrow.strokeColor = Color(0.2, 0.2, 0.2)  # Dark border
             arrow.strokeWidth = 1
             drawing.add(arrow)
+            
+            # Add grade label inside the arrow
+            arrow_label_x = arrow_base_x + right_arrow_width / 2
+            arrow_label_y = y_position + right_arrow_height / 2.5
+            arrow_label = String(arrow_label_x, arrow_label_y, level["grade"])
+            arrow_label.fontName = FONTS['table_header']
+            arrow_label.fontSize = FONT_SIZES['table_body']
+            arrow_label.textAnchor = 'middle'
+            # Use white text for dark backgrounds and dark text for light backgrounds
+            if level["grade"] in ["+A", "A", "B", "F"]:  # Dark backgrounds
+                arrow_label.fillColor = COLORS['white']
+            else:  # Light backgrounds
+                arrow_label.fillColor = COLORS['dark_gray']
+            drawing.add(arrow_label)
 
         y_position -= (bar_height + bar_spacing)
 
     elements.append(drawing)
     
-    # Display the score and letter grade textually below the graphic
-    score_text = f"Score: {total_score} ({letter_grade})"
-    score_paragraph_style = styles['Normal']
-    score_paragraph_style.alignment = TA_CENTER
-    score_paragraph_style.fontName = FONTS['body']
-    score_paragraph_style.fontSize = FONT_SIZES['body']
-    score_paragraph_style.textColor = COLORS['dark_gray']
-    elements.append(Spacer(1, 0.5 * cm))
-    elements.append(Paragraph(score_text, score_paragraph_style))
 
     return elements
 

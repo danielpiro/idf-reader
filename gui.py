@@ -334,8 +334,11 @@ class ProcessingManager:
                     output_dir=base_output_dir_for_reports,
                     model_year=derived_model_year,
                     model_area_definition=derived_model_area_definition,
-                    selected_city_name=actual_selected_city_name
-                )                
+                    selected_city_name=actual_selected_city_name,
+                    project_name=project_name,
+                    run_id=run_id,
+                    area_name=area_name
+                )
                 success_er = energy_rating_gen.generate_report(output_filename=os.path.basename(report_paths["energy_rating"]))
                 if success_er:
                     self.update_status("Energy Rating report generated successfully.")
