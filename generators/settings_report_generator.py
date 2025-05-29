@@ -135,7 +135,8 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
         header_style = ParagraphStyle(
             'HeaderInfo',
             parent=styles['Normal'],
-            fontSize=9,            textColor=COLORS['white'],
+            fontSize=9,
+            textColor=COLORS['dark_gray'],
             alignment=2
         )
         header_text = f"""
@@ -168,7 +169,7 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
             leading=12,
             fontName='Helvetica-Bold',
             alignment=TA_CENTER,
-            textColor=COLORS['white']
+            textColor=COLORS['dark_gray']
         )
 
         key_cell_style = ParagraphStyle(
@@ -233,7 +234,7 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
                     db_col_widths = [doc.width * 0.30, doc.width * 0.70]
                     db_table_style = TableStyle([
                         ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-                        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
+                        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['dark_gray']),
                         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
                         ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
                         ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
@@ -291,7 +292,7 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
 
             style = TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-                ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
+                ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['dark_gray']),
                 ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
                 ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
                 ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),

@@ -99,7 +99,7 @@ def create_hierarchical_table_style():
 
     style = [
         ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
+        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['dark_gray']),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
@@ -108,7 +108,7 @@ def create_hierarchical_table_style():
         ('TOPPADDING', (0, 0), (-1, 0), 4),
 
         ('BACKGROUND', (0, 1), (-1, 1), COLORS['secondary_blue']),
-        ('TEXTCOLOR', (0, 1), (-1, 1), COLORS['white']),
+        ('TEXTCOLOR', (0, 1), (-1, 1), COLORS['dark_gray']),
         ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
         ('VALIGN', (0, 1), (-1, 1), 'MIDDLE'),
         ('FONTNAME', (0, 1), (-1, 1), FONTS['table_header']),
@@ -342,7 +342,7 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
     title_style.fontName = FONTS['title']
     title_style.fontSize = FONT_SIZES['title']
     title_style.alignment = TA_CENTER
-    header_info_style = ParagraphStyle('HeaderInfo', parent=styles['Normal'], fontSize=9, textColor=COLORS['white'], alignment=2)
+    header_info_style = ParagraphStyle('HeaderInfo', parent=styles['Normal'], fontSize=9, textColor=COLORS['dark_gray'], alignment=2)
     now = datetime.datetime.now()
     header_text = f"""
     Project: {project_name}<br/>

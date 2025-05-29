@@ -57,7 +57,7 @@ def create_cell_style(styles, is_header=False, font_size=6, leading=7):
         spaceBefore=1,
         spaceAfter=1,
         fontName='Helvetica-Bold' if is_header else 'Helvetica',
-        textColor=COLORS['white'] if is_header else COLORS['dark_gray'],
+        textColor=COLORS['dark_gray'] if is_header else COLORS['dark_gray'],
         wordWrap='CJK',
         alignment=TA_LEFT
     )
@@ -67,7 +67,7 @@ def create_lighting_table_style(header_rows=1):
     """Create table style with modern blue/gray palette."""
     style = [
         ('BACKGROUND', (0, 0), (-1, header_rows - 1), COLORS['primary_blue']),
-        ('TEXTCOLOR', (0, 0), (-1, header_rows - 1), COLORS['white']),
+        ('TEXTCOLOR', (0, 0), (-1, header_rows - 1), COLORS['dark_gray']),
         ('ALIGN', (0, 0), (-1, header_rows - 1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, header_rows - 1), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, header_rows - 1), FONTS['table_header']),

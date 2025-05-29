@@ -55,7 +55,7 @@ def create_cell_style(styles, is_header=False, total_row=False):
         spaceBefore=2,
         spaceAfter=2,
         fontName='Helvetica-Bold' if is_header or total_row else 'Helvetica',
-        textColor=COLORS['white'] if total_row else None,
+        textColor=COLORS['dark_gray'] if total_row else None,
         wordWrap='CJK',
         alignment=TA_LEFT
     )
@@ -64,7 +64,7 @@ def create_table_style():
     """Create a consistent table style for materials table."""
     return TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
+        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['dark_gray']),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
@@ -332,7 +332,7 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
             'HeaderInfo',
             parent=styles['Normal'],
             fontSize=9,
-            textColor=COLORS['white'],
+            textColor=COLORS['dark_gray'],
             alignment=2        )
         now = datetime.datetime.now()
         header_text = f"""

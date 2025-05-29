@@ -192,7 +192,7 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
             'HeaderInfo',
             parent=styles['Normal'],
             fontSize=9,
-            textColor=COLORS['white'],
+            textColor=COLORS['dark_gray'],
             alignment=2
         )
         header_text = f"""
@@ -283,7 +283,7 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
             parent=styles['Heading4'],
             fontSize=10,
             alignment=1,
-            textColor=COLORS['white']
+            textColor=COLORS['dark_gray']
         )
 
         headers = [
@@ -338,7 +338,7 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
 
         table_style = TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-            ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
+            ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['dark_gray']),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
             ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),

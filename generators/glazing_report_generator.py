@@ -71,7 +71,7 @@ def create_base_table_style():
 
 def apply_header_style(table_style, row_index=0):
     table_style.add('BACKGROUND', (0, row_index), (-1, row_index), COLORS['primary_blue'])
-    table_style.add('TEXTCOLOR', (0, row_index), (-1, row_index), COLORS['white'])
+    table_style.add('TEXTCOLOR', (0, row_index), (-1, row_index), COLORS['dark_gray'])
     table_style.add('ALIGN', (0, row_index), (-1, row_index), 'CENTER')
     table_style.add('FONTNAME', (0, row_index), (-1, row_index), FONTS['table_header'])
     table_style.add('FONTSIZE', (0, row_index), (-1, row_index), FONT_SIZES['table_header'])
@@ -112,7 +112,7 @@ class GlazingReportGenerator:
                 'HeaderInfo',
                 parent=self.styles['Normal'],
                 fontSize=9,
-                textColor=COLORS['white'],
+                textColor=COLORS['dark_gray'],
                 alignment=2
             )
             header_text = f"""

@@ -131,7 +131,7 @@ def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> T
 
         style = TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-            ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
+            ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['dark_gray']),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
@@ -210,7 +210,7 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
             textColor=grey, leftIndent=0.5*cm, spaceAfter=0.4*cm
         )
         header_info_style = ParagraphStyle(
-            'HeaderInfo', parent=styles['Normal'], fontSize=9, textColor=COLORS['white'], alignment=2        )
+            'HeaderInfo', parent=styles['Normal'], fontSize=9, textColor=COLORS['dark_gray'], alignment=2        )
         now = datetime.datetime.now()
         header_text = f"""
         Project: {project_name}<br/>

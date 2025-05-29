@@ -73,14 +73,14 @@ CLIMATE_ZONE_MAP = {
 def _get_table_style():
     return TableStyle([
         ('BACKGROUND', (0,0), (-1,0), COLORS['primary_blue']),
-        ('TEXTCOLOR', (0,0), (-1,0), COLORS['white']),
+        ('TEXTCOLOR', (0,0), (-1,0), COLORS['dark_gray']),
         ('ALIGN', (0,0), (-1,0), 'CENTER'),
         ('VALIGN', (0,0), (-1,0), 'MIDDLE'),
         ('FONTNAME', (0,0), (-1,0), FONTS['table_header']),
         ('FONTSIZE', (0,0), (-1,0), FONT_SIZES['table_header']),
 
         ('BACKGROUND', (0,1), (-1,1), COLORS['secondary_blue']),
-        ('TEXTCOLOR', (0,1), (-1,1), COLORS['white']),
+        ('TEXTCOLOR', (0,1), (-1,1), COLORS['dark_gray']),
         ('ALIGN', (0,1), (-1,1), 'CENTER'),
         ('VALIGN', (0,1), (-1,1), 'MIDDLE'),
         ('FONTNAME', (0,1), (-1,1), FONTS['table_header']),
@@ -647,7 +647,7 @@ class EnergyRatingReportGenerator:
                 'HeaderInfo', 
                 parent=self.styles['Normal'], 
                 fontSize=9, 
-                textColor=COLORS['white'], 
+                textColor=COLORS['dark_gray'], 
                 alignment=TA_RIGHT
             )
             now = datetime.datetime.now()
@@ -723,7 +723,7 @@ class EnergyRatingReportGenerator:
                 'HeaderInfo', 
                 parent=self.styles['Normal'], 
                 fontSize=9, 
-                textColor=COLORS['white'], 
+                textColor=COLORS['dark_gray'], 
                 alignment=TA_RIGHT
             )
             now = datetime.datetime.now()
