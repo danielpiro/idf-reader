@@ -55,6 +55,7 @@ def create_cell_style(styles, is_header=False, total_row=False):
         spaceBefore=2,
         spaceAfter=2,
         fontName='Helvetica-Bold' if is_header or total_row else 'Helvetica',
+        textColor=COLORS['white'] if total_row else None,
         wordWrap='CJK',
         alignment=TA_LEFT
     )

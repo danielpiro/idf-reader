@@ -134,11 +134,14 @@ class GlazingReportGenerator:
             story.append(Spacer(1, 0.5*cm))
             for construction_id, data in self.glazing_data.items():
                 sub_heading_style = self.styles['h3']
+                sub_heading_style.textColor = COLORS['white']
                 story.append(Paragraph(f"Construction: {construction_id}", sub_heading_style))
                 story.append(Spacer(1, 0.2*cm))
                 system_table = self._create_system_table(data.get('system_details', {}))
                 if system_table:
-                    title_p = Paragraph("Glazing System", self.styles['h3'])
+                    glazing_system_style = self.styles['h3']
+                    glazing_system_style.textColor = COLORS['white']
+                    title_p = Paragraph("Glazing System", glazing_system_style)
                     outer_data = [[title_p, system_table]]
                     landscape(A4)[0] - 3*cm
                     title_col_width = 3.5*cm
@@ -155,7 +158,9 @@ class GlazingReportGenerator:
                     story.append(Spacer(1, 0.4*cm))
                 details_table = self._create_details_table(data.get('glazing_layers', []))
                 if details_table:
-                    title_p = Paragraph("Glazing Details (Layers)", self.styles['h3'])
+                    glazing_details_style = self.styles['h3']
+                    glazing_details_style.textColor = COLORS['white']
+                    title_p = Paragraph("Glazing Details (Layers)", glazing_details_style)
                     outer_data = [[title_p, details_table]]
                     title_col_width = 3.5*cm
                     outer_table = Table(outer_data, colWidths=[title_col_width, None])
@@ -171,7 +176,9 @@ class GlazingReportGenerator:
                     story.append(Spacer(1, 0.4*cm))
                 shading_table = self._create_shading_table(data.get('shading_layers', []))
                 if shading_table:
-                    title_p = Paragraph("Shading", self.styles['h3'])
+                    shading_style = self.styles['h3']
+                    shading_style.textColor = COLORS['white']
+                    title_p = Paragraph("Shading", shading_style)
                     outer_data = [[title_p, shading_table]]
                     title_col_width = 3.5*cm
                     outer_table = Table(outer_data, colWidths=[title_col_width, None])
@@ -187,7 +194,9 @@ class GlazingReportGenerator:
                     story.append(Spacer(1, 0.4*cm))
                 frame_table = self._create_frame_table(data.get('frame_details'))
                 if frame_table:
-                    title_p = Paragraph("Frame", self.styles['h3'])
+                    frame_style = self.styles['h3']
+                    frame_style.textColor = COLORS['white']
+                    title_p = Paragraph("Frame", frame_style)
                     outer_data = [[title_p, frame_table]]
                     title_col_width = 3.5*cm
                     outer_table = Table(outer_data, colWidths=[title_col_width, None])
