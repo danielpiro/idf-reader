@@ -216,7 +216,7 @@ class AreaParser:
                     if is_glazing and glazing_area_override is not None and glazing_area_override > 0:
                         final_area = glazing_area_override
                     elif is_glazing:
-                         pass # No CSV area override or override is zero. Using IDF derived area.
+                         pass
 
                     if final_area <= 0.0 and not is_glazing_from_csv:
                         continue
@@ -278,7 +278,7 @@ class AreaParser:
                     elif conductivity > 0 and thickness > 0:
                         total_resistance += thickness / conductivity
                     else:
-                        pass # Material layer has zero resistance
+                        pass
                 except (TypeError, ValueError) as e_mat:
                     logger.warning(f"Error processing material layer '{layer_id}' in construction '{construction_name}': {e_mat}. Skipping layer.", exc_info=True)
                     continue
@@ -356,7 +356,7 @@ class AreaParser:
                     elif thickness >= 0 and conductivity > 0:
                         layer_r = thickness / conductivity
                     else:
-                        pass # Insufficient data for R-value
+                        pass
                     total_material_resistance += layer_r
                 except (TypeError, ValueError) as e_mat_calc:
                     logger.warning(f"Error calculating resistance for material layer '{layer_id}' in '{construction_name}': {e_mat_calc}. Skipping layer.", exc_info=True)
@@ -377,7 +377,7 @@ class AreaParser:
                    callable(getattr(self.materials_parser, '_get_surface_film_resistance')):
                     film_resistance = self.materials_parser._get_surface_film_resistance(element_type_for_film)
                 else:
-                    pass # MaterialsParser or _get_surface_film_resistance not available
+                    pass
             except Exception as e_film:
                 logger.warning(f"Error getting film resistance for '{construction_name}' (context type '{element_type_for_film}'): {e_film}. Defaulting film_resistance to 0.", exc_info=True)
 
@@ -460,7 +460,7 @@ class AreaParser:
                                     base_constr["elements"].extend(reverse_constr.get("elements", []))
                                     to_remove.append(reverse_name)
                                 else:
-                                    pass # Not merging, types do not match or one is empty
+                                    pass
 
                             except Exception as e_type:
                                 logger.warning(f"Error determining element types during merge check for '{base_name}'/'{reverse_name}' in zone '{zone_id}': {e_type}. Skipping merge for this pair.", exc_info=True)
@@ -534,7 +534,7 @@ class AreaParser:
                         continue
 
             if not found_area:
-                pass # No zones found, result will be empty or as calculated
+                pass
             return result
         except Exception as e:
             logger.error(f"Error calculating area totals for area_id '{area_id}': {e}. Returning partially calculated or zeroed totals.", exc_info=True)

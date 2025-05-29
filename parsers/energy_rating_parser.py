@@ -92,7 +92,6 @@ class EnergyRatingParser:
                 self.processed = False
                 return
 
-
             if not self.area_parser.processed:
                 try:
                     self.area_parser.process_idf(None)
@@ -251,13 +250,10 @@ class EnergyRatingParser:
             pass
 
             processed_val = 0.0
-            divisor_info = "None"
             if 'light' in header_lower:
                 processed_val = value / 3600000.0
-                divisor_info = "3.6M (J to kWh)"
             elif 'heating' in header_lower or 'cooling' in header_lower:
                 processed_val = value / 10800000.0
-                divisor_info = "10.8M"
             else:
                 logger.warning(f"Header '{header_lower}' did not match known energy categories for unit conversion. Original value: {value} returned.")
                 processed_val = value
@@ -428,7 +424,7 @@ class EnergyRatingParser:
                     abs_lighting = safe_float(data_for_zone.get('lighting', 0.0), 0.0)
                     abs_heating = safe_float(data_for_zone.get('heating', 0.0), 0.0)
                     abs_cooling = safe_float(data_for_zone.get('cooling', 0.0), 0.0)
-                    abs_total = safe_float(data_for_zone.get('total', 0.0), 0.0)
+                    safe_float(data_for_zone.get('total', 0.0), 0.0)
 
                     report_floor_id = data_for_zone.get('floor_id_report', 'N/A')
                     report_area_id = data_for_zone.get('area_id_report', 'N/A')

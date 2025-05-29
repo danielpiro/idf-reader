@@ -15,11 +15,37 @@ AUTOFLAKE_ARGS = [
     "--remove-duplicate-keys",
     "--exclude", "**/__init__.py"
 ]
-# Regex for print and logging.debug statements (match whole lines)
+# Regex patterns for debug statements (match whole lines)
 # Using re.MULTILINE means ^ and $ match start/end of lines.
-# Adding \r?\n? to consume the newline if the line is removed.
-PRINT_RE = re.compile(r"^\s*print\s*\(.*?\)\s*(#.*)?\s*$", re.MULTILINE)
-LOGGING_DEBUG_RE = re.compile(r"^\s*logging\.debug\s*\(.*?\)\s*(#.*)?\s*$", re.MULTILINE)
+DEBUG_PATTERNS = [
+    # Print statements
+    re.compile(r"^\s*print\s*\(.*?\)\s*(#.*)?\s*$", re.MULTILINE),
+    
+    # Logging debug statements
+    re.compile(r"^\s*logging\.debug\s*\(.*?\)\s*(#.*)?\s*$", re.MULTILINE),
+    re.compile(r"^\s*logger\.debug\s*\(.*?\)\s*(#.*)?\s*$", re.MULTILINE),
+    
+    # Debugger statements
+    re.compile(r"^\s*pdb\.set_trace\s*\(\s*\)\s*(#.*)?\s*$", re.MULTILINE),
+    re.compile(r"^\s*breakpoint\s*\(\s*\)\s*(#.*)?\s*$", re.MULTILINE),
+    re.compile(r"^\s*import\s+pdb\s*(#.*)?\s*$", re.MULTILINE),
+    re.compile(r"^\s*from\s+pdb\s+import.*?\s*(#.*)?\s*$", re.MULTILINE),
+    
+    # Console statements (in case of mixed environments)
+    re.compile(r"^\s*console\.log\s*\(.*?\)\s*(#.*)?\s*$", re.MULTILINE),
+    re.compile(r"^\s*console\.debug\s*\(.*?\)\s*(#.*)?\s*$", re.MULTILINE),
+    
+    # IPython debug statements
+    re.compile(r"^\s*from\s+IPython\s+import\s+embed.*?\s*(#.*)?\s*$", re.MULTILINE),
+    re.compile(r"^\s*embed\s*\(\s*\)\s*(#.*)?\s*$", re.MULTILINE),
+    
+    # Trace statements
+    re.compile(r"^\s*import\s+trace\s*(#.*)?\s*$", re.MULTILINE),
+    re.compile(r"^\s*traceback\.print_stack\s*\(.*?\)\s*(#.*)?\s*$", re.MULTILINE),
+    
+    # Debug-specific logging levels
+    re.compile(r"^\s*logging\.getLogger.*?\.debug\s*\(.*?\)\s*(#.*)?\s*$", re.MULTILINE),
+]
 
 PRESERVED_COMMENT_PATTERNS = [
     re.compile(r"^\s*# type:"),
@@ -69,9 +95,9 @@ def is_comment_preserved(comment_text):
     return False
 
 def clean_file_content_custom(code_content):
-    # 1. Remove print and logging.debug statements
-    code_content = PRINT_RE.sub("", code_content)
-    code_content = LOGGING_DEBUG_RE.sub("", code_content)
+    # 1. Remove debug statements using all patterns
+    for pattern in DEBUG_PATTERNS:
+        code_content = pattern.sub("", code_content)
 
     # 2. Remove general comments line by line
     lines = code_content.splitlines()
@@ -170,7 +196,7 @@ def main():
     print("Code cleanup script finished.")
     print("Summary of actions performed by this script:")
     print("- Used 'autoflake' to remove unused imports and variables.")
-    print("- Removed debug print() and logging.debug() statements.")
+    print("- Removed debug statements: print(), logging.debug(), logger.debug(), pdb.set_trace(), breakpoint(), etc.")
     print("- Removed general comments (preserving docstrings, type hints, shebangs, and common directives like # noqa).")
     print("\nLimitations acknowledged by this script:")
     print("- This script does NOT automatically remove unused functions or classes due to the risk and complexity involved.")

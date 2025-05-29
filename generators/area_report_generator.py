@@ -12,19 +12,17 @@ import datetime
 import logging
 from collections import defaultdict
 
-# Modern Blue/Gray Color Palette
 COLORS = {
-    'primary_blue': Color(0.2, 0.4, 0.7),      # #3366B2 - Primary blue
-    'secondary_blue': Color(0.4, 0.6, 0.85),   # #6699D9 - Secondary blue
-    'light_blue': Color(0.9, 0.94, 0.98),      # #E6F0FA - Light blue background
-    'dark_gray': Color(0.2, 0.2, 0.2),         # #333333 - Dark gray text
-    'medium_gray': Color(0.5, 0.5, 0.5),       # #808080 - Medium gray
-    'light_gray': Color(0.9, 0.9, 0.9),        # #E6E6E6 - Light gray
-    'white': Color(1, 1, 1),                   # #FFFFFF - White
-    'border_gray': Color(0.8, 0.8, 0.8),       # #CCCCCC - Border gray
+    'primary_blue': Color(0.2, 0.4, 0.7),
+    'secondary_blue': Color(0.4, 0.6, 0.85),
+    'light_blue': Color(0.9, 0.94, 0.98),
+    'dark_gray': Color(0.2, 0.2, 0.2),
+    'medium_gray': Color(0.5, 0.5, 0.5),
+    'light_gray': Color(0.9, 0.9, 0.9),
+    'white': Color(1, 1, 1),
+    'border_gray': Color(0.8, 0.8, 0.8),
 }
 
-# Typography Settings
 FONTS = {
     'title': 'Helvetica-Bold',
     'heading': 'Helvetica-Bold',
@@ -215,7 +213,7 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
             fontName=FONTS['title'],
             textColor=COLORS['primary_blue'],
             spaceAfter=20,
-            alignment=1  # Center alignment
+            alignment=1
         )
         story.append(Paragraph(f"Area {area_id} - Thermal Properties Report", title_style))
 
@@ -259,12 +257,10 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         summary_table = Table(summary_table_data, colWidths=[doc.width - 2*cm])
 
         summary_table_style = TableStyle([
-            # Modern styling with color palette
             ('BOX', (0, 0), (-1, -1), 1.5, COLORS['primary_blue']),
             ('BACKGROUND', (0, 0), (-1, -1), COLORS['light_blue']),
             ('PADDING', (0, 0), (-1, -1), 15),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            # Add subtle inner border
             ('INNERGRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
         ])
 
@@ -341,29 +337,24 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         area_table = Table(table_data, colWidths=col_widths, repeatRows=1)
 
         table_style = TableStyle([
-            # Header row styling - primary blue background
             ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
             ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
             ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),
             ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
-            
-            # Data rows styling
+
             ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
             ('FONTSIZE', (0, 1), (-1, -1), FONT_SIZES['table_body']),
             ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
             ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            
-            # Zebra striping for data rows
+
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
-            
-            # Borders - subtle gray lines
+
             ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
             ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
-            
-            # Padding for better readability
+
             ('LEFTPADDING', (0, 0), (-1, -1), 6),
             ('RIGHTPADDING', (0, 0), (-1, -1), 6),
             ('TOPPADDING', (0, 0), (-1, -1), 4),
@@ -486,7 +477,7 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                             try:
                                 element_type = materials_parser._get_element_type(construction_name, surfaces)
                             except Exception as e_mat_type:
-                                logger.debug(f"Could not get element type via MaterialsParser for {construction_name}: {e_mat_type}", exc_info=True)
+                                logger.warning(f"Error getting element type from MaterialsParser for construction '{construction_name}': {e_mat_type}")
 
                         if not element_type:
                             for element in construction_data.get("elements", []):
@@ -560,12 +551,12 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                                 calculated_mass_per_area += layer_mass
                         wall_mass_per_area = calculated_mass_per_area
                     else:
-                         pass
+                        logger.warning(f"Construction data not found for '{largest_ext_wall_construction}' in materials parser")
 
                 except Exception as e_mass:
                     logger.warning(f"Error calculating wall mass for area '{area_id}', construction '{largest_ext_wall_construction}': {e_mass}", exc_info=True)
             elif largest_ext_wall_construction:
-                 logger.debug(f"MaterialsParser not available for wall mass calculation for area '{area_id}'.")
+                logger.warning(f"Materials parser not available to calculate wall mass for construction '{largest_ext_wall_construction}'")
 
             location = area_locations.get(area_id, "Unknown")
 

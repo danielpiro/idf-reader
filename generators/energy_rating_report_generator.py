@@ -10,21 +10,19 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
 from utils.data_loader import get_energy_consumption
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.colors import navy, black, grey, lightgrey, blue, green, limegreen, yellow, orange, red, darkred, darkgrey, Color # Added Color and energy rating colors
+from reportlab.lib.colors import black, Color
 
-# Modern Blue/Gray Color Palette
 COLORS = {
-    'primary_blue': Color(0.2, 0.4, 0.7),      # #3366B2 - Primary blue
-    'secondary_blue': Color(0.4, 0.6, 0.85),   # #6699D9 - Secondary blue
-    'light_blue': Color(0.9, 0.94, 0.98),      # #E6F0FA - Light blue background
-    'dark_gray': Color(0.2, 0.2, 0.2),         # #333333 - Dark gray text
-    'medium_gray': Color(0.5, 0.5, 0.5),       # #808080 - Medium gray
-    'light_gray': Color(0.9, 0.9, 0.9),        # #E6E6E6 - Light gray
-    'white': Color(1, 1, 1),                   # #FFFFFF - White
-    'border_gray': Color(0.8, 0.8, 0.8),       # #CCCCCC - Border gray
+    'primary_blue': Color(0.2, 0.4, 0.7),
+    'secondary_blue': Color(0.4, 0.6, 0.85),
+    'light_blue': Color(0.9, 0.94, 0.98),
+    'dark_gray': Color(0.2, 0.2, 0.2),
+    'medium_gray': Color(0.5, 0.5, 0.5),
+    'light_gray': Color(0.9, 0.9, 0.9),
+    'white': Color(1, 1, 1),
+    'border_gray': Color(0.8, 0.8, 0.8),
 }
 
-# Typography Settings
 FONTS = {
     'title': 'Helvetica-Bold',
     'heading': 'Helvetica-Bold',
@@ -41,8 +39,8 @@ FONT_SIZES = {
     'table_body': 8,
     'small': 7,
 }
-from reportlab.lib.enums import TA_CENTER, TA_RIGHT
-from reportlab.graphics.shapes import Drawing, Rect, Polygon, String # Added Polygon and String
+from reportlab.lib.enums import TA_CENTER
+from reportlab.graphics.shapes import Drawing, Rect, Polygon, String
 
 logger = logging.getLogger(__name__)
 
@@ -74,44 +72,37 @@ CLIMATE_ZONE_MAP = {
 
 def _get_table_style():
     return TableStyle([
-        # Header row styling - primary blue background
         ('BACKGROUND', (0,0), (-1,0), COLORS['primary_blue']),
         ('TEXTCOLOR', (0,0), (-1,0), COLORS['white']),
         ('ALIGN', (0,0), (-1,0), 'CENTER'),
         ('VALIGN', (0,0), (-1,0), 'MIDDLE'),
         ('FONTNAME', (0,0), (-1,0), FONTS['table_header']),
         ('FONTSIZE', (0,0), (-1,0), FONT_SIZES['table_header']),
-        
-        # Sub-header row styling - secondary blue background
+
         ('BACKGROUND', (0,1), (-1,1), COLORS['secondary_blue']),
         ('TEXTCOLOR', (0,1), (-1,1), COLORS['white']),
         ('ALIGN', (0,1), (-1,1), 'CENTER'),
         ('VALIGN', (0,1), (-1,1), 'MIDDLE'),
         ('FONTNAME', (0,1), (-1,1), FONTS['table_header']),
         ('FONTSIZE', (0,1), (-1,1), FONT_SIZES['table_body']),
-        
-        # Header spans
+
         ('SPAN', (0,0), (4,0)),
         ('SPAN', (5,0), (8,0)),
         ('SPAN', (9,0), (12,0)),
-        
-        # Data rows styling
+
         ('FONTNAME', (0,2), (-1,-1), FONTS['table_body']),
         ('FONTSIZE', (0,2), (-1,-1), FONT_SIZES['table_body']),
         ('ALIGN', (0,2), (-1,-1), 'CENTER'),
         ('VALIGN', (0,2), (-1,-1), 'MIDDLE'),
         ('TEXTCOLOR', (0,2), (-1,-1), COLORS['dark_gray']),
-        
-        # Zebra striping for data rows (every other row)
+
         ('ROWBACKGROUNDS', (0,2), (-1,-1), [COLORS['white'], COLORS['light_blue']]),
-        
-        # Borders - subtle gray lines
+
         ('LINEBELOW', (0,0), (-1,0), 1, COLORS['border_gray']),
         ('LINEBELOW', (0,1), (-1,1), 1, COLORS['border_gray']),
         ('GRID', (0,2), (-1,-1), 0.5, COLORS['border_gray']),
         ('BOX', (0,0), (-1,-1), 1, COLORS['medium_gray']),
-        
-        # Padding for better readability
+
         ('LEFTPADDING', (0,0), (-1,-1), 6),
         ('RIGHTPADDING', (0,0), (-1,-1), 6),
         ('TOPPADDING', (0,0), (-1,-1), 4),
@@ -152,7 +143,7 @@ def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_tot
     This function encapsulates logic similar to that in _energy_rating_table for determining area score.
     Returns an integer score or None.
     """
-    logger.debug(f"Attempting to get score for group. Inputs: group_sum_energy_components={group_sum_energy_components}, group_sum_total_area={group_sum_total_area}, group_model_csv_area_desc='{group_model_csv_area_desc}', model_year={model_year}, model_area_definition='{model_area_definition}'")
+
     numeric_energy_consumption = None
     if group_model_csv_area_desc and model_year is not None and model_area_definition is not None:
         try:
@@ -163,44 +154,41 @@ def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_tot
                 area_definition_input=model_area_definition
             )
             numeric_energy_consumption = float(energy_value_raw)
-            logger.debug(f"Retrieved numeric_energy_consumption: {numeric_energy_consumption} for '{group_model_csv_area_desc}'")
+
         except Exception as e:
             logger.error(f"Error in _get_numeric_area_score_for_group getting energy consumption for '{group_model_csv_area_desc}': {e}")
-            # numeric_energy_consumption remains None
     else:
-        logger.debug(f"Skipping energy consumption lookup for group '{group_model_csv_area_desc}' due to missing inputs (model_year, model_area_definition, or desc).")
-
+        logger.warning(f"_get_numeric_area_score_for_group: Missing required parameters. group_model_csv_area_desc: {group_model_csv_area_desc}, model_year: {model_year}, model_area_definition: {model_area_definition}")
 
     calculated_improve_by_value = None
     if numeric_energy_consumption is not None:
-        logger.debug(f"Calculating improve_by_value: numeric_energy_consumption={numeric_energy_consumption}, group_sum_total_area={group_sum_total_area}, group_sum_energy_components={group_sum_energy_components}")
+
         if group_sum_total_area <= 70:
             adjusted_target_ec = 1.18 * numeric_energy_consumption
-            logger.debug(f"Area <= 70. adjusted_target_ec = {adjusted_target_ec}")
+
             if adjusted_target_ec != 0:
                 calculated_improve_by_value = 100 * (adjusted_target_ec - group_sum_energy_components) / adjusted_target_ec
             else:
-                logger.debug("adjusted_target_ec is 0, cannot calculate improve_by_value.")
+                logger.warning(f"_get_numeric_area_score_for_group: adjusted_target_ec is 0, cannot calculate improve_by_value for area <= 70")
+
         else:
-            logger.debug("Area > 70.")
             if numeric_energy_consumption != 0:
                 calculated_improve_by_value = 100 * (numeric_energy_consumption - group_sum_energy_components) / numeric_energy_consumption
             else:
-                logger.debug("numeric_energy_consumption is 0, cannot calculate improve_by_value.")
-        logger.debug(f"Calculated_improve_by_value: {calculated_improve_by_value}")
-    else:
-        logger.debug("numeric_energy_consumption is None, cannot calculate improve_by_value.")
+                logger.warning(f"_get_numeric_area_score_for_group: numeric_energy_consumption is 0, cannot calculate improve_by_value for area > 70")
 
-    
+    else:
+        logger.warning(f"_get_numeric_area_score_for_group: numeric_energy_consumption is None, cannot calculate improve_by_value")
+
     if calculated_improve_by_value is not None:
         if model_year == 2017:
             climate_zone_lookup_key = CLIMATE_ZONE_MAP.get(model_area_definition)
-            logger.debug(f"Model year 2017. Climate zone lookup key for '{model_area_definition}': '{climate_zone_lookup_key}'")
+
             if climate_zone_lookup_key and climate_zone_lookup_key in ENERGY_RATING_DATA_2017:
                 thresholds = ENERGY_RATING_DATA_2017[climate_zone_lookup_key]
                 for min_ip, _, rating_score_val in thresholds:
                     if calculated_improve_by_value >= min_ip:
-                        logger.debug(f"Found score: {rating_score_val} (improve_by {calculated_improve_by_value} >= min_ip {min_ip})")
+
                         return int(rating_score_val)
             elif not climate_zone_lookup_key:
                 logger.warning(f"_get_numeric_area_score_for_group: Could not map model_area_definition '{model_area_definition}' to a known climate zone.")
@@ -208,8 +196,7 @@ def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_tot
                 logger.warning(f"_get_numeric_area_score_for_group: Climate zone '{climate_zone_lookup_key}' not found in ENERGY_RATING_DATA_2017 for year {model_year}.")
         else:
             logger.warning(f"_get_numeric_area_score_for_group: Energy rating logic for model_year {model_year} not implemented (only 2017).")
-    
-    logger.debug(f"Returning None for score for group '{group_model_csv_area_desc}'.")
+
     return None
 
 def _calculate_total_energy_rating(raw_table_data, model_year, model_area_definition):
@@ -218,19 +205,11 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
     Formula: sum(for each area | zone area * zone multiplier * area score) / sum(for all areas zone area)
     Returns a tuple containing (numeric_score, letter_grade)
     """
-    logger.debug(f"_calculate_total_energy_rating received raw_table_data (count: {len(raw_table_data) if raw_table_data else 0}), model_year: {model_year}, model_area_definition: {model_area_definition}")
+
     if not raw_table_data:
         logger.warning("_calculate_total_energy_rating: raw_table_data is empty or None.")
         return None, None
 
-    # Step 1: Aggregate data per group from raw_table_data (zones)
-    # grouped_data[group_key] will store:
-    #   'sum_energy_components': sum of (lighting+cooling+heating) for the group
-    #   'sum_total_area': sum of 'total_area' for the group
-    #   'model_csv_area_description': from one of the zones in the group
-    #   'area_effective_for_numerator': sum of (zone_area * zone_multiplier)
-    #   'raw_zone_area_sum_for_denominator': sum of (zone_area)
-    #   'calculated_score': to be filled in Step 2
     grouped_data = {}
     for row in raw_table_data:
         group_key = (str(row.get('floor_id_report', 'N/A')), str(row.get('area_id_report', 'N/A')))
@@ -243,10 +222,10 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
                 'raw_zone_area_sum_for_denominator': 0.0,
                 'calculated_score': None
             }
-        
+
         zone_area = safe_float(row.get('total_area', 0))
         zone_multiplier = safe_float(row.get('multiplier', 1))
-        
+
         grouped_data[group_key]['sum_energy_components'] += safe_float(row.get('lighting', 0.0)) + \
                                                               safe_float(row.get('cooling', 0.0)) + \
                                                               safe_float(row.get('heating', 0.0))
@@ -254,9 +233,6 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
         grouped_data[group_key]['area_effective_for_numerator'] += zone_area * zone_multiplier
         grouped_data[group_key]['raw_zone_area_sum_for_denominator'] += zone_area
 
-    logger.debug(f"_calculate_total_energy_rating: grouped_data after aggregation: {grouped_data}")
-
-    # Step 2: Calculate score for each group
     for group_key, data_item in grouped_data.items():
         score = _get_numeric_area_score_for_group(
             group_sum_energy_components=data_item['sum_energy_components'],
@@ -269,44 +245,35 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
         if score is None:
             logger.warning(f"Score calculation for group {group_key} resulted in None.")
 
-
-    logger.debug(f"_calculate_total_energy_rating: grouped_data after score calculation: {grouped_data}")
-    
-    # Step 3: Calculate final weighted average using the calculated scores
     weighted_score_sum_numerator = 0.0
     total_raw_area_sum_denominator = 0.0
-    
+
     for group_key, data_item in grouped_data.items():
         if data_item['calculated_score'] is not None:
             group_score = safe_float(data_item['calculated_score'])
             group_effective_area = data_item['area_effective_for_numerator']
-            # Denominator uses raw zone area of groups that have a score
             group_raw_area_for_denom = data_item['raw_zone_area_sum_for_denominator']
 
             term_numerator = group_effective_area * group_score
             weighted_score_sum_numerator += term_numerator
             total_raw_area_sum_denominator += group_raw_area_for_denom
-            logger.debug(f"  Group {group_key}: score={group_score}, effective_area={group_effective_area}, raw_area_for_denom={group_raw_area_for_denom}. Adding {term_numerator} to numerator, {group_raw_area_for_denom} to denominator.")
+
         else:
-            logger.debug(f"  Group {group_key}: score is None. Skipping from weighted average.")
-            
-    logger.debug(f"_calculate_total_energy_rating: final weighted_score_sum_numerator = {weighted_score_sum_numerator}, final total_raw_area_sum_denominator = {total_raw_area_sum_denominator}")
-            
+            logger.warning(f"_calculate_total_energy_rating: Group {group_key} has calculated_score as None, excluding from weighted calculation")
+
     if total_raw_area_sum_denominator > 0:
         raw_average = weighted_score_sum_numerator / total_raw_area_sum_denominator
-        logger.debug(f"Calculated raw_average: {raw_average} ({weighted_score_sum_numerator}/{total_raw_area_sum_denominator})")
-        
+
         if raw_average % 1 >= 0.5:
             final_score = math.ceil(raw_average)
-            logger.debug(f"Rounding up: final_score = {final_score}")
+
         else:
             final_score = math.floor(raw_average)
-            logger.debug(f"Rounding down: final_score = {final_score}")
-        
+
         letter_grade = _get_letter_grade_for_score(final_score)
         logger.info(f"_calculate_total_energy_rating: Calculated final_score = {final_score}, letter_grade = {letter_grade}")
         return final_score, letter_grade
-    
+
     logger.warning("_calculate_total_energy_rating: total_raw_area_sum_denominator is 0 or less. Cannot calculate average.")
     return None, None
 
@@ -328,6 +295,7 @@ def _create_total_energy_rating_table(total_score, letter_grade):
     elements = []
 
     if total_score is None or letter_grade == "N/A":
+        styles = getSampleStyleSheet()
         no_data_style = styles['Normal']
         no_data_style.alignment = TA_CENTER
         no_data_style.fontName = FONTS['body']
@@ -340,20 +308,19 @@ def _create_total_energy_rating_table(total_score, letter_grade):
     bar_height = 0.8 * cm
     bar_spacing = 0.3 * cm
     label_offset_x = 0.5 * cm
-    hebrew_label_offset_x = 4 * cm # Adjusted for longer Hebrew text
-    left_arrow_width = 0.5 * cm  # Left side arrow (original)
-    right_arrow_width = 1.5 * cm  # Right side arrow (new)
+    hebrew_label_offset_x = 4 * cm
+    left_arrow_width = 0.5 * cm
+    right_arrow_width = 1.5 * cm
     right_arrow_height = bar_height
-    
-    # Define rating levels with exact hex colors (best to worst)
+
     rating_levels = [
-        { "grade": "+A", "label_en": "Diamond", "color": Color(0.0157, 0.4549, 0.7686) },      # #0474c4
-        { "grade": "A",  "label_en": "Platinum", "color": Color(0.1059, 0.5059, 0.2353) },    # #1b813c
-        { "grade": "B",  "label_en": "Gold", "color": Color(0.1608, 0.6824, 0.3098) },        # #29ae4f
-        { "grade": "C",  "label_en": "Silver", "color": Color(0.2000, 0.8000, 0.2000) },      # #33cc33
-        { "grade": "D",  "label_en": "Bronze", "color": Color(1.0000, 0.8000, 0.0000) },      # #ffcc00
-        { "grade": "E",  "label_en": "Base Level", "color": Color(0.9843, 0.3961, 0.0000) },  # #fb6500
-        { "grade": "F",  "label_en": "Below Base", "color": Color(0.3451, 0.3451, 0.3451) }   # #585858
+        { "grade": "+A", "label_en": "Diamond", "color": Color(0.0157, 0.4549, 0.7686) },
+        { "grade": "A",  "label_en": "Platinum", "color": Color(0.1059, 0.5059, 0.2353) },
+        { "grade": "B",  "label_en": "Gold", "color": Color(0.1608, 0.6824, 0.3098) },
+        { "grade": "C",  "label_en": "Silver", "color": Color(0.2000, 0.8000, 0.2000) },
+        { "grade": "D",  "label_en": "Bronze", "color": Color(1.0000, 0.8000, 0.0000) },
+        { "grade": "E",  "label_en": "Base Level", "color": Color(0.9843, 0.3961, 0.0000) },
+        { "grade": "F",  "label_en": "Below Base", "color": Color(0.3451, 0.3451, 0.3451) }
     ]
 
     drawing_height = (bar_height + bar_spacing) * len(rating_levels)
@@ -362,7 +329,6 @@ def _create_total_energy_rating_table(total_score, letter_grade):
     y_position = drawing_height - bar_height 
 
     for level in rating_levels:
-        # Bar - adjust width to make room for right-side arrow and labels
         bar_width = drawing_width - (left_arrow_width + label_offset_x + hebrew_label_offset_x + right_arrow_width + 1*cm)
         bar = Rect(left_arrow_width + label_offset_x, y_position, bar_width, bar_height)
         bar.fillColor = level["color"]
@@ -370,19 +336,16 @@ def _create_total_energy_rating_table(total_score, letter_grade):
         bar.strokeWidth = 0.5
         drawing.add(bar)
 
-        # Grade Label (left side of bar) - adjust text color based on background
         eng_label = String(left_arrow_width + label_offset_x * 2, y_position + bar_height / 2.5, level["grade"])
         eng_label.fontName = FONTS['table_header']
         eng_label.fontSize = FONT_SIZES['table_body']
         eng_label.textAnchor = 'start'
-        # Use white text for dark backgrounds and dark text for light backgrounds
-        if level["grade"] in ["+A", "A", "B", "F"]:  # Dark Blue, Dark Green, Green, Dark Gray
-            eng_label.fillColor = COLORS['white']  # White text on dark backgrounds
-        else:  # C, D, E - Light Green, Yellow, Orange
-            eng_label.fillColor = COLORS['dark_gray']  # Dark text on light backgrounds
+        if level["grade"] in ["+A", "A", "B", "F"]:
+            eng_label.fillColor = COLORS['white']
+        else:
+            eng_label.fillColor = COLORS['dark_gray']
         drawing.add(eng_label)
-        
-        # Description Label (right side of bar)
+
         english_label_x_pos = left_arrow_width + label_offset_x + bar_width + 0.2*cm
         eng_label_right = String(english_label_x_pos, y_position + bar_height / 2.5, level["label_en"])
         eng_label_right.fontName = FONTS['body']
@@ -391,48 +354,41 @@ def _create_total_energy_rating_table(total_score, letter_grade):
         eng_label_right.fillColor = COLORS['dark_gray']
         drawing.add(eng_label_right)
 
-        # Right-side arrow pointing left toward the bars if this is the current grade
         if level["grade"] == letter_grade:
-            # Position the arrow on the right side
             arrow_base_x = drawing_width - right_arrow_width - 0.2*cm
-            arrow_tip_x = arrow_base_x - 0.3*cm  # Point extends left toward bars
-            
-            # Create left-pointing arrow shape (rectangular body with left arrowhead)
+            arrow_tip_x = arrow_base_x - 0.3*cm
+
             arrow_points = [
-                arrow_tip_x, y_position + right_arrow_height / 2,           # Left tip point
-                arrow_base_x, y_position + right_arrow_height * 0.25,       # Bottom right of head
-                arrow_base_x, y_position + right_arrow_height * 0.4,        # Bottom of body
-                arrow_base_x + right_arrow_width, y_position + right_arrow_height * 0.4,  # Bottom right of body
-                arrow_base_x + right_arrow_width, y_position + right_arrow_height * 0.6,  # Top right of body
-                arrow_base_x, y_position + right_arrow_height * 0.6,        # Top of body
-                arrow_base_x, y_position + right_arrow_height * 0.75        # Top right of head
+                arrow_tip_x, y_position + right_arrow_height / 2,
+                arrow_base_x, y_position + right_arrow_height * 0.25,
+                arrow_base_x, y_position + right_arrow_height * 0.4,
+                arrow_base_x + right_arrow_width, y_position + right_arrow_height * 0.4,
+                arrow_base_x + right_arrow_width, y_position + right_arrow_height * 0.6,
+                arrow_base_x, y_position + right_arrow_height * 0.6,
+                arrow_base_x, y_position + right_arrow_height * 0.75
             ]
-            
-            # Use the same color as the matching rating bar
+
             arrow = Polygon(arrow_points)
             arrow.fillColor = level["color"]
-            arrow.strokeColor = Color(0.2, 0.2, 0.2)  # Dark border
+            arrow.strokeColor = Color(0.2, 0.2, 0.2)
             arrow.strokeWidth = 1
             drawing.add(arrow)
-            
-            # Add grade label inside the arrow
+
             arrow_label_x = arrow_base_x + right_arrow_width / 2
             arrow_label_y = y_position + right_arrow_height / 2.5
             arrow_label = String(arrow_label_x, arrow_label_y, level["grade"])
             arrow_label.fontName = FONTS['table_header']
             arrow_label.fontSize = FONT_SIZES['table_body']
             arrow_label.textAnchor = 'middle'
-            # Use white text for dark backgrounds and dark text for light backgrounds
-            if level["grade"] in ["+A", "A", "B", "F"]:  # Dark backgrounds
+            if level["grade"] in ["+A", "A", "B", "F"]:
                 arrow_label.fillColor = COLORS['white']
-            else:  # Light backgrounds
+            else:
                 arrow_label.fillColor = COLORS['dark_gray']
             drawing.add(arrow_label)
 
         y_position -= (bar_height + bar_spacing)
 
     elements.append(drawing)
-    
 
     return elements
 
@@ -447,7 +403,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
         return None
 
     def sort_key(item):
-        floor_val = item.get('floor_id_report', '') # Changed from 'floor' to 'floor_id_report'
+        floor_val = item.get('floor_id_report', '')
         try:
             floor_sort_val = int(floor_val)
         except ValueError:
@@ -604,7 +560,6 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
             if isinstance(calculated_improve_by_value, (int, float)):
                  display_improve_by = _format_number(calculated_improve_by_value)
 
-
         else:
             display_floor_id = ""
             display_area_id = ""
@@ -649,7 +604,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
 
 class EnergyRatingReportGenerator:
     """Generates PDF reports showing energy consumption and rating information."""
-    
+
     def __init__(self, energy_rating_parser, output_dir="output/reports",
                  model_year: int = None, model_area_definition: str = None,
                  selected_city_name: str = None, project_name: str = "N/A", 
@@ -686,7 +641,6 @@ class EnergyRatingReportGenerator:
                                     topMargin=self.margin, bottomMargin=self.margin)
             story = []
 
-            # Add header information
             from reportlab.lib.styles import ParagraphStyle
             from reportlab.lib.enums import TA_RIGHT
             header_info_style = ParagraphStyle(
@@ -737,7 +691,7 @@ class EnergyRatingReportGenerator:
 
         except Exception as e:
             raise RuntimeError(f"Error generating energy rating report: {e}")
-            
+
     def generate_total_energy_rating_report(self, output_filename="total_energy_rating.pdf"):
         """
         Generate total energy rating report PDF using ReportLab.
@@ -750,23 +704,19 @@ class EnergyRatingReportGenerator:
         try:
             if not self.energy_rating_parser.processed:
                 self.energy_rating_parser.process_output()
-                
-            # Get the table data which contains area scores
+
             raw_table_data = self.energy_rating_parser.get_energy_rating_table_data()
-            
-            # Calculate the total energy rating (numeric score and letter grade)
+
             total_score, letter_grade = _calculate_total_energy_rating(
                 raw_table_data,
                 self.model_year,
                 self.model_area_definition
             )
-            # Create the PDF document
             doc = SimpleDocTemplate(output_path, pagesize=A4,
                                    leftMargin=self.margin, rightMargin=self.margin,
                                    topMargin=self.margin, bottomMargin=self.margin)
             story = []
 
-            # Add header information
             from reportlab.lib.styles import ParagraphStyle
             from reportlab.lib.enums import TA_RIGHT
             header_info_style = ParagraphStyle(
@@ -788,7 +738,6 @@ class EnergyRatingReportGenerator:
             story.append(Paragraph(header_text, header_info_style))
             story.append(Spacer(1, 5))
 
-            # Add title
             title_style = self.styles['h1']
             title_style.alignment = TA_CENTER
             title_style.textColor = COLORS['primary_blue']
@@ -796,13 +745,12 @@ class EnergyRatingReportGenerator:
             title_style.fontSize = FONT_SIZES['title']
             story.append(Paragraph("Total Energy Rating Report", title_style))
             story.append(Spacer(1, 1*cm))
-            
-            # Create and add the total rating table
+
             if total_score is not None and letter_grade != "N/A":
                 rating_table = _create_total_energy_rating_table(total_score, letter_grade)
                 if rating_table:
                     story.append(Spacer(1, 1*cm))
-                    story.extend(rating_table) # Changed append to extend
+                    story.extend(rating_table)
             else:
                 styles = getSampleStyleSheet()
                 unavailable_style = styles['Normal']
@@ -812,7 +760,6 @@ class EnergyRatingReportGenerator:
                 unavailable_style.textColor = COLORS['medium_gray']
                 story.append(Paragraph("Total energy rating not available.", unavailable_style))
 
-            # Build the PDF
             doc.build(story)
             logger.info(f"Generated total energy rating report: {output_path}")
             return output_path

@@ -4,24 +4,22 @@ from reportlab.lib.units import cm
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import Paragraph, Table, TableStyle
 from reportlab.lib import colors
-from reportlab.lib.colors import navy, grey, Color
+from reportlab.lib.colors import grey, Color
 import datetime
 import logging
 from pathlib import Path
 
-# Modern Blue/Gray Color Palette
 COLORS = {
-    'primary_blue': Color(0.2, 0.4, 0.7),      # #3366B2 - Primary blue
-    'secondary_blue': Color(0.4, 0.6, 0.85),   # #6699D9 - Secondary blue
-    'light_blue': Color(0.9, 0.94, 0.98),      # #E6F0FA - Light blue background
-    'dark_gray': Color(0.2, 0.2, 0.2),         # #333333 - Dark gray text
-    'medium_gray': Color(0.5, 0.5, 0.5),       # #808080 - Medium gray
-    'light_gray': Color(0.9, 0.9, 0.9),        # #E6E6E6 - Light gray
-    'white': Color(1, 1, 1),                   # #FFFFFF - White
-    'border_gray': Color(0.8, 0.8, 0.8),       # #CCCCCC - Border gray
+    'primary_blue': Color(0.2, 0.4, 0.7),
+    'secondary_blue': Color(0.4, 0.6, 0.85),
+    'light_blue': Color(0.9, 0.94, 0.98),
+    'dark_gray': Color(0.2, 0.2, 0.2),
+    'medium_gray': Color(0.5, 0.5, 0.5),
+    'light_gray': Color(0.9, 0.9, 0.9),
+    'white': Color(1, 1, 1),
+    'border_gray': Color(0.8, 0.8, 0.8),
 }
 
-# Typography Settings
 FONTS = {
     'title': 'Helvetica-Bold',
     'heading': 'Helvetica-Bold',
@@ -132,7 +130,6 @@ def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> T
             table_data.append(row_data)
 
         style = TableStyle([
-            # Header row styling - primary blue background
             ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
             ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -141,21 +138,17 @@ def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> T
             ('FONTSIZE', (0, 0), (-1, -1), FONT_SIZES['small']),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
             ('TOPPADDING', (0, 0), (-1, 0), 6),
-            
-            # Data rows styling
+
             ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
             ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
-            
-            # Borders - subtle gray lines
+
             ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
             ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
-            
-            # Period column alignment
+
             ('ALIGN', (0, 1), (0, -1), 'LEFT'),
             ('LEFTPADDING', (0, 1), (0, -1), 6),
-            
-            # Hour columns padding
+
             ('TOPPADDING', (1, 1), (-1, -1), 4),
             ('BOTTOMPADDING', (1, 1), (-1, -1), 4),
             ('LEFTPADDING', (1, 1), (-1, -1), 3),

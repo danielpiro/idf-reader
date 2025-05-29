@@ -268,7 +268,6 @@ class ProcessingManager:
         num_reports = 8
         progress_increment = (1.0 - progress_step) / num_reports
 
-        # Extract city and area information from city_info
         city_name = self.city_info.get('city', 'N/A') if hasattr(self, 'city_info') and self.city_info else 'N/A'
         area_name = city_area_name_selection if city_area_name_selection else 'N/A'
 
@@ -344,8 +343,7 @@ class ProcessingManager:
                     self.update_status("Energy Rating report generated successfully.")
                 else:
                     self.update_status("Energy Rating report generation failed (check console for details).")
-                
-                # Generate the total energy rating report
+
                 try:
                     total_rating_path = energy_rating_gen.generate_total_energy_rating_report(output_filename="total_energy_rating.pdf")
                     if total_rating_path:
@@ -356,8 +354,7 @@ class ProcessingManager:
                     error_message = f"Error generating Total Energy Rating PDF report: {type(e_total).__name__} - {str(e_total)}"
                     self.update_status(error_message)
                     logger.error(f"Exception in Total Energy Rating report generation: {e_total}", exc_info=True)
-                
-                # Generate the total energy rating report
+
                 try:
                     total_rating_path = energy_rating_gen.generate_total_energy_rating_report(output_filename="total_energy_rating.pdf")
                     if total_rating_path:

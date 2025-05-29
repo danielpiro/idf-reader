@@ -5,24 +5,22 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, Spacer
 from reportlab.lib.pagesizes import landscape, A3
 from reportlab.lib.units import cm
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.colors import navy, black, lightgrey, white, grey, Color
+from reportlab.lib.colors import black, Color
 from reportlab.lib.enums import TA_CENTER
 import datetime
 from reportlab.platypus import TableStyle
 
-# Modern Blue/Gray Color Palette
 COLORS = {
-    'primary_blue': Color(0.2, 0.4, 0.7),      # #3366B2 - Primary blue
-    'secondary_blue': Color(0.4, 0.6, 0.85),   # #6699D9 - Secondary blue
-    'light_blue': Color(0.9, 0.94, 0.98),      # #E6F0FA - Light blue background
-    'dark_gray': Color(0.2, 0.2, 0.2),         # #333333 - Dark gray text
-    'medium_gray': Color(0.5, 0.5, 0.5),       # #808080 - Medium gray
-    'light_gray': Color(0.9, 0.9, 0.9),        # #E6E6E6 - Light gray
-    'white': Color(1, 1, 1),                   # #FFFFFF - White
-    'border_gray': Color(0.8, 0.8, 0.8),       # #CCCCCC - Border gray
+    'primary_blue': Color(0.2, 0.4, 0.7),
+    'secondary_blue': Color(0.4, 0.6, 0.85),
+    'light_blue': Color(0.9, 0.94, 0.98),
+    'dark_gray': Color(0.2, 0.2, 0.2),
+    'medium_gray': Color(0.5, 0.5, 0.5),
+    'light_gray': Color(0.9, 0.9, 0.9),
+    'white': Color(1, 1, 1),
+    'border_gray': Color(0.8, 0.8, 0.8),
 }
 
-# Typography Settings
 FONTS = {
     'title': 'Helvetica-Bold',
     'heading': 'Helvetica-Bold',
@@ -75,7 +73,6 @@ def create_hierarchical_table_style():
     ]
 
     style = [
-        # Primary header row styling - primary blue background
         ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
         ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
@@ -85,7 +82,6 @@ def create_hierarchical_table_style():
         ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
         ('TOPPADDING', (0, 0), (-1, 0), 4),
 
-        # Secondary header row styling - secondary blue background
         ('BACKGROUND', (1, 1), (-1, 1), COLORS['secondary_blue']),
         ('TEXTCOLOR', (1, 1), (-1, 1), COLORS['white']),
         ('ALIGN', (1, 1), (-1, 1), 'CENTER'),
@@ -95,11 +91,9 @@ def create_hierarchical_table_style():
         ('TOPPADDING', (1, 1), (-1, 1), 2),
         ('BOTTOMPADDING', (1, 1), (-1, 1), 2),
 
-        # Zone column spans both header rows
         ('ALIGN', (0, 0), (0, 1), 'CENTER'),
         ('VALIGN', (0, 0), (0, 1), 'MIDDLE'),
 
-        # Data rows styling
         ('TEXTCOLOR', (0, 2), (-1, -1), COLORS['dark_gray']),
         ('ALIGN', (0, 2), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 2), (-1, -1), 'MIDDLE'),
@@ -108,10 +102,8 @@ def create_hierarchical_table_style():
         ('TOPPADDING', (0, 2), (-1, -1), 2),
         ('BOTTOMPADDING', (0, 2), (-1, -1), 2),
 
-        # Zebra striping for data rows
         ('ROWBACKGROUNDS', (0, 2), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
 
-        # Borders - subtle gray lines
         ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
         ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
 

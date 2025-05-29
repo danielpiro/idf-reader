@@ -5,25 +5,23 @@ from reportlab.lib.pagesizes import landscape, A3
 from reportlab.lib.units import cm
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import Paragraph, Table, TableStyle, SimpleDocTemplate, Spacer
-from reportlab.lib.colors import navy, black, grey, lightgrey, Color
+from reportlab.lib.colors import black, lightgrey, Color
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import datetime
 import logging
 from pathlib import Path
 
-# Modern Blue/Gray Color Palette
 COLORS = {
-    'primary_blue': Color(0.2, 0.4, 0.7),      # #3366B2 - Primary blue
-    'secondary_blue': Color(0.4, 0.6, 0.85),   # #6699D9 - Secondary blue
-    'light_blue': Color(0.9, 0.94, 0.98),      # #E6F0FA - Light blue background
-    'dark_gray': Color(0.2, 0.2, 0.2),         # #333333 - Dark gray text
-    'medium_gray': Color(0.5, 0.5, 0.5),       # #808080 - Medium gray
-    'light_gray': Color(0.9, 0.9, 0.9),        # #E6E6E6 - Light gray
-    'white': Color(1, 1, 1),                   # #FFFFFF - White
-    'border_gray': Color(0.8, 0.8, 0.8),       # #CCCCCC - Border gray
+    'primary_blue': Color(0.2, 0.4, 0.7),
+    'secondary_blue': Color(0.4, 0.6, 0.85),
+    'light_blue': Color(0.9, 0.94, 0.98),
+    'dark_gray': Color(0.2, 0.2, 0.2),
+    'medium_gray': Color(0.5, 0.5, 0.5),
+    'light_gray': Color(0.9, 0.9, 0.9),
+    'white': Color(1, 1, 1),
+    'border_gray': Color(0.8, 0.8, 0.8),
 }
 
-# Typography Settings
 FONTS = {
     'title': 'Helvetica-Bold',
     'heading': 'Helvetica-Bold',
@@ -64,35 +62,29 @@ def create_cell_style(styles, is_header=False, total_row=False):
 def create_table_style():
     """Create a consistent table style for materials table."""
     return TableStyle([
-        # Header row styling - primary blue background
         ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
         ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
         ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),
-        
-        # Data rows styling
+
         ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
         ('FONTSIZE', (0, 1), (-1, -1), FONT_SIZES['table_body']),
         ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        
-        # Zebra striping for data rows
+
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
-        
-        # Borders - subtle gray lines
+
         ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
         ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
-        
-        # Padding for better readability
+
         ('LEFTPADDING', (0, 0), (-1, -1), 6),
         ('RIGHTPADDING', (0, 0), (-1, -1), 6),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ])
 
-# Helper functions adapted from area_report_generator.py
 def _normalize_glazing_str(s: str) -> str:
     return "External glazing" if s == "External Glazing" else s
 
@@ -120,7 +112,6 @@ def _clean_element_type(element_type) -> str:
 
     return _normalize_glazing_str(str(element_type).strip())
 
-# Updated _get_element_type_sort_keys for materials_report_generator.py
 def _get_element_type_sort_keys(element_type_val):
     """Assigns primary and secondary sort keys based on element type string,
     using cleaning logic consistent with area_report_generator.py."""
@@ -139,7 +130,7 @@ def _get_element_type_sort_keys(element_type_val):
     elif 'separation floor' in element_type_lower:
         primary_key = 0
         secondary_key = 2
-    elif 'floor' in element_type_lower:  # Catches 'external floor' and other unspecified floor types
+    elif 'floor' in element_type_lower:
         primary_key = 0
         secondary_key = 3
     elif 'ceiling' in element_type_lower or 'roof' in element_type_lower:
@@ -155,7 +146,7 @@ def _get_element_type_sort_keys(element_type_val):
         elif 'external' in element_type_lower:
             secondary_key = 3
         else:
-            secondary_key = 4  # Fallback for other walls
+            secondary_key = 4
     elif 'glazing' in element_type_lower:
         primary_key = 3
 

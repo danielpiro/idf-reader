@@ -6,7 +6,7 @@ import argparse
 import sys
 import os
 import time
-from colorama import Fore, Style, init
+from colorama import Fore, init
 from gui import IDFProcessorGUI, ProcessingManager
 
 init(autoreset=True)
@@ -31,13 +31,14 @@ def cli_status_update(message: str) -> None:
         message: The message string to print.
     """
     if "error" in message.lower() or "failed" in message.lower():
-        print(f"{Fore.RED}{Style.BRIGHT}Error: {message}{Style.RESET_ALL}")
+        print(Fore.RED + message)
     elif "success" in message.lower() or "completed" in message.lower():
-        print(f"{Fore.GREEN}{Style.BRIGHT}{message}{Style.RESET_ALL}")
+        print(Fore.GREEN + message)
     elif "warning" in message.lower():
-        print(f"{Fore.YELLOW}{Style.BRIGHT}Warning: {message}{Style.RESET_ALL}")
+        print(Fore.YELLOW + message)
     else:
-        print(f"{Fore.CYAN}{message}{Style.RESET_ALL}")
+        print(Fore.WHITE + message)
+
 def cli_progress_update(value: float) -> None:
     """
     Prints a simple progress bar to the console.
@@ -50,9 +51,10 @@ def cli_progress_update(value: float) -> None:
     bar = '█' * filled_length + '-' * (bar_length - filled_length)
 
     if value >= 1.0:
-        print(f"\rProgress: [{Fore.GREEN}{bar}{Style.RESET_ALL}] {value*100:.0f}% Complete", end='\n')
+        print(f"\r{bar} 100% Complete", end='\n')
     else:
-        print(f"\rProgress: [{Fore.GREEN}{bar}{Style.RESET_ALL}] {value*100:.0f}%", end='')
+        print(f"\r{bar} {value * 100:.2f}% Complete", end='')
+
 def _parse_arguments() -> argparse.Namespace:
     """
     Parses command-line arguments for the IDF processor.
