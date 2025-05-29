@@ -135,7 +135,7 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
         header_style = ParagraphStyle(
             'HeaderInfo',
             parent=styles['Normal'],
-            fontSize=9,            textColor=colors.black,
+            fontSize=9,            textColor=COLORS['white'],
             alignment=2
         )
         header_text = f"""
@@ -168,7 +168,7 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
             leading=12,
             fontName='Helvetica-Bold',
             alignment=TA_CENTER,
-            textColor=colors.black
+            textColor=COLORS['white']
         )
 
         key_cell_style = ParagraphStyle(

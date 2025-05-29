@@ -115,7 +115,7 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
             'HeaderInfo',
             parent=styles['Normal'],
             fontSize=9,
-            textColor=colors.black,
+            textColor=COLORS['white'],
             alignment=2
         )
         header_text = f"""

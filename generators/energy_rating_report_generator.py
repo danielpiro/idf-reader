@@ -647,7 +647,7 @@ class EnergyRatingReportGenerator:
                 'HeaderInfo', 
                 parent=self.styles['Normal'], 
                 fontSize=9, 
-                textColor=black, 
+                textColor=COLORS['white'], 
                 alignment=TA_RIGHT
             )
             now = datetime.datetime.now()
@@ -723,7 +723,7 @@ class EnergyRatingReportGenerator:
                 'HeaderInfo', 
                 parent=self.styles['Normal'], 
                 fontSize=9, 
-                textColor=black, 
+                textColor=COLORS['white'], 
                 alignment=TA_RIGHT
             )
             now = datetime.datetime.now()

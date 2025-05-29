@@ -112,7 +112,7 @@ class GlazingReportGenerator:
                 'HeaderInfo',
                 parent=self.styles['Normal'],
                 fontSize=9,
-                textColor=colors.black,
+                textColor=COLORS['white'],
                 alignment=2
             )
             header_text = f"""

@@ -331,7 +331,7 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
             'HeaderInfo',
             parent=styles['Normal'],
             fontSize=9,
-            textColor=black,
+            textColor=COLORS['white'],
             alignment=2        )
         now = datetime.datetime.now()
         header_text = f"""
