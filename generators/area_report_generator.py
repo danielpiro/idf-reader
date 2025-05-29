@@ -214,7 +214,8 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
             fontSize=FONT_SIZES['title'],
             fontName=FONTS['title'],
             textColor=COLORS['primary_blue'],
-            spaceAfter=20
+            spaceAfter=20,
+            alignment=1  # Center alignment
         )
         story.append(Paragraph(f"Area {area_id} - Thermal Properties Report", title_style))
 
@@ -223,13 +224,28 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         summary_content_style = ParagraphStyle(
             'SummaryContent',
             parent=styles['Normal'],
-            fontSize=10,
-            leading=12
+            fontSize=FONT_SIZES['body'],
+            fontName=FONTS['body'],
+            textColor=COLORS['dark_gray'],
+            leading=14,
+            spaceBefore=0,
+            spaceAfter=0
+        )
+
+        summary_title_style = ParagraphStyle(
+            'SummaryTitle',
+            parent=styles['Normal'],
+            fontSize=FONT_SIZES['heading'],
+            fontName=FONTS['heading'],
+            textColor=COLORS['primary_blue'],
+            leading=16,
+            spaceBefore=0,
+            spaceAfter=6
         )
 
         summary_text = f"""
-        <b>Area Summary:</b><br/>
-        ------------------------------------<br/>
+        <font name="{FONTS['heading']}" size="{FONT_SIZES['heading']}" color="{COLORS['primary_blue'].hexval()}"><b>Area Summary</b></font><br/>
+        <br/>
         <b>Area Name:</b> {area_id}<br/>
         <b>Total Area:</b> {total_floor_area:.2f} m²<br/>
         <b>Location:</b> {location}<br/>
@@ -243,9 +259,13 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         summary_table = Table(summary_table_data, colWidths=[doc.width - 2*cm])
 
         summary_table_style = TableStyle([
-            ('BOX', (0, 0), (-1, -1), 1, colors.black),
-            ('PADDING', (0, 0), (-1, -1), 10),
-            ('BACKGROUND', (0, 0), (-1, -1), colors.whitesmoke)
+            # Modern styling with color palette
+            ('BOX', (0, 0), (-1, -1), 1.5, COLORS['primary_blue']),
+            ('BACKGROUND', (0, 0), (-1, -1), COLORS['light_blue']),
+            ('PADDING', (0, 0), (-1, -1), 15),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            # Add subtle inner border
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
         ])
 
         summary_table.setStyle(summary_table_style)
