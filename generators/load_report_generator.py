@@ -42,25 +42,50 @@ def wrap_text(text, style):
     """Helper function to create wrapped text in a cell."""
     return Paragraph(str(text), style)
 
-def create_cell_style(styles, is_header=False):
+def create_cell_style(styles, is_header=False, center_align=False):
     """Create a cell style for wrapped text."""
-    style = ParagraphStyle(
-        'Cell',
-        parent=styles['Normal'],
-        fontSize=5,
-        leading=6,
-        spaceBefore=1,
-        spaceAfter=1,
-        fontName='Helvetica-Bold' if is_header else 'Helvetica',
-        wordWrap='CJK',
-        alignment=0
-    )
+    if is_header:
+        style = ParagraphStyle(
+            'HeaderCell',
+            parent=styles['Normal'],
+            fontSize=5,
+            leading=6,
+            spaceBefore=3,
+            spaceAfter=3,
+            fontName='Helvetica-Bold',
+            wordWrap='CJK',
+            alignment=1  # Center alignment
+        )
+    else:
+        if center_align:
+            style = ParagraphStyle(
+                'CenteredCell',
+                parent=styles['Normal'],
+                fontSize=5,
+                leading=6,
+                spaceBefore=0,
+                spaceAfter=0,
+                fontName='Helvetica',
+                wordWrap='CJK',
+                alignment=1  # Center alignment
+            )
+        else:
+            style = ParagraphStyle(
+                'Cell',
+                parent=styles['Normal'],
+                fontSize=5,
+                leading=6,
+                spaceBefore=1,
+                spaceAfter=1,
+                fontName='Helvetica',
+                wordWrap='CJK',
+                alignment=0  # Left alignment for data
+            )
     return style
 
 def create_hierarchical_table_style():
     """Create table style for the main load table with hierarchical headers."""
     spans = [
-        ('SPAN', (0, 0), (0, 1)),
         ('SPAN', (1, 0), (3, 0)),
         ('SPAN', (4, 0), (5, 0)),
         ('SPAN', (6, 0), (7, 0)),
@@ -82,21 +107,21 @@ def create_hierarchical_table_style():
         ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
         ('TOPPADDING', (0, 0), (-1, 0), 4),
 
-        ('BACKGROUND', (1, 1), (-1, 1), COLORS['secondary_blue']),
-        ('TEXTCOLOR', (1, 1), (-1, 1), COLORS['white']),
-        ('ALIGN', (1, 1), (-1, 1), 'CENTER'),
-        ('VALIGN', (1, 1), (-1, 1), 'MIDDLE'),
-        ('FONTNAME', (1, 1), (-1, 1), FONTS['table_header']),
-        ('FONTSIZE', (1, 1), (-1, 1), FONT_SIZES['small']),
-        ('TOPPADDING', (1, 1), (-1, 1), 2),
-        ('BOTTOMPADDING', (1, 1), (-1, 1), 2),
+        ('BACKGROUND', (0, 1), (-1, 1), COLORS['secondary_blue']),
+        ('TEXTCOLOR', (0, 1), (-1, 1), COLORS['white']),
+        ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
+        ('VALIGN', (0, 1), (-1, 1), 'MIDDLE'),
+        ('FONTNAME', (0, 1), (-1, 1), FONTS['table_header']),
+        ('FONTSIZE', (0, 1), (-1, 1), FONT_SIZES['small']),
+        ('TOPPADDING', (0, 1), (-1, 1), 2),
+        ('BOTTOMPADDING', (0, 1), (-1, 1), 2),
 
-        ('ALIGN', (0, 0), (0, 1), 'CENTER'),
-        ('VALIGN', (0, 0), (0, 1), 'MIDDLE'),
 
         ('TEXTCOLOR', (0, 2), (-1, -1), COLORS['dark_gray']),
         ('ALIGN', (0, 2), (-1, -1), 'LEFT'),
+        ('ALIGN', (0, 2), (0, -1), 'CENTER'),  # Center align zone column
         ('VALIGN', (0, 2), (-1, -1), 'MIDDLE'),
+        ('VALIGN', (0, 2), (0, -1), 'MIDDLE'),  # Ensure zone column is vertically centered
         ('FONTNAME', (0, 2), (-1, -1), FONTS['table_body']),
         ('FONTSIZE', (0, 2), (-1, -1), FONT_SIZES['small']),
         ('TOPPADDING', (0, 2), (-1, -1), 2),
@@ -310,13 +335,14 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
     content_width = width - left_margin - right_margin
     styles = getSampleStyleSheet()
     cell_style = create_cell_style(styles)
+    centered_cell_style = create_cell_style(styles, center_align=True)
     header_cell_style = create_cell_style(styles, is_header=True)
     title_style = styles['h1']
     title_style.textColor = COLORS['primary_blue']
     title_style.fontName = FONTS['title']
     title_style.fontSize = FONT_SIZES['title']
     title_style.alignment = TA_CENTER
-    header_info_style = ParagraphStyle(        'HeaderInfo', parent=styles['Normal'], fontSize=9, textColor=black, alignment=2)
+    header_info_style = ParagraphStyle('HeaderInfo', parent=styles['Normal'], fontSize=9, textColor=COLORS['white'], alignment=2)
     now = datetime.datetime.now()
     header_text = f"""
     Project: {project_name}<br/>
@@ -340,13 +366,13 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
     try:
         table_data = []
         header_row1 = [
-            "Zone", "Occupancy", "", "", "Lighting", "",
+            "", "Occupancy", "", "", "Lighting", "",
             "Non Fixed Equipment", "", "Fixed Equipment", "",
             "Heating", "", "", "Cooling", "", "",
             "Infiltration", "", "Ventilation", "", "Mechanical Ventilation", ""
         ]
         header_row2 = [
-            "", "people/\narea", "activity\nschedule\nw/person", "schedule\ntemplate\nname",
+            "Zone", "people/\narea", "activity\nschedule\nw/person", "schedule\ntemplate\nname",
             "power\ndensity\n[w/m2]", "schedule\ntemplate\nname",
             "power\ndensity\n(W/m2)", "schedule\ntemplate\nname",
             "power\ndensity\n(W/m2)", "schedule\ntemplate\nname",
@@ -388,7 +414,7 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
             mech_vent_flow_per_person = _get_load_data(loads, 'mechanical_ventilation', 'outdoor_air_flow_per_person', 0.0)
             mech_vent_sched = _get_load_data(loads, 'mechanical_ventilation', 'schedule')
             row_data = [
-                wrap_text(_to_str(zone_name), cell_style),
+                _to_str(zone_name),  # Use plain text instead of wrapped text for better vertical centering
                 wrap_text(_to_str(people_density, 2), cell_style),
                 wrap_text(_to_str(people_activity_sched), cell_style),
                 wrap_text(_to_str(people_sched), cell_style),

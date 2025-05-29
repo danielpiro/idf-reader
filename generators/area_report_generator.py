@@ -283,7 +283,7 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
             parent=styles['Heading4'],
             fontSize=10,
             alignment=1,
-            textColor=colors.whitesmoke
+            textColor=COLORS['white']
         )
 
         headers = [
