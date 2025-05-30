@@ -11,6 +11,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
 
 COLORS = {
     'primary_blue': Color(0.2, 0.4, 0.7),
@@ -111,21 +112,23 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
         story = []
 
         now = datetime.datetime.now()
+        hebrew_font = get_hebrew_font_name()
         header_style = ParagraphStyle(
             'HeaderInfo',
             parent=styles['Normal'],
             fontSize=9,
+            fontName=hebrew_font,
             textColor=COLORS['dark_gray'],
             alignment=2
         )
-        header_text = f"""
-        Project: {project_name}<br/>
-        Run ID: {run_id}<br/>
-        Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
-        City: {city_name}<br/>
-        Area: {area_name}<br/>
-        Report: Area Loss - Thermal Performance
-        """
+        header_text = safe_format_header_text(
+            project_name=project_name,
+            run_id=run_id,
+            timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
+            city_name=city_name,
+            area_name=area_name,
+            report_title="Area Loss - Thermal Performance"
+        )
         story.append(Paragraph(header_text, header_style))
         story.append(Spacer(1, 5))
 

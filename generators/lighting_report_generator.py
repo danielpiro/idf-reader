@@ -12,6 +12,7 @@ import datetime
 import logging
 from typing import Dict, List, Any
 from pathlib import Path
+from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
 
 COLORS = {
     'primary_blue': Color(0.2, 0.4, 0.7),
@@ -160,23 +161,6 @@ class LightingReportGenerator:
         self._styles = getSampleStyleSheet()
         self._story = []
 
-    def _add_header_footer(self, canvas, doc):
-        """Adds header and footer to each page."""
-        canvas.saveState()
-        now = datetime.datetime.now()
-        header_text = f"Project: {self._project_name} | Run ID: {self._run_id} | Date: {now.strftime('%Y-%m-%d %H:%M:%S')} | City: {self._city_name} | Area: {self._area_name} | Report: Daylighting Summary"
-        header_style = ParagraphStyle('HeaderStyle', parent=self._styles['Normal'], fontSize=8, alignment=TA_LEFT)
-        p = Paragraph(header_text, header_style)
-        w, h = p.wrap(doc.width, doc.topMargin)
-        p.drawOn(canvas, doc.leftMargin, doc.height + doc.topMargin - h - 0.1*cm)
-
-        footer_text = f"Page {doc.page}"
-        footer_style = ParagraphStyle('FooterStyle', parent=self._styles['Normal'], fontSize=8, alignment=TA_CENTER)
-        p = Paragraph(footer_text, footer_style)
-        w, h = p.wrap(doc.width, doc.bottomMargin)
-        p.drawOn(canvas, doc.leftMargin, h)
-
-        canvas.restoreState()
 
     def generate_report(self) -> bool:
         """
@@ -211,6 +195,28 @@ class LightingReportGenerator:
             doc = SimpleDocTemplate(str(self._output_path), pagesize=page_size,
                                     leftMargin=left_margin, rightMargin=right_margin,
                                     topMargin=top_margin, bottomMargin=bottom_margin)
+
+            # Add consistent header metadata structure like other reports
+            now = datetime.datetime.now()
+            hebrew_font = get_hebrew_font_name()
+            header_info_style = ParagraphStyle(
+                'HeaderInfo',
+                parent=self._styles['Normal'],
+                fontSize=9,
+                fontName=hebrew_font,
+                textColor=COLORS['dark_gray'],
+                alignment=2
+            )
+            header_text = safe_format_header_text(
+                project_name=self._project_name,
+                run_id=self._run_id,
+                timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
+                city_name=self._city_name,
+                area_name=self._area_name,
+                report_title="Daylighting Summary"
+            )
+            self._story.append(Paragraph(header_text, header_info_style))
+            self._story.append(Spacer(1, 5))
 
             title_style = self._styles['h1']
             title_style.textColor = COLORS['primary_blue']
@@ -321,7 +327,12 @@ class LightingReportGenerator:
 
             self._story.append(Spacer(1, 0.5*cm))
 
-            self._story.append(Paragraph("Exterior Lights", self._styles['h2']))
+            section_style = ParagraphStyle(
+                'SectionTitle',
+                parent=self._styles['h2'],
+                alignment=TA_CENTER
+            )
+            self._story.append(Paragraph("Exterior Lights", section_style))
             self._story.append(Spacer(1, 0.2*cm))
             exterior_lights_data = self._data.get("exterior_lights", [])
             exterior_lights_data.sort(key=lambda x: x.get("Name", ""))
@@ -349,7 +360,12 @@ class LightingReportGenerator:
 
             self._story.append(Spacer(1, 0.5*cm))
 
-            self._story.append(Paragraph("Task Lights", self._styles['h2']))
+            section_style = ParagraphStyle(
+                'SectionTitle',
+                parent=self._styles['h2'],
+                alignment=TA_CENTER
+            )
+            self._story.append(Paragraph("Task Lights", section_style))
             self._story.append(Spacer(1, 0.2*cm))
             task_lights_data = self._data.get("task_lights", [])
             task_lights_data.sort(key=lambda x: (x.get("Zone Name", ""), x.get("Lighting SCHEDULE Name", "")))
@@ -401,7 +417,7 @@ class LightingReportGenerator:
             else:
                 self._story.append(Paragraph("No Task Lights data found.", self._styles['Normal']))
 
-            doc.build(self._story, onFirstPage=self._add_header_footer, onLaterPages=self._add_header_footer)
+            doc.build(self._story)
             return True
         except (IOError, OSError) as e:
             error_message = f"Error during file operation for Lighting report '{self._output_path}': {e.strerror}"

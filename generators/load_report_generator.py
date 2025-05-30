@@ -9,6 +9,7 @@ from reportlab.lib.colors import black, Color
 from reportlab.lib.enums import TA_CENTER
 import datetime
 from reportlab.platypus import TableStyle
+from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
 
 COLORS = {
     'primary_blue': Color(0.2, 0.4, 0.7),
@@ -342,16 +343,17 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
     title_style.fontName = FONTS['title']
     title_style.fontSize = FONT_SIZES['title']
     title_style.alignment = TA_CENTER
-    header_info_style = ParagraphStyle('HeaderInfo', parent=styles['Normal'], fontSize=9, textColor=COLORS['dark_gray'], alignment=2)
+    hebrew_font = get_hebrew_font_name()
+    header_info_style = ParagraphStyle('HeaderInfo', parent=styles['Normal'], fontSize=9, fontName=hebrew_font, textColor=COLORS['dark_gray'], alignment=2)
     now = datetime.datetime.now()
-    header_text = f"""
-    Project: {project_name}<br/>
-    Run ID: {run_id}<br/>
-    Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
-    City: {city_name}<br/>
-    Area: {area_name}<br/>
-    Report: Zone Loads Summary
-    """
+    header_text = safe_format_header_text(
+        project_name=project_name,
+        run_id=run_id,
+        timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
+        city_name=city_name,
+        area_name=area_name,
+        report_title="Zone Loads Summary"
+    )
     story.append(Paragraph(header_text, header_info_style))
     story.append(Spacer(1, 5))
     story.append(Paragraph("IDF Zone Loads Report", title_style))

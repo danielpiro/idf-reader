@@ -8,6 +8,7 @@ from reportlab.lib.colors import grey, Color
 import datetime
 import logging
 from pathlib import Path
+from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
 
 COLORS = {
     'primary_blue': Color(0.2, 0.4, 0.7),
@@ -209,17 +210,18 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
             name='NotFound', parent=styles['Normal'], fontName='Helvetica-Oblique',
             textColor=grey, leftIndent=0.5*cm, spaceAfter=0.4*cm
         )
+        hebrew_font = get_hebrew_font_name()
         header_info_style = ParagraphStyle(
-            'HeaderInfo', parent=styles['Normal'], fontSize=9, textColor=COLORS['dark_gray'], alignment=2        )
+            'HeaderInfo', parent=styles['Normal'], fontSize=9, fontName=hebrew_font, textColor=COLORS['dark_gray'], alignment=2        )
         now = datetime.datetime.now()
-        header_text = f"""
-        Project: {project_name}<br/>
-        Run ID: {run_id}<br/>
-        Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
-        City: {city_name}<br/>
-        Area: {area_name}<br/>
-        Report: Unique Schedule Definitions
-        """
+        header_text = safe_format_header_text(
+            project_name=project_name,
+            run_id=run_id,
+            timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
+            city_name=city_name,
+            area_name=area_name,
+            report_title="Unique Schedule Definitions"
+        )
         p_header = Paragraph(header_text, header_info_style)
         header_width_actual, header_height = p_header.wrapOn(c, content_width, margin_y)
         p_header.drawOn(c, width - margin_x - header_width_actual, height - margin_y - header_height)

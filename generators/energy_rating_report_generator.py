@@ -11,6 +11,7 @@ from reportlab.lib.units import cm
 from utils.data_loader import get_energy_consumption
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.colors import black, Color
+from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
 
 COLORS = {
     'primary_blue': Color(0.2, 0.4, 0.7),
@@ -643,22 +644,24 @@ class EnergyRatingReportGenerator:
 
             from reportlab.lib.styles import ParagraphStyle
             from reportlab.lib.enums import TA_RIGHT
+            hebrew_font = get_hebrew_font_name()
             header_info_style = ParagraphStyle(
-                'HeaderInfo', 
-                parent=self.styles['Normal'], 
-                fontSize=9, 
-                textColor=COLORS['dark_gray'], 
+                'HeaderInfo',
+                parent=self.styles['Normal'],
+                fontSize=9,
+                fontName=hebrew_font,
+                textColor=COLORS['dark_gray'],
                 alignment=TA_RIGHT
             )
             now = datetime.datetime.now()
-            header_text = f"""
-            Project: {self.project_name}<br/>
-            Run ID: {self.run_id}<br/>
-            Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
-            City: {self.selected_city_name or 'N/A'}<br/>
-            Area: {self.area_name}<br/>
-            Report: Energy Rating Report
-            """
+            header_text = safe_format_header_text(
+                project_name=self.project_name,
+                run_id=self.run_id,
+                timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
+                city_name=self.selected_city_name or 'N/A',
+                area_name=self.area_name,
+                report_title="Energy Rating Report"
+            )
             story.append(Paragraph(header_text, header_info_style))
             story.append(Spacer(1, 5))
 
@@ -719,22 +722,24 @@ class EnergyRatingReportGenerator:
 
             from reportlab.lib.styles import ParagraphStyle
             from reportlab.lib.enums import TA_RIGHT
+            hebrew_font = get_hebrew_font_name()
             header_info_style = ParagraphStyle(
-                'HeaderInfo', 
-                parent=self.styles['Normal'], 
-                fontSize=9, 
-                textColor=COLORS['dark_gray'], 
+                'HeaderInfo',
+                parent=self.styles['Normal'],
+                fontSize=9,
+                fontName=hebrew_font,
+                textColor=COLORS['dark_gray'],
                 alignment=TA_RIGHT
             )
             now = datetime.datetime.now()
-            header_text = f"""
-            Project: {self.project_name}<br/>
-            Run ID: {self.run_id}<br/>
-            Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
-            City: {self.selected_city_name or 'N/A'}<br/>
-            Area: {self.area_name}<br/>
-            Report: Total Energy Rating Report
-            """
+            header_text = safe_format_header_text(
+                project_name=self.project_name,
+                run_id=self.run_id,
+                timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
+                city_name=self.selected_city_name or 'N/A',
+                area_name=self.area_name,
+                report_title="Total Energy Rating Report"
+            )
             story.append(Paragraph(header_text, header_info_style))
             story.append(Spacer(1, 5))
 

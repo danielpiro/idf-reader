@@ -10,6 +10,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import datetime
 import logging
 from pathlib import Path
+from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
 
 COLORS = {
     'primary_blue': Color(0.2, 0.4, 0.7),
@@ -55,7 +56,7 @@ def create_cell_style(styles, is_header=False, total_row=False):
         spaceBefore=2,
         spaceAfter=2,
         fontName='Helvetica-Bold' if is_header or total_row else 'Helvetica',
-        textColor=COLORS['dark_gray'] if total_row else None,
+        textColor=COLORS['dark_gray'],
         wordWrap='CJK',
         alignment=TA_LEFT
     )
@@ -328,21 +329,23 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
         cell_style = create_cell_style(styles)
         header_cell_style = create_cell_style(styles, is_header=True)
         total_style = create_cell_style(styles, total_row=True)
+        hebrew_font = get_hebrew_font_name()
         header_info_style = ParagraphStyle(
             'HeaderInfo',
             parent=styles['Normal'],
             fontSize=9,
+            fontName=hebrew_font,
             textColor=COLORS['dark_gray'],
             alignment=2        )
         now = datetime.datetime.now()
-        header_text = f"""
-        Project: {project_name}<br/>
-        Run ID: {run_id}<br/>
-        Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
-        City: {city_name}<br/>
-        Area: {area_name}<br/>
-        Report: Building Elements Materials Properties
-        """
+        header_text = safe_format_header_text(
+            project_name=project_name,
+            run_id=run_id,
+            timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
+            city_name=city_name,
+            area_name=area_name,
+            report_title="Building Elements Materials Properties"
+        )
         story = [
             Paragraph(header_text, header_info_style),
             Spacer(1, 5),

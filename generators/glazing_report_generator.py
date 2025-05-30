@@ -7,6 +7,7 @@ from reportlab.lib import colors
 from reportlab.lib.colors import Color
 import datetime
 import pandas as pd
+from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
 
 COLORS = {
     'primary_blue': Color(0.2, 0.4, 0.7),
@@ -108,21 +109,23 @@ class GlazingReportGenerator:
                                     topMargin=1.5*cm, bottomMargin=1.5*cm)
             story = []
             now = datetime.datetime.now()
+            hebrew_font = get_hebrew_font_name()
             header_info_style = ParagraphStyle(
                 'HeaderInfo',
                 parent=self.styles['Normal'],
                 fontSize=9,
+                fontName=hebrew_font,
                 textColor=COLORS['dark_gray'],
                 alignment=2
             )
-            header_text = f"""
-            Project: {self.project_name}<br/>
-            Run ID: {self.run_id}<br/>
-            Date: {now.strftime('%Y-%m-%d %H:%M:%S')}<br/>
-            City: {self.city_name}<br/>
-            Area: {self.area_name}<br/>
-            Report: Glazing Constructions
-            """
+            header_text = safe_format_header_text(
+                project_name=self.project_name,
+                run_id=self.run_id,
+                timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
+                city_name=self.city_name,
+                area_name=self.area_name,
+                report_title="Glazing Constructions"
+            )
             story.append(Paragraph(header_text, header_info_style))
             story.append(Spacer(1, 5))
             title_style = self.styles['h3']
@@ -133,14 +136,22 @@ class GlazingReportGenerator:
             story.append(Paragraph("Glazing Constructions Report", title_style))
             story.append(Spacer(1, 0.5*cm))
             for construction_id, data in self.glazing_data.items():
-                sub_heading_style = self.styles['h3']
-                sub_heading_style.textColor = COLORS['white']
+                sub_heading_style = ParagraphStyle(
+                    'SubHeading',
+                    parent=self.styles['h3'],
+                    textColor=COLORS['primary_blue'],
+                    alignment=TA_CENTER
+                )
                 story.append(Paragraph(f"Construction: {construction_id}", sub_heading_style))
                 story.append(Spacer(1, 0.2*cm))
                 system_table = self._create_system_table(data.get('system_details', {}))
                 if system_table:
-                    glazing_system_style = self.styles['h3']
-                    glazing_system_style.textColor = COLORS['white']
+                    glazing_system_style = ParagraphStyle(
+                        'GlazingSystemStyle',
+                        parent=self.styles['h3'],
+                        textColor=COLORS['primary_blue'],
+                        alignment=TA_CENTER
+                    )
                     title_p = Paragraph("Glazing System", glazing_system_style)
                     outer_data = [[title_p, system_table]]
                     landscape(A4)[0] - 3*cm
@@ -158,8 +169,12 @@ class GlazingReportGenerator:
                     story.append(Spacer(1, 0.4*cm))
                 details_table = self._create_details_table(data.get('glazing_layers', []))
                 if details_table:
-                    glazing_details_style = self.styles['h3']
-                    glazing_details_style.textColor = COLORS['white']
+                    glazing_details_style = ParagraphStyle(
+                        'GlazingDetailsStyle',
+                        parent=self.styles['h3'],
+                        textColor=COLORS['primary_blue'],
+                        alignment=TA_CENTER
+                    )
                     title_p = Paragraph("Glazing Details (Layers)", glazing_details_style)
                     outer_data = [[title_p, details_table]]
                     title_col_width = 3.5*cm
@@ -176,8 +191,12 @@ class GlazingReportGenerator:
                     story.append(Spacer(1, 0.4*cm))
                 shading_table = self._create_shading_table(data.get('shading_layers', []))
                 if shading_table:
-                    shading_style = self.styles['h3']
-                    shading_style.textColor = COLORS['white']
+                    shading_style = ParagraphStyle(
+                        'ShadingStyle',
+                        parent=self.styles['h3'],
+                        textColor=COLORS['primary_blue'],
+                        alignment=TA_CENTER
+                    )
                     title_p = Paragraph("Shading", shading_style)
                     outer_data = [[title_p, shading_table]]
                     title_col_width = 3.5*cm
@@ -194,8 +213,12 @@ class GlazingReportGenerator:
                     story.append(Spacer(1, 0.4*cm))
                 frame_table = self._create_frame_table(data.get('frame_details'))
                 if frame_table:
-                    frame_style = self.styles['h3']
-                    frame_style.textColor = COLORS['white']
+                    frame_style = ParagraphStyle(
+                        'FrameStyle',
+                        parent=self.styles['h3'],
+                        textColor=COLORS['primary_blue'],
+                        alignment=TA_CENTER
+                    )
                     title_p = Paragraph("Frame", frame_style)
                     outer_data = [[title_p, frame_table]]
                     title_col_width = 3.5*cm
