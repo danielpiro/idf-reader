@@ -311,8 +311,8 @@ def _create_total_energy_rating_table(total_score, letter_grade):
     label_offset_x = 0.5 * cm
     hebrew_label_offset_x = 4 * cm
     left_arrow_width = 0.5 * cm
-    right_arrow_width = 1.5 * cm
-    right_arrow_height = bar_height
+    right_arrow_width = 3.5 * cm  # Increased from 2.5 to 3.5 cm for even longer arrow
+    right_arrow_height = bar_height * 1.3  # Increased height by 30% for bigger arrow
 
     rating_levels = [
         { "grade": "+A", "label_en": "Diamond", "color": Color(0.0157, 0.4549, 0.7686) },
@@ -338,8 +338,8 @@ def _create_total_energy_rating_table(total_score, letter_grade):
         drawing.add(bar)
 
         eng_label = String(left_arrow_width + label_offset_x * 2, y_position + bar_height / 2.5, level["grade"])
-        eng_label.fontName = FONTS['table_header']
-        eng_label.fontSize = FONT_SIZES['table_body']
+        eng_label.fontName = FONTS['table_header']  # Already bold
+        eng_label.fontSize = FONT_SIZES['heading']  # Increased from table_body (8) to heading (12)
         eng_label.textAnchor = 'start'
         if level["grade"] in ["+A", "A", "B", "F"]:
             eng_label.fillColor = COLORS['white']
@@ -347,39 +347,47 @@ def _create_total_energy_rating_table(total_score, letter_grade):
             eng_label.fillColor = COLORS['dark_gray']
         drawing.add(eng_label)
 
-        english_label_x_pos = left_arrow_width + label_offset_x + bar_width + 0.2*cm
+        # Move descriptive text (Diamond, Platinum, etc.) to center of bar and make it bold
+        english_label_x_pos = left_arrow_width + label_offset_x + bar_width / 2
         eng_label_right = String(english_label_x_pos, y_position + bar_height / 2.5, level["label_en"])
-        eng_label_right.fontName = FONTS['body']
-        eng_label_right.fontSize = FONT_SIZES['table_body']
-        eng_label_right.textAnchor = 'start'
-        eng_label_right.fillColor = COLORS['dark_gray']
+        eng_label_right.fontName = FONTS['table_header']  # Changed to bold
+        eng_label_right.fontSize = FONT_SIZES['body']  # Increased size
+        eng_label_right.textAnchor = 'middle'  # Center the text
+        if level["grade"] in ["+A", "A", "B", "F"]:
+            eng_label_right.fillColor = COLORS['white']
+        else:
+            eng_label_right.fillColor = COLORS['dark_gray']
         drawing.add(eng_label_right)
 
         if level["grade"] == letter_grade:
             arrow_base_x = drawing_width - right_arrow_width - 0.2*cm
-            arrow_tip_x = arrow_base_x - 0.3*cm
+            arrow_tip_x = arrow_base_x - 0.5*cm  # Increased tip length from 0.3 to 0.5 cm
+
+            # Adjust arrow positioning to account for increased height
+            arrow_y_center = y_position + bar_height / 2
+            arrow_half_height = right_arrow_height / 2
 
             arrow_points = [
-                arrow_tip_x, y_position + right_arrow_height / 2,
-                arrow_base_x, y_position + right_arrow_height * 0.25,
-                arrow_base_x, y_position + right_arrow_height * 0.4,
-                arrow_base_x + right_arrow_width, y_position + right_arrow_height * 0.4,
-                arrow_base_x + right_arrow_width, y_position + right_arrow_height * 0.6,
-                arrow_base_x, y_position + right_arrow_height * 0.6,
-                arrow_base_x, y_position + right_arrow_height * 0.75
+                arrow_tip_x, arrow_y_center,  # Arrow tip (pointing left)
+                arrow_base_x, arrow_y_center - arrow_half_height * 0.5,  # Upper notch
+                arrow_base_x, arrow_y_center - arrow_half_height * 0.8,  # Upper body start
+                arrow_base_x + right_arrow_width, arrow_y_center - arrow_half_height * 0.8,  # Upper right
+                arrow_base_x + right_arrow_width, arrow_y_center + arrow_half_height * 0.8,  # Lower right
+                arrow_base_x, arrow_y_center + arrow_half_height * 0.8,  # Lower body start
+                arrow_base_x, arrow_y_center + arrow_half_height * 0.5   # Lower notch
             ]
 
             arrow = Polygon(arrow_points)
             arrow.fillColor = level["color"]
             arrow.strokeColor = Color(0.2, 0.2, 0.2)
-            arrow.strokeWidth = 1
+            arrow.strokeWidth = 1.5  # Slightly thicker border
             drawing.add(arrow)
 
             arrow_label_x = arrow_base_x + right_arrow_width / 2
-            arrow_label_y = y_position + right_arrow_height / 2.5
+            arrow_label_y = arrow_y_center - FONT_SIZES['heading'] / 3  # Better vertical centering for larger font
             arrow_label = String(arrow_label_x, arrow_label_y, level["grade"])
-            arrow_label.fontName = FONTS['table_header']
-            arrow_label.fontSize = FONT_SIZES['table_body']
+            arrow_label.fontName = FONTS['table_header']  # Bold font
+            arrow_label.fontSize = FONT_SIZES['heading']  # Increased from table_body (8) to heading (12)
             arrow_label.textAnchor = 'middle'
             if level["grade"] in ["+A", "A", "B", "F"]:
                 arrow_label.fillColor = COLORS['white']
