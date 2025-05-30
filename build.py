@@ -9,6 +9,10 @@ def build_exe():
         '--noconsole',  # Don't show console window
         '--clean',  # Clean PyInstaller cache
         '--add-data=settings.json;.',  # Include settings file if it exists
+        '--add-data=data;data',  # Include entire data folder
+        '--add-data=parsers;parsers',  # Include parsers module
+        '--add-data=generators;generators',  # Include generators module
+        '--add-data=utils;utils',  # Include utils module
         # Add Windows specific options
         '--uac-admin',  # Request admin privileges for long path support
     ]
@@ -19,6 +23,11 @@ def build_exe():
         'tkinter',
         'eppy',
         'reportlab',
+        'parsers',
+        'generators',
+        'utils',
+        'processing_manager',
+        'idf_code_cleaner',
     ]
     
     for imp in hidden_imports:

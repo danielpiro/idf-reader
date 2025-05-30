@@ -104,8 +104,9 @@ class IDFProcessorGUI(ctk.CTk):
             self.after(100, lambda: self.show_status(f"Error loading city data: {e}", "error"))
         return cities_data
 
-    def on_city_selected(self, event=None): # event is passed by Combobox
-        selected_city_name = self.city.get()
+    def on_city_selected(self, selected_value=None): # selected_value is passed by Combobox
+        # Use the passed value or get from variable if called directly
+        selected_city_name = selected_value if selected_value else self.city.get()
         if selected_city_name in self.city_data:
             info = self.city_data[selected_city_name]
             self.city_area_name.set(info['area_name'])
@@ -117,59 +118,10 @@ class IDFProcessorGUI(ctk.CTk):
         self.save_settings() # Save on change
         self.check_inputs_complete()
 
-    def _on_city_keyrelease(self, event):
-        """Handle key release in city entry for autocomplete."""
-        typed = self.city.get().lower()
-        if not typed:
-            self._hide_city_suggestions()
-            return
-            
-        # Filter matching cities
-        matches = [city for city in self.city_names if typed in city.lower()]
-        if matches:
-            self._show_city_suggestions(matches[:10])  # Show max 10 suggestions
-        else:
-            self._hide_city_suggestions()
-
-    def _on_city_focusout(self, event):
-        """Handle focus out from city entry."""
-        # Delay hiding to allow selection
-        self.after(100, self._hide_city_suggestions)
-
-    def _on_city_select(self, event):
-        """Handle city selection from suggestions."""
-        try:
-            selection = self.city_listbox.get(self.city_listbox.curselection())
-            self.city.set(selection)
-            self._hide_city_suggestions()
-            self.on_city_selected()
-        except:
-            pass
-
-    def _show_city_suggestions(self, suggestions):
-        """Show city suggestions dropdown."""
-        self.city_listbox.delete(0, tk.END)
-        for suggestion in suggestions:
-            self.city_listbox.insert(tk.END, suggestion)
-        
-        # Position listbox below entry
-        x = self.city_entry.winfo_x()
-        y = self.city_entry.winfo_y() + self.city_entry.winfo_height()
-        width = self.city_entry.winfo_width()
-        
-        self.city_listbox.place(x=x, y=y, width=width)
-        self.city_listbox.lift()
-
-    def _hide_city_suggestions(self):
-        """Hide city suggestions dropdown."""
-        try:
-            self.city_listbox.place_forget()
-        except:
-            pass
 
     def update_validation_indicators(self):
         # Ensure widgets exist before configuring
-        if not all(hasattr(self, w_name) for w_name in ['input_entry', 'output_entry', 'eplus_entry', 'city_entry', 'iso_combobox']):
+        if not all(hasattr(self, w_name) for w_name in ['input_entry', 'output_entry', 'eplus_entry', 'city_search_entry', 'iso_combobox']):
             return
 
         valid_style = {"border_color": self.success_color}
@@ -178,7 +130,7 @@ class IDFProcessorGUI(ctk.CTk):
         self.input_entry.configure(**(valid_style if self.input_file.get() and os.path.exists(self.input_file.get()) else invalid_style))
         self.output_entry.configure(**(valid_style if self.output_dir.get() and os.path.isdir(self.output_dir.get()) else invalid_style))
         self.eplus_entry.configure(**(valid_style if self.energyplus_dir.get() and os.path.isdir(self.energyplus_dir.get()) else invalid_style))
-        self.city_entry.configure(**(valid_style if self.city.get() else invalid_style))
+        self.city_search_entry.configure(**(valid_style if self.city.get() else invalid_style))
         self.iso_combobox.configure(**(valid_style if self.iso_type.get() else invalid_style))
 
     def _create_modern_header(self) -> ctk.CTkFrame:
@@ -209,25 +161,132 @@ class IDFProcessorGUI(ctk.CTk):
         self._create_file_input_row(section, 3, "📂 Output Dir:", self.output_dir, self.select_output_dir, "output_entry")
         return section
 
-    def _create_autocomplete_city_row(self, parent, row_idx):
-        """Creates an autocomplete city selection row."""
+    def _create_city_selection_row(self, parent, row_idx):
+        """Creates a fast city selection with search and scrollable listbox."""
         ctk.CTkLabel(parent, text="🏙️ City:", font=ctk.CTkFont(size=14, weight="bold"), width=180, anchor="w").grid(row=row_idx, column=0, padx=(20,15), pady=10, sticky="w")
         
-        # Create autocomplete entry
-        self.city_entry = ctk.CTkEntry(parent, textvariable=self.city, width=300, height=40, corner_radius=8, border_width=2, font=ctk.CTkFont(size=12))
-        self.city_entry.grid(row=row_idx, column=1, padx=(0,20), pady=10, sticky="ew")
+        # Create container frame for the city selection
+        city_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        city_frame.grid(row=row_idx, column=1, padx=(0,20), pady=10, sticky="ew")
+        city_frame.grid_columnconfigure(0, weight=1)
         
-        # Bind events for autocomplete
-        self.city_entry.bind('<KeyRelease>', self._on_city_keyrelease)
-        self.city_entry.bind('<FocusOut>', self._on_city_focusout)
+        # Create search entry
+        self.city_search_entry = ctk.CTkEntry(
+            city_frame,
+            placeholder_text="Type to search cities...",
+            width=300,
+            height=40,
+            corner_radius=8,
+            border_width=2,
+            font=ctk.CTkFont(size=12)
+        )
+        self.city_search_entry.grid(row=0, column=0, sticky="ew")
+        self.city_search_entry.bind('<KeyRelease>', self._on_city_search)
+        self.city_search_entry.bind('<Button-1>', self._show_city_dropdown)
         
-        # Create dropdown listbox for suggestions (initially hidden)
-        self.city_listbox = tk.Listbox(parent, height=5, font=('Arial', 10))
-        self.city_listbox.bind('<Button-1>', self._on_city_select)
-        self.city_listbox.bind('<Return>', self._on_city_select)
+        # Create dropdown frame (initially hidden)
+        self.city_dropdown_frame = ctk.CTkFrame(city_frame, height=200, corner_radius=8, border_width=1)
         
-        # Store city names for autocomplete
+        # Create scrollable frame inside dropdown
+        self.city_scrollable_frame = ctk.CTkScrollableFrame(
+            self.city_dropdown_frame,
+            height=180,
+            corner_radius=0,
+            scrollbar_button_color=("#CCCCCC", "#333333"),
+            scrollbar_button_hover_color=("#AAAAAA", "#555555")
+        )
+        self.city_scrollable_frame.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # Store city names and create buttons
         self.city_names = sorted(list(self.city_data.keys()))
+        self.city_buttons = []
+        self._create_city_buttons()
+        
+        # Set city_entry attribute for compatibility with validation
+        self.city_entry = self.city_search_entry
+        
+        # Track dropdown visibility
+        self.city_dropdown_visible = False
+        
+        # Bind click outside to hide dropdown
+        self.bind('<Button-1>', self._on_click_outside_city)
+    
+    def _create_city_buttons(self, filtered_cities=None):
+        """Create city selection buttons."""
+        # Clear existing buttons
+        for button in self.city_buttons:
+            button.destroy()
+        self.city_buttons.clear()
+        
+        # Use filtered cities or all cities
+        cities_to_show = filtered_cities if filtered_cities is not None else self.city_names
+        
+        # Limit to first 100 for performance
+        cities_to_show = cities_to_show[:100]
+        
+        for city in cities_to_show:
+            button = ctk.CTkButton(
+                self.city_scrollable_frame,
+                text=city,
+                height=30,
+                corner_radius=5,
+                fg_color="transparent",
+                hover_color=("#f0f0f0", "#2a2a2a"),
+                text_color=("black", "white"),
+                anchor="w",
+                command=lambda c=city: self._select_city(c)
+            )
+            button.pack(fill="x", pady=1, padx=2)
+            self.city_buttons.append(button)
+    
+    def _on_city_search(self, event):
+        """Handle city search input."""
+        search_text = self.city_search_entry.get().strip().lower()
+        
+        if not search_text:
+            # Show all cities (limited)
+            self._create_city_buttons()
+        else:
+            # Filter cities based on search
+            filtered = [city for city in self.city_names if search_text in city.lower()]
+            self._create_city_buttons(filtered)
+        
+        # Show dropdown if not visible
+        if not self.city_dropdown_visible:
+            self._show_city_dropdown()
+    
+    def _show_city_dropdown(self, event=None):
+        """Show the city dropdown."""
+        if not self.city_dropdown_visible:
+            self.city_dropdown_frame.grid(row=1, column=0, sticky="ew", pady=(5,0))
+            self.city_dropdown_visible = True
+    
+    def _hide_city_dropdown(self):
+        """Hide the city dropdown."""
+        if self.city_dropdown_visible:
+            self.city_dropdown_frame.grid_forget()
+            self.city_dropdown_visible = False
+    
+    def _select_city(self, city_name):
+        """Handle city selection."""
+        self.city_search_entry.delete(0, tk.END)
+        self.city_search_entry.insert(0, city_name)
+        self.city.set(city_name)
+        self._hide_city_dropdown()
+        self.on_city_selected(city_name)
+    
+    def _on_click_outside_city(self, event):
+        """Hide dropdown when clicking outside."""
+        # Check if click is outside the city selection area
+        if hasattr(self, 'city_dropdown_frame') and self.city_dropdown_visible:
+            widget = event.widget
+            # Walk up the widget tree to see if we're inside city selection
+            while widget:
+                if widget == self.city_search_entry or widget == self.city_dropdown_frame:
+                    return  # Click is inside, don't hide
+                widget = widget.master
+            # Click is outside, hide dropdown
+            self._hide_city_dropdown()
 
     def _create_scrollable_selection_row(self, parent, row_idx, label_text, values, var, cmd, combo_attr_name):
         ctk.CTkLabel(parent, text=label_text, font=ctk.CTkFont(size=14, weight="bold"), width=180, anchor="w").grid(row=row_idx, column=0, padx=(20,15), pady=10, sticky="w")
@@ -240,7 +299,7 @@ class IDFProcessorGUI(ctk.CTk):
         section = ctk.CTkFrame(parent, corner_radius=15)
         section.grid_columnconfigure(1, weight=1) # Allow entry/combobox to expand
         ctk.CTkLabel(section, text="⚙️ Analysis Configuration", font=ctk.CTkFont(size=18, weight="bold"), anchor="w").grid(row=0, column=0, columnspan=2, padx=20, pady=(20,15), sticky="w")
-        self._create_autocomplete_city_row(section, 1)
+        self._create_city_selection_row(section, 1)
         self._create_scrollable_selection_row(section, 2, "📋 ISO Type:", self.iso_types, self.iso_type, lambda x: self.save_settings(), "iso_combobox") # Save on change
         return section
 
