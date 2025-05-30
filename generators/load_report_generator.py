@@ -2,7 +2,7 @@
 Generates PDF reports showing zone loads and their associated schedules.
 """
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, Spacer
-from reportlab.lib.pagesizes import landscape, A3
+from reportlab.lib.pagesizes import landscape, A4
 from reportlab.lib.units import cm
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.colors import black, Color
@@ -84,18 +84,13 @@ def create_cell_style(styles, is_header=False, center_align=False):
             )
     return style
 
-def create_hierarchical_table_style():
-    """Create table style for the main load table with hierarchical headers."""
+def create_table1_style():
+    """Create table style for table 1 (Zone, Occupancy, Lighting, Non Fixed Equipment, Fixed Equipment)."""
     spans = [
-        ('SPAN', (1, 0), (3, 0)),
-        ('SPAN', (4, 0), (5, 0)),
-        ('SPAN', (6, 0), (7, 0)),
-        ('SPAN', (8, 0), (9, 0)),
-        ('SPAN', (10, 0), (12, 0)),
-        ('SPAN', (13, 0), (15, 0)),
-        ('SPAN', (16, 0), (17, 0)),
-        ('SPAN', (18, 0), (19, 0)),
-        ('SPAN', (20, 0), (21, 0))
+        ('SPAN', (1, 0), (3, 0)),  # Occupancy
+        ('SPAN', (4, 0), (5, 0)),  # Lighting
+        ('SPAN', (6, 0), (7, 0)),  # Non Fixed Equipment
+        ('SPAN', (8, 0), (9, 0))   # Fixed Equipment
     ]
 
     style = [
@@ -117,6 +112,55 @@ def create_hierarchical_table_style():
         ('TOPPADDING', (0, 1), (-1, 1), 2),
         ('BOTTOMPADDING', (0, 1), (-1, 1), 2),
 
+        ('TEXTCOLOR', (0, 2), (-1, -1), COLORS['dark_gray']),
+        ('ALIGN', (0, 2), (-1, -1), 'LEFT'),
+        ('ALIGN', (0, 2), (0, -1), 'CENTER'),  # Center align zone column
+        ('VALIGN', (0, 2), (-1, -1), 'MIDDLE'),
+        ('VALIGN', (0, 2), (0, -1), 'MIDDLE'),  # Ensure zone column is vertically centered
+        ('FONTNAME', (0, 2), (-1, -1), FONTS['table_body']),
+        ('FONTSIZE', (0, 2), (-1, -1), FONT_SIZES['small']),
+        ('TOPPADDING', (0, 2), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 2), (-1, -1), 2),
+
+        ('ROWBACKGROUNDS', (0, 2), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
+
+        ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
+        ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
+
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4)
+    ]
+
+    return TableStyle(spans + style)
+
+def create_table2_style():
+    """Create table style for table 2 (Zone, Heating, Cooling, Infiltration, Natural Ventilation, Mechanical Ventilation)."""
+    spans = [
+        ('SPAN', (1, 0), (3, 0)),  # Heating
+        ('SPAN', (4, 0), (6, 0)),  # Cooling
+        ('SPAN', (7, 0), (8, 0)),  # Infiltration
+        ('SPAN', (9, 0), (10, 0)), # Natural Ventilation
+        ('SPAN', (11, 0), (12, 0)) # Mechanical Ventilation
+    ]
+
+    style = [
+        ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
+        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['dark_gray']),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
+        ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_body']),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
+        ('TOPPADDING', (0, 0), (-1, 0), 4),
+
+        ('BACKGROUND', (0, 1), (-1, 1), COLORS['secondary_blue']),
+        ('TEXTCOLOR', (0, 1), (-1, 1), COLORS['dark_gray']),
+        ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
+        ('VALIGN', (0, 1), (-1, 1), 'MIDDLE'),
+        ('FONTNAME', (0, 1), (-1, 1), FONTS['table_header']),
+        ('FONTSIZE', (0, 1), (-1, 1), FONT_SIZES['small']),
+        ('TOPPADDING', (0, 1), (-1, 1), 2),
+        ('BOTTOMPADDING', (0, 1), (-1, 1), 2),
 
         ('TEXTCOLOR', (0, 2), (-1, -1), COLORS['dark_gray']),
         ('ALIGN', (0, 2), (-1, -1), 'LEFT'),
@@ -327,7 +371,7 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
     """
     left_margin = right_margin = 0.5 * cm
     top_margin = bottom_margin = 1.0 * cm
-    page_size = landscape(A3)
+    page_size = landscape(A4)
     doc = SimpleDocTemplate(output_filename, pagesize=page_size,
                             leftMargin=left_margin, rightMargin=right_margin,
                             topMargin=top_margin, bottomMargin=bottom_margin)
@@ -366,30 +410,45 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
         except Exception as e:
             raise RuntimeError(f"Error generating empty loads PDF file {output_filename}: {e}")
     try:
-        table_data = []
-        header_row1 = [
+        # Create Table 1: Zone, Occupancy, Lighting, Non Fixed Equipment, Fixed Equipment
+        table1_data = []
+        table1_header_row1 = [
             "", "Occupancy", "", "", "Lighting", "",
-            "Non Fixed Equipment", "", "Fixed Equipment", "",
-            "Heating", "", "", "Cooling", "", "",
-            "Infiltration", "", "Ventilation", "", "Mechanical Ventilation", ""
+            "Non Fixed Equipment", "", "Fixed Equipment", ""
         ]
-        header_row2 = [
+        table1_header_row2 = [
             "Zone", "people/\narea", "activity\nschedule\nw/person", "schedule\ntemplate\nname",
             "power\ndensity\n[w/m2]", "schedule\ntemplate\nname",
             "power\ndensity\n(W/m2)", "schedule\ntemplate\nname",
-            "power\ndensity\n(W/m2)", "schedule\ntemplate\nname",
-            "setpoint\n(C)", "setpoint\nnon work\ntime(C)", "equipment\nschedule\ntemplate\nname",
+            "power\ndensity\n(W/m2)", "schedule\ntemplate\nname"
+        ]
+        styled_table1_header_row1 = [wrap_text(h, header_cell_style) if h else "" for h in table1_header_row1]
+        styled_table1_header_row2 = [wrap_text(h, header_cell_style) if h else "" for h in table1_header_row2]
+        table1_data.append(styled_table1_header_row1)
+        table1_data.append(styled_table1_header_row2)
+
+        # Create Table 2: Zone, Heating, Cooling, Infiltration, Natural Ventilation, Mechanical Ventilation
+        table2_data = []
+        table2_header_row1 = [
+            "", "Heating", "", "", "Cooling", "", "",
+            "Infiltration", "", "Natural Ventilation", "", "Mechanical Ventilation", ""
+        ]
+        table2_header_row2 = [
+            "Zone", "setpoint\n(C)", "setpoint\nnon work\ntime(C)", "equipment\nschedule\ntemplate\nname",
             "setpoint\n(C)", "setpoint\nnon work\ntime(C)", "equipment\nschedule\ntemplate\nname",
             "rate\n(ACH)", "schedule", "rate\n(ACH)", "schedule",
             "Outdoor Air\nFlow per Person\n{m3/s}", "Outdoor Air\nFlow Rate Fraction\nSchedule Name"
         ]
-        styled_header_row1 = [wrap_text(h, header_cell_style) if h else "" for h in header_row1]
-        styled_header_row2 = [wrap_text(h, header_cell_style) if h else "" for h in header_row2]
-        table_data.append(styled_header_row1)
-        table_data.append(styled_header_row2)
+        styled_table2_header_row1 = [wrap_text(h, header_cell_style) if h else "" for h in table2_header_row1]
+        styled_table2_header_row2 = [wrap_text(h, header_cell_style) if h else "" for h in table2_header_row2]
+        table2_data.append(styled_table2_header_row1)
+        table2_data.append(styled_table2_header_row2)
+
         for zone_name, zone_info in zone_data.items():
             loads = zone_info.get('loads', {})
             schedules = zone_info.get('schedules', {})
+            
+            # Extract data for both tables
             people_density = _get_load_data(loads, 'people', 'people_per_area', 0.0)
             people_activity_sched = _get_load_data(loads, 'people', 'activity_schedule')
             people_sched = _get_load_data(loads, 'people', 'schedule')
@@ -399,24 +458,29 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
             non_fixed_sched = _get_load_data(loads, 'non_fixed_equipment', 'schedule')
             fixed_density = _get_load_data(loads, 'fixed_equipment', 'watts_per_area', 0.0)
             fixed_sched = _get_load_data(loads, 'fixed_equipment', 'schedule')
+            
             heating_schedule_obj = schedules.get('heating')
             heating_sched_name = heating_schedule_obj.get('name', '-') if isinstance(heating_schedule_obj, dict) else '-'
             heating_sched_values = heating_schedule_obj.get('schedule_values', []) if isinstance(heating_schedule_obj, dict) else []
             heating_setpoint = extract_setpoint(heating_sched_values, 'work', zone_name, heating_schedule_obj)
             heating_setpoint_non_work = extract_setpoint(heating_sched_values, 'non_work', zone_name, heating_schedule_obj)
+            
             cooling_schedule_obj = schedules.get('cooling')
             cooling_sched_name = cooling_schedule_obj.get('name', '-') if isinstance(cooling_schedule_obj, dict) else '-'
             cooling_sched_values = cooling_schedule_obj.get('schedule_values', []) if isinstance(cooling_schedule_obj, dict) else []
             cooling_setpoint = extract_setpoint(cooling_sched_values, 'work', zone_name, cooling_schedule_obj)
             cooling_setpoint_non_work = extract_setpoint(cooling_sched_values, 'non_work', zone_name, cooling_schedule_obj)
+            
             infil_rate = _get_load_data(loads, 'infiltration', 'rate_ach', 0.0)
             infil_sched = _get_load_data(loads, 'infiltration', 'schedule')
             vent_rate = _get_load_data(loads, 'ventilation', 'rate_ach', 0.0)
             vent_sched = _get_load_data(loads, 'ventilation', 'schedule')
             mech_vent_flow_per_person = _get_load_data(loads, 'mechanical_ventilation', 'outdoor_air_flow_per_person', 0.0)
             mech_vent_sched = _get_load_data(loads, 'mechanical_ventilation', 'schedule')
-            row_data = [
-                _to_str(zone_name),  # Use plain text instead of wrapped text for better vertical centering
+            
+            # Table 1 row data
+            table1_row_data = [
+                wrap_text(_to_str(zone_name), cell_style),
                 wrap_text(_to_str(people_density, 2), cell_style),
                 wrap_text(_to_str(people_activity_sched), cell_style),
                 wrap_text(_to_str(people_sched), cell_style),
@@ -425,7 +489,13 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
                 wrap_text(_to_str(non_fixed_density, 1), cell_style),
                 wrap_text(_to_str(non_fixed_sched), cell_style),
                 wrap_text(_to_str(fixed_density, 1), cell_style),
-                wrap_text(_to_str(fixed_sched), cell_style),
+                wrap_text(_to_str(fixed_sched), cell_style)
+            ]
+            table1_data.append(table1_row_data)
+            
+            # Table 2 row data
+            table2_row_data = [
+                wrap_text(_to_str(zone_name), cell_style),
                 wrap_text(_to_str(heating_setpoint), cell_style),
                 wrap_text(_to_str(heating_setpoint_non_work), cell_style),
                 wrap_text(_to_str(heating_sched_name), cell_style),
@@ -437,18 +507,59 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
                 wrap_text(_to_str(vent_rate, 2), cell_style),
                 wrap_text(_to_str(vent_sched), cell_style),
                 wrap_text(_to_str(mech_vent_flow_per_person, 3), cell_style),
-                wrap_text(_to_str(mech_vent_sched), cell_style),
+                wrap_text(_to_str(mech_vent_sched), cell_style)
             ]
-            table_data.append(row_data)
-        if len(table_data) > 2:
-            available_width = content_width - 1 * cm
-            col_percentages = [
-                6.5, 3.0, 5.0, 7.5, 3.0, 6.0, 3.0, 6.0, 3.0, 6.0, 2.5, 3.0, 7.5, 2.5, 3.0, 7.5, 2.5, 4.5, 2.5, 4.5, 3.5, 6.5
+            table2_data.append(table2_row_data)
+
+        if len(table1_data) > 2:  # Has data beyond headers
+            # Use 95% of content width for both tables to match Table 2's perfect fit
+            table1_width = content_width * 0.95
+            table2_width = content_width * 0.95
+            
+            # Table 1 column widths (10 columns) - reduced to match Table 2's compact sizing
+            table1_col_widths = [
+                table1_width * 0.11,  # Zone (same as Table 2)
+                table1_width * 0.06,  # people/area
+                table1_width * 0.05,  # activity schedule w/person
+                table1_width * 0.16,  # schedule template name
+                table1_width * 0.06,  # power density [w/m2]
+                table1_width * 0.14,  # schedule template name
+                table1_width * 0.06,  # power density (W/m2)
+                table1_width * 0.14,  # schedule template name
+                table1_width * 0.06,  # power density (W/m2)
+                table1_width * 0.14   # schedule template name
             ]
-            col_widths = [available_width * (p / 100) for p in col_percentages]
-            load_table = Table(table_data, colWidths=col_widths, hAlign='CENTER', repeatRows=2)
-            load_table.setStyle(create_hierarchical_table_style())
-            story.append(load_table)
+            table1 = Table(table1_data, colWidths=table1_col_widths, hAlign='CENTER', repeatRows=2)
+            table1.setStyle(create_table1_style())
+            story.append(table1)
+            
+            # Add spacing between tables
+            story.append(Spacer(1, 0.8 * cm))
+            
+            # Table 2 column widths (13 columns) - reduced to fit A4 width
+            table2_col_widths = [
+                table2_width * 0.11,  # Zone (slightly smaller to accommodate more columns)
+                table2_width * 0.05,  # setpoint (C)
+                table2_width * 0.05,  # setpoint non work time(C)
+                table2_width * 0.14,  # equipment schedule template name
+                table2_width * 0.05,  # setpoint (C)
+                table2_width * 0.05,  # setpoint non work time(C)
+                table2_width * 0.14,  # equipment schedule template name
+                table2_width * 0.05,  # rate (ACH)
+                table2_width * 0.09,  # schedule
+                table2_width * 0.05,  # rate (ACH)
+                table2_width * 0.09,  # schedule
+                table2_width * 0.06,  # Outdoor Air Flow per Person {m3/s}
+                table2_width * 0.11   # Outdoor Air Flow Rate Fraction Schedule Name
+            ]
+            table2 = Table(table2_data, colWidths=table2_col_widths, hAlign='CENTER', repeatRows=2)
+            table2.setStyle(create_table2_style())
+            
+            # Add spacing before table 2
+            story.append(Spacer(1, 0.2 * cm))
+            story.append(table2)
+            # Add spacing after table 2
+            story.append(Spacer(1, 0.4 * cm))
         else:
             story.append(Paragraph("No zone load data to display.", styles['Normal']))
         doc.build(story)
