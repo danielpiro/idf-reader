@@ -9,9 +9,10 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, 
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
 from utils.data_loader import get_energy_consumption
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.colors import black, Color
-from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
+from reportlab.lib.enums import TA_RIGHT, TA_CENTER
+from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name, encode_hebrew_text
 
 COLORS = {
     'primary_blue': Color(0.2, 0.4, 0.7),
@@ -290,6 +291,131 @@ def _get_letter_grade_for_score(score):
         -1: "F"
     }
     return score_to_grade.get(score, "N/A")
+
+def _create_energy_rating_table_visual(total_score, letter_grade):
+    """Create a professional energy rating table with chevron arrows."""
+    elements = []
+    
+    if total_score is None or letter_grade == "N/A":
+        styles = getSampleStyleSheet()
+        no_data_style = styles['Normal']
+        no_data_style.alignment = TA_CENTER
+        no_data_style.fontName = get_hebrew_font_name()
+        no_data_style.fontSize = FONT_SIZES['body']
+        no_data_style.textColor = COLORS['medium_gray']
+        elements.append(Paragraph("לא ניתן לחשב דירוג אנרגטי", no_data_style))
+        return elements
+
+    from reportlab.graphics.shapes import Drawing, Rect, String, Polygon
+
+    # Professional dimensions
+    drawing_width = 16 * cm
+    base_bar_height = 0.7 * cm
+    bar_spacing = 0.1 * cm
+    chevron_width = 1.2 * cm
+    
+    # Define rating levels - REVERSED LENGTH (F longest, +A shortest) like in reference
+    rating_levels = [
+        {"grade": "+A", "label_he": "יהלום", "color": Color(0.0, 0.5, 0.0), "length_factor": 0.5},      # Best = shortest
+        {"grade": "A", "label_he": "פלטינה", "color": Color(0.3, 0.7, 0.0), "length_factor": 0.58},
+        {"grade": "B", "label_he": "זהב", "color": Color(0.6, 0.8, 0.0), "length_factor": 0.66},
+        {"grade": "C", "label_he": "כסף", "color": Color(0.9, 0.9, 0.0), "length_factor": 0.74},
+        {"grade": "D", "label_he": "ברונזה", "color": Color(1.0, 0.6, 0.0), "length_factor": 0.82},
+        {"grade": "E", "label_he": "רמה בסיסית", "color": Color(1.0, 0.3, 0.0), "length_factor": 0.9},
+        {"grade": "F", "label_he": "מתחת לבסיס", "color": Color(0.8, 0.0, 0.0), "length_factor": 1.0}  # Worst = longest
+    ]
+
+    drawing_height = (base_bar_height + bar_spacing) * len(rating_levels)
+    drawing = Drawing(drawing_width, drawing_height)
+
+    y_position = drawing_height - base_bar_height
+    max_bar_width = drawing_width - chevron_width - 1*cm
+
+    for level in rating_levels:
+        # Calculate bar width (reverse order - worse ratings are longer)
+        bar_width = max_bar_width * level["length_factor"]
+        
+        # Create the main bar rectangle
+        bar_rect = Rect(0.5*cm, y_position, bar_width, base_bar_height)
+        bar_rect.fillColor = level["color"]
+        bar_rect.strokeColor = Color(0.2, 0.2, 0.2)
+        bar_rect.strokeWidth = 0.5
+        drawing.add(bar_rect)
+        
+        # Create simple chevron arrow end (no pointy tip)
+        chevron_start_x = 0.5*cm + bar_width
+        chevron_end_x = chevron_start_x + chevron_width
+        chevron_mid_y = y_position + base_bar_height/2
+        
+        # Create simple chevron shape - just angled end
+        chevron_points = [
+            chevron_start_x, y_position,                    # bottom left
+            chevron_end_x - 0.3*cm, y_position,            # bottom right (shorter)
+            chevron_end_x, chevron_mid_y,                   # middle right (chevron point)
+            chevron_end_x - 0.3*cm, y_position + base_bar_height,  # top right (shorter)
+            chevron_start_x, y_position + base_bar_height,  # top left
+        ]
+        
+        chevron = Polygon(chevron_points)
+        chevron.fillColor = level["color"]
+        chevron.strokeColor = Color(0.2, 0.2, 0.2)
+        chevron.strokeWidth = 0.5
+        drawing.add(chevron)
+
+        # Add grade letter on the left side
+        grade_label = String(0.8*cm, y_position + base_bar_height / 2.3, level["grade"])
+        grade_label.fontName = get_hebrew_font_name()
+        grade_label.fontSize = FONT_SIZES['heading']
+        grade_label.textAnchor = 'start'
+        grade_label.fillColor = COLORS['white']
+        drawing.add(grade_label)
+
+        # Add Hebrew label in the center
+        hebrew_label_x = 0.5*cm + bar_width / 2
+        hebrew_label = String(hebrew_label_x, y_position + base_bar_height / 2.3, encode_hebrew_text(level["label_he"]))
+        hebrew_label.fontName = get_hebrew_font_name()
+        hebrew_label.fontSize = FONT_SIZES['body']
+        hebrew_label.textAnchor = 'middle'
+        hebrew_label.fillColor = COLORS['white']
+        drawing.add(hebrew_label)
+
+        # Highlight the current rating with a chevron pointer
+        if level["grade"] == letter_grade:
+            # Position the pointer chevron to the right of the rating bar
+            pointer_start_x = chevron_end_x + 0.3*cm
+            pointer_tip_x = pointer_start_x + 0.8*cm
+            pointer_mid_y = y_position + base_bar_height / 2
+            
+            # Create chevron pointer with EXACT same style as rating bars but pointing left
+            pointer_end_x = pointer_start_x + chevron_width  # Use same chevron_width
+            
+            # Mirror the exact chevron structure from rating bars (lines 351-357)
+            pointer_points = [
+                pointer_end_x, y_position,                               # bottom right
+                pointer_start_x + 0.3*cm, y_position,                   # bottom left (shorter)
+                pointer_start_x, y_position + base_bar_height/2,        # left tip (chevron point)
+                pointer_start_x + 0.3*cm, y_position + base_bar_height, # top left (shorter)
+                pointer_end_x, y_position + base_bar_height,             # top right
+            ]
+            
+            pointer_chevron = Polygon(pointer_points)
+            pointer_chevron.fillColor = level["color"]
+            pointer_chevron.strokeColor = Color(0.2, 0.2, 0.2)
+            pointer_chevron.strokeWidth = 0.5
+            drawing.add(pointer_chevron)
+            
+            # Add emphasis text next to the chevron
+            emphasis_text = String(pointer_end_x + 0.2*cm, y_position + base_bar_height / 2.3, level["grade"])
+            emphasis_text.fontName = get_hebrew_font_name()
+            emphasis_text.fontSize = FONT_SIZES['heading']
+            emphasis_text.textAnchor = 'start'
+            emphasis_text.fillColor = level["color"]
+            drawing.add(emphasis_text)
+
+        y_position -= (base_bar_height + bar_spacing)
+
+    elements.append(drawing)
+    return elements
 
 def _create_total_energy_rating_table(total_score, letter_grade):
     """Create a graphical representation of the total energy rating."""
@@ -703,10 +829,12 @@ class EnergyRatingReportGenerator:
         except Exception as e:
             raise RuntimeError(f"Error generating energy rating report: {e}")
 
-    def generate_total_energy_rating_report(self, output_filename="total_energy_rating.pdf"):
+    def generate_total_energy_rating_report(self, output_filename="total_energy_rating.pdf", settings_extractor=None):
         """
-        Generate total energy rating report PDF using ReportLab.
-        The total rating is a weighted average of area scores based on each area's size.
+        Generate Hebrew RTL total energy rating report with three sections:
+        1. Header with project info
+        2. Energy rating visual table
+        3. Consultant information
         """
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
@@ -717,67 +845,259 @@ class EnergyRatingReportGenerator:
                 self.energy_rating_parser.process_output()
 
             raw_table_data = self.energy_rating_parser.get_energy_rating_table_data()
-
             total_score, letter_grade = _calculate_total_energy_rating(
                 raw_table_data,
                 self.model_year,
                 self.model_area_definition
             )
+
             doc = SimpleDocTemplate(output_path, pagesize=A4,
                                    leftMargin=self.margin, rightMargin=self.margin,
                                    topMargin=self.margin, bottomMargin=self.margin)
             story = []
-
-            from reportlab.lib.styles import ParagraphStyle
-            from reportlab.lib.enums import TA_RIGHT
             hebrew_font = get_hebrew_font_name()
-            header_info_style = ParagraphStyle(
-                'HeaderInfo',
-                parent=self.styles['Normal'],
-                fontSize=9,
-                fontName=hebrew_font,
-                textColor=COLORS['dark_gray'],
-                alignment=TA_RIGHT
-            )
-            now = datetime.datetime.now()
-            header_text = safe_format_header_text(
-                project_name=self.project_name,
-                run_id=self.run_id,
-                timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
-                city_name=self.selected_city_name or 'N/A',
-                area_name=self.area_name,
-                report_title="Total Energy Rating Report"
-            )
-            story.append(Paragraph(header_text, header_info_style))
-            story.append(Spacer(1, 5))
 
-            title_style = self.styles['h1']
-            title_style.alignment = TA_CENTER
-            title_style.textColor = COLORS['primary_blue']
-            title_style.fontName = FONTS['title']
-            title_style.fontSize = FONT_SIZES['title']
-            story.append(Paragraph("Total Energy Rating Report", title_style))
-            story.append(Spacer(1, 1*cm))
+            # SECTION 1: Header Information
+            story.extend(self._create_hebrew_header_section(settings_extractor, hebrew_font))
+            story.append(Spacer(1, 0.4*cm))
 
-            if total_score is not None and letter_grade != "N/A":
-                rating_table = _create_total_energy_rating_table(total_score, letter_grade)
-                if rating_table:
-                    story.append(Spacer(1, 1*cm))
-                    story.extend(rating_table)
-            else:
-                styles = getSampleStyleSheet()
-                unavailable_style = styles['Normal']
-                unavailable_style.alignment = TA_CENTER
-                unavailable_style.fontName = FONTS['body']
-                unavailable_style.fontSize = FONT_SIZES['body']
-                unavailable_style.textColor = COLORS['medium_gray']
-                story.append(Paragraph("Total energy rating not available.", unavailable_style))
+            # SECTION 2: Energy Rating Visual Table
+            story.extend(self._create_energy_rating_section(total_score, letter_grade, hebrew_font))
+            story.append(Spacer(1, 0.4*cm))
+
+            # SECTION 3: Consultant Information
+            story.extend(self._create_consultant_info_section(hebrew_font))
 
             doc.build(story)
-            logger.info(f"Generated total energy rating report: {output_path}")
+            logger.info(f"Generated Hebrew total energy rating report: {output_path}")
             return output_path
 
         except Exception as e:
             error_message = f"Error generating total energy rating report: {e}"
             logger.error(error_message, exc_info=True)
             raise RuntimeError(error_message)
+
+    def _create_hebrew_header_section(self, settings_extractor, hebrew_font):
+        """Create Section 1: Professional Hebrew header with project information"""
+        elements = []
+        
+        # Clean professional title without border
+        title_style = ParagraphStyle(
+            'HebrewTitle',
+            parent=self.styles['h1'],
+            fontSize=20,
+            fontName=hebrew_font,
+            textColor=COLORS['primary_blue'],
+            alignment=TA_CENTER,
+            spaceAfter=0.3*cm
+        )
+        elements.append(Paragraph(encode_hebrew_text("דוח דירוג אנרגטי"), title_style))
+        
+        # Professional subtitle
+        subtitle_style = ParagraphStyle(
+            'HebrewSubtitle',
+            parent=self.styles['Normal'],
+            fontSize=14,
+            fontName=hebrew_font,
+            textColor=COLORS['dark_gray'],
+            alignment=TA_CENTER,
+            spaceAfter=0.3*cm
+        )
+        
+        # Get area information
+        area_value = self.area_name or "לא זמין"
+        if settings_extractor:
+            try:
+                location_settings = settings_extractor.get_location_settings()
+                if 'name' in location_settings and location_settings['name']:
+                    area_value = str(location_settings['name'])
+            except:
+                pass
+        
+        # Professional project information with RTL field:value order (value:field for Hebrew)
+        iso_value = f"{self.model_year}" if self.model_year else "לא זמין"
+        project_info = [
+            # Header row
+            [encode_hebrew_text("פרטי הפרויקט"), "", "", ""],
+            # Data rows - switched order for Hebrew RTL (value:field)
+            [encode_hebrew_text(self.project_name or "לא זמין"), encode_hebrew_text("שם הפרויקט:"),
+             datetime.datetime.now().strftime('%d/%m/%Y'), encode_hebrew_text("תאריך הדוח:")],
+            [encode_hebrew_text(self.selected_city_name or "לא זמין"), encode_hebrew_text("מיקום:"),
+             iso_value, encode_hebrew_text("מבנה נתונים:")],  # Moved ISO to right section
+            ["", "",
+             encode_hebrew_text(area_value), encode_hebrew_text("שטח תרמי:")]  # Area info in separate row
+        ]
+        
+        info_table = Table(project_info, colWidths=[4.5*cm, 3*cm, 4.5*cm, 3*cm])
+        info_table.setStyle(TableStyle([
+            # Header row styling
+            ('FONTNAME', (0,0), (-1,0), hebrew_font),
+            ('FONTSIZE', (0,0), (-1,0), 14),
+            ('BACKGROUND', (0,0), (-1,0), COLORS['primary_blue']),
+            ('TEXTCOLOR', (0,0), (-1,0), COLORS['white']),
+            ('ALIGN', (0,0), (-1,0), 'CENTER'),
+            ('SPAN', (0,0), (-1,0)),  # Merge header row
+            
+            # Data rows styling - all text aligned right for Hebrew RTL
+            ('FONTNAME', (0,1), (-1,-1), hebrew_font),
+            ('FONTSIZE', (0,1), (-1,-1), 11),
+            ('ALIGN', (0,1), (-1,-1), 'RIGHT'),  # All cells aligned right
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('TEXTCOLOR', (0,1), (-1,-1), COLORS['dark_gray']),
+            ('BACKGROUND', (0,1), (-1,-1), Color(0.98, 0.98, 1.0)),  # Very light blue
+            
+            # Borders and styling
+            ('BOX', (0,0), (-1,-1), 1, COLORS['primary_blue']),
+            ('LINEBELOW', (0,0), (-1,0), 2, COLORS['primary_blue']),
+            ('GRID', (0,1), (-1,-1), 0.5, COLORS['border_gray']),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('RIGHTPADDING', (0,0), (-1,-1), 10),
+            ('LEFTPADDING', (0,0), (-1,-1), 10),
+        ]))
+        elements.append(info_table)
+        
+        return elements
+
+    def _create_energy_rating_section(self, total_score, letter_grade, hebrew_font):
+        """Create Section 2: Compact energy rating visual table"""
+        elements = []
+        
+        # Section title - centered
+        section_title_style = ParagraphStyle(
+            'HebrewSectionTitle',
+            parent=self.styles['h2'],
+            fontSize=14,
+            fontName=hebrew_font,
+            textColor=COLORS['primary_blue'],
+            alignment=TA_CENTER,
+            spaceAfter=0.3*cm
+        )
+        elements.append(Paragraph(encode_hebrew_text("טבלת דירוג אנרגטי"), section_title_style))
+        
+        # Add the visual rating table (centered)
+        from reportlab.platypus import KeepTogether
+        rating_visual = _create_energy_rating_table_visual(total_score, letter_grade)
+        
+        # Center the rating table
+        centered_table_style = ParagraphStyle(
+            'CenteredTable',
+            parent=self.styles['Normal'],
+            alignment=TA_CENTER
+        )
+        
+        # Wrap the drawing in a centered container
+        if rating_visual:
+            # Create a spacer to center the drawing
+            elements.append(Spacer(1, 0.2*cm))
+            for item in rating_visual:
+                # Create a table with the drawing to center it
+                centered_table = Table([[item]], colWidths=[16*cm])
+                centered_table.setStyle(TableStyle([
+                    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                ]))
+                elements.append(centered_table)
+        
+        return elements
+
+    def _create_consultant_info_section(self, hebrew_font):
+        """Create Section 3: Two separate professional consultant tables"""
+        elements = []
+        
+        # Professional section title with enhanced styling
+        section_title_style = ParagraphStyle(
+            'HebrewSectionTitle',
+            parent=self.styles['h2'],
+            fontSize=16,
+            fontName=hebrew_font,
+            textColor=COLORS['primary_blue'],
+            alignment=TA_CENTER,
+            spaceAfter=0.3*cm
+        )
+        elements.append(Paragraph(encode_hebrew_text("פרטי הצוות המקצועי"), section_title_style))
+        
+        # TABLE 1: Thermal Consultant
+        consultant_data = [
+            # Header
+            [encode_hebrew_text("יועץ תרמי מוסמך"), ""],
+            # Data rows - switched order for Hebrew RTL (value:field)
+            [encode_hebrew_text("חברת ייעוץ תרמי בע\"מ"), encode_hebrew_text("חברה:")],
+            [encode_hebrew_text("אבי כהן, מהנדס מכונות"), encode_hebrew_text("מהנדס אחראי:")],
+            ["03-1234567", encode_hebrew_text("טלפון:")],
+            ["avi.cohen@thermal.co.il", encode_hebrew_text("דוא\"ל:")]
+        ]
+        
+        consultant_table = Table(consultant_data, colWidths=[8*cm, 4*cm])
+        consultant_table.setStyle(TableStyle([
+            # Header styling
+            ('FONTNAME', (0,0), (-1,0), hebrew_font),
+            ('FONTSIZE', (0,0), (-1,0), 12),
+            ('BACKGROUND', (0,0), (-1,0), COLORS['primary_blue']),
+            ('TEXTCOLOR', (0,0), (-1,0), COLORS['white']),
+            ('ALIGN', (0,0), (-1,0), 'CENTER'),
+            ('SPAN', (0,0), (-1,0)),  # Merge header
+            
+            # Body styling
+            ('FONTNAME', (0,1), (-1,-1), hebrew_font),
+            ('FONTSIZE', (0,1), (-1,-1), 10),
+            ('ALIGN', (0,1), (-1,-1), 'RIGHT'),  # All cells aligned right
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('TEXTCOLOR', (0,1), (-1,-1), COLORS['dark_gray']),
+            ('BACKGROUND', (0,1), (-1,-1), Color(0.98, 0.98, 1.0)),
+            
+            # Borders and styling
+            ('BOX', (0,0), (-1,-1), 1, COLORS['primary_blue']),
+            ('LINEBELOW', (0,0), (-1,0), 2, COLORS['primary_blue']),
+            ('GRID', (0,1), (-1,-1), 0.5, COLORS['border_gray']),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('RIGHTPADDING', (0,0), (-1,-1), 10),
+            ('LEFTPADDING', (0,0), (-1,-1), 10),
+        ]))
+        elements.append(consultant_table)
+        
+        # Add spacing between tables
+        elements.append(Spacer(1, 0.3*cm))
+        
+        # TABLE 2: Thermal Tester
+        tester_data = [
+            # Header
+            [encode_hebrew_text("בודק תרמי מוסמך"), ""],
+            # Data rows - switched order for Hebrew RTL (value:field)
+            [encode_hebrew_text("מעבדת בדיקות תרמיות בע\"מ"), encode_hebrew_text("חברה:")],
+            [encode_hebrew_text("שרה לוי, מהנדסת אזרחית"), encode_hebrew_text("בודק מוסמך:")],
+            ["02-9876543", encode_hebrew_text("טלפון:")],
+            ["sara.levy@thermal-lab.co.il", encode_hebrew_text("דוא\"ל:")]
+        ]
+        
+        tester_table = Table(tester_data, colWidths=[8*cm, 4*cm])
+        tester_table.setStyle(TableStyle([
+            # Header styling
+            ('FONTNAME', (0,0), (-1,0), hebrew_font),
+            ('FONTSIZE', (0,0), (-1,0), 12),
+            ('BACKGROUND', (0,0), (-1,0), COLORS['secondary_blue']),
+            ('TEXTCOLOR', (0,0), (-1,0), COLORS['white']),
+            ('ALIGN', (0,0), (-1,0), 'CENTER'),
+            ('SPAN', (0,0), (-1,0)),  # Merge header
+            
+            # Body styling
+            ('FONTNAME', (0,1), (-1,-1), hebrew_font),
+            ('FONTSIZE', (0,1), (-1,-1), 10),
+            ('ALIGN', (0,1), (-1,-1), 'RIGHT'),  # All cells aligned right
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('TEXTCOLOR', (0,1), (-1,-1), COLORS['dark_gray']),
+            ('BACKGROUND', (0,1), (-1,-1), Color(0.98, 0.98, 1.0)),
+            
+            # Borders and styling
+            ('BOX', (0,0), (-1,-1), 1, COLORS['secondary_blue']),
+            ('LINEBELOW', (0,0), (-1,0), 2, COLORS['secondary_blue']),
+            ('GRID', (0,1), (-1,-1), 0.5, COLORS['border_gray']),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('RIGHTPADDING', (0,0), (-1,-1), 10),
+            ('LEFTPADDING', (0,0), (-1,-1), 10),
+        ]))
+        elements.append(tester_table)
+        
+        return elements
