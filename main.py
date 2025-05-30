@@ -150,7 +150,7 @@ def run_gui() -> None:
     cli_status_update("No CLI arguments detected. Starting GUI mode...")
     try:
         app = IDFProcessorGUI()
-        app.run()
+        app.mainloop()
     except ImportError as import_err:
         err_msg = str(import_err).lower()
         if 'tkinter' in err_msg:

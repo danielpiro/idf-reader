@@ -1,1 +1,7 @@
-{"last_input": "C:/Users/daniel/Desktop/idf-reader/tests/3.1.idf", "last_eplus_dir": "C:/EnergyPlusV9-4-0", "last_output": "C:/Users/daniel/Desktop", "last_city": "\u05d0\u05d1\u05df \u05d9\u05d4\u05d5\u05d3\u05d4", "last_city_area_name": "\u05d1", "last_city_area_code": "5", "last_iso_type": "RESIDNTIAL 2017"}
+{
+    "last_input": "C:/Users/daniel/Desktop/idf-reader/tests/3.1.idf",
+    "last_eplus_dir": "C:/EnergyPlusV9-4-0",
+    "last_output": "C:/Users/daniel/Desktop",
+    "last_city": "\u05d0\u05d1\u05df \u05d9\u05d4\u05d5\u05d3\u05d4",
+    "last_iso_type": "RESIDNTIAL 2017"
+}
