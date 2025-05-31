@@ -12,6 +12,49 @@ from datetime import datetime
 # Keep GUI specific imports here
 from utils.data_loader import DataLoader # Still needed for IDFProcessorGUI._ensure_idf_output_variables
 
+def fix_hebrew_text_display(text):
+    """
+    Fix Hebrew text display for GUI components.
+    Handles the RTL text ordering issue where Hebrew words appear in reverse order.
+    """
+    if not text:
+        return text
+    
+    # Check if text contains Hebrew characters
+    contains_hebrew = any('\u0590' <= char <= '\u05FF' for char in text)
+    
+    if contains_hebrew:
+        # The issue is that tkinter displays RTL text with reversed word order
+        # For mixed Hebrew-English text like "תל אביב - יפו", we need to handle this carefully
+        
+        # Split by whitespace to handle word order
+        parts = text.split()
+        
+        # Check each part to see if it's Hebrew or punctuation/Latin
+        hebrew_parts = []
+        latin_parts = []
+        
+        for part in parts:
+            if any('\u0590' <= char <= '\u05FF' for char in part):
+                hebrew_parts.append(part)
+            else:
+                latin_parts.append(part)
+        
+        # If we have a mix of Hebrew and non-Hebrew parts, we need to reorder
+        if hebrew_parts and latin_parts:
+            # For cases like "תל אביב - יפו", reverse the overall order
+            return ' '.join(reversed(parts))
+        else:
+            # Pure Hebrew text might need different handling
+            if len(parts) > 1:
+                # Multiple Hebrew words - reverse their order
+                return ' '.join(reversed(parts))
+            else:
+                # Single Hebrew word - keep as is
+                return text
+    else:
+        return text
+
 # Logger for the GUI part
 logger = logging.getLogger(__name__)
 # Ensure basicConfig is called, but if main.py or another entry point handles it,
@@ -225,9 +268,11 @@ class IDFProcessorGUI(ctk.CTk):
         cities_to_show = cities_to_show[:100]
         
         for city in cities_to_show:
+            # Fix Hebrew text display for city names
+            display_text = fix_hebrew_text_display(city)
             button = ctk.CTkButton(
                 self.city_scrollable_frame,
-                text=city,
+                text=display_text,
                 height=30,
                 corner_radius=5,
                 fg_color="transparent",
@@ -269,9 +314,11 @@ class IDFProcessorGUI(ctk.CTk):
     
     def _select_city(self, city_name):
         """Handle city selection."""
+        # Fix Hebrew text display for the selected city
+        display_text = fix_hebrew_text_display(city_name)
         self.city_search_entry.delete(0, tk.END)
-        self.city_search_entry.insert(0, city_name)
-        self.city.set(city_name)
+        self.city_search_entry.insert(0, display_text)
+        self.city.set(city_name)  # Keep original value for processing
         self._hide_city_dropdown()
         self.on_city_selected(city_name)
     
@@ -392,7 +439,15 @@ class IDFProcessorGUI(ctk.CTk):
                 self.input_file.set(settings.get('last_input', ''))
                 self.energyplus_dir.set(settings.get('last_eplus_dir', ''))
                 self.output_dir.set(settings.get('last_output', ''))
-                self.city.set(settings.get('last_city', ''))
+                
+                # Load city and display with proper Hebrew text handling
+                last_city = settings.get('last_city', '')
+                self.city.set(last_city)
+                if last_city and hasattr(self, 'city_search_entry'):
+                    display_text = fix_hebrew_text_display(last_city)
+                    self.city_search_entry.delete(0, tk.END)
+                    self.city_search_entry.insert(0, display_text)
+                
                 # Trigger on_city_selected if city is loaded to populate area_name/code
                 if self.city.get(): self.on_city_selected()
                 self.iso_type.set(settings.get('last_iso_type', ''))
