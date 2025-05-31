@@ -922,10 +922,12 @@ class EnergyRatingReportGenerator:
             # Data rows - switched order for Hebrew RTL (value:field)
             [encode_hebrew_text(self.project_name or "לא זמין"), encode_hebrew_text("שם הפרויקט:"),
              datetime.datetime.now().strftime('%d/%m/%Y'), encode_hebrew_text("תאריך הדוח:")],
-            [encode_hebrew_text(self.selected_city_name or "לא זמין"), encode_hebrew_text("מיקום:"),
-             iso_value, encode_hebrew_text("מבנה נתונים:")],  # Moved ISO to right section
-            ["", "",
-             encode_hebrew_text(area_value), encode_hebrew_text("שטח תרמי:")]  # Area info in separate row
+            [encode_hebrew_text(self.selected_city_name or "לא זמין"), encode_hebrew_text("עיר:"),
+             iso_value, encode_hebrew_text("תקן להסמכה:")],  # Moved ISO to right section
+            [encode_hebrew_text(area_value), encode_hebrew_text("אזור אקלים:"),
+             encode_hebrew_text(""), encode_hebrew_text("גוש:")],  # Area info and גוש
+            [encode_hebrew_text(""), encode_hebrew_text(""),
+             encode_hebrew_text(""), encode_hebrew_text("חלקה:")]  # חלקה field on the right
         ]
         
         info_table = Table(project_info, colWidths=[4.5*cm, 3*cm, 4.5*cm, 3*cm])

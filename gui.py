@@ -539,16 +539,17 @@ class IDFProcessorGUI(ctk.CTk):
         if not user_inputs: # Should be caught by validate_inputs, but as a safeguard
             self.reset_gui_state(); return
 
-        # Create simulation output directory within the main output directory
-        simulation_run_dir = os.path.join(user_inputs["output_dir"], f"simulation_run_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+        # Create simulation output directory within the reports directory
+        reports_dir = os.path.join(user_inputs["output_dir"], "reports")
+        simulation_dir = os.path.join(reports_dir, "simulation")
         try:
-            os.makedirs(simulation_run_dir, exist_ok=True)
-            self.show_status(f"Simulation output will be in: {simulation_run_dir}")
+            os.makedirs(simulation_dir, exist_ok=True)
+            self.show_status(f"Simulation output will be in: {simulation_dir}")
         except OSError as e:
-            self.show_status(f"Error creating simulation directory '{simulation_run_dir}': {e.strerror}", "error")
+            self.show_status(f"Error creating simulation directory '{simulation_dir}': {e.strerror}", "error")
             self.reset_gui_state(); return
 
-        self.process_thread = threading.Thread(target=self.process_file_thread_target, args=(user_inputs, simulation_run_dir))
+        self.process_thread = threading.Thread(target=self.process_file_thread_target, args=(user_inputs, simulation_dir))
         self.process_thread.start()
 
     def _get_user_inputs_for_processing(self) -> dict | None:
@@ -672,7 +673,7 @@ class IDFProcessorGUI(ctk.CTk):
             self.update_idletasks()
         return output_csv_path if simulation_successful else None
 
-    def process_file_thread_target(self, user_inputs: dict, simulation_run_dir: str):
+    def process_file_thread_target(self, user_inputs: dict, simulation_dir: str):
         """Target for the processing thread."""
         try:
             # 1. Determine EPW file
@@ -685,7 +686,7 @@ class IDFProcessorGUI(ctk.CTk):
             simulation_output_csv = self._run_energyplus_simulation(
                 user_inputs["energyplus_exe"],
                 epw_file,
-                simulation_run_dir, # E+ output goes here
+                simulation_dir, # E+ output goes to simulation subdirectory
                 user_inputs["input_file"]
             )
             if not simulation_output_csv:
