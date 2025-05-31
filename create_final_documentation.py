@@ -237,7 +237,7 @@ class FinalDocumentGenerator:
         
         return drawing
 
-    def create_final_documentation(self, output_filename="Final_IDF_Report_Generator_Documentation.pdf"):
+    def create_final_documentation(self, output_filename="IDF_Report_Documentation.pdf"):
         """Create the final documentation PDF with proper text wrapping"""
         
         # Create document with proper margins
