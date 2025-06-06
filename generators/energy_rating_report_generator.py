@@ -84,6 +84,14 @@ ENERGY_RATING_DATA_OFFICE = {
     ]
 }
 
+# 2023 uses a simplified rating system with universal thresholds
+# Based on the image: A+=5, A=4, B=3, C=2, D=1, E=0, F=-1
+# Thresholds: 40≥, 30≥, 20≥, 10≥, 0≥, -10≥, -20≥
+ENERGY_RATING_DATA_2023 = [
+    (40, "A+", 5), (30, "A", 4), (20, "B", 3), (10, "C", 2), (0, "D", 1),
+    (-10, "E", 0), (-float('inf'), "F", -1)
+]
+
 CLIMATE_ZONE_MAP = {
     "a": "Zone A", "A": "Zone A", "אזור א": "Zone A",
     "b": "Zone B", "B": "Zone B", "אזור ב": "Zone B",
@@ -166,6 +174,8 @@ def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_tot
     """
 
     numeric_energy_consumption = None
+    calculated_improve_by_value = None  # Initialize at the beginning to avoid UnboundLocalError
+    
     if group_model_csv_area_desc and model_year is not None and model_area_definition is not None:
         try:
             # Handle office model year differently
@@ -174,18 +184,26 @@ def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_tot
             else:
                 iso_type_for_file_selection = f"MODEL_YEAR_{model_year}"
             
+            # For 2023 models, convert climate zone letters to numeric codes if needed
+            area_def_for_lookup = model_area_definition
+            if model_year == 2023 and model_area_definition in ['A', 'B', 'C', 'D']:
+                # Map climate zones to numeric codes for 2023
+                zone_to_numeric = {'A': '1', 'B': '2', 'C': '3', 'D': '4'}
+                area_def_for_lookup = zone_to_numeric.get(model_area_definition, model_area_definition)
+                logger.warning(f"_get_numeric_area_score_for_group: Converting 2023 climate zone '{model_area_definition}' to numeric code '{area_def_for_lookup}'")
+            
             energy_value_raw = get_energy_consumption(
                 iso_type_input=iso_type_for_file_selection,
                 area_location_input=group_model_csv_area_desc,
-                area_definition_input=model_area_definition
+                area_definition_input=area_def_for_lookup
             )
             numeric_energy_consumption = float(energy_value_raw)
 
         except Exception as e:
             logger.error(f"Error in _get_numeric_area_score_for_group getting energy consumption for '{group_model_csv_area_desc}': {e}")
     else:
-        logger.warning(f"_get_numeric_area_score_for_group: Missing required parameters. group_model_csv_area_desc: {group_model_csv_area_desc}, model_year: {model_year}, model_area_definition: {model_area_definition}")    
-        calculated_improve_by_value = None
+        logger.warning(f"_get_numeric_area_score_for_group: Missing required parameters. group_model_csv_area_desc: {group_model_csv_area_desc}, model_year: {model_year}, model_area_definition: {model_area_definition}")
+    
     if numeric_energy_consumption is not None:
 
         if group_sum_total_area <= 70:
@@ -215,8 +233,13 @@ def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_tot
                         return int(rating_score_val)
             elif not climate_zone_lookup_key:
                 logger.warning(f"_get_numeric_area_score_for_group: Could not map model_area_definition '{model_area_definition}' to a known climate zone.")
-            else:
-                logger.warning(f"_get_numeric_area_score_for_group: Climate zone '{climate_zone_lookup_key}' not found in ENERGY_RATING_DATA_2017 for year {model_year}.")
+            else:                logger.warning(f"_get_numeric_area_score_for_group: Climate zone '{climate_zone_lookup_key}' not found in ENERGY_RATING_DATA_2017 for year {model_year}.")
+        elif model_year == 2023:
+            # 2023 uses universal thresholds, no climate zone mapping needed
+            thresholds = ENERGY_RATING_DATA_2023
+            for min_ip, _, rating_score_val in thresholds:
+                if calculated_improve_by_value >= min_ip:
+                    return int(rating_score_val)
         elif str(model_year).lower() == 'office' or (isinstance(model_year, str) and 'office' in model_year.lower()):
             climate_zone_lookup_key = CLIMATE_ZONE_MAP.get(model_area_definition)
 
@@ -230,7 +253,7 @@ def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_tot
             else:
                 logger.warning(f"_get_numeric_area_score_for_group: Climate zone '{climate_zone_lookup_key}' not found in ENERGY_RATING_DATA_OFFICE for office buildings.")
         else:
-            logger.warning(f"_get_numeric_area_score_for_group: Energy rating logic for model_year {model_year} not implemented (only 2017 and office).")
+            logger.warning(f"_get_numeric_area_score_for_group: Energy rating logic for model_year {model_year} not implemented (only 2017, 2023, and office).")
 
     return None
 
@@ -254,16 +277,20 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
                 'sum_total_area': 0.0,
                 'model_csv_area_description': row.get('model_csv_area_description'),
                 'area_effective_for_numerator': 0.0,
-                'raw_zone_area_sum_for_denominator': 0.0,
-                'calculated_score': None
+                'raw_zone_area_sum_for_denominator': 0.0,                'calculated_score': None
             }
 
         zone_area = safe_float(row.get('total_area', 0))
         zone_multiplier = safe_float(row.get('multiplier', 1))
 
-        grouped_data[group_key]['sum_energy_components'] += safe_float(row.get('lighting', 0.0)) + \
-                                                              safe_float(row.get('cooling', 0.0)) + \
-                                                              safe_float(row.get('heating', 0.0))
+        # For 2023, exclude lighting from energy calculations
+        if model_year == 2023:
+            grouped_data[group_key]['sum_energy_components'] += safe_float(row.get('cooling', 0.0)) + \
+                                                                  safe_float(row.get('heating', 0.0))
+        else:
+            grouped_data[group_key]['sum_energy_components'] += safe_float(row.get('lighting', 0.0)) + \
+                                                                  safe_float(row.get('cooling', 0.0)) + \
+                                                                  safe_float(row.get('heating', 0.0))
         grouped_data[group_key]['sum_total_area'] += zone_area
         grouped_data[group_key]['area_effective_for_numerator'] += zone_area * zone_multiplier
         grouped_data[group_key]['raw_zone_area_sum_for_denominator'] += zone_area
@@ -299,11 +326,23 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
     if total_raw_area_sum_denominator > 0:
         raw_average = weighted_score_sum_numerator / total_raw_area_sum_denominator
 
-        if raw_average % 1 >= 0.5:
-            final_score = math.ceil(raw_average)
-
+        # For 2023: If any area gets E (0) or F (-1), cap the total rating accordingly
+        if model_year == 2023:
+            lowest_score = None
+            for group_key, data_item in grouped_data.items():
+                if data_item['calculated_score'] is not None:
+                    score = data_item['calculated_score']
+                    if lowest_score is None or score < lowest_score:
+                        lowest_score = score
+            
+            # If any area got E (0) or F (-1), cap the total at that level
+            if lowest_score is not None and lowest_score <= 0:
+                final_score = min(lowest_score, math.floor(raw_average) if raw_average % 1 < 0.5 else math.ceil(raw_average))
+            else:
+                final_score = math.ceil(raw_average) if raw_average % 1 >= 0.5 else math.floor(raw_average)
         else:
-            final_score = math.floor(raw_average)
+            # For non-2023 models, use normal calculation
+            final_score = math.ceil(raw_average) if raw_average % 1 >= 0.5 else math.floor(raw_average)
 
         letter_grade = _get_letter_grade_for_score(final_score)
         logger.info(f"_calculate_total_energy_rating: Calculated final_score = {final_score}, letter_grade = {letter_grade}")
@@ -591,8 +630,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
     header_row2 = [
         "Floor", "Area id", "Zone id", "Zone area", "Zone multiplier",
         "Lighting", "Cooling", "Heating", "Sum",
-        "Energy consumption", "Improve by %", "Energy rating", "Area score"
-    ]
+        "Energy consumption", "Improve by %", "Energy rating", "Area score"    ]
     table_content = [header_row1, header_row2]
 
     span_commands = []
@@ -603,9 +641,14 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
     if raw_table_data:
         for row_dict in raw_table_data:
             item_group_key_for_sum = (str(row_dict.get('floor_id_report','N/A')), str(row_dict.get('area_id_report','N/A')))
-            current_row_energy_sum = safe_float(row_dict.get('lighting', 0.0)) + \
-                                     safe_float(row_dict.get('cooling', 0.0)) + \
-                                     safe_float(row_dict.get('heating', 0.0))
+            # For 2023, exclude lighting from energy calculations
+            if model_year == 2023:
+                current_row_energy_sum = safe_float(row_dict.get('cooling', 0.0)) + \
+                                         safe_float(row_dict.get('heating', 0.0))
+            else:
+                current_row_energy_sum = safe_float(row_dict.get('lighting', 0.0)) + \
+                                         safe_float(row_dict.get('cooling', 0.0)) + \
+                                         safe_float(row_dict.get('heating', 0.0))
             group_sums_for_display[item_group_key_for_sum] = group_sums_for_display.get(item_group_key_for_sum, 0.0) + current_row_energy_sum
             group_total_floor_areas[item_group_key_for_sum] = group_total_floor_areas.get(item_group_key_for_sum, 0.0) + safe_float(row_dict.get('total_area', 0.0))
 
@@ -641,7 +684,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
             display_sum_for_row = _format_number(current_group_actual_sum)
 
             numeric_energy_consumption = None
-            calculated_improve_by_value = None
+            calculated_improve_by_value = None  # Initialize at the beginning to avoid UnboundLocalError
             display_energy_consump = "N/A"
             display_improve_by = ""
             display_energy_rating = ""
@@ -686,7 +729,6 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
 
             if numeric_energy_consumption is not None:
                 current_group_total_area_val = group_total_floor_areas.get(current_group_key, 0.0)
-                calculated_improve_by_value = None
 
                 if current_group_total_area_val <= 70:
                     adjusted_target_ec = 1.18 * numeric_energy_consumption
@@ -720,8 +762,15 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
                                 break
                     elif not climate_zone_lookup_key:
                         logger.warning(f"ReportGen _energy_rating_table: Could not map model_area_definition '{model_area_definition}' to a known climate zone. Rating/Score will be N/A.")
-                    else:
-                        logger.warning(f"ReportGen _energy_rating_table: Climate zone '{climate_zone_lookup_key}' (from model_area_definition '{model_area_definition}') not found in ENERGY_RATING_DATA_2017 for year {model_year}. Rating/Score will be N/A.")
+                    else:                        logger.warning(f"ReportGen _energy_rating_table: Climate zone '{climate_zone_lookup_key}' (from model_area_definition '{model_area_definition}') not found in ENERGY_RATING_DATA_2017 for year {model_year}. Rating/Score will be N/A.")
+                elif model_year == 2023:
+                    # 2023 uses universal thresholds, no climate zone mapping needed
+                    thresholds = ENERGY_RATING_DATA_2023
+                    for min_ip, rating_letter, rating_score_val in thresholds:
+                        if calculated_improve_by_value >= min_ip:
+                            current_display_energy_rating = rating_letter
+                            current_display_area_score = str(rating_score_val)
+                            break
                 elif str(model_year).lower() == 'office' or (isinstance(model_year, str) and 'office' in model_year.lower()):
                     climate_zone_lookup_key = CLIMATE_ZONE_MAP.get(model_area_definition)
 
@@ -737,7 +786,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
                     else:
                         logger.warning(f"ReportGen _energy_rating_table: Climate zone '{climate_zone_lookup_key}' (from model_area_definition '{model_area_definition}') not found in ENERGY_RATING_DATA_OFFICE for office buildings. Rating/Score will be N/A.")
                 else:
-                    logger.warning(f"ReportGen _energy_rating_table: Energy rating logic currently implemented for model_year 2017 and office buildings. Found {model_year}. Rating/Score will be N/A.")
+                    logger.warning(f"ReportGen _energy_rating_table: Energy rating logic currently implemented for model_year 2017, 2023, and office buildings. Found {model_year}. Rating/Score will be N/A.")
 
             display_energy_rating = current_display_energy_rating
             display_area_rating = current_display_area_score
@@ -760,7 +809,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
             str(row_dict.get('zone_name_report', '')),
             _format_number(row_dict.get('total_area', 0)),
             str(row_dict.get('multiplier', '')),
-            _format_number(row_dict.get('lighting', 0)),
+            "-" if model_year == 2023 else _format_number(row_dict.get('lighting', 0)),
             _format_number(row_dict.get('cooling', 0)),
             _format_number(row_dict.get('heating', 0)),
             display_sum_for_row,

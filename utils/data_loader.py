@@ -14,7 +14,8 @@ def get_energy_consumption(iso_type_input: str, area_location_input: str, area_d
     Args:
         iso_type_input: User's selection for ISO type (e.g., "ISO_TYPE_2017_A", "ISO_TYPE_2023_B").
         area_location_input: The descriptive string for the area type (e.g., "Ground Floor & Intermediate ceiling").
-        area_definition_input: The character 'A', 'B', 'C', or 'D', corresponding to CSV column headers.
+        area_definition_input: For 2017/office: 'A', 'B', 'C', 'D' (climate zones).
+                              For 2023: '1', '2', '3', '4', '5', '6', '7', '8' (climate codes).
 
     Returns:
         The energy consumption value as a float.
@@ -36,10 +37,15 @@ def get_energy_consumption(iso_type_input: str, area_location_input: str, area_d
     elif "office" in iso_type_input.lower():
         file_name = "office_model.csv"
     else:
-        raise ValueError(f"Invalid ISO type format: {iso_type_input}. Cannot determine year or office type.")
-
-    if not area_definition_input or area_definition_input.upper() not in ['A', 'B', 'C', 'D']:
-        raise ValueError(f"Invalid area definition: '{area_definition_input}'. Must be A, B, C, or D.")
+        raise ValueError(f"Invalid ISO type format: {iso_type_input}. Cannot determine year or office type.")    # Validate area_definition_input based on year
+    if year == 2023:
+        # For 2023, expect climate codes 1-8
+        if not area_definition_input or area_definition_input not in ['1', '2', '3', '4', '5', '6', '7', '8']:
+            raise ValueError(f"Invalid area definition for 2023: '{area_definition_input}'. Must be 1, 2, 3, 4, 5, 6, 7, or 8.")
+    else:
+        # For 2017 and office, expect climate zones A-D
+        if not area_definition_input or area_definition_input.upper() not in ['A', 'B', 'C', 'D']:
+            raise ValueError(f"Invalid area definition: '{area_definition_input}'. Must be A, B, C, or D.")
 
     data_dir = Path(__file__).resolve().parent.parent / "data"
     file_path = data_dir / file_name
@@ -71,7 +77,11 @@ def get_energy_consumption(iso_type_input: str, area_location_input: str, area_d
         if len(available_indices) > 20: available_indices = available_indices[:20] + ['...']
         raise KeyError(f"Area location '{area_location_input}' not found in index of {file_path}. Available index values (sample): {available_indices}")
 
-    target_column = area_definition_input.upper()
+    # Set target column based on year
+    if year == 2023:
+        target_column = area_definition_input  # Use climate code directly (1, 2, 3, etc.)
+    else:
+        target_column = area_definition_input.upper()  # Use climate zone letter (A, B, C, D)
     if target_column not in df.columns:
         raise KeyError(f"Area definition column '{target_column}' not found in columns of {file_path}. Available columns: {list(df.columns)}")
 

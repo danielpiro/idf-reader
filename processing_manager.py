@@ -322,9 +322,17 @@ class ProcessingManager:
             elif "OFFICE" in iso_type_selection.upper():
                 derived_model_year = "office"  # Special case for office buildings
             
-            # Map Hebrew area name (א,ב,ג,ד) to Latin letter (A,B,C,D)
-            area_name_map_to_letter = {"א": "A", "ב": "B", "ג": "C", "ד": "D"}
-            derived_model_area_definition = area_name_map_to_letter.get(city_area_name_selection)
+            # For 2023, use numeric area code; for others, use Latin letters
+            if derived_model_year == 2023:
+                # For 2023 models, use the numeric area code directly
+                area_code = self.city_info.get('area_code', '') if hasattr(self, 'city_info') and self.city_info else ''
+                derived_model_area_definition = area_code
+                self.update_status(f"Energy Rating: Using numeric area code '{area_code}' for 2023 model")
+            else:
+                # For 2017 and office models, map Hebrew area name to Latin letter
+                area_name_map_to_letter = {"א": "A", "ב": "B", "ג": "C", "ד": "D"}
+                derived_model_area_definition = area_name_map_to_letter.get(city_area_name_selection)
+                self.update_status(f"Energy Rating: Using Latin area letter '{derived_model_area_definition}' for {derived_model_year} model")
 
             if derived_model_year and derived_model_area_definition:
                 actual_selected_city_name = self.city_info.get('city', None) # This is the Hebrew city name from GUI
