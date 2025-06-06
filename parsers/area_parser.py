@@ -738,8 +738,29 @@ class AreaParser:
                     group2_values = {"roof": sum_roof, "intermediate_ceiling": sum_intermediate_ceiling,
                                      "separation_ceiling": sum_separation_ceiling}
 
-                    max_floor_type = max(group1_values, key=group1_values.get) if any(v > 0 for v in group1_values.values()) else "unknown_floor"
-                    max_ceiling_type = max(group2_values, key=group2_values.get) if any(v > 0 for v in group2_values.values()) else "unknown_ceiling"
+                    # Default values
+                    max_floor_type = "intermediate_floor"
+                    max_ceiling_type = "intermediate_ceiling"
+                    
+                    # Calculate floor type with 60% threshold logic
+                    if any(v > 0 for v in group1_values.values()):
+                        # Sum all non-intermediate floor types
+                        other_floor_sum = sum(v for k, v in group1_values.items() if k != "intermediate_floor")
+                        if total_floor_area > 0 and (other_floor_sum / total_floor_area) > 0.6:
+                            # Find dominant type among non-intermediate types
+                            non_intermediate_floors = {k: v for k, v in group1_values.items() if k != "intermediate_floor" and v > 0}
+                            if non_intermediate_floors:
+                                max_floor_type = max(non_intermediate_floors, key=non_intermediate_floors.get)
+                    
+                    # Calculate ceiling type with 60% threshold logic
+                    if any(v > 0 for v in group2_values.values()):
+                        # Sum all non-intermediate ceiling types
+                        other_ceiling_sum = sum(v for k, v in group2_values.items() if k != "intermediate_ceiling")
+                        if total_floor_area > 0 and (other_ceiling_sum / total_floor_area) > 0.6:
+                            # Find dominant type among non-intermediate types
+                            non_intermediate_ceilings = {k: v for k, v in group2_values.items() if k != "intermediate_ceiling" and v > 0}
+                            if non_intermediate_ceilings:
+                                max_ceiling_type = max(non_intermediate_ceilings, key=non_intermediate_ceilings.get)
 
                     location = "Unknown"
                     if max_floor_type == "ground_floor":
