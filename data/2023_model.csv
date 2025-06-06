@@ -1,0 +1,13 @@
+area type,1,2,3,4,5,6,7,8
+Ground Floor & Intermediate ceiling,24.26,25.14,21.90,22.99,23.89,17.67,15.64,35.64
+Ground Floor & External ceiling,28.02,29.82,26.63,27.72,28.47,23.75,20.80,38.90
+Ground Floor & Separation ceiling,30.12,31.81,28.67,29.18,30.45,23.93,20.49,43.86
+External Floor & Intermediate ceiling,45.74,47.80,40.69,42.85,45.02,30.34,28.11,61.79
+External Floor & External ceiling,48.54,51.55,44.84,46.95,48.75,36.48,33.18,63.92
+External Floor & Separation ceiling,50.56,53.49,46.97,48.36,50.70,36.44,32.75,69.22
+Separation Floor & Intermediate ceiling,40.69,42.16,35.33,38.25,40.13,26.35,25.07,55.88
+Separation Floor & External ceiling,43.49,45.87,39.57,42.30,43.89,32.93,30.19,58.50
+Separation Floor & Separation ceiling,45.68,48.00,41.85,43.88,45.99,32.96,29.87,63.80
+Intermediate Floor & Intermediate ceiling,39.52,39.98,32.13,36.09,38.00,23.51,23.26,51.67
+Intermediate Floor & External ceiling,42.38,43.82,36.50,40.25,41.93,29.90,28.36,53.71
+Intermediate Floor & Separation ceiling,44.76,46.24,38.99,42.05,44.27,29.81,27.93,59.84

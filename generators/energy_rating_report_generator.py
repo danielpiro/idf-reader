@@ -65,6 +65,25 @@ ENERGY_RATING_DATA_2017 = {
     ]
 }
 
+ENERGY_RATING_DATA_OFFICE = {
+    "Zone A": [
+        (46, "+A", 5), (40, "A", 4), (34, "B", 3), (28, "C", 2), (20, "D", 1),
+        (10, "E", 0), (-float('inf'), "F", -1)
+    ],
+    "Zone B": [
+        (52, "+A", 5), (44, "A", 4), (36, "B", 3), (28, "C", 2), (20, "D", 1),
+        (10, "E", 0), (-float('inf'), "F", -1)
+    ],
+    "Zone C": [
+        (52, "+A", 5), (44, "A", 4), (36, "B", 3), (28, "C", 2), (20, "D", 1),
+        (10, "E", 0), (-float('inf'), "F", -1)
+    ],
+    "Zone D": [
+        (46, "+A", 5), (40, "A", 4), (34, "B", 3), (28, "C", 2), (20, "D", 1),
+        (10, "E", 0), (-float('inf'), "F", -1)
+    ]
+}
+
 CLIMATE_ZONE_MAP = {
     "a": "Zone A", "A": "Zone A", "אזור א": "Zone A",
     "b": "Zone B", "B": "Zone B", "אזור ב": "Zone B",
@@ -149,7 +168,12 @@ def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_tot
     numeric_energy_consumption = None
     if group_model_csv_area_desc and model_year is not None and model_area_definition is not None:
         try:
-            iso_type_for_file_selection = f"MODEL_YEAR_{model_year}"
+            # Handle office model year differently
+            if str(model_year).lower() == 'office' or (isinstance(model_year, str) and 'office' in model_year.lower()):
+                iso_type_for_file_selection = "office"
+            else:
+                iso_type_for_file_selection = f"MODEL_YEAR_{model_year}"
+            
             energy_value_raw = get_energy_consumption(
                 iso_type_input=iso_type_for_file_selection,
                 area_location_input=group_model_csv_area_desc,
@@ -160,9 +184,8 @@ def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_tot
         except Exception as e:
             logger.error(f"Error in _get_numeric_area_score_for_group getting energy consumption for '{group_model_csv_area_desc}': {e}")
     else:
-        logger.warning(f"_get_numeric_area_score_for_group: Missing required parameters. group_model_csv_area_desc: {group_model_csv_area_desc}, model_year: {model_year}, model_area_definition: {model_area_definition}")
-
-    calculated_improve_by_value = None
+        logger.warning(f"_get_numeric_area_score_for_group: Missing required parameters. group_model_csv_area_desc: {group_model_csv_area_desc}, model_year: {model_year}, model_area_definition: {model_area_definition}")    
+        calculated_improve_by_value = None
     if numeric_energy_consumption is not None:
 
         if group_sum_total_area <= 70:
@@ -178,7 +201,6 @@ def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_tot
                 calculated_improve_by_value = 100 * (numeric_energy_consumption - group_sum_energy_components) / numeric_energy_consumption
             else:
                 logger.warning(f"_get_numeric_area_score_for_group: numeric_energy_consumption is 0, cannot calculate improve_by_value for area > 70")
-
     else:
         logger.warning(f"_get_numeric_area_score_for_group: numeric_energy_consumption is None, cannot calculate improve_by_value")
 
@@ -190,14 +212,25 @@ def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_tot
                 thresholds = ENERGY_RATING_DATA_2017[climate_zone_lookup_key]
                 for min_ip, _, rating_score_val in thresholds:
                     if calculated_improve_by_value >= min_ip:
-
                         return int(rating_score_val)
             elif not climate_zone_lookup_key:
                 logger.warning(f"_get_numeric_area_score_for_group: Could not map model_area_definition '{model_area_definition}' to a known climate zone.")
             else:
                 logger.warning(f"_get_numeric_area_score_for_group: Climate zone '{climate_zone_lookup_key}' not found in ENERGY_RATING_DATA_2017 for year {model_year}.")
+        elif str(model_year).lower() == 'office' or (isinstance(model_year, str) and 'office' in model_year.lower()):
+            climate_zone_lookup_key = CLIMATE_ZONE_MAP.get(model_area_definition)
+
+            if climate_zone_lookup_key and climate_zone_lookup_key in ENERGY_RATING_DATA_OFFICE:
+                thresholds = ENERGY_RATING_DATA_OFFICE[climate_zone_lookup_key]
+                for min_ip, _, rating_score_val in thresholds:
+                    if calculated_improve_by_value >= min_ip:
+                        return int(rating_score_val)
+            elif not climate_zone_lookup_key:
+                logger.warning(f"_get_numeric_area_score_for_group: Could not map model_area_definition '{model_area_definition}' to a known climate zone for office.")
+            else:
+                logger.warning(f"_get_numeric_area_score_for_group: Climate zone '{climate_zone_lookup_key}' not found in ENERGY_RATING_DATA_OFFICE for office buildings.")
         else:
-            logger.warning(f"_get_numeric_area_score_for_group: Energy rating logic for model_year {model_year} not implemented (only 2017).")
+            logger.warning(f"_get_numeric_area_score_for_group: Energy rating logic for model_year {model_year} not implemented (only 2017 and office).")
 
     return None
 
@@ -618,7 +651,11 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
 
             if area_location_for_csv_lookup and model_year is not None and model_area_definition is not None:
                 try:
-                    iso_type_for_file_selection = f"MODEL_YEAR_{model_year}"
+                    # Handle office model year differently
+                    if str(model_year).lower() == 'office' or (isinstance(model_year, str) and 'office' in model_year.lower()):
+                        iso_type_for_file_selection = "office"
+                    else:
+                        iso_type_for_file_selection = f"MODEL_YEAR_{model_year}"
 
                     energy_value_raw = get_energy_consumption(
                         iso_type_input=iso_type_for_file_selection,
@@ -665,9 +702,8 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
 
                 if calculated_improve_by_value is not None:
                     display_improve_by = _format_number(calculated_improve_by_value)
-            else:
-                display_improve_by = "N/A (No EC)"
-
+                else:
+                    display_improve_by = "N/A (No EC)"
             current_display_energy_rating = "N/A"
             current_display_area_score = "N/A"
 
@@ -686,8 +722,22 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
                         logger.warning(f"ReportGen _energy_rating_table: Could not map model_area_definition '{model_area_definition}' to a known climate zone. Rating/Score will be N/A.")
                     else:
                         logger.warning(f"ReportGen _energy_rating_table: Climate zone '{climate_zone_lookup_key}' (from model_area_definition '{model_area_definition}') not found in ENERGY_RATING_DATA_2017 for year {model_year}. Rating/Score will be N/A.")
+                elif str(model_year).lower() == 'office' or (isinstance(model_year, str) and 'office' in model_year.lower()):
+                    climate_zone_lookup_key = CLIMATE_ZONE_MAP.get(model_area_definition)
+
+                    if climate_zone_lookup_key and climate_zone_lookup_key in ENERGY_RATING_DATA_OFFICE:
+                        thresholds = ENERGY_RATING_DATA_OFFICE[climate_zone_lookup_key]
+                        for min_ip, rating_letter, rating_score_val in thresholds:
+                            if calculated_improve_by_value >= min_ip:
+                                current_display_energy_rating = rating_letter
+                                current_display_area_score = str(rating_score_val)
+                                break
+                    elif not climate_zone_lookup_key:
+                        logger.warning(f"ReportGen _energy_rating_table: Could not map model_area_definition '{model_area_definition}' to a known climate zone for office buildings. Rating/Score will be N/A.")
+                    else:
+                        logger.warning(f"ReportGen _energy_rating_table: Climate zone '{climate_zone_lookup_key}' (from model_area_definition '{model_area_definition}') not found in ENERGY_RATING_DATA_OFFICE for office buildings. Rating/Score will be N/A.")
                 else:
-                    logger.warning(f"ReportGen _energy_rating_table: Energy rating logic currently implemented for model_year 2017. Found {model_year}. Rating/Score will be N/A.")
+                    logger.warning(f"ReportGen _energy_rating_table: Energy rating logic currently implemented for model_year 2017 and office buildings. Found {model_year}. Rating/Score will be N/A.")
 
             display_energy_rating = current_display_energy_rating
             display_area_rating = current_display_area_score

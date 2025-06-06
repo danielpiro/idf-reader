@@ -627,7 +627,7 @@ Schedule:Compact,
     1;                        !- Field 12
 
 Schedule:Compact,
-    Activity Schedule 15153,    !- Name
+    Activity Schedule 15105,    !- Name
     Any Number,               !- Schedule Type Limits Name
     Through: 12/31,           !- Field 1
     For: AllDays,             !- Field 2
@@ -635,7 +635,7 @@ Schedule:Compact,
     125;                      !- Field 4
 
 Schedule:Compact,
-    Clothing Schedule 15153,    !- Name
+    Clothing Schedule 15105,    !- Name
     Any Number,               !- Schedule Type Limits Name
     Through: 4/1,             !- Field 1
     For: AllDays,             !- Field 2
@@ -651,7 +651,7 @@ Schedule:Compact,
     1;                        !- Field 12
 
 Schedule:Compact,
-    Activity Schedule 15169,    !- Name
+    Activity Schedule 15121,    !- Name
     Any Number,               !- Schedule Type Limits Name
     Through: 12/31,           !- Field 1
     For: AllDays,             !- Field 2
@@ -659,7 +659,7 @@ Schedule:Compact,
     125;                      !- Field 4
 
 Schedule:Compact,
-    Clothing Schedule 15169,    !- Name
+    Clothing Schedule 15121,    !- Name
     Any Number,               !- Schedule Type Limits Name
     Through: 4/1,             !- Field 1
     For: AllDays,             !- Field 2
@@ -2971,7 +2971,7 @@ Zone,
     1,                        !- Type
     1,                        !- Multiplier
     ,                         !- Ceiling Height
-    259.93,                   !- Volume
+    255.63,                   !- Volume
     100,                      !- Floor Area
     TARP,                     !- Zone Inside Convection Algorithm
     ,                         !- Zone Outside Convection Algorithm
@@ -2986,8 +2986,8 @@ Zone,
     1,                        !- Type
     1,                        !- Multiplier
     ,                         !- Ceiling Height
-    144.84,                   !- Volume
-    51,                       !- Floor Area
+    116.44,                   !- Volume
+    41,                       !- Floor Area
     TARP,                     !- Zone Inside Convection Algorithm
     ,                         !- Zone Outside Convection Algorithm
     Yes;                      !- Part of Total Floor Area
@@ -3001,8 +3001,8 @@ Zone,
     1,                        !- Type
     1,                        !- Multiplier
     ,                         !- Ceiling Height
-    121.38,                   !- Volume
-    51,                       !- Floor Area
+    97.58,                    !- Volume
+    41,                       !- Floor Area
     TARP,                     !- Zone Inside Convection Algorithm
     ,                         !- Zone Outside Convection Algorithm
     Yes;                      !- Part of Total Floor Area
@@ -3018,7 +3018,7 @@ BuildingSurface:Detailed,
     NoWind,                   !- Wind Exposure
     0,                        !- View Factor to Ground
     4,                        !- Number of Vertices
-    5.1,                      !- Vertex 1 Xcoordinate
+    4.1,                      !- Vertex 1 Xcoordinate
     0.04043478,               !- Vertex 1 Ycoordinate
     3.15,                     !- Vertex 1 Zcoordinate
     0,                        !- Vertex 2 Xcoordinate
@@ -3027,7 +3027,7 @@ BuildingSurface:Detailed,
     0,                        !- Vertex 3 Xcoordinate
     10.04043478,              !- Vertex 3 Ycoordinate
     3.15,                     !- Vertex 3 Zcoordinate
-    5.1,                      !- Vertex 4 Xcoordinate
+    4.1,                      !- Vertex 4 Xcoordinate
     10.04043478,              !- Vertex 4 Ycoordinate
     3.15;                     !- Vertex 4 Zcoordinate
 
@@ -3045,10 +3045,10 @@ BuildingSurface:Detailed,
     0,                        !- Vertex 1 Xcoordinate
     0.04043478,               !- Vertex 1 Ycoordinate
     3.15,                     !- Vertex 1 Zcoordinate
-    5.1,                      !- Vertex 2 Xcoordinate
+    4.1,                      !- Vertex 2 Xcoordinate
     0.04043478,               !- Vertex 2 Ycoordinate
     3.15,                     !- Vertex 2 Zcoordinate
-    5.1,                      !- Vertex 3 Xcoordinate
+    4.1,                      !- Vertex 3 Xcoordinate
     10.04043478,              !- Vertex 3 Ycoordinate
     3.15,                     !- Vertex 3 Zcoordinate
     0,                        !- Vertex 4 Xcoordinate
@@ -3069,10 +3069,10 @@ BuildingSurface:Detailed,
     10,                       !- Vertex 1 Xcoordinate
     0.04043478,               !- Vertex 1 Ycoordinate
     3.15,                     !- Vertex 1 Zcoordinate
-    5.1,                      !- Vertex 2 Xcoordinate
+    4.1,                      !- Vertex 2 Xcoordinate
     0.04043478,               !- Vertex 2 Ycoordinate
     3.15,                     !- Vertex 2 Zcoordinate
-    5.1,                      !- Vertex 3 Xcoordinate
+    4.1,                      !- Vertex 3 Xcoordinate
     10.04043478,              !- Vertex 3 Ycoordinate
     3.15,                     !- Vertex 3 Zcoordinate
     10,                       !- Vertex 4 Xcoordinate
@@ -3093,10 +3093,10 @@ BuildingSurface:Detailed,
     0,                        !- Vertex 1 Xcoordinate
     0.04043478,               !- Vertex 1 Ycoordinate
     6.3,                      !- Vertex 1 Zcoordinate
-    5.1,                      !- Vertex 2 Xcoordinate
+    4.1,                      !- Vertex 2 Xcoordinate
     0.04043478,               !- Vertex 2 Ycoordinate
     6.3,                      !- Vertex 2 Zcoordinate
-    5.1,                      !- Vertex 3 Xcoordinate
+    4.1,                      !- Vertex 3 Xcoordinate
     10.04043478,              !- Vertex 3 Ycoordinate
     6.3,                      !- Vertex 3 Zcoordinate
     0,                        !- Vertex 4 Xcoordinate
@@ -3114,7 +3114,7 @@ BuildingSurface:Detailed,
     NoWind,                   !- Wind Exposure
     0,                        !- View Factor to Ground
     4,                        !- Number of Vertices
-    5.1,                      !- Vertex 1 Xcoordinate
+    4.1,                      !- Vertex 1 Xcoordinate
     0.04043478,               !- Vertex 1 Ycoordinate
     6.3,                      !- Vertex 1 Zcoordinate
     0,                        !- Vertex 2 Xcoordinate
@@ -3123,7 +3123,7 @@ BuildingSurface:Detailed,
     0,                        !- Vertex 3 Xcoordinate
     10.04043478,              !- Vertex 3 Ycoordinate
     6.3,                      !- Vertex 3 Zcoordinate
-    5.1,                      !- Vertex 4 Xcoordinate
+    4.1,                      !- Vertex 4 Xcoordinate
     10.04043478,              !- Vertex 4 Ycoordinate
     6.3;                      !- Vertex 4 Zcoordinate
 
@@ -3138,7 +3138,7 @@ BuildingSurface:Detailed,
     WindExposed,              !- Wind Exposure
     AutoCalculate,            !- View Factor to Ground
     4,                        !- Number of Vertices
-    5.1,                      !- Vertex 1 Xcoordinate
+    4.1,                      !- Vertex 1 Xcoordinate
     0.04043478,               !- Vertex 1 Ycoordinate
     6.3,                      !- Vertex 1 Zcoordinate
     10,                       !- Vertex 2 Xcoordinate
@@ -3147,7 +3147,7 @@ BuildingSurface:Detailed,
     10,                       !- Vertex 3 Xcoordinate
     10.04043478,              !- Vertex 3 Ycoordinate
     6.3,                      !- Vertex 3 Zcoordinate
-    5.1,                      !- Vertex 4 Xcoordinate
+    4.1,                      !- Vertex 4 Xcoordinate
     10.04043478,              !- Vertex 4 Ycoordinate
     6.3;                      !- Vertex 4 Zcoordinate
 
@@ -3258,7 +3258,7 @@ BuildingSurface:Detailed,
     NoWind,                   !- Wind Exposure
     AutoCalculate,            !- View Factor to Ground
     4,                        !- Number of Vertices
-    5.1,                      !- Vertex 1 Xcoordinate
+    4.1,                      !- Vertex 1 Xcoordinate
     0.0404347836,             !- Vertex 1 Ycoordinate
     0,                        !- Vertex 1 Zcoordinate
     0,                        !- Vertex 2 Xcoordinate
@@ -3267,7 +3267,7 @@ BuildingSurface:Detailed,
     0,                        !- Vertex 3 Xcoordinate
     10.0404347836,            !- Vertex 3 Ycoordinate
     0,                        !- Vertex 3 Zcoordinate
-    5.1,                      !- Vertex 4 Xcoordinate
+    4.1,                      !- Vertex 4 Xcoordinate
     10.0404347836,            !- Vertex 4 Ycoordinate
     0;                        !- Vertex 4 Zcoordinate
 
@@ -3282,16 +3282,16 @@ BuildingSurface:Detailed,
     WindExposed,              !- Wind Exposure
     AutoCalculate,            !- View Factor to Ground
     4,                        !- Number of Vertices
-    5.1,                      !- Vertex 1 Xcoordinate
+    4.1,                      !- Vertex 1 Xcoordinate
     0.0404347836,             !- Vertex 1 Ycoordinate
     0,                        !- Vertex 1 Zcoordinate
-    5.1,                      !- Vertex 2 Xcoordinate
+    4.1,                      !- Vertex 2 Xcoordinate
     10.0404347836,            !- Vertex 2 Ycoordinate
     0,                        !- Vertex 2 Zcoordinate
-    5.1,                      !- Vertex 3 Xcoordinate
+    4.1,                      !- Vertex 3 Xcoordinate
     10.0404347836,            !- Vertex 3 Ycoordinate
     3.15,                     !- Vertex 3 Zcoordinate
-    5.1,                      !- Vertex 4 Xcoordinate
+    4.1,                      !- Vertex 4 Xcoordinate
     0.0404347836,             !- Vertex 4 Ycoordinate
     3.15;                     !- Vertex 4 Zcoordinate
 
@@ -3306,7 +3306,7 @@ BuildingSurface:Detailed,
     WindExposed,              !- Wind Exposure
     AutoCalculate,            !- View Factor to Ground
     4,                        !- Number of Vertices
-    5.1,                      !- Vertex 1 Xcoordinate
+    4.1,                      !- Vertex 1 Xcoordinate
     10.0404347836,            !- Vertex 1 Ycoordinate
     0,                        !- Vertex 1 Zcoordinate
     0,                        !- Vertex 2 Xcoordinate
@@ -3315,7 +3315,7 @@ BuildingSurface:Detailed,
     0,                        !- Vertex 3 Xcoordinate
     10.0404347836,            !- Vertex 3 Ycoordinate
     3.15,                     !- Vertex 3 Zcoordinate
-    5.1,                      !- Vertex 4 Xcoordinate
+    4.1,                      !- Vertex 4 Xcoordinate
     10.0404347836,            !- Vertex 4 Ycoordinate
     3.15;                     !- Vertex 4 Zcoordinate
 
@@ -3357,10 +3357,10 @@ BuildingSurface:Detailed,
     0,                        !- Vertex 1 Xcoordinate
     0.0404347836,             !- Vertex 1 Ycoordinate
     0,                        !- Vertex 1 Zcoordinate
-    5.1,                      !- Vertex 2 Xcoordinate
+    4.1,                      !- Vertex 2 Xcoordinate
     0.0404347836,             !- Vertex 2 Ycoordinate
     0,                        !- Vertex 2 Zcoordinate
-    5.1,                      !- Vertex 3 Xcoordinate
+    4.1,                      !- Vertex 3 Xcoordinate
     0.0404347836,             !- Vertex 3 Ycoordinate
     3.15,                     !- Vertex 3 Zcoordinate
     0,                        !- Vertex 4 Xcoordinate
@@ -3381,10 +3381,10 @@ BuildingSurface:Detailed,
     0,                        !- Vertex 1 Xcoordinate
     0.0404347836,             !- Vertex 1 Ycoordinate
     9.45,                     !- Vertex 1 Zcoordinate
-    5.1,                      !- Vertex 2 Xcoordinate
+    4.1,                      !- Vertex 2 Xcoordinate
     0.0404347836,             !- Vertex 2 Ycoordinate
     9.45,                     !- Vertex 2 Zcoordinate
-    5.1,                      !- Vertex 3 Xcoordinate
+    4.1,                      !- Vertex 3 Xcoordinate
     10.0404347836,            !- Vertex 3 Ycoordinate
     9.45,                     !- Vertex 3 Zcoordinate
     0,                        !- Vertex 4 Xcoordinate
@@ -3402,16 +3402,16 @@ BuildingSurface:Detailed,
     WindExposed,              !- Wind Exposure
     AutoCalculate,            !- View Factor to Ground
     4,                        !- Number of Vertices
-    5.1,                      !- Vertex 1 Xcoordinate
+    4.1,                      !- Vertex 1 Xcoordinate
     0.0404347836,             !- Vertex 1 Ycoordinate
     6.3,                      !- Vertex 1 Zcoordinate
-    5.1,                      !- Vertex 2 Xcoordinate
+    4.1,                      !- Vertex 2 Xcoordinate
     10.0404347836,            !- Vertex 2 Ycoordinate
     6.3,                      !- Vertex 2 Zcoordinate
-    5.1,                      !- Vertex 3 Xcoordinate
+    4.1,                      !- Vertex 3 Xcoordinate
     10.0404347836,            !- Vertex 3 Ycoordinate
     9.45,                     !- Vertex 3 Zcoordinate
-    5.1,                      !- Vertex 4 Xcoordinate
+    4.1,                      !- Vertex 4 Xcoordinate
     0.0404347836,             !- Vertex 4 Ycoordinate
     9.45;                     !- Vertex 4 Zcoordinate
 
@@ -3426,7 +3426,7 @@ BuildingSurface:Detailed,
     WindExposed,              !- Wind Exposure
     AutoCalculate,            !- View Factor to Ground
     4,                        !- Number of Vertices
-    5.1,                      !- Vertex 1 Xcoordinate
+    4.1,                      !- Vertex 1 Xcoordinate
     10.0404347836,            !- Vertex 1 Ycoordinate
     6.3,                      !- Vertex 1 Zcoordinate
     0,                        !- Vertex 2 Xcoordinate
@@ -3435,7 +3435,7 @@ BuildingSurface:Detailed,
     0,                        !- Vertex 3 Xcoordinate
     10.0404347836,            !- Vertex 3 Ycoordinate
     9.45,                     !- Vertex 3 Zcoordinate
-    5.1,                      !- Vertex 4 Xcoordinate
+    4.1,                      !- Vertex 4 Xcoordinate
     10.0404347836,            !- Vertex 4 Ycoordinate
     9.45;                     !- Vertex 4 Zcoordinate
 
@@ -3477,10 +3477,10 @@ BuildingSurface:Detailed,
     0,                        !- Vertex 1 Xcoordinate
     0.0404347836,             !- Vertex 1 Ycoordinate
     6.3,                      !- Vertex 1 Zcoordinate
-    5.1,                      !- Vertex 2 Xcoordinate
+    4.1,                      !- Vertex 2 Xcoordinate
     0.0404347836,             !- Vertex 2 Ycoordinate
     6.3,                      !- Vertex 2 Zcoordinate
-    5.1,                      !- Vertex 3 Xcoordinate
+    4.1,                      !- Vertex 3 Xcoordinate
     0.0404347836,             !- Vertex 3 Ycoordinate
     9.45,                     !- Vertex 3 Zcoordinate
     0,                        !- Vertex 4 Xcoordinate
@@ -4028,7 +4028,7 @@ PEOPLE,
     ,                         !- Zone Floor Area per Person
     0.3,                      !- Fraction Radiant
     AutoCalculate,            !- Sensible Heat Fraction
-    Activity Schedule 15153,    !- Activity Level Schedule Name
+    Activity Schedule 15105,    !- Activity Level Schedule Name
     3.82e-08,                 !- Carbon Dioxide Generation Rate
     No,                       !- Enable ASHRAE 55 Comfort Warnings
     ZoneAveraged,             !- Mean Radiant Temperature Calculation Type
@@ -4036,7 +4036,7 @@ PEOPLE,
     Work efficiency,          !- Work Efficiency Schedule Name
     ClothingInsulationSchedule,    !- Clothing Insulation Calculation Method
     ,                         !- Clothing Insulation Calculation Method Schedule Name
-    Clothing Schedule 15153,    !- Clothing Insulation Schedule Name
+    Clothing Schedule 15105,    !- Clothing Insulation Schedule Name
     Default Air Velocity for Comfort Calculations;    !- Air Velocity Schedule Name
 
 PEOPLE,
@@ -4049,7 +4049,7 @@ PEOPLE,
     ,                         !- Zone Floor Area per Person
     0.3,                      !- Fraction Radiant
     AutoCalculate,            !- Sensible Heat Fraction
-    Activity Schedule 15169,    !- Activity Level Schedule Name
+    Activity Schedule 15121,    !- Activity Level Schedule Name
     3.82e-08,                 !- Carbon Dioxide Generation Rate
     No,                       !- Enable ASHRAE 55 Comfort Warnings
     ZoneAveraged,             !- Mean Radiant Temperature Calculation Type
@@ -4057,7 +4057,7 @@ PEOPLE,
     Work efficiency,          !- Work Efficiency Schedule Name
     ClothingInsulationSchedule,    !- Clothing Insulation Calculation Method
     ,                         !- Clothing Insulation Calculation Method Schedule Name
-    Clothing Schedule 15169,    !- Clothing Insulation Schedule Name
+    Clothing Schedule 15121,    !- Clothing Insulation Schedule Name
     Default Air Velocity for Comfort Calculations;    !- Air Velocity Schedule Name
 
 Lights,
@@ -4200,7 +4200,7 @@ ZoneInfiltration:DesignFlowRate,
     01:02,                    !- Zone or ZoneList Name
     On 24/7,                  !- Schedule Name
     Flow/zone,                !- Design Flow Rate Calculation Method
-    0.072203,                 !- Design Flow Rate
+    0.071008,                 !- Design Flow Rate
     ,                         !- Flow per Zone Floor Area
     ,                         !- Flow per Exterior Surface Area
     ,                         !- Air Changes per Hour
@@ -4214,7 +4214,7 @@ ZoneInfiltration:DesignFlowRate,
     0:01,                     !- Zone or ZoneList Name
     On 24/7,                  !- Schedule Name
     Flow/zone,                !- Design Flow Rate Calculation Method
-    0.040233,                 !- Design Flow Rate
+    0.032344,                 !- Design Flow Rate
     ,                         !- Flow per Zone Floor Area
     ,                         !- Flow per Exterior Surface Area
     ,                         !- Air Changes per Hour
@@ -4228,7 +4228,7 @@ ZoneInfiltration:DesignFlowRate,
     02:03,                    !- Zone or ZoneList Name
     On 24/7,                  !- Schedule Name
     Flow/zone,                !- Design Flow Rate Calculation Method
-    0.033717,                 !- Design Flow Rate
+    0.027106,                 !- Design Flow Rate
     ,                         !- Flow per Zone Floor Area
     ,                         !- Flow per Exterior Surface Area
     ,                         !- Air Changes per Hour

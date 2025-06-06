@@ -691,6 +691,30 @@ Schedule:Compact,
     1;                        !- Field 12
 
 Schedule:Compact,
+    Activity Schedule 15104,    !- Name
+    Any Number,               !- Schedule Type Limits Name
+    Through: 12/31,           !- Field 1
+    For: AllDays,             !- Field 2
+    Until: 24:00,             !- Field 3
+    125;                      !- Field 4
+
+Schedule:Compact,
+    Clothing Schedule 15104,    !- Name
+    Any Number,               !- Schedule Type Limits Name
+    Through: 4/1,             !- Field 1
+    For: AllDays,             !- Field 2
+    Until: 24:00,             !- Field 3
+    1,                        !- Field 4
+    Through: 9/30,            !- Field 5
+    For: AllDays,             !- Field 6
+    Until: 24:00,             !- Field 7
+    .5,                       !- Field 8
+    Through: 12/31,           !- Field 9
+    For: AllDays,             !- Field 10
+    Until: 24:00,             !- Field 11
+    1;                        !- Field 12
+
+Schedule:Compact,
     Activity Schedule 15111,    !- Name
     Any Number,               !- Schedule Type Limits Name
     Through: 12/31,           !- Field 1
@@ -860,6 +884,70 @@ Schedule:Compact,
 
 Schedule:Compact,
     00:01XLIVING Cooling Availability Sch,    !- Name
+    Temperature,              !- Schedule Type Limits Name
+    Through: 31 March,        !- Field 1
+    For: AllDays,             !- Field 2
+    Until: 24:00,             !- Field 3
+    0,                        !- Field 4
+    Through: 30 November,     !- Field 5
+    For: AllDays,             !- Field 6
+    Until: 24:00,             !- Field 7
+    1,                        !- Field 8
+    Through: 31 December,     !- Field 9
+    For: AllDays,             !- Field 10
+    Until: 24:00,             !- Field 11
+    0;                        !- Field 12
+
+Schedule:Compact,
+    00:CORE Heating Setpoint Schedule,    !- Name
+    Temperature,              !- Schedule Type Limits Name
+    Through: 31 March,        !- Field 1
+    For: AllDays,             !- Field 2
+    Until: 24:00,             !- Field 3
+    20,                       !- Field 4
+    Through: 30 November,     !- Field 5
+    For: AllDays,             !- Field 6
+    Until: 24:00,             !- Field 7
+    -50,                      !- Field 8
+    Through: 31 December,     !- Field 9
+    For: AllDays,             !- Field 10
+    Until: 24:00,             !- Field 11
+    20;                       !- Field 12
+
+Schedule:Compact,
+    00:CORE Heating Availability Sch,    !- Name
+    Temperature,              !- Schedule Type Limits Name
+    Through: 31 March,        !- Field 1
+    For: AllDays,             !- Field 2
+    Until: 24:00,             !- Field 3
+    1,                        !- Field 4
+    Through: 30 November,     !- Field 5
+    For: AllDays,             !- Field 6
+    Until: 24:00,             !- Field 7
+    0,                        !- Field 8
+    Through: 31 December,     !- Field 9
+    For: AllDays,             !- Field 10
+    Until: 24:00,             !- Field 11
+    1;                        !- Field 12
+
+Schedule:Compact,
+    00:CORE Cooling SP Sch,    !- Name
+    Temperature,              !- Schedule Type Limits Name
+    Through: 31 March,        !- Field 1
+    For: AllDays,             !- Field 2
+    Until: 24:00,             !- Field 3
+    100,                      !- Field 4
+    Through: 30 November,     !- Field 5
+    For: AllDays,             !- Field 6
+    Until: 24:00,             !- Field 7
+    24,                       !- Field 8
+    Through: 31 December,     !- Field 9
+    For: AllDays,             !- Field 10
+    Until: 24:00,             !- Field 11
+    100;                      !- Field 12
+
+Schedule:Compact,
+    00:CORE Cooling Availability Sch,    !- Name
     Temperature,              !- Schedule Type Limits Name
     Through: 31 March,        !- Field 1
     For: AllDays,             !- Field 2
@@ -1272,17 +1360,6 @@ Material,
     0.4;                      !- Visible Absorptance
 
 Material,
-    _1045 Thermal Plaster Polystyrene Aggregate 225_2.3_.025,    !- Name
-    Rough,                    !- Roughness
-    0.025,                    !- Thickness
-    0.073,                    !- Conductivity
-    225,                      !- Density
-    1000,                     !- Specific Heat
-    0.9,                      !- Thermal Absorptance
-    0.4,                      !- Solar Absorptance
-    0.4;                      !- Visible Absorptance
-
-Material,
     _1045_IntTiah_Cement Lime Plaster_2.1_.015,    !- Name
     Smooth,                   !- Roughness
     0.015,                    !- Thickness
@@ -1343,6 +1420,17 @@ Material,
     0.04,                     !- Thickness
     0.0698,                   !- Conductivity
     200,                      !- Density
+    1000,                     !- Specific Heat
+    0.9,                      !- Thermal Absorptance
+    0.4,                      !- Solar Absorptance
+    0.4;                      !- Visible Absorptance
+
+Material,
+    _1045 Thermal Plaster Polystyrene Aggregate 225_2.3_.025,    !- Name
+    Rough,                    !- Roughness
+    0.025,                    !- Thickness
+    0.073,                    !- Conductivity
+    225,                      !- Density
     1000,                     !- Specific Heat
     0.9,                      !- Thermal Absorptance
     0.4,                      !- Solar Absorptance
@@ -3271,18 +3359,6 @@ Construction,
     _1045 Ceramic porcelain_12.1_.01;    !- Layer 6
 
 Construction,
-    0_SemiExposedWall ThermalPlaster200 2.5cm,    !- Name
-    _1045 Thermal Plaster Polystyrene Aggregate 225_2.3_.025,    !- Outside Layer
-    _1045_RegularConcrete_1.1.1_.2,    !- Layer 2
-    _1045_IntTiah_Cement Lime Plaster_2.1_.015;    !- Layer 3
-
-Construction,
-    0_SemiExposedWall ThermalPlaster200 2.5cm_Rev,    !- Name
-    _1045_IntTiah_Cement Lime Plaster_2.1_.015,    !- Outside Layer
-    _1045_RegularConcrete_1.1.1_.2,    !- Layer 2
-    _1045 Thermal Plaster Polystyrene Aggregate 225_2.3_.025;    !- Layer 3
-
-Construction,
     0_IntPartition 20cm concrete,    !- Name
     _1045_IntTiah_Cement Lime Plaster_2.1_.015,    !- Outside Layer
     _1045_RegularConcrete_1.1.1_.2,    !- Layer 2
@@ -3305,24 +3381,6 @@ Construction,
     _1045_IntTiah_Cement Lime Plaster_2.1_.015,    !- Outside Layer
     _Block Pumice 22sm_.22,    !- Layer 2
     _1045_Cemented Plaster_2.2_.02;    !- Layer 3
-
-Construction,
-    0_SemiExposedFloor 2cm EPS_Reversed,    !- Name
-    _1045 Ceramic porcelain_12.1_.01,    !- Outside Layer
-    _1045_Cemented Plaster_2.2_.02,    !- Layer 2
-    _1045 Sand and gravel_10.1_.08,    !- Layer 3
-    _1045 Expanded Polystyrene EPS 30_14.1_.02,    !- Layer 4
-    _1045_RegularConcrete_1.1.1_.2,    !- Layer 5
-    _1045_Cemented Plaster_2.2_.02;    !- Layer 6
-
-Construction,
-    0_SemiExposedFloor 2cm EPS_Reversed_Rev,    !- Name
-    _1045_Cemented Plaster_2.2_.02,    !- Outside Layer
-    _1045_RegularConcrete_1.1.1_.2,    !- Layer 2
-    _1045 Expanded Polystyrene EPS 30_14.1_.02,    !- Layer 3
-    _1045 Sand and gravel_10.1_.08,    !- Layer 4
-    _1045_Cemented Plaster_2.2_.02,    !- Layer 5
-    _1045 Ceramic porcelain_12.1_.01;    !- Layer 6
 
 Construction,
     0_IntFloor,               !- Name
@@ -3397,6 +3455,18 @@ Construction,
     _1045_RegularConcrete_1.1.1_.2,    !- Layer 4
     0_polyash 200_.04,        !- Layer 5
     _1045_Cemented Plaster_2.2_.02;    !- Layer 6
+
+Construction,
+    0_SemiExposedWall ThermalPlaster200 2.5cm,    !- Name
+    _1045 Thermal Plaster Polystyrene Aggregate 225_2.3_.025,    !- Outside Layer
+    _1045_RegularConcrete_1.1.1_.2,    !- Layer 2
+    _1045_IntTiah_Cement Lime Plaster_2.1_.015;    !- Layer 3
+
+Construction,
+    0_SemiExposedWall ThermalPlaster200 2.5cm_Rev,    !- Name
+    _1045_IntTiah_Cement Lime Plaster_2.1_.015,    !- Outside Layer
+    _1045_RegularConcrete_1.1.1_.2,    !- Layer 2
+    _1045 Thermal Plaster Polystyrene Aggregate 225_2.3_.025;    !- Layer 3
 
 Construction,
     6+6+6 - 1001,             !- Name
@@ -3477,7 +3547,7 @@ Zone,
     25.9757,                  !- Floor Area
     TARP,                     !- Zone Inside Convection Algorithm
     ,                         !- Zone Outside Convection Algorithm
-    No;                       !- Part of Total Floor Area
+    Yes;                      !- Part of Total Floor Area
 
 Zone,
     00:01XMAMAD,              !- Name
@@ -3740,7 +3810,7 @@ BuildingSurface:Detailed,
 BuildingSurface:Detailed,
     00:01XLIVING_Partition_2_0_0,    !- Name
     Wall,                     !- Surface Type
-    0_SemiExposedWall ThermalPlaster200 2.5cm,    !- Construction Name
+    0_IntPartition 20cm concrete,    !- Construction Name
     00:01XLIVING,             !- Zone Name
     Surface,                  !- Outside Boundary Condition
     00:CORE_Partition_4_0_10003,    !- Outside Boundary Condition Object
@@ -3764,7 +3834,7 @@ BuildingSurface:Detailed,
 BuildingSurface:Detailed,
     00:CORE_Partition_4_0_10003,    !- Name
     Wall,                     !- Surface Type
-    0_SemiExposedWall ThermalPlaster200 2.5cm_Rev,    !- Construction Name
+    0_IntPartition 20cm concrete_Rev,    !- Construction Name
     00:CORE,                  !- Zone Name
     Surface,                  !- Outside Boundary Condition
     00:01XLIVING_Partition_2_0_0,    !- Outside Boundary Condition Object
@@ -3932,7 +4002,7 @@ BuildingSurface:Detailed,
 BuildingSurface:Detailed,
     00:CORE_Ceiling_1_0_0,    !- Name
     Ceiling,                  !- Surface Type
-    0_SemiExposedFloor 2cm EPS_Reversed,    !- Construction Name
+    0_IntFloor_Reversed,      !- Construction Name
     00:CORE,                  !- Zone Name
     Surface,                  !- Outside Boundary Condition
     01:02XMAMAD_Floor_0_0_10005,    !- Outside Boundary Condition Object
@@ -3956,7 +4026,7 @@ BuildingSurface:Detailed,
 BuildingSurface:Detailed,
     01:02XMAMAD_Floor_0_0_10005,    !- Name
     Floor,                    !- Surface Type
-    0_SemiExposedFloor 2cm EPS_Reversed_Rev,    !- Construction Name
+    0_IntFloor_Reversed_Rev,    !- Construction Name
     01:02XMAMAD,              !- Zone Name
     Surface,                  !- Outside Boundary Condition
     00:CORE_Ceiling_1_0_0,    !- Outside Boundary Condition Object
@@ -4004,7 +4074,7 @@ BuildingSurface:Detailed,
 BuildingSurface:Detailed,
     00:CORE_Partition_3_0_0,    !- Name
     Wall,                     !- Surface Type
-    0_SemiExposedWall ThermalPlaster200 2.5cm_Rev,    !- Construction Name
+    0_IntPartition 20cm concrete,    !- Construction Name
     00:CORE,                  !- Zone Name
     Surface,                  !- Outside Boundary Condition
     00:01XMAMAD_Partition_5_0_10006,    !- Outside Boundary Condition Object
@@ -4028,7 +4098,7 @@ BuildingSurface:Detailed,
 BuildingSurface:Detailed,
     00:01XMAMAD_Partition_5_0_10006,    !- Name
     Wall,                     !- Surface Type
-    0_SemiExposedWall ThermalPlaster200 2.5cm,    !- Construction Name
+    0_IntPartition 20cm concrete_Rev,    !- Construction Name
     00:01XMAMAD,              !- Zone Name
     Surface,                  !- Outside Boundary Condition
     00:CORE_Partition_3_0_0,    !- Outside Boundary Condition Object
@@ -6470,6 +6540,27 @@ PEOPLE,
     Default Air Velocity for Comfort Calculations;    !- Air Velocity Schedule Name
 
 PEOPLE,
+    People 00:CORE,           !- Name
+    00:CORE,                  !- Zone or ZoneList Name
+    0_Baseline Residential Occupancy Schedule,    !- Number of People Schedule Name
+    People/Area,              !- Number of People Calculation Method
+    ,                         !- Number of People
+    0.04,                     !- People per Zone Floor Area
+    ,                         !- Zone Floor Area per Person
+    0.3,                      !- Fraction Radiant
+    AutoCalculate,            !- Sensible Heat Fraction
+    Activity Schedule 15104,    !- Activity Level Schedule Name
+    3.82e-08,                 !- Carbon Dioxide Generation Rate
+    No,                       !- Enable ASHRAE 55 Comfort Warnings
+    ZoneAveraged,             !- Mean Radiant Temperature Calculation Type
+    ,                         !- Surface NameAngle Factor List Name
+    Work efficiency,          !- Work Efficiency Schedule Name
+    ClothingInsulationSchedule,    !- Clothing Insulation Calculation Method
+    ,                         !- Clothing Insulation Calculation Method Schedule Name
+    Clothing Schedule 15104,    !- Clothing Insulation Schedule Name
+    Default Air Velocity for Comfort Calculations;    !- Air Velocity Schedule Name
+
+PEOPLE,
     People 00:01XMAMAD,       !- Name
     00:01XMAMAD,              !- Zone or ZoneList Name
     0_Baseline Residential Occupancy Schedule,    !- Number of People Schedule Name
@@ -6589,6 +6680,20 @@ Lights,
     ELECTRIC EQUIPMENT#00:01XLIVING#GeneralLights;    !- EndUse Subcategory
 
 Lights,
+    00:CORE General lighting,    !- Name
+    00:CORE,                  !- Zone or ZoneList Name
+    0_Baseline Residential Lighting Schedule,    !- Schedule Name
+    Watts/Area,               !- Design Level Calculation Method
+    ,                         !- Lighting Level
+    2,                        !- Watts per Zone Floor Area
+    ,                         !- Watts per Person
+    0,                        !- Return Air Fraction
+    0.28,                     !- Fraction Radiant
+    0.22,                     !- Fraction Visible
+    1,                        !- Fraction Replaceable
+    ELECTRIC EQUIPMENT#00:CORE#GeneralLights;    !- EndUse Subcategory
+
+Lights,
     00:01XMAMAD General lighting,    !- Name
     00:01XMAMAD,              !- Zone or ZoneList Name
     0_Baseline Residential Lighting Schedule,    !- Schedule Name
@@ -6677,6 +6782,36 @@ OtherEquipment,
     00:01XLIVING Equipment gain,    !- Name
     Electricity,              !- Fuel Type
     00:01XLIVING,             !- Zone or ZoneList Name
+    0_(2017) Baseline Residential Equipment Schedule,    !- Schedule Name
+    Watts/Area,               !- Design Level Calculation Method
+    ,                         !- Design Level
+    1,                        !- Power per Zone Floor Area
+    ,                         !- Power per Person
+    0,                        !- Fraction Latent
+    0.2,                      !- Fraction Radiant
+    0,                        !- Fraction Lost
+    0,                        !- Carbon Dioxide Generation Rate
+    General;                  !- EndUse Subcategory
+
+OtherEquipment,
+    00:CORE Miscellaneous gain,    !- Name
+    Electricity,              !- Fuel Type
+    00:CORE,                  !- Zone or ZoneList Name
+    0_(2017) Baseline Residential Non Fixed Equipment Schedule,    !- Schedule Name
+    Watts/Area,               !- Design Level Calculation Method
+    ,                         !- Design Level
+    6,                        !- Power per Zone Floor Area
+    ,                         !- Power per Person
+    0,                        !- Fraction Latent
+    0.2,                      !- Fraction Radiant
+    0,                        !- Fraction Lost
+    0,                        !- Carbon Dioxide Generation Rate
+    General;                  !- EndUse Subcategory
+
+OtherEquipment,
+    00:CORE Equipment gain,    !- Name
+    Electricity,              !- Fuel Type
+    00:CORE,                  !- Zone or ZoneList Name
     0_(2017) Baseline Residential Equipment Schedule,    !- Schedule Name
     Watts/Area,               !- Design Level Calculation Method
     ,                         !- Design Level
@@ -6982,6 +7117,34 @@ ZoneVentilation:DesignFlowRate,
     40;                       !- Maximum Wind Speed
 
 ZoneVentilation:DesignFlowRate,
+    00:CORE Nat Vent,         !- Name
+    00:CORE,                  !- Zone or ZoneList Name
+    0_(2023) Residential Natural ventilation Schedule - Zones  A/B,    !- Schedule Name
+    Flow/zone,                !- Design Flow Rate Calculation Method
+    0.045458,                 !- Design Flow Rate
+    ,                         !- Flow Rate per Zone Floor Area
+    ,                         !- Flow Rate per Person
+    ,                         !- Air Changes per Hour
+    NATURAL,                  !- Ventilation Type
+    0,                        !- Fan Pressure Rise
+    1,                        !- Fan Total Efficiency
+    1,                        !- Constant Term Coefficient
+    0,                        !- Temperature Term Coefficient
+    0,                        !- Velocity Term Coefficient
+    0,                        !- Velocity Squared Term Coefficient
+    -100,                     !- Minimum Indoor Temperature
+    ,                         !- Minimum Indoor Temperature Schedule Name
+    100,                      !- Maximum Indoor Temperature
+    ,                         !- Maximum Indoor Temperature Schedule Name
+    2,                        !- Delta Temperature
+    ,                         !- Delta Temperature Schedule Name
+    -100,                     !- Minimum Outdoor Temperature
+    ,                         !- Minimum Outdoor Temperature Schedule Name
+    100,                      !- Maximum Outdoor Temperature
+    ,                         !- Maximum Outdoor Temperature Schedule Name
+    40;                       !- Maximum Wind Speed
+
+ZoneVentilation:DesignFlowRate,
     00:01XMAMAD Nat Vent,     !- Name
     00:01XMAMAD,              !- Zone or ZoneList Name
     0_(2023) Residential Natural ventilation Schedule - Zones  A/B,    !- Schedule Name
@@ -7136,6 +7299,13 @@ ZoneControl:Thermostat,
     Dual Setpoint - Zone 00:01XLIVING;    !- Control 1 Name
 
 ZoneControl:Thermostat,
+    00:CORE Thermostat,       !- Name
+    00:CORE,                  !- Zone or ZoneList Name
+    Zone Control Type Sched,    !- Control Type Schedule Name
+    ThermostatSetpoint:DualSetpoint,    !- Control 1 Object Type
+    Dual Setpoint - Zone 00:CORE;    !- Control 1 Name
+
+ZoneControl:Thermostat,
     00:01XMAMAD Thermostat,    !- Name
     00:01XMAMAD,              !- Zone or ZoneList Name
     Zone Control Type Sched,    !- Control Type Schedule Name
@@ -7174,6 +7344,11 @@ ThermostatSetpoint:DualSetpoint,
     Dual Setpoint - Zone 00:01XLIVING,    !- Name
     00:01XLIVING Heating Setpoint Schedule,    !- Heating Setpoint Temperature Schedule Name
     00:01XLIVING Cooling SP Sch;    !- Cooling Setpoint Temperature Schedule Name
+
+ThermostatSetpoint:DualSetpoint,
+    Dual Setpoint - Zone 00:CORE,    !- Name
+    00:CORE Heating Setpoint Schedule,    !- Heating Setpoint Temperature Schedule Name
+    00:CORE Cooling SP Sch;    !- Cooling Setpoint Temperature Schedule Name
 
 ThermostatSetpoint:DualSetpoint,
     Dual Setpoint - Zone 00:01XMAMAD,    !- Name
@@ -7218,6 +7393,35 @@ ZoneHVAC:IdealLoadsAirSystem,
     ,                         !- Maximum Total Cooling Capacity
     00:01XLIVING Heating Availability Sch,    !- Heating Availability Schedule Name
     00:01XLIVING Cooling Availability Sch,    !- Cooling Availability Schedule Name
+    None,                     !- Dehumidification Control Type
+    ,                         !- Cooling Sensible Heat Ratio
+    None,                     !- Humidification Control Type
+    ,                         !- Design Specification Outdoor Air Object Name
+    ,                         !- Outdoor Air Inlet Node Name
+    ,                         !- Demand Controlled Ventilation Type
+    NoEconomizer,             !- Outdoor Air Economizer Type
+    None,                     !- Heat Recovery Type
+    ,                         !- Sensible Heat Recovery Effectiveness
+    ;                         !- Latent Heat Recovery Effectiveness
+
+ZoneHVAC:IdealLoadsAirSystem,
+    00:CORE Ideal Loads Air,    !- Name
+    ,                         !- Availability Schedule Name
+    Node 00:CORE In,          !- Zone Supply Air Node Name
+    ,                         !- Zone Exhaust Air Node Name
+    ,                         !- System Inlet Air Node Name
+    50,                       !- Maximum Heating Supply Air Temperature
+    13,                       !- Minimum Cooling Supply Air Temperature
+    0.016,                    !- Maximum Heating Supply Air Humidity Ratio
+    0.008,                    !- Minimum Cooling Supply Air Humidity Ratio
+    NoLimit,                  !- Heating Limit
+    ,                         !- Maximum Heating Air Flow Rate
+    ,                         !- Maximum Sensible Heating Capacity
+    NoLimit,                  !- Cooling Limit
+    ,                         !- Maximum Cooling Air Flow Rate
+    ,                         !- Maximum Total Cooling Capacity
+    00:CORE Heating Availability Sch,    !- Heating Availability Schedule Name
+    00:CORE Cooling Availability Sch,    !- Cooling Availability Schedule Name
     None,                     !- Dehumidification Control Type
     ,                         !- Cooling Sensible Heat Ratio
     None,                     !- Humidification Control Type
@@ -7385,6 +7589,16 @@ ZoneHVAC:EquipmentList,
     On 24/7;                  !- Zone Equipment 1 Sequential Heating Fraction Schedule Name
 
 ZoneHVAC:EquipmentList,
+    00:CORE Equipment,        !- Name
+    SequentialLoad,           !- Load Distribution Scheme
+    ZoneHVAC:IdealLoadsAirSystem,    !- Zone Equipment 1 Object Type
+    00:CORE Ideal Loads Air,    !- Zone Equipment 1 Name
+    1,                        !- Zone Equipment 1 Cooling Sequence
+    1,                        !- Zone Equipment 1 Heating or NoLoad Sequence
+    On 24/7,                  !- Zone Equipment 1 Sequential Cooling Fraction Schedule Name
+    On 24/7;                  !- Zone Equipment 1 Sequential Heating Fraction Schedule Name
+
+ZoneHVAC:EquipmentList,
     00:01XMAMAD Equipment,    !- Name
     SequentialLoad,           !- Load Distribution Scheme
     ZoneHVAC:IdealLoadsAirSystem,    !- Zone Equipment 1 Object Type
@@ -7443,6 +7657,14 @@ ZoneHVAC:EquipmentConnections,
     Node 00:01XLIVING Out;    !- Zone Return Air Node or NodeList Name
 
 ZoneHVAC:EquipmentConnections,
+    00:CORE,                  !- Zone Name
+    00:CORE Equipment,        !- Zone Conditioning Equipment List Name
+    00:CORE Inlets,           !- Zone Air Inlet Node or NodeList Name
+    ,                         !- Zone Air Exhaust Node or NodeList Name
+    Node 00:CORE Zone,        !- Zone Air Node Name
+    Node 00:CORE Out;         !- Zone Return Air Node or NodeList Name
+
+ZoneHVAC:EquipmentConnections,
     00:01XMAMAD,              !- Zone Name
     00:01XMAMAD Equipment,    !- Zone Conditioning Equipment List Name
     00:01XMAMAD Inlets,       !- Zone Air Inlet Node or NodeList Name
@@ -7485,6 +7707,10 @@ ZoneHVAC:EquipmentConnections,
 NodeList,
     00:01XLIVING Inlets,      !- Name
     Node 00:01XLIVING In;     !- Node 1 Name
+
+NodeList,
+    00:CORE Inlets,           !- Name
+    Node 00:CORE In;          !- Node 1 Name
 
 NodeList,
     00:01XMAMAD Inlets,       !- Name
@@ -7674,2361 +7900,6 @@ Output:Variable,
     *,                        !- Key Value
     Site Outdoor Air Barometric Pressure,    !- Variable Name
     runperiod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
-
-OUTPUT:VARIABLE,
-    *,                        !- Key Value
-    Lights Electricity Energy,    !- Variable Name
-    RunPeriod;                !- Reporting Frequency
 
 OUTPUT:VARIABLE,
     *,                        !- Key Value

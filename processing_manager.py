@@ -319,6 +319,8 @@ class ProcessingManager:
                 derived_model_year = 2017
             elif "2023" in iso_type_selection: # Assuming "RESIDNTIAL 2023" implies 2023
                 derived_model_year = 2023
+            elif "OFFICE" in iso_type_selection.upper():
+                derived_model_year = "office"  # Special case for office buildings
             
             # Map Hebrew area name (א,ב,ג,ד) to Latin letter (A,B,C,D)
             area_name_map_to_letter = {"א": "A", "ב": "B", "ג": "C", "ד": "D"}

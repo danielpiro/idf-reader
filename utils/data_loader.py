@@ -22,21 +22,25 @@ def get_energy_consumption(iso_type_input: str, area_location_input: str, area_d
     Raises:
         ValueError: If iso_type_input is invalid, area_definition_input is invalid,
                     or if data in CSV cannot be converted to float.
-        FileNotFoundError: If the required model CSV file is not found.
-        KeyError: If area_location_input or area_definition_input is not found in the CSV.
+        FileNotFoundError: If the required model CSV file is not found.        KeyError: If area_location_input or area_definition_input is not found in the CSV.
     """
     year = None
+    file_name = None
+    
     if "2017" in iso_type_input:
         year = 2017
+        file_name = f"{year}_model.csv"
     elif "2023" in iso_type_input:
         year = 2023
+        file_name = f"{year}_model.csv"
+    elif "office" in iso_type_input.lower():
+        file_name = "office_model.csv"
     else:
-        raise ValueError(f"Invalid ISO type format: {iso_type_input}. Cannot determine year.")
+        raise ValueError(f"Invalid ISO type format: {iso_type_input}. Cannot determine year or office type.")
 
     if not area_definition_input or area_definition_input.upper() not in ['A', 'B', 'C', 'D']:
         raise ValueError(f"Invalid area definition: '{area_definition_input}'. Must be A, B, C, or D.")
 
-    file_name = f"{year}_model.csv"
     data_dir = Path(__file__).resolve().parent.parent / "data"
     file_path = data_dir / file_name
 
