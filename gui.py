@@ -3,6 +3,7 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 import json
 import os
+import sys
 import subprocess
 import threading
 import logging
@@ -130,11 +131,29 @@ class IDFProcessorGUI(ctk.CTk):
 
     def load_cities_from_csv(self):
         cities_data = {}
-        csv_path = os.path.join('data', 'countries-selection.csv')
+        
+        # Use the same pattern as data_loader.py for consistency
+        # This handles both development and PyInstaller bundled environments correctly
+        try:
+            # First try PyInstaller bundle path
+            base_path = sys._MEIPASS
+            csv_path = os.path.join(base_path, 'data', 'countries-selection.csv')
+        except AttributeError:
+            # Development environment - use relative path from this file
+            csv_path = Path(__file__).resolve().parent / "data" / "countries-selection.csv"
+        
         try:
             if os.path.exists(csv_path):
                 with open(csv_path, 'r', encoding='utf-8') as f:
-                    next(f) # Skip header row if present
+                    # Skip header row if present (check if first line contains non-city data)
+                    first_line = f.readline().strip()
+                    if not any(char in first_line for char in 'אבגדהוזחטיכלמנסעפצקרשת'):  # Hebrew characters
+                        # Contains header, don't reset to beginning
+                        pass
+                    else:
+                        # No header, reset to beginning
+                        f.seek(0)
+                    
                     for line in f:
                         parts = [part.strip() for part in line.split(',')]
                         if len(parts) >= 3:
