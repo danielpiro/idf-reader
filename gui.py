@@ -9,52 +9,94 @@ import threading
 import logging
 from pathlib import Path
 from datetime import datetime
+import tempfile
+import shutil
 # Imports for ProcessingManager are now in processing_manager.py
 # Keep GUI specific imports here
 from utils.data_loader import DataLoader # Still needed for IDFProcessorGUI._ensure_idf_output_variables
+from utils.path_utils import get_data_file_path, get_data_directory, list_data_files
 
 def fix_hebrew_text_display(text):
     """
     Fix Hebrew text display for GUI components.
-    Handles the RTL text ordering issue where Hebrew words appear in reverse order.
+    Since we now have proper RTL support, just return the text as-is.
+    Hebrew text should display naturally with RTL alignment.
     """
     if not text:
         return text
     
-    # Check if text contains Hebrew characters
-    contains_hebrew = any('\u0590' <= char <= '\u05FF' for char in text)
+    # With proper RTL support (justify='right'), Hebrew text should display correctly
+    # No need to manipulate the text content - let the UI handle RTL rendering
+    return text
+
+def _contains_non_ascii(path_str):
+    """Check if a path contains non-ASCII characters (like Hebrew)."""
+    try:
+        path_str.encode('ascii')
+        return False
+    except UnicodeEncodeError:
+        return True
+
+def _create_safe_path_for_energyplus(original_path, temp_dir=None):
+    """
+    Create a safe ASCII-only path for EnergyPlus compatibility.
     
-    if contains_hebrew:
-        # The issue is that tkinter displays RTL text with reversed word order
-        # For mixed Hebrew-English text like "תל אביב - יפו", we need to handle this carefully
+    Args:
+        original_path: The original path that may contain Unicode characters
+        temp_dir: Optional temporary directory to use
         
-        # Split by whitespace to handle word order
-        parts = text.split()
+    Returns:
+        tuple: (safe_path, cleanup_function)
+            safe_path: ASCII-only path safe for EnergyPlus
+            cleanup_function: Function to call to clean up temporary files (or None)
+    """
+    if not _contains_non_ascii(original_path):
+        # Path is already ASCII-safe
+        return original_path, None
+    
+    # Create a temporary ASCII-safe copy
+    if temp_dir is None:
+        temp_dir = tempfile.mkdtemp(prefix="eplus_safe_")
+    
+    # Create a safe filename using only ASCII characters
+    original_name = os.path.basename(original_path)
+    safe_name = "input_file.idf"  # Use a simple ASCII name
+    
+    safe_path = os.path.join(temp_dir, safe_name)
+    
+    # Copy the file to the safe location
+    shutil.copy2(original_path, safe_path)
+    
+    def cleanup():
+        try:
+            if os.path.exists(safe_path):
+                os.remove(safe_path)
+            if os.path.exists(temp_dir) and not os.listdir(temp_dir):
+                os.rmdir(temp_dir)
+        except OSError as e:
+            logger.warning(f"Could not clean up temporary file {safe_path}: {e}")
+    
+    return safe_path, cleanup
+
+def _create_safe_output_dir_for_energyplus(original_output_dir):
+    """
+    Create a safe ASCII-only output directory for EnergyPlus.
+    
+    Args:
+        original_output_dir: The original output directory that may contain Unicode
         
-        # Check each part to see if it's Hebrew or punctuation/Latin
-        hebrew_parts = []
-        latin_parts = []
-        
-        for part in parts:
-            if any('\u0590' <= char <= '\u05FF' for char in part):
-                hebrew_parts.append(part)
-            else:
-                latin_parts.append(part)
-        
-        # If we have a mix of Hebrew and non-Hebrew parts, we need to reorder
-        if hebrew_parts and latin_parts:
-            # For cases like "תל אביב - יפו", reverse the overall order
-            return ' '.join(reversed(parts))
-        else:
-            # Pure Hebrew text might need different handling
-            if len(parts) > 1:
-                # Multiple Hebrew words - reverse their order
-                return ' '.join(reversed(parts))
-            else:
-                # Single Hebrew word - keep as is
-                return text
-    else:
-        return text
+    Returns:
+        tuple: (safe_output_dir, needs_move_back)
+            safe_output_dir: ASCII-only directory safe for EnergyPlus
+            needs_move_back: Boolean indicating if files need to be moved back
+    """
+    if not _contains_non_ascii(original_output_dir):
+        # Path is already ASCII-safe
+        return original_output_dir, False
+    
+    # Create a temporary ASCII-safe directory
+    temp_dir = tempfile.mkdtemp(prefix="eplus_output_")
+    return temp_dir, True
 
 # Logger for the GUI part
 logger = logging.getLogger(__name__)
@@ -103,11 +145,24 @@ class IDFProcessorGUI(ctk.CTk):
         self.iso_type.trace_add("write", self.check_inputs_complete)
         self.energyplus_dir.trace_add("write", self.check_inputs_complete)
 
+        # Debug: Check what data files are available
+        try:
+            data_dir = get_data_directory()
+            available_files = list_data_files()
+            logger.info(f"Data directory found at: {data_dir}")
+            logger.info(f"Available data files: {available_files}")
+        except Exception as e:
+            logger.error(f"Error checking data directory: {e}")
+        
         self.city_data = self.load_cities_from_csv()
         self.iso_types = [
             "RESIDNTIAL 2023", "RESIDNTIAL 2017", "HOTEL",
             "EDUCATION", "OFFICE", "CORE & ENVELOPE"
         ]
+
+        # Initialize city-related variables
+        self.city_names = []
+        self.city_display_names = []
 
         self.create_widgets()
         self.load_settings()
@@ -132,37 +187,31 @@ class IDFProcessorGUI(ctk.CTk):
     def load_cities_from_csv(self):
         cities_data = {}
         
-        # Use the same pattern as data_loader.py for consistency
-        # This handles both development and PyInstaller bundled environments correctly
         try:
-            # First try PyInstaller bundle path
-            base_path = sys._MEIPASS
-            csv_path = os.path.join(base_path, 'data', 'countries-selection.csv')
-        except AttributeError:
-            # Development environment - use relative path from this file
-            csv_path = Path(__file__).resolve().parent / "data" / "countries-selection.csv"
-        
-        try:
-            if os.path.exists(csv_path):
-                with open(csv_path, 'r', encoding='utf-8') as f:
-                    # Skip header row if present (check if first line contains non-city data)
-                    first_line = f.readline().strip()
-                    if not any(char in first_line for char in 'אבגדהוזחטיכלמנסעפצקרשת'):  # Hebrew characters
-                        # Contains header, don't reset to beginning
-                        pass
-                    else:
-                        # No header, reset to beginning
-                        f.seek(0)
-                    
-                    for line in f:
-                        parts = [part.strip() for part in line.split(',')]
-                        if len(parts) >= 3:
-                            city_name, area_name, area_code = parts[0], parts[1], parts[2]
-                            cities_data[city_name] = {'area_name': area_name, 'area_code': area_code}
-            else:
-                self.after(100, lambda: self.show_status(f"Warning: City data file not found at '{csv_path}'.", "warning"))
+            # Use robust path utility that handles all environments
+            csv_path = get_data_file_path('countries-selection.csv')
+            
+            with open(csv_path, 'r', encoding='utf-8') as f:
+                # Skip header row if present (check if first line contains non-city data)
+                first_line = f.readline().strip()
+                if not any(char in first_line for char in 'אבגדהוזחטיכלמנסעפצקרשת'):  # Hebrew characters
+                    # Contains header, don't reset to beginning
+                    pass
+                else:
+                    # No header, reset to beginning
+                    f.seek(0)
+                
+                for line in f:
+                    parts = [part.strip() for part in line.split(',')]
+                    if len(parts) >= 3:
+                        city_name, area_name, area_code = parts[0], parts[1], parts[2]
+                        cities_data[city_name] = {'area_name': area_name, 'area_code': area_code}
+                        
+        except FileNotFoundError as e:
+            logger.error(f"City data file not found: {e}", exc_info=True)
+            self.after(100, lambda: self.show_status(f"Error: City data file not found. {e}", "error"))
         except Exception as e:
-            logger.error(f"Error loading city data from {csv_path}: {e}", exc_info=True)
+            logger.error(f"Error loading city data: {e}", exc_info=True)
             self.after(100, lambda: self.show_status(f"Error loading city data: {e}", "error"))
         return cities_data
 
@@ -183,7 +232,7 @@ class IDFProcessorGUI(ctk.CTk):
 
     def update_validation_indicators(self):
         # Ensure widgets exist before configuring
-        if not all(hasattr(self, w_name) for w_name in ['input_entry', 'output_entry', 'eplus_entry', 'city_search_entry', 'iso_combobox']):
+        if not all(hasattr(self, w_name) for w_name in ['input_entry', 'output_entry', 'eplus_entry', 'city_entry', 'iso_combobox']):
             return
 
         valid_style = {"border_color": self.success_color}
@@ -192,7 +241,7 @@ class IDFProcessorGUI(ctk.CTk):
         self.input_entry.configure(**(valid_style if self.input_file.get() and os.path.exists(self.input_file.get()) else invalid_style))
         self.output_entry.configure(**(valid_style if self.output_dir.get() and os.path.isdir(self.output_dir.get()) else invalid_style))
         self.eplus_entry.configure(**(valid_style if self.energyplus_dir.get() and os.path.isdir(self.energyplus_dir.get()) else invalid_style))
-        self.city_search_entry.configure(**(valid_style if self.city.get() else invalid_style))
+        self.city_entry.configure(**(valid_style if self.city.get() else invalid_style))
         self.iso_combobox.configure(**(valid_style if self.iso_type.get() else invalid_style))
 
     def _create_modern_header(self) -> ctk.CTkFrame:
@@ -224,135 +273,248 @@ class IDFProcessorGUI(ctk.CTk):
         return section
 
     def _create_city_selection_row(self, parent, row_idx):
-        """Creates a fast city selection with search and scrollable listbox."""
+        """Creates a lightning-fast autocomplete city selection."""
         ctk.CTkLabel(parent, text="🏙️ City:", font=ctk.CTkFont(size=14, weight="bold"), width=180, anchor="w").grid(row=row_idx, column=0, padx=(20,15), pady=10, sticky="w")
         
-        # Create container frame for the city selection
-        city_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        city_frame.grid(row=row_idx, column=1, padx=(0,20), pady=10, sticky="ew")
-        city_frame.grid_columnconfigure(0, weight=1)
+        # Prepare city data for autocomplete
+        self.city_names = sorted(list(self.city_data.keys()))
+        self.city_display_names = [fix_hebrew_text_display(city) for city in self.city_names]
         
-        # Create search entry
-        self.city_search_entry = ctk.CTkEntry(
-            city_frame,
-            placeholder_text="Type to search cities...",
+        # Create container for autocomplete
+        city_container = ctk.CTkFrame(parent, fg_color="transparent")
+        city_container.grid(row=row_idx, column=1, padx=(0,20), pady=10, sticky="ew")
+        city_container.grid_columnconfigure(0, weight=1)
+        
+        # Create autocomplete entry with RTL support
+        self.city_entry = ctk.CTkEntry(
+            city_container,
+            placeholder_text="הקלד שם עיר...",  # Hebrew placeholder
             width=300,
             height=40,
             corner_radius=8,
             border_width=2,
             font=ctk.CTkFont(size=12)
         )
-        self.city_search_entry.grid(row=0, column=0, sticky="ew")
-        self.city_search_entry.bind('<KeyRelease>', self._on_city_search)
-        self.city_search_entry.bind('<Button-1>', self._show_city_dropdown)
+        self.city_entry.grid(row=0, column=0, sticky="ew")
         
-        # Create dropdown frame (initially hidden)
-        self.city_dropdown_frame = ctk.CTkFrame(city_frame, height=200, corner_radius=8, border_width=1)
+        # Simple and effective RTL configuration
+        def configure_rtl():
+            try:
+                entry_widget = self.city_entry._entry
+                # Force right alignment and RTL behavior
+                entry_widget.configure(justify='right')
+                # Set initial cursor position to right
+                entry_widget.icursor('end')
+            except Exception as e:
+                logger.warning(f"Could not configure RTL: {e}")
         
-        # Create scrollable frame inside dropdown
-        self.city_scrollable_frame = ctk.CTkScrollableFrame(
-            self.city_dropdown_frame,
-            height=180,
-            corner_radius=0,
-            scrollbar_button_color=("#CCCCCC", "#333333"),
-            scrollbar_button_hover_color=("#AAAAAA", "#555555")
+        # Apply RTL configuration after widget is fully created
+        self.after(10, configure_rtl)
+        
+        # Create autocomplete listbox (initially hidden)
+        self.city_autocomplete_frame = ctk.CTkFrame(city_container, height=150, corner_radius=8, border_width=1)
+        
+        # Use native tkinter Listbox with RTL support for Hebrew
+        import tkinter as tk
+        self.city_listbox = tk.Listbox(
+            self.city_autocomplete_frame,
+            height=8,
+            font=("Segoe UI", 11),  # Better font for Hebrew
+            selectmode=tk.SINGLE,
+            activestyle='none',
+            borderwidth=0,
+            highlightthickness=0,
+            relief='flat',
+            justify='right',  # RTL alignment for Hebrew text
+            exportselection=False  # Prevent selection conflicts
         )
-        self.city_scrollable_frame.pack(fill="both", expand=True, padx=5, pady=5)
+        self.city_listbox.pack(fill="both", expand=True, padx=5, pady=5)
         
-        # Store city names and create buttons
-        self.city_names = sorted(list(self.city_data.keys()))
-        self.city_buttons = []
-        self._create_city_buttons()
+        # Simple RTL maintenance
+        def maintain_rtl():
+            """Ensure RTL alignment is maintained during typing"""
+            try:
+                entry_widget = self.city_entry._entry
+                current_justify = entry_widget.cget('justify')
+                if current_justify != 'right':
+                    entry_widget.configure(justify='right')
+            except:
+                pass
         
-        # Set city_entry attribute for compatibility with validation
-        self.city_entry = self.city_search_entry
+        # Periodically maintain RTL alignment
+        def periodic_rtl_check():
+            maintain_rtl()
+            self.after(500, periodic_rtl_check)  # Check every 500ms
         
-        # Track dropdown visibility
-        self.city_dropdown_visible = False
+        self.after(100, periodic_rtl_check)
+
+        # Bind events for autocomplete
+        self.city_entry.bind('<KeyRelease>', self._on_city_autocomplete)
+        self.city_entry.bind('<Button-1>', self._on_city_entry_click)
+        self.city_entry.bind('<FocusIn>', self._on_city_entry_focus)
+        self.city_entry.bind('<FocusOut>', self._on_city_entry_unfocus)
+        self.city_entry.bind('<Down>', self._on_city_entry_down)
+        self.city_entry.bind('<Up>', self._on_city_entry_up)
+        self.city_entry.bind('<Return>', self._on_city_entry_return)
+        self.city_entry.bind('<Escape>', self._hide_city_autocomplete)
         
-        # Bind click outside to hide dropdown
-        self.bind('<Button-1>', self._on_click_outside_city)
-    
-    def _create_city_buttons(self, filtered_cities=None):
-        """Create city selection buttons."""
-        # Clear existing buttons
-        for button in self.city_buttons:
-            button.destroy()
-        self.city_buttons.clear()
+        self.city_listbox.bind('<Double-Button-1>', self._on_city_listbox_select)
+        self.city_listbox.bind('<Return>', self._on_city_listbox_select)
+        self.city_listbox.bind('<Button-1>', self._on_city_listbox_click)
         
-        # Use filtered cities or all cities
-        cities_to_show = filtered_cities if filtered_cities is not None else self.city_names
+        # Autocomplete state
+        self._autocomplete_visible = False
+        self._current_matches = []
+        self._selected_index = -1
+        self._ignore_focus_out = False
         
-        # Limit to first 100 for performance
-        cities_to_show = cities_to_show[:100]
+    def _on_city_autocomplete(self, event):
+        """Handle real-time autocomplete as user types."""
+        if event.keysym in ['Up', 'Down', 'Return', 'Escape']:
+            return
+            
+        search_text = self.city_entry.get().strip()
         
-        for city in cities_to_show:
-            # Fix Hebrew text display for city names
-            display_text = fix_hebrew_text_display(city)
-            button = ctk.CTkButton(
-                self.city_scrollable_frame,
-                text=display_text,
-                height=30,
-                corner_radius=5,
-                fg_color="transparent",
-                hover_color=("#f0f0f0", "#2a2a2a"),
-                text_color=("black", "white"),
-                anchor="w",
-                command=lambda c=city: self._select_city(c)
-            )
-            button.pack(fill="x", pady=1, padx=2)
-            self.city_buttons.append(button)
-    
-    def _on_city_search(self, event):
-        """Handle city search input."""
-        search_text = self.city_search_entry.get().strip().lower()
+        # Show results even with very short input for better UX
+        if len(search_text) < 1:
+            self._hide_city_autocomplete()
+            return
         
-        if not search_text:
-            # Show all cities (limited)
-            self._create_city_buttons()
+        # Very flexible search - match anywhere in the text
+        search_lower = search_text.lower()
+        all_matches = []
+        
+        for i, city_name in enumerate(self.city_names):
+            city_lower = city_name.lower()
+            display_lower = self.city_display_names[i].lower()
+            
+            # Calculate match score for better sorting
+            score = 0
+            
+            # Highest score: exact start match
+            if city_lower.startswith(search_lower) or display_lower.startswith(search_lower):
+                score = 100
+            # High score: word start match
+            elif (any(word.startswith(search_lower) for word in city_lower.split()) or
+                  any(word.startswith(search_lower) for word in display_lower.split())):
+                score = 80
+            # Medium score: contains match
+            elif search_lower in city_lower or search_lower in display_lower:
+                score = 60
+            # Low score: partial character match (very flexible)
+            elif any(char in city_lower for char in search_lower) or any(char in display_lower for char in search_lower):
+                score = 20
+            
+            if score > 0:
+                all_matches.append((score, city_name, self.city_display_names[i]))
+        
+        # Sort by score (highest first) and take top 15
+        all_matches.sort(key=lambda x: x[0], reverse=True)
+        self._current_matches = [(match[1], match[2]) for match in all_matches[:15]]
+        
+        if self._current_matches:
+            self._show_city_autocomplete()
+            
+            # Update listbox efficiently with RTL text
+            self.city_listbox.delete(0, tk.END)
+            for _, display_name in self._current_matches:
+                self.city_listbox.insert(tk.END, display_name)
         else:
-            # Filter cities based on search
-            filtered = [city for city in self.city_names if search_text in city.lower()]
-            self._create_city_buttons(filtered)
-        
-        # Show dropdown if not visible
-        if not self.city_dropdown_visible:
-            self._show_city_dropdown()
+            self._hide_city_autocomplete()
     
-    def _show_city_dropdown(self, event=None):
-        """Show the city dropdown."""
-        if not self.city_dropdown_visible:
-            self.city_dropdown_frame.grid(row=1, column=0, sticky="ew", pady=(5,0))
-            self.city_dropdown_visible = True
+    def _on_city_entry_down(self, event):
+        """Handle down arrow - select next item in list."""
+        if self._autocomplete_visible and self._current_matches:
+            self._selected_index = min(self._selected_index + 1, len(self._current_matches) - 1)
+            self.city_listbox.selection_clear(0, tk.END)
+            self.city_listbox.selection_set(self._selected_index)
+            self.city_listbox.see(self._selected_index)
+        elif not self._autocomplete_visible:
+            self._on_city_entry_click()
+        return "break"
     
-    def _hide_city_dropdown(self):
-        """Hide the city dropdown."""
-        if self.city_dropdown_visible:
-            self.city_dropdown_frame.grid_forget()
-            self.city_dropdown_visible = False
+    def _on_city_entry_up(self, event):
+        """Handle up arrow - select previous item in list."""
+        if self._autocomplete_visible and self._current_matches:
+            self._selected_index = max(self._selected_index - 1, 0)
+            self.city_listbox.selection_clear(0, tk.END)
+            self.city_listbox.selection_set(self._selected_index)
+            self.city_listbox.see(self._selected_index)
+        return "break"
     
-    def _select_city(self, city_name):
-        """Handle city selection."""
-        # Fix Hebrew text display for the selected city
-        display_text = fix_hebrew_text_display(city_name)
-        self.city_search_entry.delete(0, tk.END)
-        self.city_search_entry.insert(0, display_text)
-        self.city.set(city_name)  # Keep original value for processing
-        self._hide_city_dropdown()
-        self.on_city_selected(city_name)
+    def _on_city_entry_return(self, event):
+        """Handle Enter key - select current item."""
+        if self._autocomplete_visible and self._current_matches:
+            if self._selected_index >= 0 and self._selected_index < len(self._current_matches):
+                self._select_city_from_autocomplete(self._selected_index)
+            elif self._current_matches:
+                self._select_city_from_autocomplete(0)  # Select first match
+        return "break"
     
-    def _on_click_outside_city(self, event):
-        """Hide dropdown when clicking outside."""
-        # Check if click is outside the city selection area
-        if hasattr(self, 'city_dropdown_frame') and self.city_dropdown_visible:
-            widget = event.widget
-            # Walk up the widget tree to see if we're inside city selection
-            while widget:
-                if widget == self.city_search_entry or widget == self.city_dropdown_frame:
-                    return  # Click is inside, don't hide
-                widget = widget.master
-            # Click is outside, hide dropdown
-            self._hide_city_dropdown()
+    def _on_city_entry_click(self, event=None):
+        """Show autocomplete when clicking on entry."""
+        if self.city_entry.get().strip():
+            self._on_city_autocomplete(type('Event', (), {'keysym': 'Click'})())
+    
+    def _on_city_entry_focus(self, event):
+        """Show autocomplete when entry gets focus."""
+        self._ignore_focus_out = False
+        if self.city_entry.get().strip():
+            self.after(10, lambda: self._on_city_autocomplete(type('Event', (), {'keysym': 'Focus'})()))
+    
+    def _on_city_entry_unfocus(self, event):
+        """Hide autocomplete when entry loses focus."""
+        if not self._ignore_focus_out:
+            self.after(100, self._hide_city_autocomplete)  # Delay to allow clicks
+    
+    def _on_city_listbox_click(self, event):
+        """Handle click on listbox item."""
+        self._ignore_focus_out = True
+        selection = self.city_listbox.curselection()
+        if selection:
+            self._select_city_from_autocomplete(selection[0])
+    
+    def _on_city_listbox_select(self, event):
+        """Handle double-click or Enter on listbox item."""
+        selection = self.city_listbox.curselection()
+        if selection:
+            self._select_city_from_autocomplete(selection[0])
+    
+    def _select_city_from_autocomplete(self, index):
+        """Select a city from the autocomplete list."""
+        if 0 <= index < len(self._current_matches):
+            original_city, display_name = self._current_matches[index]
+            
+            # Clear and insert text
+            self.city_entry.delete(0, tk.END)
+            self.city_entry.insert(0, display_name)
+            
+            # Maintain RTL alignment after selection
+            try:
+                entry_widget = self.city_entry._entry
+                entry_widget.configure(justify='right')
+                entry_widget.icursor(tk.END)
+            except:
+                pass
+            
+            self.city.set(original_city)
+            self._hide_city_autocomplete()
+            self.on_city_selected(original_city)
+    
+    def _show_city_autocomplete(self):
+        """Show the autocomplete dropdown."""
+        if not self._autocomplete_visible:
+            self.city_autocomplete_frame.grid(row=1, column=0, sticky="ew", pady=(2,0))
+            self._autocomplete_visible = True
+            self._selected_index = -1
+    
+    def _hide_city_autocomplete(self, event=None):
+        """Hide the autocomplete dropdown."""
+        if self._autocomplete_visible:
+            self.city_autocomplete_frame.grid_forget()
+            self._autocomplete_visible = False
+            self._selected_index = -1
+            self._ignore_focus_out = False
 
     def _create_scrollable_selection_row(self, parent, row_idx, label_text, values, var, cmd, combo_attr_name):
         ctk.CTkLabel(parent, text=label_text, font=ctk.CTkFont(size=14, weight="bold"), width=180, anchor="w").grid(row=row_idx, column=0, padx=(20,15), pady=10, sticky="w")
@@ -462,10 +624,16 @@ class IDFProcessorGUI(ctk.CTk):
                 # Load city and display with proper Hebrew text handling
                 last_city = settings.get('last_city', '')
                 self.city.set(last_city)
-                if last_city and hasattr(self, 'city_search_entry'):
+                if last_city and hasattr(self, 'city_entry'):
                     display_text = fix_hebrew_text_display(last_city)
-                    self.city_search_entry.delete(0, tk.END)
-                    self.city_search_entry.insert(0, display_text)
+                    self.city_entry.delete(0, tk.END)
+                    self.city_entry.insert(0, display_text)
+                    
+                    # Set cursor to end for RTL text
+                    try:
+                        self.city_entry._entry.icursor(tk.END)
+                    except:
+                        pass
                 
                 # Trigger on_city_selected if city is loaded to populate area_name/code
                 if self.city.get(): self.on_city_selected()
@@ -611,12 +779,20 @@ class IDFProcessorGUI(ctk.CTk):
             epw_filename = f"{latin_letter}.epw"
             self.show_status(f"ISO type {iso_type_from_gui}: Using EPW by area letter: {epw_filename}")
         
-        epw_file_path = Path("data") / epw_filename
-        if not epw_file_path.exists():
-            self.show_status(f"Error: Weather file {epw_file_path} not found.", "error")
+        # Use robust path utility for EPW files
+        try:
+            epw_file_path = get_data_file_path(epw_filename)
+            self.show_status(f"Using weather file: {epw_file_path}")
+            return epw_file_path
+        except FileNotFoundError as e:
+            # Provide debugging information
+            try:
+                available_files = list_data_files()
+                epw_files = [f for f in available_files if f.endswith('.epw')]
+                self.show_status(f"Error: Weather file {epw_filename} not found. Available EPW files: {epw_files}. {e}", "error")
+            except:
+                self.show_status(f"Error: Weather file {epw_filename} not found. {e}", "error")
             return None
-        self.show_status(f"Using weather file: {epw_file_path}")
-        return str(epw_file_path)
 
     def _ensure_idf_output_variables(self, idf_path: str, idd_path: str) -> bool:
         self.show_status("Ensuring required IDF output variables...")
@@ -641,29 +817,73 @@ class IDFProcessorGUI(ctk.CTk):
 
         output_csv_path = os.path.join(simulation_output_dir, "eplustbl.csv")
         simulation_successful = False
+        
+        # Variables for cleanup
+        safe_idf_path = idf_path
+        idf_cleanup = None
+        safe_output_dir = simulation_output_dir
+        needs_move_back = False
+        temp_output_files = []
+        
         try:
             # Ensure the IDF has necessary output variables before running
             if not self._ensure_idf_output_variables(idf_path, os.path.join(os.path.dirname(energyplus_exe), "Energy+.idd")):
                  self.show_status("Skipping simulation due to issues with IDF output variables.", "warning")
                  return None # Critical step failed
 
-            cmd = [energyplus_exe, "-w", epw_file_path, "-r", "-d", simulation_output_dir, idf_path]
-            self.show_status(f"Running E+ command: {' '.join(cmd)}")
+            # Check if paths contain Hebrew/Unicode characters and create safe copies if needed
+            if _contains_non_ascii(idf_path):
+                self.show_status("IDF path contains Unicode characters, creating ASCII-safe copy for EnergyPlus...")
+                safe_idf_path, idf_cleanup = _create_safe_path_for_energyplus(idf_path)
+                self.show_status(f"Using safe IDF path: {safe_idf_path}")
+            
+            if _contains_non_ascii(simulation_output_dir):
+                self.show_status("Output directory path contains Unicode characters, using temporary ASCII-safe directory...")
+                safe_output_dir, needs_move_back = _create_safe_output_dir_for_energyplus(simulation_output_dir)
+                self.show_status(f"Using safe output directory: {safe_output_dir}")
+                # Update the expected output path
+                temp_output_csv_path = os.path.join(safe_output_dir, "eplustbl.csv")
+            else:
+                temp_output_csv_path = output_csv_path
+
+            cmd = [energyplus_exe, "-w", epw_file_path, "-r", "-d", safe_output_dir, safe_idf_path]
+            self.show_status(f"Running E+ command with safe paths: {' '.join(cmd)}")
             
             process = subprocess.run(cmd, check=True, capture_output=True, text=True, encoding='utf-8', errors='ignore')
             
             if process.stdout: logger.info(f"E+ STDOUT:\n{process.stdout}")
             if process.stderr: logger.warning(f"E+ STDERR:\n{process.stderr}") # E+ often uses stderr for info
 
-            if os.path.exists(output_csv_path):
+            # Check if simulation produced output in the temporary location
+            if os.path.exists(temp_output_csv_path):
                 # Check if CSV is empty or too small (basic check)
-                if os.path.getsize(output_csv_path) > 100: # Arbitrary small size
-                    self.show_status(f"EnergyPlus simulation successful. Output: {output_csv_path}")
+                if os.path.getsize(temp_output_csv_path) > 100: # Arbitrary small size
                     simulation_successful = True
+                    
+                    # If we used a temporary directory, move files back to the original location
+                    if needs_move_back:
+                        self.show_status("Moving simulation output files back to original directory...")
+                        os.makedirs(simulation_output_dir, exist_ok=True)
+                        
+                        # Move all files from temp directory to original location
+                        for filename in os.listdir(safe_output_dir):
+                            src = os.path.join(safe_output_dir, filename)
+                            dst = os.path.join(simulation_output_dir, filename)
+                            if os.path.isfile(src):
+                                shutil.move(src, dst)
+                                temp_output_files.append(dst)
+                        
+                        # Clean up temp directory
+                        try:
+                            shutil.rmtree(safe_output_dir)
+                        except OSError as e:
+                            logger.warning(f"Could not remove temporary output directory {safe_output_dir}: {e}")
+                    
+                    self.show_status(f"EnergyPlus simulation successful. Output: {output_csv_path}")
                 else:
-                    self.show_status(f"Warning: Simulation output file {output_csv_path} is very small or empty.", "warning")
+                    self.show_status(f"Warning: Simulation output file {temp_output_csv_path} is very small or empty.", "warning")
             else:
-                self.show_status(f"Simulation finished, but output file not found: {output_csv_path}", "error")
+                self.show_status(f"Simulation finished, but output file not found: {temp_output_csv_path}", "error")
         
         except subprocess.CalledProcessError as e:
             error_detail = e.stderr.strip() if e.stderr else "No stderr output."
@@ -688,6 +908,18 @@ class IDFProcessorGUI(ctk.CTk):
             self.show_status(f"Unexpected error during simulation: {type(sim_e).__name__} - {str(sim_e)}", "error")
             logger.error(f"Unexpected error in _run_energyplus_simulation: {sim_e}", exc_info=True)
         finally:
+            # Clean up temporary IDF file
+            if idf_cleanup:
+                idf_cleanup()
+                self.show_status("Cleaned up temporary IDF file.")
+            
+            # Clean up temporary output directory if something went wrong
+            if needs_move_back and not simulation_successful and os.path.exists(safe_output_dir):
+                try:
+                    shutil.rmtree(safe_output_dir)
+                except OSError as e:
+                    logger.warning(f"Could not remove temporary output directory {safe_output_dir}: {e}")
+            
             self.progress_bar.stop(); self.progress_bar.configure(mode='determinate'); self.progress_bar.set(0)
             self.update_idletasks()
         return output_csv_path if simulation_successful else None

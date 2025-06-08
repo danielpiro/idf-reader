@@ -4,6 +4,8 @@ Provides simplified data loading and retrieval functionality.
 """
 from typing import Dict, Optional, List, Any
 from pathlib import Path
+import os
+import sys
 import re
 import pandas as pd
 
@@ -47,11 +49,8 @@ def get_energy_consumption(iso_type_input: str, area_location_input: str, area_d
         if not area_definition_input or area_definition_input.upper() not in ['A', 'B', 'C', 'D']:
             raise ValueError(f"Invalid area definition: '{area_definition_input}'. Must be A, B, C, or D.")
 
-    data_dir = Path(__file__).resolve().parent.parent / "data"
-    file_path = data_dir / file_name
-
-    if not file_path.exists():
-        raise FileNotFoundError(f"Model file not found: {file_path}")
+    # Use robust path utility for model CSV files
+    file_path = get_data_file_path(file_name)
 
     try:
         df = pd.read_csv(file_path)
@@ -97,6 +96,7 @@ def get_energy_consumption(iso_type_input: str, area_location_input: str, area_d
     except ValueError:
         raise ValueError(f"Invalid data format in CSV. Cannot convert '{value_str}' to float for location '{area_location_input}', definition '{area_definition_input.upper()}' in {file_path}")
 from utils.eppy_handler import EppyHandler
+from utils.path_utils import get_data_file_path
 
 AREA_ID_REGEX = re.compile(r"^\d{2}")
 

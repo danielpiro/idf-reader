@@ -26,6 +26,7 @@ def build_exe():
         'parsers',
         'generators',
         'utils',
+        'utils.path_utils',
         'processing_manager',
         'idf_code_cleaner',
     ]
