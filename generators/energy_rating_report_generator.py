@@ -173,6 +173,7 @@ def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_tot
     Returns an integer score or None.
     """
 
+
     numeric_energy_consumption = None
     calculated_improve_by_value = None  # Initialize at the beginning to avoid UnboundLocalError
     
@@ -222,6 +223,7 @@ def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_tot
     else:
         logger.warning(f"_get_numeric_area_score_for_group: numeric_energy_consumption is None, cannot calculate improve_by_value")
 
+    
     if calculated_improve_by_value is not None:
         if model_year == 2017:
             climate_zone_lookup_key = CLIMATE_ZONE_MAP.get(model_area_definition)
@@ -233,7 +235,8 @@ def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_tot
                         return int(rating_score_val)
             elif not climate_zone_lookup_key:
                 logger.warning(f"_get_numeric_area_score_for_group: Could not map model_area_definition '{model_area_definition}' to a known climate zone.")
-            else:                logger.warning(f"_get_numeric_area_score_for_group: Climate zone '{climate_zone_lookup_key}' not found in ENERGY_RATING_DATA_2017 for year {model_year}.")
+            else:
+                logger.warning(f"_get_numeric_area_score_for_group: Climate zone '{climate_zone_lookup_key}' not found in ENERGY_RATING_DATA_2017 for year {model_year}.")
         elif model_year == 2023:
             # 2023 uses universal thresholds, no climate zone mapping needed
             thresholds = ENERGY_RATING_DATA_2023
@@ -254,7 +257,6 @@ def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_tot
                 logger.warning(f"_get_numeric_area_score_for_group: Climate zone '{climate_zone_lookup_key}' not found in ENERGY_RATING_DATA_OFFICE for office buildings.")
         else:
             logger.warning(f"_get_numeric_area_score_for_group: Energy rating logic for model_year {model_year} not implemented (only 2017, 2023, and office).")
-
     return None
 
 def _calculate_total_energy_rating(raw_table_data, model_year, model_area_definition):
@@ -267,6 +269,7 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
     if not raw_table_data:
         logger.warning("_calculate_total_energy_rating: raw_table_data is empty or None.")
         return None, None
+
 
     grouped_data = {}
     for row in raw_table_data:
@@ -304,6 +307,7 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
             model_area_definition=model_area_definition
         )
         data_item['calculated_score'] = score
+        
         if score is None:
             logger.warning(f"Score calculation for group {group_key} resulted in None.")
 
@@ -353,16 +357,25 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
 
 def _get_letter_grade_for_score(score):
     """Map a numeric score to its corresponding letter grade"""
-    score_to_grade = {
-        5: "+A",
-        4: "A",
-        3: "B",
-        2: "C",
-        1: "D",
-        0: "E",
-        -1: "F"
-    }
-    return score_to_grade.get(score, "N/A")
+    if score is None:
+        return "N/A"
+    
+    # Handle scores within normal range
+    if score >= 5:
+        return "+A"
+    elif score >= 4:
+        return "A"
+    elif score >= 3:
+        return "B"
+    elif score >= 2:
+        return "C"
+    elif score >= 1:
+        return "D"
+    elif score >= 0:
+        return "E"
+    else:
+        # Any score below 0 is F (including negative scores from 2023 capping logic)
+        return "F"
 
 def _create_energy_rating_table_visual(total_score, letter_grade):
     """Create a professional energy rating table with chevron arrows."""
@@ -610,15 +623,23 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
         return None
 
     def sort_key(item):
+        # Primary sort: Floor ID (numeric first, then alphabetic)
         floor_val = item.get('floor_id_report', '')
         try:
             floor_sort_val = int(floor_val)
         except ValueError:
-            floor_sort_val = str(floor_val)
+            floor_sort_val = float('inf') if floor_val == '' else str(floor_val)
 
-        area_id_val = str(item.get('area_id', ''))
+        # Secondary sort: Area ID (numeric first, then alphabetic)
+        area_id_val = item.get('area_id_report', '')
+        try:
+            area_sort_val = int(area_id_val) if area_id_val else float('inf')
+        except ValueError:
+            area_sort_val = float('inf') if area_id_val == '' else str(area_id_val)
+
+        # Tertiary sort: Zone ID for consistency
         zone_id_val = str(item.get('zone_id', ''))
-        return (floor_sort_val, area_id_val, zone_id_val)
+        return (floor_sort_val, area_sort_val, zone_id_val)
 
     raw_table_data.sort(key=sort_key)
 
@@ -957,7 +978,7 @@ class EnergyRatingReportGenerator:
             hebrew_font = get_hebrew_font_name()
 
             # SECTION 1: Header Information
-            story.extend(self._create_hebrew_header_section(settings_extractor, hebrew_font))
+            story.extend(self._create_hebrew_header_section(settings_extractor, hebrew_font, total_score, letter_grade))
             story.append(Spacer(1, 0.4*cm))
 
             # SECTION 2: Energy Rating Visual Table
@@ -976,7 +997,7 @@ class EnergyRatingReportGenerator:
             logger.error(error_message, exc_info=True)
             raise RuntimeError(error_message)
 
-    def _create_hebrew_header_section(self, settings_extractor, hebrew_font):
+    def _create_hebrew_header_section(self, settings_extractor, hebrew_font, total_score=None, letter_grade=None):
         """Create Section 1: Professional Hebrew header with project information"""
         elements = []
         
@@ -1003,7 +1024,7 @@ class EnergyRatingReportGenerator:
             spaceAfter=0.3*cm
         )
         
-        # Get area information
+        # Get area information - handle 2023 model area definitions
         area_value = self.area_name or "לא זמין"
         if settings_extractor:
             try:
@@ -1013,8 +1034,22 @@ class EnergyRatingReportGenerator:
             except:
                 pass
         
+        # For 2023 models, use the model_area_definition directly (should be 1-8)
+        # For other models, keep the existing logic
+        if self.model_year == 2023 and self.model_area_definition:
+            area_value = str(self.model_area_definition)
+        elif self.model_area_definition and area_value == "לא זמין":
+            area_value = str(self.model_area_definition)
+        
         # Professional project information with RTL field:value order (value:field for Hebrew)
         iso_value = f"{self.model_year}" if self.model_year else "לא זמין"
+        
+        # Format calculation result
+        if total_score is not None and letter_grade and letter_grade != "N/A":
+            calc_result = f"{total_score:.2f} ({letter_grade})"
+        else:
+            calc_result = "לא זמין"
+            
         project_info = [
             # Header row
             [encode_hebrew_text("פרטי הפרויקט"), "", "", ""],
@@ -1025,8 +1060,8 @@ class EnergyRatingReportGenerator:
              iso_value, encode_hebrew_text("תקן להסמכה:")],  # Moved ISO to right section
             [encode_hebrew_text(area_value), encode_hebrew_text("אזור אקלים:"),
              encode_hebrew_text(""), encode_hebrew_text("גוש:")],  # Area info and גוש
-            [encode_hebrew_text(""), encode_hebrew_text(""),
-             encode_hebrew_text(""), encode_hebrew_text("חלקה:")]  # חלקה field on the right
+            [encode_hebrew_text(calc_result), encode_hebrew_text("תוצאת חישוב:"),
+             encode_hebrew_text(""), encode_hebrew_text("חלקה:")]  # Calculation result and חלקה
         ]
         
         info_table = Table(project_info, colWidths=[4.5*cm, 3*cm, 4.5*cm, 3*cm])

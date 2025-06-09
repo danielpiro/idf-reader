@@ -260,32 +260,51 @@ class ProcessingManager:
         progress_increment = (1.0 - progress_step) / num_reports
 
         city_name_hebrew = self.city_info.get('city', 'N/A') if hasattr(self, 'city_info') and self.city_info else 'N/A'
-        area_name_hebrew = city_area_name_selection if city_area_name_selection else 'N/A'
+        
+        # Determine the correct area name for display based on model year
+        # This ensures all reports show consistent area definitions
+        derived_model_year = None
+        if "2017" in self.city_info.get('iso_type', ''):
+            derived_model_year = 2017
+        elif "2023" in self.city_info.get('iso_type', ''):
+            derived_model_year = 2023
+        elif "OFFICE" in self.city_info.get('iso_type', '').upper():
+            derived_model_year = "office"
+        
+        # Use the appropriate area definition for all reports
+        if derived_model_year == 2023:
+            # For 2023 models, use numeric area code (1-8)
+            area_name_for_reports = self.city_info.get('area_code', '') if hasattr(self, 'city_info') and self.city_info else 'N/A'
+        else:
+            # For 2017/office models, map Hebrew area name to Latin letter for consistency
+            area_name_map_to_letter = {"א": "A", "ב": "B", "ג": "C", "ד": "D"}
+            mapped_area = area_name_map_to_letter.get(city_area_name_selection, city_area_name_selection)
+            area_name_for_reports = mapped_area if mapped_area else 'N/A'
 
         # Settings
-        self._generate_report_item("Settings", generate_settings_report_pdf, extracted_data["settings"], report_paths["settings"], project_name, run_id, city_name_hebrew, area_name_hebrew)
+        self._generate_report_item("Settings", generate_settings_report_pdf, extracted_data["settings"], report_paths["settings"], project_name, run_id, city_name_hebrew, area_name_for_reports)
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
         # Schedules
-        self._generate_report_item("Schedules", generate_schedules_report_pdf, extracted_data["schedules"], report_paths["schedules"], project_name, run_id, city_name_hebrew, area_name_hebrew)
+        self._generate_report_item("Schedules", generate_schedules_report_pdf, extracted_data["schedules"], report_paths["schedules"], project_name, run_id, city_name_hebrew, area_name_for_reports)
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
         # Loads
-        self._generate_report_item("Loads", generate_loads_report_pdf, extracted_data["loads"], report_paths["loads"], project_name, run_id, city_name_hebrew, area_name_hebrew)
+        self._generate_report_item("Loads", generate_loads_report_pdf, extracted_data["loads"], report_paths["loads"], project_name, run_id, city_name_hebrew, area_name_for_reports)
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
         # Materials
-        self._generate_report_item("Materials", generate_materials_report_pdf, extracted_data["materials"], report_paths["materials"], project_name, run_id, city_name_hebrew, area_name_hebrew)
+        self._generate_report_item("Materials", generate_materials_report_pdf, extracted_data["materials"], report_paths["materials"], project_name, run_id, city_name_hebrew, area_name_for_reports)
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
         # Area (Zones)
         self.update_status("Generating Area (Zones) reports...")
         try:
-            generate_area_reports(area_parser_instance, output_dir=report_paths["zones_dir"], project_name=project_name, run_id=run_id, city_name=city_name_hebrew, area_name=area_name_hebrew)
+            generate_area_reports(area_parser_instance, output_dir=report_paths["zones_dir"], project_name=project_name, run_id=run_id, city_name=city_name_hebrew, area_name=area_name_for_reports)
             self.update_status("Area (Zones) reports generation attempted.")
         except Exception as e:
             error_message = f"Error generating Area (Zones) reports: {type(e).__name__} - {str(e)}"
@@ -295,17 +314,17 @@ class ProcessingManager:
         if self.is_cancelled: return
 
         # Glazing
-        self._generate_report_item("Glazing", generate_glazing_report_pdf, extracted_data["glazing"], report_paths["glazing"], project_name, run_id, city_name_hebrew, area_name_hebrew)
+        self._generate_report_item("Glazing", generate_glazing_report_pdf, extracted_data["glazing"], report_paths["glazing"], project_name, run_id, city_name_hebrew, area_name_for_reports)
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
         # Lighting
-        self._generate_report_item("Lighting", LightingReportGenerator, extracted_data["lighting"], report_paths["lighting"], project_name, run_id, city_name_hebrew, area_name_hebrew, is_generator_class=True)
+        self._generate_report_item("Lighting", LightingReportGenerator, extracted_data["lighting"], report_paths["lighting"], project_name, run_id, city_name_hebrew, area_name_for_reports, is_generator_class=True)
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
         
         # Area Loss
-        self._generate_report_item("Area Loss", generate_area_loss_report_pdf, extracted_data["area_loss"], report_paths["area_loss"], project_name, run_id, city_name_hebrew, area_name_hebrew)
+        self._generate_report_item("Area Loss", generate_area_loss_report_pdf, extracted_data["area_loss"], report_paths["area_loss"], project_name, run_id, city_name_hebrew, area_name_for_reports)
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
@@ -347,7 +366,7 @@ class ProcessingManager:
                     selected_city_name=actual_selected_city_name,
                     project_name=project_name,
                     run_id=run_id,
-                    area_name=area_name_hebrew
+                    area_name=area_name_for_reports
                 )
                 # The output_filename is relative to output_dir in the generator
                 success_er = energy_rating_gen.generate_report(output_filename=os.path.basename(report_paths["energy_rating"]))
