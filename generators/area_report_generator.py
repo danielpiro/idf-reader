@@ -11,7 +11,7 @@ from pathlib import Path
 import datetime
 import logging
 from collections import defaultdict
-from utils.hebrew_text_utils import encode_hebrew_text, safe_format_header_text, get_hebrew_font_name
+from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
 
 COLORS = {
     'primary_blue': Color(0.2, 0.4, 0.7),
@@ -151,7 +151,7 @@ def _area_table_data(merged_data):
     return sorted(merged_data, key=custom_area_sort_key)
 
 def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_area=0.0, project_name="N/A", run_id="N/A", 
-                            city_name="N/A", area_name="N/A", wall_mass_per_area=0.0, location="Unknown"):
+                            city_name="N/A", area_name="N/A", wall_mass_per_area=0.0, location="Unknown", areas_data=None):
     """
     Generate a PDF report with area information, including a header.
 
@@ -164,6 +164,7 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         run_id (str): Identifier for the current run.
         wall_mass_per_area (float): Mass per area (kg/m²) of the largest external wall's construction.
         location (str): The location type of the area (e.g., Ground Floor, Intermediate Floor).
+        areas_data: AreaParser instance or dictionary of area information by zone.
 
     Returns:
         bool: True if report generation was successful, False otherwise.
@@ -222,6 +223,46 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
 
         merged_data = area_data
 
+        # Collect window directions from CSV data
+        window_directions = set()
+        if areas_data:
+            if hasattr(areas_data, 'glazing_data_from_csv'):
+                glazing_data_from_csv = areas_data.glazing_data_from_csv
+                if glazing_data_from_csv:
+                    # Extract area ID from the current area_id
+                    current_area_id = area_id
+                    if ":" in current_area_id:
+                        current_area_id = current_area_id.split(":")[1]
+                    
+                    # Only include directions for surfaces in this area
+                    for surface_name, data in glazing_data_from_csv.items():
+                        # Extract area ID from surface name (e.g., "00:01XLIVING_WALL_4_0_0_0_0_0_WIN" -> "01")
+                        surface_area_id = None
+                        if ":" in surface_name:
+                            parts = surface_name.split(":")
+                            if len(parts) > 1 and parts[1][:2].isdigit():
+                                surface_area_id = parts[1][:2]
+                        
+                        if surface_area_id == current_area_id and 'CardinalDirection' in data:
+                            direction = data['CardinalDirection']
+                            if direction and direction != "Unknown":
+                                window_directions.add(direction)
+
+        # Define custom sort order for directions
+        direction_order = {
+            'North': 0,
+            'South': 1,
+            'East': 2,
+            'West': 3
+        }
+
+        # Sort directions according to custom order
+        sorted_directions = sorted(window_directions, key=lambda x: direction_order.get(x, 999))
+        
+        # Format window directions for display
+        print(f"Area {area_id} window directions:", sorted_directions)
+        window_directions_str = ", ".join(sorted_directions) if sorted_directions else "None"
+
         summary_content_style = ParagraphStyle(
             'SummaryContent',
             parent=styles['Normal'],
@@ -239,7 +280,7 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         <b>Area Name:</b> {area_id}<br/>
         <b>Total Area:</b> {total_floor_area:.2f} m²<br/>
         <b>Location:</b> {location}<br/>
-        <b>Directions:</b> N, S, E, W<br/>
+        <b>Windows Directions:</b> {window_directions_str}<br/>
         <b>Wall Mass:</b> {wall_mass_per_area:.2f} kg/m²
         """
 
@@ -403,9 +444,12 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
 
         materials_parser = None
         data_loader = None
+        glazing_data_from_csv = None
 
         if hasattr(areas_data, 'data_loader'):
             data_loader = areas_data.data_loader
+            if hasattr(areas_data, 'glazing_data_from_csv'):
+                glazing_data_from_csv = areas_data.glazing_data_from_csv
 
         if data_loader:
             try:
@@ -554,6 +598,13 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
 
             output_file = output_path / f"{area_id}.pdf"
 
+            # Create a temporary object to hold the glazing data
+            class TempAreasData:
+                def __init__(self, glazing_data):
+                    self.glazing_data_from_csv = glazing_data
+
+            temp_areas_data = TempAreasData(glazing_data_from_csv)
+
             success = generate_area_report_pdf(
                 area_id=area_id,
                 area_data=merged_rows,
@@ -564,7 +615,8 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                 city_name=city_name,
                 area_name=area_name,
                 wall_mass_per_area=wall_mass_per_area,
-                location=location
+                location=location,
+                areas_data=temp_areas_data  # Pass the temporary object with glazing data
             )
             if not success:
                 all_reports_successful = False

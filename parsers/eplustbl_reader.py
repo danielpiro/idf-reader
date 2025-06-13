@@ -42,7 +42,8 @@ def _parse_exterior_fenestration_table(reader) -> Dict[str, Dict[str, Any]]:
         "area of multiplied openings [m2]": 6,
         "glass u-factor [w/m2-k]": 7,
         "glass shgc": 8,
-        "glass visible transmittance": 9
+        "glass visible transmittance": 9,
+        "cardinal direction": 16
     }
     col_indices = {}
     result = {}
@@ -119,7 +120,8 @@ def _parse_exterior_fenestration_table(reader) -> Dict[str, Dict[str, Any]]:
                             'Construction': construction_name,
                             'Area': area,
                             'U-Value': u_value,
-                            'DerivedZone': derived_zone_name
+                            'DerivedZone': derived_zone_name,
+                            'CardinalDirection': row[col_indices["cardinal direction"]].strip() if "cardinal direction" in col_indices else "Unknown"
                         }
     return result
 
