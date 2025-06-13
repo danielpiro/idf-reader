@@ -326,8 +326,9 @@ class ProcessingManager:
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
         
+        # TODO: Re-enable area-loss report generation later
         # Area Loss
-        self._generate_report_item("Area Loss", generate_area_loss_report_pdf, extracted_data["area_loss"], report_paths["area_loss"], project_name, run_id, city_name_hebrew, area_name_for_reports)
+        # self._generate_report_item("Area Loss", generate_area_loss_report_pdf, extracted_data["area_loss"], report_paths["area_loss"], project_name, run_id, city_name_hebrew, area_name_for_reports)
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
