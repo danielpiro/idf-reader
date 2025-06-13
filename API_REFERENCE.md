@@ -687,7 +687,7 @@ class EnergyRatingReportGenerator:
             bool: True if successful
         """
 
-    def generate_total_energy_rating_report(self, output_filename: str = "total_energy_rating.pdf") -> Optional[str]:
+    def generate_total_energy_rating_report(self, output_filename: str = "total-energy-rating.pdf") -> Optional[str]:
         """
         Generate comprehensive total energy rating report.
 

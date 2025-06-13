@@ -228,6 +228,7 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
         current_y -= (header_height + 0.2*cm)
 
         title_text = "IDF Unique Schedule Definitions"
+        title_style.alignment = 1  # Center alignment
         p_title = Paragraph(title_text, title_style)
         p_title.wrapOn(c, content_width, margin_y)
         title_height = p_title.height
@@ -288,7 +289,6 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
                 if current_y - total_element_height < margin_y:
                     c.showPage()
                     current_y = height - margin_y
-                    p_header.drawOn(c, width - margin_x - header_width_actual, height - margin_y - header_height)
 
                 p_sched_name.drawOn(c, margin_x, current_y - name_height)
                 current_y -= (name_height + schedule_name_style.spaceAfter)
@@ -301,7 +301,6 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
                 if current_y - (name_height + schedule_name_style.spaceAfter + no_data_message_height_approx + space_after_table) < margin_y:
                     c.showPage()
                     current_y = height - margin_y
-                    p_header.drawOn(c, width - margin_x - header_width_actual, height - margin_y - header_height)
 
                 p_sched_name.drawOn(c, margin_x, current_y - name_height)
                 current_y -= (name_height + schedule_name_style.spaceAfter)
