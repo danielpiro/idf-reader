@@ -108,7 +108,7 @@ def encode_hebrew_text(text):
         # Fallback: return the original text with HTML escaping
         return html.escape(str(text) if text else "N/A", quote=False)
 
-def safe_format_header_text(project_name, run_id, timestamp, city_name, area_name, report_title):
+def safe_format_header_text(project_name, run_id, timestamp, city_name, area_name, report_title, version="Alpha"):
     """
     Safely format header text preserving Hebrew characters with proper encoding.
     
@@ -119,6 +119,7 @@ def safe_format_header_text(project_name, run_id, timestamp, city_name, area_nam
         city_name: City name (may contain Hebrew)
         area_name: Area name (may contain Hebrew)
         report_title: Report title
+        version: Version identifier (defaults to "Alpha")
         
     Returns:
         str: Properly formatted header text with Hebrew support
@@ -129,10 +130,10 @@ def safe_format_header_text(project_name, run_id, timestamp, city_name, area_nam
     return f"""
     Project: {html.escape(str(project_name), quote=False)}<br/>
     Run ID: {html.escape(str(run_id), quote=False)}<br/>
+    Version: {html.escape(str(version), quote=False)}<br/>
     Date: {timestamp}<br/>
     City: {safe_city_name}<br/>
     Area: {safe_area_name}<br/>
-    Report: {html.escape(str(report_title), quote=False)}
     """
 
 def get_hebrew_font_name():
