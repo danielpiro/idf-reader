@@ -3,18 +3,21 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 import json
 import os
-import sys
 import subprocess
 import threading
 import logging
 from pathlib import Path
 from datetime import datetime
-import tempfile
 import shutil
 # Imports for ProcessingManager are now in processing_manager.py
 # Keep GUI specific imports here
 from utils.data_loader import DataLoader # Still needed for IDFProcessorGUI._ensure_idf_output_variables
-from utils.path_utils import get_data_file_path, get_data_directory, list_data_files
+from utils.path_utils import (
+    get_data_file_path, get_data_directory, list_data_files,
+    contains_non_ascii, create_safe_path_for_energyplus,
+    create_safe_output_dir_for_energyplus, move_simulation_files_back,
+    normalize_path_for_energyplus
+)
 
 def fix_hebrew_text_display(text):
     """
@@ -29,74 +32,7 @@ def fix_hebrew_text_display(text):
     # No need to manipulate the text content - let the UI handle RTL rendering
     return text
 
-def _contains_non_ascii(path_str):
-    """Check if a path contains non-ASCII characters (like Hebrew)."""
-    try:
-        path_str.encode('ascii')
-        return False
-    except UnicodeEncodeError:
-        return True
-
-def _create_safe_path_for_energyplus(original_path, temp_dir=None):
-    """
-    Create a safe ASCII-only path for EnergyPlus compatibility.
-    
-    Args:
-        original_path: The original path that may contain Unicode characters
-        temp_dir: Optional temporary directory to use
-        
-    Returns:
-        tuple: (safe_path, cleanup_function)
-            safe_path: ASCII-only path safe for EnergyPlus
-            cleanup_function: Function to call to clean up temporary files (or None)
-    """
-    if not _contains_non_ascii(original_path):
-        # Path is already ASCII-safe
-        return original_path, None
-    
-    # Create a temporary ASCII-safe copy
-    if temp_dir is None:
-        temp_dir = tempfile.mkdtemp(prefix="eplus_safe_")
-    
-    # Create a safe filename using only ASCII characters
-    original_name = os.path.basename(original_path)
-    safe_name = "input_file.idf"  # Use a simple ASCII name
-    
-    safe_path = os.path.join(temp_dir, safe_name)
-    
-    # Copy the file to the safe location
-    shutil.copy2(original_path, safe_path)
-    
-    def cleanup():
-        try:
-            if os.path.exists(safe_path):
-                os.remove(safe_path)
-            if os.path.exists(temp_dir) and not os.listdir(temp_dir):
-                os.rmdir(temp_dir)
-        except OSError as e:
-            logger.warning(f"Could not clean up temporary file {safe_path}: {e}")
-    
-    return safe_path, cleanup
-
-def _create_safe_output_dir_for_energyplus(original_output_dir):
-    """
-    Create a safe ASCII-only output directory for EnergyPlus.
-    
-    Args:
-        original_output_dir: The original output directory that may contain Unicode
-        
-    Returns:
-        tuple: (safe_output_dir, needs_move_back)
-            safe_output_dir: ASCII-only directory safe for EnergyPlus
-            needs_move_back: Boolean indicating if files need to be moved back
-    """
-    if not _contains_non_ascii(original_output_dir):
-        # Path is already ASCII-safe
-        return original_output_dir, False
-    
-    # Create a temporary ASCII-safe directory
-    temp_dir = tempfile.mkdtemp(prefix="eplus_output_")
-    return temp_dir, True
+# Hebrew text display helper - moved from separate functions
 
 # Logger for the GUI part
 logger = logging.getLogger(__name__)
@@ -832,22 +768,27 @@ class IDFProcessorGUI(ctk.CTk):
                  return None # Critical step failed
 
             # Check if paths contain Hebrew/Unicode characters and create safe copies if needed
-            if _contains_non_ascii(idf_path):
-                self.show_status("IDF path contains Unicode characters, creating ASCII-safe copy for EnergyPlus...")
-                safe_idf_path, idf_cleanup = _create_safe_path_for_energyplus(idf_path)
+            if contains_non_ascii(idf_path):
+                self.show_status("IDF path contains Unicode/Hebrew characters, creating ASCII-safe copy for EnergyPlus...")
+                safe_idf_path, idf_cleanup = create_safe_path_for_energyplus(idf_path)
                 self.show_status(f"Using safe IDF path: {safe_idf_path}")
             
-            if _contains_non_ascii(simulation_output_dir):
-                self.show_status("Output directory path contains Unicode characters, using temporary ASCII-safe directory...")
-                safe_output_dir, needs_move_back = _create_safe_output_dir_for_energyplus(simulation_output_dir)
+            if contains_non_ascii(simulation_output_dir):
+                self.show_status("Output directory path contains Unicode/Hebrew characters, using temporary ASCII-safe directory...")
+                safe_output_dir, needs_move_back = create_safe_output_dir_for_energyplus(simulation_output_dir)
                 self.show_status(f"Using safe output directory: {safe_output_dir}")
                 # Update the expected output path
                 temp_output_csv_path = os.path.join(safe_output_dir, "eplustbl.csv")
             else:
                 temp_output_csv_path = output_csv_path
 
-            cmd = [energyplus_exe, "-w", epw_file_path, "-r", "-d", safe_output_dir, safe_idf_path]
-            self.show_status(f"Running E+ command with safe paths: {' '.join(cmd)}")
+            # Normalize paths for EnergyPlus compatibility
+            normalized_epw = normalize_path_for_energyplus(epw_file_path)
+            normalized_output_dir = normalize_path_for_energyplus(safe_output_dir)
+            normalized_idf = normalize_path_for_energyplus(safe_idf_path)
+            
+            cmd = [energyplus_exe, "-w", normalized_epw, "-r", "-d", normalized_output_dir, normalized_idf]
+            self.show_status(f"Running E+ command with normalized paths: {' '.join(cmd)}")
             
             process = subprocess.run(cmd, check=True, capture_output=True, text=True, encoding='utf-8', errors='ignore')
             
@@ -862,22 +803,11 @@ class IDFProcessorGUI(ctk.CTk):
                     
                     # If we used a temporary directory, move files back to the original location
                     if needs_move_back:
-                        self.show_status("Moving simulation output files back to original directory...")
-                        os.makedirs(simulation_output_dir, exist_ok=True)
-                        
-                        # Move all files from temp directory to original location
-                        for filename in os.listdir(safe_output_dir):
-                            src = os.path.join(safe_output_dir, filename)
-                            dst = os.path.join(simulation_output_dir, filename)
-                            if os.path.isfile(src):
-                                shutil.move(src, dst)
-                                temp_output_files.append(dst)
-                        
-                        # Clean up temp directory
-                        try:
-                            shutil.rmtree(safe_output_dir)
-                        except OSError as e:
-                            logger.warning(f"Could not remove temporary output directory {safe_output_dir}: {e}")
+                        self.show_status("Moving simulation output files back to original Unicode directory...")
+                        if move_simulation_files_back(safe_output_dir, simulation_output_dir):
+                            self.show_status("Successfully moved simulation files to original directory.")
+                        else:
+                            self.show_status("Warning: Some issues occurred while moving simulation files back.", "warning")
                     
                     self.show_status(f"EnergyPlus simulation successful. Output: {output_csv_path}")
                 else:

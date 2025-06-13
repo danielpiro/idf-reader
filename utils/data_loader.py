@@ -1,12 +1,14 @@
 """
 DataLoader module for direct IDF data access.
 Provides simplified data loading and retrieval functionality.
+Includes support for Hebrew/Unicode characters in file paths.
 """
 from typing import Dict, Optional, List, Any
 from pathlib import Path
 import os
 import sys
 import re
+import logging
 import pandas as pd
 
 def get_energy_consumption(iso_type_input: str, area_location_input: str, area_definition_input: str) -> float:
@@ -96,7 +98,12 @@ def get_energy_consumption(iso_type_input: str, area_location_input: str, area_d
     except ValueError:
         raise ValueError(f"Invalid data format in CSV. Cannot convert '{value_str}' to float for location '{area_location_input}', definition '{area_definition_input.upper()}' in {file_path}")
 from utils.eppy_handler import EppyHandler
-from utils.path_utils import get_data_file_path
+from utils.path_utils import (
+    get_data_file_path, contains_non_ascii,
+    create_safe_path_for_energyplus
+)
+
+logger = logging.getLogger(__name__)
 
 AREA_ID_REGEX = re.compile(r"^\d{2}")
 
@@ -147,6 +154,7 @@ class DataLoader:
     def ensure_output_variables(self, idf_path: str = None, idd_path: Optional[str] = None) -> bool:
         """Ensure required output variables exist in the IDF file before running the simulation.
         Use this method before running the simulation to make sure energy rating variables are present.
+        Handles Unicode/Hebrew characters in file paths.
 
         Args:
             idf_path: Path to the IDF file. If None, uses the previously loaded file.
@@ -156,10 +164,26 @@ class DataLoader:
             bool: True if output variables were successfully checked/added, False otherwise
         """
         if idf_path and (not self._idf or self._idf_path != idf_path):
-            if not self._eppy_handler:
-                self._eppy_handler = EppyHandler(idd_path)
-            self._idf_path = idf_path
-            self._idf = self._eppy_handler.load_idf(idf_path)
+            # Handle Unicode/Hebrew characters in file paths
+            safe_file_path = idf_path
+            cleanup_func = None
+            
+            try:
+                if contains_non_ascii(idf_path):
+                    logger.info(f"IDF file path contains Unicode/Hebrew characters: {idf_path}")
+                    safe_file_path, cleanup_func = create_safe_path_for_energyplus(idf_path)
+                    logger.info(f"Using ASCII-safe path for eppy: {safe_file_path}")
+
+                if not self._eppy_handler:
+                    self._eppy_handler = EppyHandler(idd_path)
+                self._idf_path = idf_path  # Store original path
+                self._idf = self._eppy_handler.load_idf(safe_file_path)
+                
+            finally:
+                # Clean up temporary file if it was created
+                if cleanup_func:
+                    cleanup_func()
+                    logger.debug("Cleaned up temporary IDF file after loading for output variables")
 
         if self._idf:
             self._check_output()
@@ -170,6 +194,7 @@ class DataLoader:
     def load_file(self, idf_path: str, idd_path: Optional[str] = None) -> None:
         """
         Load IDF file and cache raw data.
+        Handles Unicode/Hebrew characters in file paths.
 
         Args:
             idf_path: Path to the IDF file
@@ -181,23 +206,44 @@ class DataLoader:
         if not Path(idf_path).exists():
             raise FileNotFoundError(f"IDF file not found at '{idf_path}'")
 
-        self._eppy_handler = EppyHandler(idd_path)
-        self._idf_path = idf_path
-        self._idf = self._eppy_handler.load_idf(idf_path)
-        self._loaded_sections = {'zones', 'surfaces', 'materials', 'constructions', 'schedules'}
+        # Handle Unicode/Hebrew characters in file paths for eppy compatibility
+        safe_file_path = idf_path
+        cleanup_func = None
+        
+        try:
+            if contains_non_ascii(idf_path):
+                logger.info(f"IDF file path contains Unicode/Hebrew characters: {idf_path}")
+                safe_file_path, cleanup_func = create_safe_path_for_energyplus(idf_path)
+                logger.info(f"Using ASCII-safe path for eppy: {safe_file_path}")
 
-        self._check_output()
-        self._cache_schedules()
-        self._cache_zones()
-        self._cache_surfaces()
-        self._cache_materials()
-        self._build_all_materials_cache()
-        self._cache_constructions()
-        self._cache_loads()
-        self._cache_window_shading_controls()
-        self._cache_frame_dividers()
-        self._cache_daylighting()
-        self._cache_outdoor_air_specifications()
+            self._eppy_handler = EppyHandler(idd_path)
+            self._idf_path = idf_path  # Store original path
+            self._idf = self._eppy_handler.load_idf(safe_file_path)
+            self._loaded_sections = {'zones', 'surfaces', 'materials', 'constructions', 'schedules'}
+
+            self._check_output()
+            self._cache_schedules()
+            self._cache_zones()
+            self._cache_surfaces()
+            self._cache_materials()
+            self._build_all_materials_cache()
+            self._cache_constructions()
+            self._cache_loads()
+            self._cache_window_shading_controls()
+            self._cache_frame_dividers()
+            self._cache_daylighting()
+            self._cache_outdoor_air_specifications()
+            
+            logger.info(f"Successfully loaded IDF file: {idf_path}")
+
+        except Exception as e:
+            logger.error(f"Error loading IDF file '{idf_path}': {str(e)}")
+            raise
+        finally:
+            # Clean up temporary file if it was created
+            if cleanup_func:
+                cleanup_func()
+                logger.debug("Cleaned up temporary IDF file after loading")
 
     def _check_output(self) -> None:
         """Ensure the required Output:Variable objects are present in the IDF."""

@@ -233,17 +233,6 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
             spaceAfter=0
         )
 
-        summary_title_style = ParagraphStyle(
-            'SummaryTitle',
-            parent=styles['Normal'],
-            fontSize=FONT_SIZES['heading'],
-            fontName=FONTS['heading'],
-            textColor=COLORS['primary_blue'],
-            leading=16,
-            spaceBefore=0,
-            spaceAfter=6
-        )
-
         summary_text = f"""
         <font name="{FONTS['heading']}" size="{FONT_SIZES['heading']}" color="{COLORS['primary_blue'].hexval()}"><b>Area Summary</b></font><br/>
         <br/>

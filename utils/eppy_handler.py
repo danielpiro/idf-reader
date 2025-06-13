@@ -1,8 +1,13 @@
 """
 Handles eppy IDF model loading, initialization and common operations.
+Includes support for Hebrew/Unicode characters in file paths.
 """
 import os
+import logging
 from eppy.modeleditor import IDF
+from .path_utils import contains_non_ascii, create_safe_path_for_energyplus
+
+logger = logging.getLogger(__name__)
 
 SETTINGS_OBJECT_TYPES = [
     "Version",
@@ -43,6 +48,7 @@ class EppyHandler:
     def load_idf(self, idf_path: str) -> IDF:
         """
         Load and return an IDF model.
+        Handles Unicode/Hebrew characters in file paths.
 
         Args:
             idf_path: Path to the IDF file to load.
@@ -57,10 +63,28 @@ class EppyHandler:
         if not os.path.isfile(idf_path):
             raise FileNotFoundError(f"IDF file not found at '{idf_path}'")
 
+        # Handle Unicode/Hebrew characters in file paths for eppy compatibility
+        safe_file_path = idf_path
+        cleanup_func = None
+        
         try:
-            return IDF(idf_path)
+            if contains_non_ascii(idf_path):
+                logger.info(f"IDF file path contains Unicode/Hebrew characters: {idf_path}")
+                safe_file_path, cleanup_func = create_safe_path_for_energyplus(idf_path)
+                logger.info(f"Using ASCII-safe path for eppy: {safe_file_path}")
+
+            idf_model = IDF(safe_file_path)
+            logger.info(f"Successfully loaded IDF file: {idf_path}")
+            return idf_model
+            
         except Exception as e:
+            logger.error(f"Failed to load IDF file '{idf_path}': {e}")
             raise RuntimeError(f"Failed to load IDF file: {e}") from e
+        finally:
+            # Clean up temporary file if it was created
+            if cleanup_func:
+                cleanup_func()
+                logger.debug("Cleaned up temporary IDF file after eppy loading")
 
     def get_objects_by_type(self, idf: IDF, object_type: str) -> list:
         """

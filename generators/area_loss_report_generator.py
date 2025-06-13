@@ -160,14 +160,6 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
             spaceAfter=0
         )
 
-        headers = [
-            Paragraph("Area", cell_style),
-            Paragraph("Location", cell_style),
-            Paragraph("H-Value", cell_style),
-            Paragraph("H-Needed", cell_style),
-            Paragraph("Compatible", cell_style)
-        ]
-
         table_data = _area_loss_table_data(area_loss_data, cell_style, compatibility_style)
 
         col_widths = [
