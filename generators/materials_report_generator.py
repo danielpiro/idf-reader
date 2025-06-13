@@ -56,7 +56,7 @@ def create_cell_style(styles, is_header=False, total_row=False):
         spaceBefore=2,
         spaceAfter=2,
         fontName='Helvetica-Bold' if is_header or total_row else 'Helvetica',
-        textColor=COLORS['dark_gray'],
+        textColor=COLORS['white'] if is_header else COLORS['dark_gray'],
         wordWrap='CJK',
         alignment=TA_LEFT
     )
@@ -65,7 +65,7 @@ def create_table_style():
     """Create a consistent table style for materials table."""
     return TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['dark_gray']),
+        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),

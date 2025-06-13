@@ -66,6 +66,7 @@ def create_cell_style(styles, is_header=False, center_align=False):
             spaceBefore=4,
             spaceAfter=4,
             fontName=FONTS['table_header'],
+            textColor=COLORS['white'],
             wordWrap='CJK',
             alignment=1  # Center alignment
         )
@@ -101,7 +102,7 @@ def create_natural_ventilation_table_style():
     style = [
         # Header row styling
         ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['dark_gray']),
+        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),

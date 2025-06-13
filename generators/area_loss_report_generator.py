@@ -47,13 +47,13 @@ def _compatibility_color(compatible: str) -> colors.Color:
     """Returns green if compatible is 'Yes', otherwise red."""
     return colors.green if compatible == "Yes" else colors.red
 
-def _area_loss_table_data(area_loss_data, cell_style, compatibility_style):
+def _area_loss_table_data(area_loss_data, cell_style, compatibility_style, header_style):
     table_data = [[
-        Paragraph("Area", cell_style),
-        Paragraph("Location", cell_style),
-        Paragraph("H-Value", cell_style),
-        Paragraph("H-Needed", cell_style),
-        Paragraph("Compatible", cell_style)
+        Paragraph("Area", header_style),
+        Paragraph("Location", header_style),
+        Paragraph("H-Value", header_style),
+        Paragraph("H-Needed", header_style),
+        Paragraph("Compatible", header_style)
     ]]
     sorted_rows = sorted(area_loss_data, key=lambda x: x.get('area_id', ''))
     for row in sorted_rows:
@@ -151,6 +151,17 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
             spaceAfter=0
         )
 
+        header_style = ParagraphStyle(
+            'HeaderStyle',
+            parent=styles['Normal'],
+            fontSize=9,
+            leading=10,
+            spaceBefore=0,
+            spaceAfter=0,
+            fontName=FONTS['table_header'],
+            textColor=COLORS['white']
+        )
+
         compatibility_style = ParagraphStyle(
             'CompatibilityStyle',
             parent=styles['Normal'],
@@ -160,7 +171,7 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
             spaceAfter=0
         )
 
-        table_data = _area_loss_table_data(area_loss_data, cell_style, compatibility_style)
+        table_data = _area_loss_table_data(area_loss_data, cell_style, compatibility_style, header_style)
 
         col_widths = [
             3.0*cm,
@@ -174,7 +185,7 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
 
         table_style = TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-            ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['dark_gray']),
+            ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
             ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),

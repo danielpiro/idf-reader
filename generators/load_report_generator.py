@@ -54,6 +54,7 @@ def create_cell_style(styles, is_header=False, center_align=False):
             spaceBefore=3,
             spaceAfter=3,
             fontName='Helvetica-Bold',
+            textColor=COLORS['white'],
             wordWrap='CJK',
             alignment=1  # Center alignment
         )
@@ -95,7 +96,7 @@ def create_table1_style():
 
     style = [
         ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['dark_gray']),
+        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
@@ -104,7 +105,7 @@ def create_table1_style():
         ('TOPPADDING', (0, 0), (-1, 0), 4),
 
         ('BACKGROUND', (0, 1), (-1, 1), COLORS['secondary_blue']),
-        ('TEXTCOLOR', (0, 1), (-1, 1), COLORS['dark_gray']),
+        ('TEXTCOLOR', (0, 1), (-1, 1), COLORS['white']),
         ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
         ('VALIGN', (0, 1), (-1, 1), 'MIDDLE'),
         ('FONTNAME', (0, 1), (-1, 1), FONTS['table_header']),
@@ -145,7 +146,7 @@ def create_table2_style():
 
     style = [
         ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['dark_gray']),
+        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
@@ -154,7 +155,7 @@ def create_table2_style():
         ('TOPPADDING', (0, 0), (-1, 0), 4),
 
         ('BACKGROUND', (0, 1), (-1, 1), COLORS['secondary_blue']),
-        ('TEXTCOLOR', (0, 1), (-1, 1), COLORS['dark_gray']),
+        ('TEXTCOLOR', (0, 1), (-1, 1), COLORS['white']),
         ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
         ('VALIGN', (0, 1), (-1, 1), 'MIDDLE'),
         ('FONTNAME', (0, 1), (-1, 1), FONTS['table_header']),

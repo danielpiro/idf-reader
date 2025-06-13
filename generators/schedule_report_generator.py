@@ -132,7 +132,7 @@ def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> T
 
         style = TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-            ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['dark_gray']),
+            ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
