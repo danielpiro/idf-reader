@@ -80,24 +80,22 @@ class AreaParser:
 
             for zone_id, zone_data in zones.items():
                 try:
-                    area_id = "unknown"
                     if not zone_id:
                         logger.warning(f"Encountered a zone with no ID (data: {zone_data}). Skipping.")
                         continue
 
-                    if ":" in zone_id:
-                        parts = zone_id.split(":")
-                        if len(parts) > 1:
-                            if len(parts[1]) >= 2 and parts[1][:2].isdigit():
-                                area_id = parts[1][:2]
-                            elif parts[1]:
-                                area_id = parts[1]
+                    # Use enhanced area_id extraction for better grouping
+                    area_id = self._extract_area_id_enhanced(zone_id)
+                    
+                    # Also extract base zone ID for potential grouping
+                    base_zone_id = self._extract_base_zone_id(zone_id)
 
                     floor_area = safe_float(zone_data.get("floor_area", 0.0), 0.0)
                     multiplier = int(safe_float(zone_data.get("multiplier", 1), 1))
 
                     self.areas_by_zone[zone_id] = {
                         "area_id": area_id,
+                        "base_zone_id": base_zone_id,
                         "floor_area": floor_area,
                         "multiplier": multiplier,
                         "constructions": {}
@@ -792,3 +790,240 @@ class AreaParser:
         except Exception as e:
             logger.critical(f"Critical error in get_area_h_values: {e}", exc_info=True)
             return h_values_by_area
+
+    def _extract_base_zone_id(self, zone_id: str) -> str:
+        """
+        Extract the base zone identifier for grouping related zones.
+        For zones like '25:A338XLIV' and '25:A338XMMD', returns '25:A338'
+        This groups zones that share the same floor, area, and zone number.
+        """
+        if ":" not in zone_id:
+            return zone_id
+        
+        try:
+            parts = zone_id.split(":", 1)
+            if len(parts) < 2:
+                return zone_id
+                
+            floor_part = parts[0]
+            zone_part = parts[1]
+            
+            # Look for pattern like A338X where A338 is the base zone
+            if "X" in zone_part:
+                x_index = zone_part.find("X")
+                base_zone_part = zone_part[:x_index]
+                return f"{floor_part}:{base_zone_part}"
+            
+            return zone_id
+        except Exception as e:
+            logger.warning(f"Error extracting base zone ID from '{zone_id}': {e}. Using original zone_id.")
+            return zone_id
+
+    def _extract_area_id_enhanced(self, zone_id: str) -> str:
+        """
+        Enhanced area_id extraction that handles various zone naming patterns.
+        For zones like '25:A338XLIV', extracts 'A338' as the area_id.
+        """
+        if ":" not in zone_id:
+            return "unknown"
+        
+        try:
+            parts = zone_id.split(":", 1)
+            if len(parts) < 2 or not parts[1]:
+                return "unknown"
+                
+            zone_part = parts[1]
+            
+            # Handle patterns like A338X... where A338 should be the area_id
+            if "X" in zone_part:
+                x_index = zone_part.find("X")
+                area_candidate = zone_part[:x_index]
+                if area_candidate and len(area_candidate) >= 2:
+                    return area_candidate
+            
+            # Fallback to original logic
+            if len(zone_part) >= 2 and zone_part[:2].isdigit():
+                return zone_part[:2]
+            elif zone_part:
+                return zone_part
+                
+            return "unknown"
+        except Exception as e:
+            logger.warning(f"Error extracting enhanced area_id from '{zone_id}': {e}. Using 'unknown'.")
+            return "unknown"
+
+    def get_area_groupings_by_base_zone(self) -> Dict[str, List[str]]:
+        """
+        Get groupings of zones by their base zone identifier.
+        Returns a dictionary where keys are base zone IDs and values are lists of full zone IDs.
+        This ensures zones like '25:A338XLIV' and '25:A338XMMD' are grouped together under '25:A338'.
+        """
+        if not self.processed:
+            logger.warning("Area data not processed yet. Call process_idf() first. Returning empty dict for base zone groupings.")
+            return {}
+        
+        try:
+            base_zone_groupings = {}
+            
+            for zone_id, zone_data in self.areas_by_zone.items():
+                base_zone_id = zone_data.get("base_zone_id", zone_id)
+                
+                if base_zone_id not in base_zone_groupings:
+                    base_zone_groupings[base_zone_id] = []
+                
+                base_zone_groupings[base_zone_id].append(zone_id)
+            
+            # Log the groupings for debugging
+            logger.info(f"Base zone groupings created:")
+            for base_id, zone_list in base_zone_groupings.items():
+                if len(zone_list) > 1:
+                    logger.info(f"  {base_id} -> {zone_list}")
+                elif len(zone_list) == 1:
+                    logger.debug(f"  {base_id} -> {zone_list[0]} (single zone)")
+            
+            # Log some statistics
+            multi_zone_groups = [base_id for base_id, zone_list in base_zone_groupings.items() if len(zone_list) > 1]
+            single_zone_groups = [base_id for base_id, zone_list in base_zone_groupings.items() if len(zone_list) == 1]
+            
+            logger.info(f"Grouping statistics:")
+            logger.info(f"  Total base zones: {len(base_zone_groupings)}")
+            logger.info(f"  Multi-zone groups: {len(multi_zone_groups)}")
+            logger.info(f"  Single-zone groups: {len(single_zone_groups)}")
+            logger.info(f"  Total individual zones: {sum(len(zone_list) for zone_list in base_zone_groupings.values())}")
+            
+            if multi_zone_groups:
+                logger.info(f"  Example multi-zone groups: {multi_zone_groups[:5]}")
+            
+            return base_zone_groupings
+        except Exception as e:
+            logger.error(f"Error creating base zone groupings: {e}", exc_info=True)
+            return {}
+
+    def get_area_table_data_by_base_zone(self, materials_parser: Optional[MaterialsParser] = None) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Get data for area reports grouped by base zone ID instead of area_id.
+        This ensures zones like '25:A338XLIV' and '25:A338XMMD' are in the same report.
+        """
+        result_by_base_zone: Dict[str, List[Dict[str, Any]]] = {}
+        try:
+            parser_to_use = materials_parser if materials_parser else self.materials_parser
+            if not parser_to_use:
+                logger.error("MaterialsParser instance is required for get_area_table_data_by_base_zone but none provided or set. Returning empty data.")
+                return result_by_base_zone
+            if not self.processed:
+                logger.warning("Area data not processed. Call process_idf() first. Returning empty data for base zone table.")
+                return result_by_base_zone
+
+            surfaces = self.data_loader.get_surfaces()
+            if not self.areas_by_zone:
+                return result_by_base_zone
+
+            for zone_id, zone_data in self.areas_by_zone.items():
+                try:
+                    area_id = zone_data.get("area_id", "unknown")
+                    base_zone_id = zone_data.get("base_zone_id", zone_id)
+                    
+                    if "core" in area_id.lower():
+                        continue
+
+                    if base_zone_id not in result_by_base_zone:
+                        result_by_base_zone[base_zone_id] = []
+
+                    zone_constructions_aggregated = {}
+                    constructions_in_zone = zone_data.get("constructions", {})
+                    if not constructions_in_zone:
+                        continue
+
+                    for construction_name, construction_data in constructions_in_zone.items():
+                        try:
+                            determined_element_types, dont_use = parser_to_use._get_element_type(construction_name, surfaces)
+                            if dont_use or not determined_element_types:
+                                continue
+
+                            total_area_constr = safe_float(construction_data.get("total_area", 0.0), 0.0)
+                            total_area_u_value_constr = safe_float(construction_data.get("total_u_value", 0.0), 0.0)
+
+                            if total_area_constr <= 0.0:
+                                continue
+
+                            construction_u_value_avg = total_area_u_value_constr / total_area_constr if total_area_constr > 0 else 0.0
+                            cleaned_construction_name = construction_name
+
+                            primary_non_glazing_type = next((t for t in determined_element_types if t and "Glazing" not in t), "Unknown")
+
+                            elements = construction_data.get("elements", [])
+                            if not elements:
+                                continue
+
+                            for element in elements:
+                                try:
+                                    element_area = safe_float(element.get("area", 0.0), 0.0)
+                                    if element_area <= 0.0:
+                                        continue
+
+                                    element_specific_type = element.get("element_type", "Unknown")
+                                    element_u_value = safe_float(element.get("u_value", 0.0), 0.0)
+                                    element_surface_name = element.get("surface_name", "unknown_surface")
+
+                                    is_glazing_element = element_specific_type.endswith("Glazing")
+
+                                    if is_glazing_element:
+                                        display_element_type = element_specific_type
+                                        zone_constr_key = f"{zone_id}_{cleaned_construction_name}_{display_element_type}_{element_surface_name}"
+                                        reported_u_value = element_u_value
+                                    else:
+                                        display_element_type = primary_non_glazing_type
+                                        zone_constr_key = f"{zone_id}_{cleaned_construction_name}_{display_element_type}"
+                                        reported_u_value = construction_u_value_avg
+
+                                    if zone_constr_key not in zone_constructions_aggregated:
+                                        zone_constructions_aggregated[zone_constr_key] = {
+                                            "zone": zone_id, "construction": cleaned_construction_name,
+                                            "element_type": display_element_type, "area": 0.0,
+                                            "u_value": reported_u_value,
+                                            "area_loss": 0.0,
+                                        }
+
+                                    zone_constructions_aggregated[zone_constr_key]["area"] += element_area
+                                    zone_constructions_aggregated[zone_constr_key]["area_loss"] += element_area * reported_u_value
+
+                                except (TypeError, ValueError) as e_element:
+                                    logger.error(f"Error processing element in zone '{zone_id}', construction '{construction_name}': {e_element}. Skipping element.", exc_info=True)
+                                    continue
+
+                        except (TypeError, ValueError, AttributeError) as e_constr:
+                            logger.error(f"Error processing construction '{construction_name}' in zone '{zone_id}': {e_constr}. Skipping construction.", exc_info=True)
+                            continue
+
+                    for zone_constr_key, aggregated_data in zone_constructions_aggregated.items():
+                        try:
+                            aggregated_area = aggregated_data["area"]
+                            aggregated_area_loss = aggregated_data["area_loss"]
+
+                            if aggregated_area > 0:
+                                weighted_u_value = aggregated_area_loss / aggregated_area
+                            else:
+                                weighted_u_value = aggregated_data["u_value"]
+
+                            final_row = {
+                                "zone": aggregated_data["zone"],
+                                "construction": aggregated_data["construction"],
+                                "element_type": aggregated_data["element_type"],
+                                "area": aggregated_area,
+                                "u_value": aggregated_data["u_value"],
+                                "weighted_u_value": weighted_u_value
+                            }
+
+                            result_by_base_zone[base_zone_id].append(final_row)
+                        except (TypeError, ValueError) as e_final:
+                            logger.error(f"Error finalizing data for zone_constr_key '{zone_constr_key}' in base zone '{base_zone_id}': {e_final}. Skipping row.", exc_info=True)
+                            continue
+
+                except (TypeError, ValueError, AttributeError, KeyError) as e_zone:
+                    logger.error(f"Error processing zone '{zone_id}' for base zone table data: {e_zone}. Skipping zone.", exc_info=True)
+                    continue
+
+            return result_by_base_zone
+        except Exception as e:
+            logger.error(f"Critical error in get_area_table_data_by_base_zone: {e}", exc_info=True)
+            return result_by_base_zone

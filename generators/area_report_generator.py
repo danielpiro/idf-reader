@@ -648,3 +648,170 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
     except Exception as e:
         logger.error(f"An unexpected error occurred in generate_area_reports: {type(e).__name__} - {str(e)}", exc_info=True)
         return False
+
+def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/areas",
+                                     project_name: str = "N/A", run_id: str = "N/A",
+                                     city_name: str = "N/A", area_name: str = "N/A") -> bool:
+    """
+    Generate individual reports for each base zone, grouping related zones together.
+    Zones like '25:A338XLIV' and '25:A338XMMD' will be in the same report.
+
+    Args:
+        areas_data: AreaParser instance or dictionary of area information by zone.
+        output_dir (str): Directory for output files.
+        project_name (str): Name of the project.
+        run_id (str): Identifier for the current run.
+
+    Returns:
+        bool: True if all report generation was successful, False otherwise.
+    """
+    all_reports_successful = True
+    try:
+        output_path = Path(output_dir)
+        if not output_path.exists():
+            try:
+                output_path.mkdir(parents=True, exist_ok=True)
+            except OSError as e:
+                error_message = f"Error creating base output directory '{output_path}' for base zone area reports: {e.strerror}"
+                logger.error(error_message, exc_info=True)
+                return False
+        elif not output_path.is_dir():
+            error_message = f"Error: Base output path '{output_path}' for base zone area reports exists but is not a directory."
+            logger.error(error_message)
+            return False
+
+        from parsers.materials_parser import MaterialsParser
+
+        materials_parser = None
+        data_loader = None
+
+        if hasattr(areas_data, 'data_loader'):
+            data_loader = areas_data.data_loader
+
+        if data_loader:
+            try:
+                materials_parser = MaterialsParser(data_loader)
+                materials_parser.process_idf(None)
+            except Exception as e:
+                logger.warning(f"Could not initialize or process MaterialsParser for base zone area reports: {e}", exc_info=True)
+                materials_parser = None
+
+        zones = {}
+        if data_loader:
+            zones = data_loader.get_zones()
+
+        # Get base zone groupings
+        base_zone_groupings = {}
+        base_zone_floor_totals = {}
+        
+        if hasattr(areas_data, 'get_area_groupings_by_base_zone'):
+            base_zone_groupings = areas_data.get_area_groupings_by_base_zone()
+            logger.info(f"Found {len(base_zone_groupings)} base zone groups")
+        else:
+            logger.warning("AreaParser does not have get_area_groupings_by_base_zone method. Falling back to regular area grouping.")
+            return generate_area_reports(areas_data, output_dir, project_name, run_id, city_name, area_name)
+
+        # Calculate floor totals for each base zone
+        if hasattr(areas_data, 'areas_by_zone'):
+            for zone_id, zone_data in areas_data.areas_by_zone.items():
+                base_zone_id = zone_data.get("base_zone_id", zone_id)
+                if base_zone_id not in base_zone_floor_totals:
+                    base_zone_floor_totals[base_zone_id] = 0.0
+                
+                floor_area = zone_data.get("floor_area", 0.0)
+                multiplier = zone_data.get("multiplier", 1)
+                base_zone_floor_totals[base_zone_id] += floor_area * multiplier
+
+        # Get table data grouped by base zone
+        base_zone_table_data = {}
+        if hasattr(areas_data, 'get_area_table_data_by_base_zone'):
+            base_zone_table_data = areas_data.get_area_table_data_by_base_zone(materials_parser)
+        else:
+            logger.warning("AreaParser does not have get_area_table_data_by_base_zone method.")
+            return False
+
+        # Get area locations
+        area_locations = {}
+        if hasattr(areas_data, 'get_area_h_values'):
+            try:
+                area_h_values = areas_data.get_area_h_values()
+                for item in area_h_values:
+                    area_id = item.get('area_id')
+                    location = item.get('location', 'Unknown')
+                    if area_id:
+                        area_locations[area_id] = location
+            except Exception as e_hval:
+                logger.warning(f"Could not retrieve area H values for base zone area reports: {e_hval}", exc_info=True)
+
+        # Generate reports for each base zone
+        for base_zone_id, merged_rows in base_zone_table_data.items():
+            total_floor_area = base_zone_floor_totals.get(base_zone_id, 0.0)
+
+            # Calculate wall mass per area (using same logic as original function)
+            wall_mass_per_area = 0.0
+            largest_ext_wall_area = 0.0
+            largest_ext_wall_construction = None
+
+            for row in merged_rows:
+                raw_element_type = row.get('element_type', '')
+                cleaned_type_str = _clean_element_type(raw_element_type).lower()
+
+                if 'external wall' in cleaned_type_str.split('\n'):
+                    current_area = row.get('area', 0.0)
+                    if current_area > largest_ext_wall_area:
+                        largest_ext_wall_area = current_area
+                        largest_ext_wall_construction = row.get('construction')
+
+            if largest_ext_wall_construction and materials_parser:
+                try:
+                    wall_mass_per_area = materials_parser.get_construction_mass_per_area(largest_ext_wall_construction)
+                except Exception as e_mass:
+                    logger.warning(f"Error calculating mass per area for construction '{largest_ext_wall_construction}' in base zone '{base_zone_id}': {e_mass}")
+                    wall_mass_per_area = 0.0
+
+            # Determine location (use first area_id from zones in this base zone)
+            location = "Unknown"
+            if base_zone_id in base_zone_groupings and base_zone_groupings[base_zone_id]:
+                first_zone_id = base_zone_groupings[base_zone_id][0]
+                if hasattr(areas_data, 'areas_by_zone') and first_zone_id in areas_data.areas_by_zone:
+                    first_area_id = areas_data.areas_by_zone[first_zone_id].get("area_id", "unknown")
+                    location = area_locations.get(first_area_id, "Unknown")
+
+            # Create a safe filename from base_zone_id
+            safe_base_zone_id = base_zone_id.replace(":", "_").replace("/", "_")
+            output_file = output_path / f"{safe_base_zone_id}.pdf"
+
+            # Create temporary object with glazing data for compatibility
+            temp_areas_data = type('TempAreasData', (), {})()
+            if hasattr(areas_data, 'glazing_data_from_csv'):
+                temp_areas_data.glazing_data_from_csv = areas_data.glazing_data_from_csv
+            else:
+                temp_areas_data.glazing_data_from_csv = {}
+
+            logger.info(f"Generating base zone area report for: {base_zone_id} (includes {len(base_zone_groupings.get(base_zone_id, []))} zones)")
+
+            success = generate_area_report_pdf(
+                area_id=base_zone_id,
+                area_data=merged_rows,
+                output_filename=str(output_file),
+                total_floor_area=total_floor_area,
+                project_name=project_name,
+                run_id=run_id,
+                city_name=city_name,
+                area_name=area_name,
+                wall_mass_per_area=wall_mass_per_area,
+                location=location,
+                areas_data=temp_areas_data
+            )
+            if not success:
+                all_reports_successful = False
+                logger.error(f"Failed to generate PDF report for Base Zone ID: {base_zone_id}")
+
+        return all_reports_successful
+
+    except ImportError as ie:
+        logger.error(f"Failed to import a required module for generating base zone area reports: {ie}", exc_info=True)
+        return False
+    except Exception as e:
+        logger.error(f"An unexpected error occurred in generate_area_reports_by_base_zone: {type(e).__name__} - {str(e)}", exc_info=True)
+        return False

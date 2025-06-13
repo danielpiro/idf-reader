@@ -288,6 +288,7 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
         zone_multiplier = safe_float(row.get('multiplier', 1))
 
         # For 2023, exclude lighting from energy calculations
+        # Note: Energy values are already per-zone (divided by multiplier in energy parser)
         if model_year == 2023:
             grouped_data[group_key]['sum_energy_components'] += safe_float(row.get('cooling', 0.0)) + \
                                                                   safe_float(row.get('heating', 0.0))
@@ -321,15 +322,26 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
             group_effective_area = data_item['area_effective_for_numerator']
             group_raw_area_for_denom = data_item['raw_zone_area_sum_for_denominator']
 
+            # Validate that group_score is within valid range (-1 to 5)
+            if group_score < -1 or group_score > 5:
+                logger.error(f"_calculate_total_energy_rating: Group {group_key} has invalid score {group_score} (must be -1 to 5). Setting to 0.")
+                group_score = 0
+
             term_numerator = group_effective_area * group_score
             weighted_score_sum_numerator += term_numerator
             total_raw_area_sum_denominator += group_raw_area_for_denom
+            
+            # Debug logging to track the calculation
+            logger.debug(f"Group {group_key}: score={group_score}, effective_area={group_effective_area:.2f}, raw_area={group_raw_area_for_denom:.2f}, numerator_contribution={term_numerator:.2f}")
 
         else:
             logger.warning(f"_calculate_total_energy_rating: Group {group_key} has calculated_score as None, excluding from weighted calculation")
 
     if total_raw_area_sum_denominator > 0:
         raw_average = weighted_score_sum_numerator / total_raw_area_sum_denominator
+        
+        # Debug logging to understand the calculation
+        logger.info(f"_calculate_total_energy_rating: weighted_sum_numerator={weighted_score_sum_numerator:.2f}, denominator={total_raw_area_sum_denominator:.2f}, raw_average={raw_average:.2f}")
 
         # For 2023: If any area gets E (0) or F (-1), cap the total rating accordingly
         if model_year == 2023:
@@ -348,6 +360,14 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
         else:
             # For non-2023 models, use normal calculation
             final_score = math.ceil(raw_average) if raw_average % 1 >= 0.5 else math.floor(raw_average)
+
+        # Ensure final score is within valid bounds (-1 to 5)
+        if final_score < -1:
+            logger.warning(f"_calculate_total_energy_rating: Final score {final_score} is below minimum (-1). Capping to -1.")
+            final_score = -1
+        elif final_score > 5:
+            logger.warning(f"_calculate_total_energy_rating: Final score {final_score} is above maximum (5). Capping to 5.")
+            final_score = 5
 
         letter_grade = _get_letter_grade_for_score(final_score)
         logger.info(f"_calculate_total_energy_rating: Calculated final_score = {final_score}, letter_grade = {letter_grade}")

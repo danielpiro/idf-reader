@@ -274,15 +274,14 @@ class ProcessingManager:
         elif "OFFICE" in self.city_info.get('iso_type', '').upper():
             derived_model_year = "office"
         
-        # Use the appropriate area definition for all reports
+        # Use appropriate area names for report metadata
         if derived_model_year == 2023:
-            # For 2023 models, use numeric area code (1-8)
-            area_name_for_reports = self.city_info.get('area_code', '') if hasattr(self, 'city_info') and self.city_info else 'N/A'
+            # For 2023 models, use numeric area code (1-8) directly
+            area_code = self.city_info.get('area_code', '') if hasattr(self, 'city_info') and self.city_info else ''
+            area_name_for_reports = area_code if area_code else 'N/A'
         else:
-            # For 2017/office models, map Hebrew area name to Latin letter for consistency
-            area_name_map_to_letter = {"א": "A", "ב": "B", "ג": "C", "ד": "D"}
-            mapped_area = area_name_map_to_letter.get(city_area_name_selection, city_area_name_selection)
-            area_name_for_reports = mapped_area if mapped_area else 'N/A'
+            # For 2017/office models, use Hebrew area name directly
+            area_name_for_reports = city_area_name_selection if city_area_name_selection else 'N/A'
 
         # Settings
         self._generate_report_item("Settings", generate_settings_report_pdf, extracted_data["settings"], report_paths["settings"], project_name, run_id, city_name_hebrew, area_name_for_reports)
@@ -304,15 +303,16 @@ class ProcessingManager:
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
-        # Area (Zones)
-        self.update_status("Generating Area (Zones) reports...")
+        # Area (Zones) - Use base zone grouping to ensure related zones are in same file
+        self.update_status("Generating Area (Zones) reports with base zone grouping...")
         try:
-            generate_area_reports(area_parser_instance, output_dir=report_paths["zones_dir"], project_name=project_name, run_id=run_id, city_name=city_name_hebrew, area_name=area_name_for_reports)
-            self.update_status("Area (Zones) reports generation attempted.")
+            from generators.area_report_generator import generate_area_reports_by_base_zone
+            generate_area_reports_by_base_zone(area_parser_instance, output_dir=report_paths["zones_dir"], project_name=project_name, run_id=run_id, city_name=city_name_hebrew, area_name=area_name_for_reports)
+            self.update_status("Area (Zones) reports with base zone grouping generation attempted.")
         except Exception as e:
-            error_message = f"Error generating Area (Zones) reports: {type(e).__name__} - {str(e)}"
+            error_message = f"Error generating Area (Zones) reports with base zone grouping: {type(e).__name__} - {str(e)}"
             self.update_status(error_message)
-            logger.error(f"Exception in generate_area_reports: {e}", exc_info=True)
+            logger.error(f"Exception in generate_area_reports_by_base_zone: {e}", exc_info=True)
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
@@ -351,14 +351,14 @@ class ProcessingManager:
             elif "OFFICE" in iso_type_selection.upper():
                 derived_model_year = "office"  # Special case for office buildings
             
-            # For 2023, use numeric area code; for others, use Latin letters
+            # For 2023, use numeric area code; for others, use Latin letters (for model calculations)
             if derived_model_year == 2023:
                 # For 2023 models, use the numeric area code directly
                 area_code = self.city_info.get('area_code', '') if hasattr(self, 'city_info') and self.city_info else ''
                 derived_model_area_definition = area_code
                 self.update_status(f"Energy Rating: Using numeric area code '{area_code}' for 2023 model")
             else:
-                # For 2017 and office models, map Hebrew area name to Latin letter
+                # For 2017 and office models, map Hebrew area name to Latin letter (for model calculations only)
                 area_name_map_to_letter = {"א": "A", "ב": "B", "ג": "C", "ד": "D"}
                 derived_model_area_definition = area_name_map_to_letter.get(city_area_name_selection)
                 self.update_status(f"Energy Rating: Using Latin area letter '{derived_model_area_definition}' for {derived_model_year} model")
@@ -410,6 +410,14 @@ class ProcessingManager:
         
         self.update_progress(1.0)
 
+    def _convert_area_name_to_hebrew(self, area_name: str) -> str:
+        """Convert area name to Hebrew for display in reports metadata."""
+        area_name_to_hebrew = {
+            "A": "א", "B": "ב", "C": "ג", "D": "ד",
+            "1": "א", "2": "ב", "3": "ג", "4": "ד",
+            "a": "א", "b": "ב", "c": "ג", "d": "ד"
+        }
+        return area_name_to_hebrew.get(str(area_name), area_name)
 
     def process_idf(self, input_file: str, idd_path: str, output_dir: str) -> bool:
         """
