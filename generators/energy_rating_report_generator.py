@@ -13,6 +13,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.colors import black, Color
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER
 from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name, encode_hebrew_text
+from utils.logo_utils import create_logo_image
 
 COLORS = {
     'primary_blue': Color(0.2, 0.4, 0.7),
@@ -908,6 +909,23 @@ class EnergyRatingReportGenerator:
                 alignment=TA_RIGHT
             )
             now = datetime.datetime.now()
+            # Add logo if available
+            logo_image = create_logo_image(max_width=3*cm, max_height=1.5*cm)
+            if logo_image:
+                # Create a table to position logo on the left
+                logo_table_data = [[logo_image, ""]]
+                logo_table = Table(logo_table_data, colWidths=[4*cm, doc.width - 4*cm])
+                logo_table.setStyle(TableStyle([
+                    ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                    ('TOPPADDING', (0, 0), (-1, -1), 0),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+                ]))
+                story.append(logo_table)
+                story.append(Spacer(1, 10))
+            
             header_text = safe_format_header_text(
                 project_name=self.project_name,
                 run_id=self.run_id,
@@ -1001,17 +1019,46 @@ class EnergyRatingReportGenerator:
         """Create Section 1: Professional Hebrew header with project information"""
         elements = []
         
-        # Clean professional title without border
-        title_style = ParagraphStyle(
-            'HebrewTitle',
-            parent=self.styles['h1'],
-            fontSize=20,
-            fontName=hebrew_font,
-            textColor=COLORS['primary_blue'],
-            alignment=TA_CENTER,
-            spaceAfter=0.3*cm
-        )
-        elements.append(Paragraph(encode_hebrew_text("דוח דירוג אנרגטי"), title_style))
+        # Add logo at the top left if available
+        logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
+        if logo_image:
+            # Create title and logo in the same row
+            title_style = ParagraphStyle(
+                'HebrewTitle',
+                parent=self.styles['h1'],
+                fontSize=20,
+                fontName=hebrew_font,
+                textColor=COLORS['primary_blue'],
+                alignment=TA_CENTER,
+                spaceAfter=0.3*cm
+            )
+            title_para = Paragraph(encode_hebrew_text("דוח דירוג אנרגטי"), title_style)
+            
+            # Create table with logo and title
+            header_table_data = [[logo_image, title_para]]
+            header_table = Table(header_table_data, colWidths=[4*cm, 15*cm])
+            header_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+                ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ('TOPPADDING', (0, 0), (-1, -1), 0),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ]))
+            elements.append(header_table)
+        else:
+            # Fallback: title without logo
+            title_style = ParagraphStyle(
+                'HebrewTitle',
+                parent=self.styles['h1'],
+                fontSize=20,
+                fontName=hebrew_font,
+                textColor=COLORS['primary_blue'],
+                alignment=TA_CENTER,
+                spaceAfter=0.3*cm
+            )
+            elements.append(Paragraph(encode_hebrew_text("דוח דירוג אנרגטי"), title_style))
         
         # Professional subtitle
         subtitle_style = ParagraphStyle(

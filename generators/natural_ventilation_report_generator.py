@@ -10,6 +10,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib.enums import TA_CENTER
 from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
+from utils.logo_utils import create_logo_image
 import logging
 import os
 import re
@@ -236,9 +237,26 @@ def generate_natural_ventilation_report(ventilation_data: Dict[str, List[Dict[st
         
         # Create header info style - matching load_report_generator.py
         hebrew_font = get_hebrew_font_name()
-        header_info_style = ParagraphStyle('HeaderInfo', parent=styles['Normal'], 
-                                         fontSize=9, fontName=hebrew_font, 
+        header_info_style = ParagraphStyle('HeaderInfo', parent=styles['Normal'],
+                                         fontSize=9, fontName=hebrew_font,
                                          textColor=COLORS['dark_gray'], alignment=2)
+        
+        # Add logo if available
+        logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
+        if logo_image:
+            # Create a table to position logo on the left
+            logo_table_data = [[logo_image, ""]]
+            logo_table = Table(logo_table_data, colWidths=[5*cm, content_width - 5*cm])
+            logo_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ('TOPPADDING', (0, 0), (-1, -1), 0),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ]))
+            story.append(logo_table)
+            story.append(Spacer(1, 10))
         
         # Add header - matching load_report_generator.py format
         now = datetime.now()

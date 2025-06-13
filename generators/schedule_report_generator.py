@@ -9,6 +9,7 @@ import datetime
 import logging
 from pathlib import Path
 from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
+from utils.logo_utils import create_logo_image
 
 COLORS = {
     'primary_blue': Color(0.2, 0.4, 0.7),
@@ -222,9 +223,20 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
             area_name=area_name,
             report_title="Unique Schedule Definitions"
         )
+        
+        # Add logo if available
+        logo_image = create_logo_image(max_width=3*cm, max_height=1.5*cm)
+        if logo_image:
+            # Position logo at top left
+            logo_width, logo_height = logo_image.drawWidth, logo_image.drawHeight
+            logo_x = margin_x
+            logo_y = height - margin_y - logo_height
+            logo_image.drawOn(c, logo_x, logo_y)
+            current_y -= (logo_height + 0.3*cm)
+        
         p_header = Paragraph(header_text, header_info_style)
         header_width_actual, header_height = p_header.wrapOn(c, content_width, margin_y)
-        p_header.drawOn(c, width - margin_x - header_width_actual, height - margin_y - header_height)
+        p_header.drawOn(c, width - margin_x - header_width_actual, current_y - header_height)
         current_y -= (header_height + 0.2*cm)
 
         title_text = "IDF Unique Schedule Definitions"

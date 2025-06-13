@@ -13,6 +13,7 @@ import logging
 from typing import Dict, List, Any
 from pathlib import Path
 from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
+from utils.logo_utils import create_logo_image
 
 COLORS = {
     'primary_blue': Color(0.2, 0.4, 0.7),
@@ -195,6 +196,23 @@ class LightingReportGenerator:
             doc = SimpleDocTemplate(str(self._output_path), pagesize=page_size,
                                     leftMargin=left_margin, rightMargin=right_margin,
                                     topMargin=top_margin, bottomMargin=bottom_margin)
+
+            # Add logo if available
+            logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
+            if logo_image:
+                # Create a table to position logo on the left
+                logo_table_data = [[logo_image, ""]]
+                logo_table = Table(logo_table_data, colWidths=[5*cm, doc.width - 5*cm])
+                logo_table.setStyle(TableStyle([
+                    ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                    ('TOPPADDING', (0, 0), (-1, -1), 0),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+                ]))
+                self._story.append(logo_table)
+                self._story.append(Spacer(1, 10))
 
             # Add consistent header metadata structure like other reports
             now = datetime.datetime.now()

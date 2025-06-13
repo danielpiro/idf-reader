@@ -11,6 +11,7 @@ import datetime
 import logging
 from pathlib import Path
 from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
+from utils.logo_utils import create_logo_image
 
 COLORS = {
     'primary_blue': Color(0.2, 0.4, 0.7),
@@ -346,12 +347,30 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
             area_name=area_name,
             report_title="Building Elements Materials Properties"
         )
-        story = [
+        # Add logo if available
+        logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
+        story = []
+        if logo_image:
+            # Create a table to position logo on the left
+            logo_table_data = [[logo_image, ""]]
+            logo_table = Table(logo_table_data, colWidths=[5*cm, content_width - 5*cm])
+            logo_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ('TOPPADDING', (0, 0), (-1, -1), 0),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ]))
+            story.append(logo_table)
+            story.append(Spacer(1, 10))
+        
+        story.extend([
             Paragraph(header_text, header_info_style),
             Spacer(1, 5),
             Paragraph("Building Elements Materials Properties Report", title_style),
             Spacer(1, 0.5 * cm)
-        ]
+        ])
         col_widths = [
             content_width * 0.09, content_width * 0.12, content_width * 0.14, content_width * 0.06,
             content_width * 0.07, content_width * 0.07, content_width * 0.07, content_width * 0.08,

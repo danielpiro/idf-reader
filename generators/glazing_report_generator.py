@@ -8,6 +8,7 @@ from reportlab.lib.colors import Color
 import datetime
 import pandas as pd
 from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
+from utils.logo_utils import create_logo_image
 
 COLORS = {
     'primary_blue': Color(0.2, 0.4, 0.7),
@@ -109,6 +110,24 @@ class GlazingReportGenerator:
                                     leftMargin=1.5*cm, rightMargin=1.5*cm,
                                     topMargin=1.5*cm, bottomMargin=1.5*cm)
             story = []
+            
+            # Add logo if available
+            logo_image = create_logo_image(max_width=3*cm, max_height=1.5*cm)
+            if logo_image:
+                # Create a table to position logo on the left
+                logo_table_data = [[logo_image, ""]]
+                logo_table = Table(logo_table_data, colWidths=[4*cm, doc.width - 4*cm])
+                logo_table.setStyle(TableStyle([
+                    ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                    ('TOPPADDING', (0, 0), (-1, -1), 0),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+                ]))
+                story.append(logo_table)
+                story.append(Spacer(1, 10))
+            
             now = datetime.datetime.now()
             hebrew_font = get_hebrew_font_name()
             header_info_style = ParagraphStyle(

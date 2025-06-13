@@ -18,6 +18,7 @@ from utils.path_utils import (
     create_safe_output_dir_for_energyplus, move_simulation_files_back,
     normalize_path_for_energyplus
 )
+from utils.logo_utils import get_gui_logo_path
 
 def fix_hebrew_text_display(text):
     """
@@ -53,6 +54,17 @@ class IDFProcessorGUI(ctk.CTk):
         self.title("🏗️ IDF Report Generator")
         self.geometry("1400x800")
         self.minsize(1200, 700)
+        
+        # Set window icon
+        try:
+            logo_path = get_gui_logo_path()
+            if logo_path and os.path.exists(logo_path):
+                self.iconbitmap(logo_path)
+                logger.info(f"Window icon set using: {logo_path}")
+            else:
+                logger.info("No logo icon file found, using default window icon")
+        except Exception as e:
+            logger.warning(f"Could not set window icon: {e}")
 
         self.primary_color = "#1f2937"
         self.secondary_color = "#374151"
