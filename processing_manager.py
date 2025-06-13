@@ -12,6 +12,7 @@ from generators.materials_report_generator import generate_materials_report_pdf
 from generators.glazing_report_generator import generate_glazing_report_pdf
 from generators.lighting_report_generator import LightingReportGenerator
 from generators.area_loss_report_generator import generate_area_loss_report_pdf
+from generators.natural_ventilation_report_generator import generate_natural_ventilation_report
 from parsers.area_loss_parser import AreaLossParser
 from generators.energy_rating_report_generator import EnergyRatingReportGenerator
 from parsers.energy_rating_parser import EnergyRatingParser
@@ -99,6 +100,7 @@ class ProcessingManager:
             "lighting": os.path.join(base_output, "lighting.pdf"),
             "area_loss": os.path.join(base_output, "area-loss.pdf"),
             "energy_rating": os.path.join(base_output, "energy-rating.pdf"),
+            "natural_ventilation": os.path.join(base_output, "natural-ventilation.pdf"),
             "zones_dir": os.path.join(base_output, "zones")
         }
         for path_key, path_value in paths.items():
@@ -249,14 +251,15 @@ class ProcessingManager:
                               energy_rating_parser_instance: 'EnergyRatingParser',
                               base_output_dir_for_reports: str,
                               iso_type_selection: str,
-                              city_area_name_selection: str
+                              city_area_name_selection: str,
+                              data_loader: 'DataLoader'  # Add data_loader parameter
                               ) -> None:
         """
         Generates all PDF reports.
         """
         self.update_status("Generating reports...")
         progress_step = 0.7 # Initial progress after parsing
-        num_reports = 8 # Number of main report generation steps
+        num_reports = 9 # Updated number of main report generation steps
         progress_increment = (1.0 - progress_step) / num_reports
 
         city_name_hebrew = self.city_info.get('city', 'N/A') if hasattr(self, 'city_info') and self.city_info else 'N/A'
@@ -325,6 +328,12 @@ class ProcessingManager:
         
         # Area Loss
         self._generate_report_item("Area Loss", generate_area_loss_report_pdf, extracted_data["area_loss"], report_paths["area_loss"], project_name, run_id, city_name_hebrew, area_name_for_reports)
+        progress_step += progress_increment; self.update_progress(progress_step)
+        if self.is_cancelled: return
+
+        # Natural Ventilation
+        ventilation_data = data_loader.get_natural_ventilation_data()
+        self._generate_report_item("Natural Ventilation", generate_natural_ventilation_report, ventilation_data, report_paths["natural_ventilation"], project_name, run_id, city_name_hebrew, area_name_for_reports)
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
@@ -467,7 +476,8 @@ class ProcessingManager:
                 parsers["energy_rating"], # Pass the EnergyRatingParser instance
                 base_reports_dir,
                 iso_type_selection=current_iso_type,
-                city_area_name_selection=current_city_area_name
+                city_area_name_selection=current_city_area_name,
+                data_loader=data_loader  # Pass data_loader to _generate_all_reports
             )
 
             if self.is_cancelled:

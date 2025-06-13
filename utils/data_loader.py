@@ -594,6 +594,7 @@ class DataLoader:
         self._cache_ventilation_loads()
 
     def _cache_ventilation_loads(self) -> None:
+        """Cache raw ventilation data from ZoneVentilation:DesignFlowRate objects."""
         self._ventilation_cache.clear()
         if 'ZONEVENTILATION:DESIGNFLOWRATE' in self._idf.idfobjects:
             for vent in self._idf.idfobjects['ZONEVENTILATION:DESIGNFLOWRATE']:
@@ -605,8 +606,15 @@ class DataLoader:
                     self._ventilation_cache[zone_name] = []
 
                 self._ventilation_cache[zone_name].append({
-                    'air_changes_per_hour': safe_float(getattr(vent, "Delta_Temperature", 0.0)),
-                    'schedule': str(getattr(vent, "Schedule_Name", "")),
+                    'schedule_name': str(getattr(vent, "Schedule_Name", "")),
+                    'design_flow_rate': safe_float(getattr(vent, "Design_Flow_Rate", 0.0)),
+                    'ventilation_type': str(getattr(vent, "Ventilation_Type", "")),
+                    'min_indoor_temp': safe_float(getattr(vent, "Minimum_Indoor_Temperature", 0.0)),
+                    'max_indoor_temp': safe_float(getattr(vent, "Maximum_Indoor_Temperature", 0.0)),
+                    'max_temp_difference': safe_float(getattr(vent, "Delta_Temperature", 0.0)),
+                    'min_outdoor_temp': safe_float(getattr(vent, "Minimum_Outdoor_Temperature", 0.0)),
+                    'max_outdoor_temp': safe_float(getattr(vent, "Maximum_Outdoor_Temperature", 0.0)),
+                    'max_wind_speed': safe_float(getattr(vent, "Maximum_Wind_Speed", 0.0)),
                     'raw_object': vent
                 })
 
@@ -931,3 +939,7 @@ class DataLoader:
             ('heating' in schedule_name_lower or 'cooling' in schedule_name_lower) and
             'setpoint' not in schedule_type_lower
         )
+
+    def get_natural_ventilation_data(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Get cached natural ventilation data from ZoneVentilation:DesignFlowRate objects"""
+        return self._ventilation_cache

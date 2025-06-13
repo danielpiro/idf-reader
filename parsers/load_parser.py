@@ -108,7 +108,7 @@ class LoadExtractor:
                     ach = (design_flow_rate * 3600) / zone_volume
                     zone_load_data["rate_ach"] += ach
                 if zone_load_data["schedule"] is None:
-                    zone_load_data["schedule"] = load['schedule']
+                    zone_load_data["schedule"] = load.get('schedule_name', '')
 
     def _process_mechanical_ventilation_loads(self) -> None:
         if not self.data_loader:
