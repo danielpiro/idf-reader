@@ -5,6 +5,11 @@ Includes support for Hebrew/Unicode characters in file paths.
 """
 from typing import Dict, Optional, List, Any
 from pathlib import Path
+from utils.eppy_handler import EppyHandler
+from utils.path_utils import (
+    get_data_file_path, contains_non_ascii,
+    create_safe_path_for_energyplus
+)
 import os
 import sys
 import re
@@ -97,11 +102,7 @@ def get_energy_consumption(iso_type_input: str, area_location_input: str, area_d
         return float(value_str)
     except ValueError:
         raise ValueError(f"Invalid data format in CSV. Cannot convert '{value_str}' to float for location '{area_location_input}', definition '{area_definition_input.upper()}' in {file_path}")
-from utils.eppy_handler import EppyHandler
-from utils.path_utils import (
-    get_data_file_path, contains_non_ascii,
-    create_safe_path_for_energyplus
-)
+
 
 logger = logging.getLogger(__name__)
 
