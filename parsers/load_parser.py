@@ -2,7 +2,7 @@
 Extracts and processes zone loads and their associated schedules using cached data from DataLoader.
 """
 from typing import Dict, Any, Optional
-from utils.data_loader import DataLoader
+from utils.data_loader import DataLoader, safe_float
 
 class LoadExtractor:
     """
@@ -96,12 +96,17 @@ class LoadExtractor:
 
     def _process_ventilation_loads(self) -> None:
         ventilation_loads = self.data_loader.get_ventilation_loads()
+        zones = self.data_loader.get_zones()
         for zone_name, loads in ventilation_loads.items():
             if zone_name not in self.loads_by_zone:
                 continue
             zone_load_data = self.loads_by_zone[zone_name]["loads"]["ventilation"]
+            zone_volume = zones[zone_name]['volume']
             for load in loads:
-                zone_load_data["rate_ach"] += load['air_changes_per_hour']
+                design_flow_rate = safe_float(getattr(load['raw_object'], "Design_Flow_Rate", 0.0))
+                if zone_volume > 0:
+                    ach = (design_flow_rate * 3600) / zone_volume
+                    zone_load_data["rate_ach"] += ach
                 if zone_load_data["schedule"] is None:
                     zone_load_data["schedule"] = load['schedule']
 

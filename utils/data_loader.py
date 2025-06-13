@@ -591,6 +591,9 @@ class DataLoader:
                 'raw_object': infil
             })
 
+        self._cache_ventilation_loads()
+
+    def _cache_ventilation_loads(self) -> None:
         self._ventilation_cache.clear()
         if 'ZONEVENTILATION:DESIGNFLOWRATE' in self._idf.idfobjects:
             for vent in self._idf.idfobjects['ZONEVENTILATION:DESIGNFLOWRATE']:
