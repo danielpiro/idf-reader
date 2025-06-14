@@ -130,8 +130,8 @@ def safe_format_header_text(project_name, run_id, timestamp, city_name, area_nam
     return f"""
     Project: {html.escape(str(project_name), quote=False)}<br/>
     Run ID: {html.escape(str(run_id), quote=False)}<br/>
-    Version: {html.escape(str(version), quote=False)}<br/>
     Date: {timestamp}<br/>
+    Version: {html.escape(str(version), quote=False)}<br/>
     City: {safe_city_name}<br/>
     Area: {safe_area_name}<br/>
     """
