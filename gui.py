@@ -51,7 +51,7 @@ class IDFProcessorGUI(ctk.CTk):
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
 
-        self.title("🏗️ IDF Report Generator")
+        self.title("IDF Report Generator")
         self.geometry("1400x800")
         self.minsize(1200, 700)
         
@@ -197,7 +197,7 @@ class IDFProcessorGUI(ctk.CTk):
         header_frame.grid(row=0, column=0, sticky="ew")
         header_frame.grid_columnconfigure(0, weight=1)
         header_frame.grid_propagate(False)
-        ctk.CTkLabel(header_frame, text="🏗️ IDF Report Generator", font=ctk.CTkFont(size=32, weight="bold"), text_color=self.text_color).pack(pady=(10,0))
+        ctk.CTkLabel(header_frame, text="IDF Report Generator", font=ctk.CTkFont(size=32, weight="bold"), text_color=self.text_color).pack(pady=(10,0))
         ctk.CTkLabel(header_frame, text="Professional Building Energy Analysis & Reporting Suite", font=ctk.CTkFont(size=14), text_color=("#94a3b8", "#cbd5e1")).pack(pady=(0,10))
         return header_frame
 
@@ -483,9 +483,22 @@ class IDFProcessorGUI(ctk.CTk):
         section = ctk.CTkFrame(parent, corner_radius=15)
         section.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(section, text="📊 Processing Status", font=ctk.CTkFont(size=18, weight="bold"), anchor="w").grid(row=0, column=0, padx=20, pady=(20,10), sticky="w")
-        self.progress_bar = ctk.CTkProgressBar(section, height=20, corner_radius=10, progress_color=self.success_color, fg_color=("#e5e7eb", "#374151"))
-        self.progress_bar.set(0)
-        self.progress_bar.grid(row=1, column=0, padx=20, pady=(0,15), sticky="ew")
+        
+        # EnergyPlus simulation progress
+        ctk.CTkLabel(section, text="⚡ EnergyPlus Simulation", font=ctk.CTkFont(size=14, weight="bold"), anchor="w").grid(row=1, column=0, padx=20, pady=(5,5), sticky="w")
+        self.energyplus_progress_bar = ctk.CTkProgressBar(section, height=20, corner_radius=10, progress_color=self.accent_color, fg_color=("#e5e7eb", "#374151"))
+        self.energyplus_progress_bar.set(0)
+        self.energyplus_progress_bar.grid(row=2, column=0, padx=20, pady=(0,10), sticky="ew")
+        
+        # IDF parsing and report generation progress
+        ctk.CTkLabel(section, text="📋 IDF Processing & Reports", font=ctk.CTkFont(size=14, weight="bold"), anchor="w").grid(row=3, column=0, padx=20, pady=(5,5), sticky="w")
+        self.reports_progress_bar = ctk.CTkProgressBar(section, height=20, corner_radius=10, progress_color=self.success_color, fg_color=("#e5e7eb", "#374151"))
+        self.reports_progress_bar.set(0)
+        self.reports_progress_bar.grid(row=4, column=0, padx=20, pady=(0,15), sticky="ew")
+        
+        # Keep backward compatibility with old progress_bar reference
+        self.progress_bar = self.reports_progress_bar
+        
         return section
 
     def _create_log_section(self, parent) -> ctk.CTkFrame:
@@ -760,7 +773,7 @@ class IDFProcessorGUI(ctk.CTk):
 
     def _run_energyplus_simulation(self, energyplus_exe: str, epw_file_path: str, simulation_output_dir: str, idf_path: str) -> str | None:
         self.show_status("Starting EnergyPlus simulation...")
-        self.progress_bar.configure(mode='indeterminate'); self.progress_bar.start()
+        self.energyplus_progress_bar.configure(mode='indeterminate'); self.energyplus_progress_bar.start()
         self.update_idletasks()
 
         output_csv_path = os.path.join(simulation_output_dir, "eplustbl.csv")
@@ -821,6 +834,7 @@ class IDFProcessorGUI(ctk.CTk):
                         else:
                             self.show_status("Warning: Some issues occurred while moving simulation files back.", "warning")
                     
+                    self.energyplus_progress_bar.set(1.0)  # Set to 100% when successful
                     self.show_status(f"EnergyPlus simulation successful. Output: {output_csv_path}")
                 else:
                     self.show_status(f"Warning: Simulation output file {temp_output_csv_path} is very small or empty.", "warning")
@@ -862,7 +876,7 @@ class IDFProcessorGUI(ctk.CTk):
                 except OSError as e:
                     logger.warning(f"Could not remove temporary output directory {safe_output_dir}: {e}")
             
-            self.progress_bar.stop(); self.progress_bar.configure(mode='determinate'); self.progress_bar.set(0)
+            self.energyplus_progress_bar.stop(); self.energyplus_progress_bar.configure(mode='determinate'); self.energyplus_progress_bar.set(0)
             self.update_idletasks()
         return output_csv_path if simulation_successful else None
 
@@ -889,7 +903,7 @@ class IDFProcessorGUI(ctk.CTk):
             # 3. Initialize ProcessingManager
             self.processing_manager = ProcessingManager(
                 status_callback=self.show_status,
-                progress_callback=lambda p: self.progress_bar.set(p),
+                progress_callback=lambda p: self.reports_progress_bar.set(p),
                 simulation_output_csv=simulation_output_csv # Pass it, can be None
             )
             # Pass city_info (including iso_type) to ProcessingManager
@@ -897,6 +911,8 @@ class IDFProcessorGUI(ctk.CTk):
 
 
             # 4. Process IDF and Generate Reports
+            self.show_status("Starting IDF processing and report generation...")
+            self.reports_progress_bar.set(0)  # Reset reports progress bar
             success = self.processing_manager.process_idf(
                 user_inputs["input_file"],
                 user_inputs["idd_path"],
@@ -926,7 +942,8 @@ class IDFProcessorGUI(ctk.CTk):
         self.is_processing = False
         self.process_button.configure(state="normal", text="🚀 Generate Reports")
         self.cancel_button.configure(state="disabled")
-        self.progress_bar.set(0)
+        self.energyplus_progress_bar.set(0)
+        self.reports_progress_bar.set(0)
         if self.processing_manager:
             self.processing_manager.is_cancelled = False # Reset for next run
         self.check_inputs_complete() # Re-evaluate button state
