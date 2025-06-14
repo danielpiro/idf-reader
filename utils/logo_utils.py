@@ -25,7 +25,7 @@ def get_logo_path(logo_type='jpg'):
         if logo_type.lower() == 'ico':
             return get_data_file_path('logo.ico')
         else:
-            return get_data_file_path('logo.jpg')
+            return get_data_file_path('logo.png')
     except FileNotFoundError:
         logger.warning(f"Logo file (logo.{logo_type}) not found in data directory")
         return None

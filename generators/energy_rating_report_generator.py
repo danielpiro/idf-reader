@@ -262,8 +262,27 @@ def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_tot
 
 def _calculate_total_energy_rating(raw_table_data, model_year, model_area_definition):
     """
-    Calculate the total energy rating.
-    Formula: sum(for each area | zone area * zone multiplier * area score) / sum(for all areas zone area)
+    Calculate the total energy rating using weighted area-based scoring.
+    
+    FINAL EQUATION:
+    
+    Final_Score = round(Σ(Area_i × Multiplier_i × Score_i) / Σ(Area_i × Multiplier_i))
+    
+    Where:
+    - Area_i = zone area for group i (m²)
+    - Multiplier_i = zone multiplier for group i (capped at 1.0 if >10 to prevent calculation errors)
+    - Score_i = individual area score (-1 to 5) based on improvement percentage vs. reference consumption
+    - Σ = summation over all area groups
+    
+    Score_i calculation:
+    improvement_% = 100 × (reference_consumption - actual_consumption) / reference_consumption
+    Score_i = threshold_lookup(improvement_%, model_year, climate_zone)
+    
+    Special cases:
+    - Small areas (≤70 m²): reference_consumption × 1.18 (18% bonus)
+    - 2023 models: Final_Score capped by lowest individual Score_i if any Score_i ≤ 0
+    - Final bounds: -1 ≤ Final_Score ≤ 5
+    
     Returns a tuple containing (numeric_score, letter_grade)
     """
 
@@ -298,7 +317,7 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
                                                                   safe_float(row.get('heating', 0.0))
         grouped_data[group_key]['sum_total_area'] += zone_area
         grouped_data[group_key]['area_effective_for_numerator'] += zone_area * zone_multiplier
-        grouped_data[group_key]['raw_zone_area_sum_for_denominator'] += zone_area
+        grouped_data[group_key]['raw_zone_area_sum_for_denominator'] += zone_area * zone_multiplier
 
     for group_key, data_item in grouped_data.items():
         score = _get_numeric_area_score_for_group(
@@ -1035,6 +1054,77 @@ class EnergyRatingReportGenerator:
             logger.error(error_message, exc_info=True)
             raise RuntimeError(error_message)
 
+    def _get_raw_average_for_display(self, raw_table_data):
+        """Calculate and return the raw average for display purposes"""
+        try:
+            if not raw_table_data:
+                return None
+            
+            # Group the data (simplified version of the main calculation)
+            grouped_data = {}
+            for row in raw_table_data:
+                group_key = (str(row.get('floor_id_report', 'N/A')), str(row.get('area_id_report', 'N/A')))
+                if group_key not in grouped_data:
+                    grouped_data[group_key] = {
+                        'sum_energy_components': 0.0,
+                        'sum_total_area': 0.0,
+                        'model_csv_area_description': row.get('model_csv_area_description'),
+                        'area_effective_for_numerator': 0.0,
+                        'raw_zone_area_sum_for_denominator': 0.0,
+                        'calculated_score': None
+                    }
+
+                zone_area = safe_float(row.get('total_area', 0))
+                zone_multiplier = safe_float(row.get('multiplier', 1))
+
+                # For 2023, exclude lighting from energy calculations
+                if self.model_year == 2023:
+                    grouped_data[group_key]['sum_energy_components'] += safe_float(row.get('cooling', 0.0)) + \
+                                                                          safe_float(row.get('heating', 0.0))
+                else:
+                    grouped_data[group_key]['sum_energy_components'] += safe_float(row.get('lighting', 0.0)) + \
+                                                                          safe_float(row.get('cooling', 0.0)) + \
+                                                                          safe_float(row.get('heating', 0.0))
+                grouped_data[group_key]['sum_total_area'] += zone_area
+                grouped_data[group_key]['area_effective_for_numerator'] += zone_area * zone_multiplier
+                grouped_data[group_key]['raw_zone_area_sum_for_denominator'] += zone_area * zone_multiplier
+
+            # Calculate scores for each group
+            for group_key, data_item in grouped_data.items():
+                score = _get_numeric_area_score_for_group(
+                    group_sum_energy_components=data_item['sum_energy_components'],
+                    group_sum_total_area=data_item['sum_total_area'],
+                    group_model_csv_area_desc=data_item['model_csv_area_description'],
+                    model_year=self.model_year,
+                    model_area_definition=self.model_area_definition
+                )
+                data_item['calculated_score'] = score
+
+            # Calculate the raw average
+            weighted_score_sum_numerator = 0.0
+            total_raw_area_sum_denominator = 0.0
+
+            for group_key, data_item in grouped_data.items():
+                if data_item['calculated_score'] is not None:
+                    group_score = safe_float(data_item['calculated_score'])
+                    group_effective_area = data_item['area_effective_for_numerator']
+                    group_raw_area_for_denom = data_item['raw_zone_area_sum_for_denominator']
+
+                    # Validate that group_score is within valid range (-1 to 5)
+                    if group_score < -1 or group_score > 5:
+                        group_score = 0
+
+                    term_numerator = group_effective_area * group_score
+                    weighted_score_sum_numerator += term_numerator
+                    total_raw_area_sum_denominator += group_raw_area_for_denom
+
+            if total_raw_area_sum_denominator > 0:
+                return weighted_score_sum_numerator / total_raw_area_sum_denominator
+            return None
+        except Exception as e:
+            logger.error(f"Error calculating raw average for display: {e}")
+            return None
+
     def _create_hebrew_header_section(self, settings_extractor, hebrew_font, total_score=None, letter_grade=None):
         """Create Section 1: Professional Hebrew header with project information"""
         elements = []
@@ -1111,9 +1201,15 @@ class EnergyRatingReportGenerator:
         # Professional project information with RTL field:value order (value:field for Hebrew)
         iso_value = f"{self.model_year}" if self.model_year else "לא זמין"
         
-        # Format calculation result
+        # Format calculation result - need to get the raw_average from the calculation
         if total_score is not None and letter_grade and letter_grade != "N/A":
-            calc_result = f"{total_score:.2f} ({letter_grade})"
+            # Get the raw_average by recalculating just for display purposes
+            raw_table_data = self.energy_rating_parser.get_energy_rating_table_data()
+            raw_average = self._get_raw_average_for_display(raw_table_data)
+            if raw_average is not None:
+                calc_result = f"{raw_average:.3f}"
+            else:
+                calc_result = f"{total_score:.2f} ({letter_grade})"
         else:
             calc_result = "לא זמין"
             
