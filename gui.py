@@ -687,9 +687,14 @@ class IDFProcessorGUI(ctk.CTk):
         if not user_inputs: # Should be caught by validate_inputs, but as a safeguard
             self.reset_gui_state(); return
 
-        # Create simulation output directory within the reports directory
-        reports_dir = os.path.join(user_inputs["output_dir"], "reports")
+        # Generate a single run_id that will be used by both simulation and reports
+        run_id = datetime.now().strftime('%Y%m%d_%H%M%S')
+        reports_dir = os.path.join(user_inputs["output_dir"], f"reports_{run_id}")
         simulation_dir = os.path.join(reports_dir, "simulation")
+        
+        # Store run_id in user_inputs so ProcessingManager can use the same one
+        user_inputs["run_id"] = run_id
+        
         try:
             os.makedirs(simulation_dir, exist_ok=True)
             self.show_status(f"Simulation output will be in: {simulation_dir}")
@@ -697,7 +702,7 @@ class IDFProcessorGUI(ctk.CTk):
             self.show_status(f"Error creating simulation directory '{simulation_dir}': {e.strerror}", "error")
             self.reset_gui_state(); return
 
-        self.process_thread = threading.Thread(target=self.process_file_thread_target, args=(user_inputs, simulation_dir))
+        self.process_thread = threading.Thread(target=self.process_file_thread_target, args=(user_inputs, simulation_dir, reports_dir))
         self.process_thread.start()
 
     def _get_user_inputs_for_processing(self) -> dict | None:
@@ -880,9 +885,10 @@ class IDFProcessorGUI(ctk.CTk):
             self.update_idletasks()
         return output_csv_path if simulation_successful else None
 
-    def process_file_thread_target(self, user_inputs: dict, simulation_dir: str):
+    def process_file_thread_target(self, user_inputs: dict, simulation_dir: str, reports_dir: str):
         """Target for the processing thread."""
         try:
+            
             # 1. Determine EPW file
             epw_file = self._determine_epw_file_path(user_inputs["city_info"], user_inputs["city_info"]["iso_type"])
             if not epw_file:
@@ -916,16 +922,20 @@ class IDFProcessorGUI(ctk.CTk):
             success = self.processing_manager.process_idf(
                 user_inputs["input_file"],
                 user_inputs["idd_path"],
-                user_inputs["output_dir"] # Reports go to main output dir
+                user_inputs["output_dir"], # Reports go to main output dir
+                user_inputs["run_id"] # Pass the same run_id used for simulation
             )
             if success:
                 self.show_status("All reports generated successfully!", "success")
                 # Optionally open the output directory
                 try:
-                    if os.name == 'nt': # Windows
-                        os.startfile(os.path.join(user_inputs["output_dir"], "reports"))
-                    elif os.name == 'posix': # macOS, Linux
-                        subprocess.run(['open', os.path.join(user_inputs["output_dir"], "reports")], check=False)
+                    if reports_dir and os.path.exists(reports_dir):
+                        if os.name == 'nt': # Windows
+                            os.startfile(reports_dir)
+                        elif os.name == 'posix': # macOS, Linux
+                            subprocess.run(['open', reports_dir], check=False)
+                    else:
+                        logger.warning(f"Reports directory not found or not accessible: {reports_dir}")
                 except Exception as e_open:
                     logger.warning(f"Could not open output directory: {e_open}")
             else:

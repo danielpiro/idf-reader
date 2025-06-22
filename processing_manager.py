@@ -80,17 +80,25 @@ class ProcessingManager:
             logger.error(error_message)
             raise OSError(error_message)
 
-    def _setup_output_paths(self, output_dir: str) -> dict:
+    def _setup_output_paths(self, output_dir: str, run_id: str = None) -> dict:
         """
         Sets up and returns a dictionary of output paths for reports.
+        Creates a unique reports folder for each run to prevent overriding.
 
         Args:
             output_dir: The base directory for output.
+            run_id: Unique identifier for this run (timestamp-based).
 
         Returns:
             A dictionary mapping report names to their full output paths.
         """
-        base_output = os.path.join(output_dir, "reports")
+        if run_id:
+            base_output = os.path.join(output_dir, f"reports_{run_id}")
+        else:
+            # Fallback to timestamped folder if no run_id provided
+            from datetime import datetime
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            base_output = os.path.join(output_dir, f"reports_{timestamp}")
         paths = {
             "settings": os.path.join(base_output, "settings.pdf"),
             "schedules": os.path.join(base_output, "schedules.pdf"),
@@ -419,19 +427,26 @@ class ProcessingManager:
         }
         return area_name_to_hebrew.get(str(area_name), area_name)
 
-    def process_idf(self, input_file: str, idd_path: str, output_dir: str) -> bool:
+    def process_idf(self, input_file: str, idd_path: str, output_dir: str, run_id: str = None) -> bool:
         """
         Main method to process an IDF file and generate all reports.
+        
+        Args:
+            input_file: Path to the IDF file
+            idd_path: Path to the IDD file
+            output_dir: Base output directory
+            run_id: Optional pre-generated run ID. If None, will generate one.
         """
         try:
             project_name = Path(input_file).stem
-            run_id = datetime.now().strftime('%Y%m%d_%H%M%S')
+            if run_id is None:
+                run_id = datetime.now().strftime('%Y%m%d_%H%M%S')
 
             self.update_progress(0.0)
             self.update_status("Initializing...")
 
-            report_paths = self._setup_output_paths(output_dir)
-            base_reports_dir = os.path.join(output_dir, "reports") # Used by EnergyRatingGenerator
+            report_paths = self._setup_output_paths(output_dir, run_id)
+            base_reports_dir = os.path.join(output_dir, f"reports_{run_id}") # Used by EnergyRatingGenerator
 
             if self.is_cancelled: return False
             self.update_progress(0.1)
