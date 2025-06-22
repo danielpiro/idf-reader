@@ -93,12 +93,12 @@ class ProcessingManager:
             A dictionary mapping report names to their full output paths.
         """
         if run_id:
-            base_output = os.path.join(output_dir, f"reports_{run_id}")
+            base_output = os.path.join(output_dir, f"reports-{run_id}")
         else:
             # Fallback to timestamped folder if no run_id provided
             from datetime import datetime
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            base_output = os.path.join(output_dir, f"reports_{timestamp}")
+            timestamp = datetime.now().strftime('%d-%m-%Y-%H-%M-%S')
+            base_output = os.path.join(output_dir, f"reports-{timestamp}")
         paths = {
             "settings": os.path.join(base_output, "settings.pdf"),
             "schedules": os.path.join(base_output, "schedules.pdf"),
@@ -440,13 +440,13 @@ class ProcessingManager:
         try:
             project_name = Path(input_file).stem
             if run_id is None:
-                run_id = datetime.now().strftime('%Y%m%d_%H%M%S')
+                run_id = datetime.now().strftime('%d-%m-%Y-%H-%M-%S')
 
             self.update_progress(0.0)
             self.update_status("Initializing...")
 
             report_paths = self._setup_output_paths(output_dir, run_id)
-            base_reports_dir = os.path.join(output_dir, f"reports_{run_id}") # Used by EnergyRatingGenerator
+            base_reports_dir = os.path.join(output_dir, f"reports-{run_id}") # Used by EnergyRatingGenerator
 
             if self.is_cancelled: return False
             self.update_progress(0.1)

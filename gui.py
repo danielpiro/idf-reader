@@ -688,8 +688,8 @@ class IDFProcessorGUI(ctk.CTk):
             self.reset_gui_state(); return
 
         # Generate a single run_id that will be used by both simulation and reports
-        run_id = datetime.now().strftime('%Y%m%d_%H%M%S')
-        reports_dir = os.path.join(user_inputs["output_dir"], f"reports_{run_id}")
+        run_id = datetime.now().strftime('%d-%m-%Y-%H-%M-%S')
+        reports_dir = os.path.join(user_inputs["output_dir"], f"reports-{run_id}")
         simulation_dir = os.path.join(reports_dir, "simulation")
         
         # Store run_id in user_inputs so ProcessingManager can use the same one
