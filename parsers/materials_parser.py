@@ -38,7 +38,11 @@ class MaterialsParser:
                     solar_absorptance=raw_material_data.get('solar_absorptance', 0.0)
                 )
             construction_cache = self.data_loader.get_constructions()
-            for construction_id, raw_construction_data in construction_cache.items():
+            
+            # Filter constructions to handle reversed logic
+            filtered_constructions = self._filter_reversed_constructions(construction_cache)
+            
+            for construction_id, raw_construction_data in filtered_constructions.items():
                 material_layers = raw_construction_data['material_layers']
                 total_thickness = sum(self.materials[layer_id].thickness for layer_id in material_layers if layer_id in self.materials)
                 self.constructions[construction_id] = ConstructionData(
@@ -51,6 +55,79 @@ class MaterialsParser:
         except Exception as e:
             raise RuntimeError(f"Error processing materials and constructions: {e}")
 
+    def _filter_reversed_constructions(self, construction_cache: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+        """
+        Filter constructions to handle reversed construction logic:
+        - Never show constructions with _rev suffix (regardless of whether non-reversed version exists)
+        - For _Reversed suffix: only show if no non-reversed version exists
+        
+        Args:
+            construction_cache: Dictionary of all constructions from DataLoader
+            
+        Returns:
+            Dict[str, Dict[str, Any]]: Filtered construction cache
+        """
+        filtered = {}
+        
+        # First, identify all regular and reversed constructions
+        regular_constructions = {}
+        capital_reversed_constructions = {}  # Only for _Reversed suffix
+        
+        for construction_id, construction_data in construction_cache.items():
+            construction_lower = construction_id.lower()
+            
+            # Skip all constructions with _rev suffix (never show them)
+            if construction_lower.endswith('_rev'):
+                continue
+            elif construction_lower.endswith('_reversed'):
+                # Handle _Reversed suffix with the original logic
+                base_name = self._get_base_construction_name(construction_id)
+                capital_reversed_constructions[base_name] = (construction_id, construction_data)
+            else:
+                # Regular construction
+                regular_constructions[construction_id] = (construction_id, construction_data)
+        
+        # Add regular constructions
+        for construction_id, (orig_id, construction_data) in regular_constructions.items():
+            filtered[orig_id] = construction_data
+        
+        # Add _Reversed constructions only if no regular version exists
+        for base_name, (reversed_id, construction_data) in capital_reversed_constructions.items():
+            if base_name not in regular_constructions:
+                filtered[reversed_id] = construction_data
+        
+        return filtered
+
+    def _get_base_construction_name(self, construction_id: str) -> str:
+        """
+        Get the base construction name by removing reversed suffix.
+        
+        Args:
+            construction_id: The construction ID that may have a reversed suffix
+            
+        Returns:
+            str: The base construction name without reversed suffix
+        """
+        construction_lower = construction_id.lower()
+        if construction_lower.endswith('_reversed'):
+            return construction_id[:-9]  # Remove '_Reversed'
+        elif construction_lower.endswith('_rev'):
+            return construction_id[:-4]   # Remove '_rev'
+        return construction_id
+
+    def _is_reversed_construction(self, construction_id: str) -> bool:
+        """
+        Check if the construction ID indicates a reversed construction.
+
+        Args:
+            construction_id: The construction ID to check.
+
+        Returns:
+            bool: True if the construction is reversed, False otherwise.
+        """
+        construction_lower = construction_id.lower()
+        return construction_lower.endswith(('_rev', '_reversed'))
+
     def _process_element_data(self) -> None:
         """
         Process element data for report generation.
@@ -59,8 +136,7 @@ class MaterialsParser:
         surfaces = self.data_loader.get_surfaces()
         low_conductivity_found = {}
         for construction_id, construction_data in self.constructions.items():
-            if self._is_reversed_construction(construction_id):
-                continue
+            # Note: Reversed constructions are already filtered out during process_idf
             element_types, dont_use = self._get_element_type(construction_id, surfaces)
             if dont_use or not element_types:
                 continue
@@ -93,18 +169,6 @@ class MaterialsParser:
                         "surface_type": s_type,
                         "boundary_condition": boundary
                     })
-
-    def _is_reversed_construction(self, construction_id: str) -> bool:
-        """
-        Check if the construction ID indicates a reversed construction.
-
-        Args:
-            construction_id: The construction ID to check.
-
-        Returns:
-            bool: True if the construction is reversed, False otherwise.
-        """
-        return construction_id.lower().endswith(('_rev', '_reversed'))
 
     def _get_surface_type_and_boundary(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]]):
         """
@@ -229,8 +293,10 @@ class MaterialsParser:
 
         element_type = element_type.lower()
 
-        if element_type in ["ground wall", "internal wall", "ground floor", "ground ceiling", "intermediate ceiling"]:
+        if element_type in ["internal wall", "ground floor", "ground ceiling", "intermediate ceiling" ,"intermediate floor"]:
             return 0.0
+        if element_type == "ground wall":
+            return 0.1
         if element_type == "external wall":
             return 0.17
         elif element_type == "separation wall":
@@ -239,8 +305,6 @@ class MaterialsParser:
             return 0.21
         elif element_type == "separation floor":
             return 0.34
-        elif element_type == "external ceiling":
-            return 0.14
         elif element_type == "separation ceiling":
             return 0.2
         else:
@@ -276,6 +340,7 @@ class MaterialsParser:
     def calculate_construction_mass_per_area(self, construction_id: str) -> float:
         """
         Calculate the total mass per square meter for a given construction.
+        Applies the same low conductivity reduction logic as the manual calculation.
 
         Args:
             construction_id: The ID of the construction.
@@ -286,12 +351,23 @@ class MaterialsParser:
         construction = self.constructions.get(construction_id)
         if not construction:
             return 0.0
+        
         total_mass_per_area = 0.0
+        found_low_conductivity = False
+        
         for layer_id in construction.material_layers:
             material = self.materials.get(layer_id)
             if material:
                 layer_mass = material.density * material.thickness
+                
+                # Apply the same low conductivity logic as in the manual calculation
+                if not found_low_conductivity:
+                    if material.conductivity < 0.2 and material.conductivity != 0:
+                        layer_mass /= 2
+                        found_low_conductivity = True
+                
                 total_mass_per_area += layer_mass
+        
         return total_mass_per_area
 
     def calculate_construction_properties(self, construction_id: str) -> Dict[str, float]:
@@ -332,8 +408,7 @@ class MaterialsParser:
         """
         u_values = {}
         for construction_id, construction_data in self.constructions.items():
-            if self._is_reversed_construction(construction_id):
-                continue
+            # Note: Reversed constructions are already filtered out during process_idf
             material_layers = construction_data.material_layers
             total_resistance = 0.0
             for layer_id in material_layers:

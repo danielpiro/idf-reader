@@ -53,3 +53,18 @@ class MaterialData:
     specific_heat: float
     thickness: float
     solar_absorptance: float
+
+@dataclass
+class IdealLoadsData:
+    """Container for ZoneHVAC:IdealLoadsAirSystem data"""
+    id: str
+    name: str
+    zone_name: str
+    max_heating_supply_air_temperature: float
+    min_cooling_supply_air_temperature: float
+    max_heating_supply_air_humidity_ratio: float
+    min_cooling_supply_air_humidity_ratio: float
+    heating_limit: str
+    cooling_limit: str
+    dehumidification_control_type: str
+    humidification_control_type: str

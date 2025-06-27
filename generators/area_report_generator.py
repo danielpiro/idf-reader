@@ -590,23 +590,7 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
 
             if largest_ext_wall_construction and materials_parser:
                 try:
-                    construction_data = materials_parser.constructions.get(largest_ext_wall_construction)
-                    if construction_data:
-                        calculated_mass_per_area = 0.0
-                        found_low_conductivity = False
-                        for layer_id in construction_data.material_layers:
-                            material_data = materials_parser.materials.get(layer_id)
-                            if material_data:
-                                layer_mass = material_data.density * material_data.thickness
-                                if not found_low_conductivity:
-                                    if material_data.conductivity < 0.2 and material_data.conductivity != 0:
-                                        layer_mass /= 2
-                                        found_low_conductivity = True
-                                calculated_mass_per_area += layer_mass
-                        wall_mass_per_area = calculated_mass_per_area
-                    else:
-                        logger.warning(f"Construction data not found for '{largest_ext_wall_construction}' in materials parser")
-
+                    wall_mass_per_area = materials_parser.calculate_construction_mass_per_area(largest_ext_wall_construction)
                 except Exception as e_mass:
                     logger.warning(f"Error calculating wall mass for area '{area_id}', construction '{largest_ext_wall_construction}': {e_mass}", exc_info=True)
             elif largest_ext_wall_construction:
@@ -764,7 +748,7 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
 
             if largest_ext_wall_construction and materials_parser:
                 try:
-                    wall_mass_per_area = materials_parser.get_construction_mass_per_area(largest_ext_wall_construction)
+                    wall_mass_per_area = materials_parser.calculate_construction_mass_per_area(largest_ext_wall_construction)
                 except Exception as e_mass:
                     logger.warning(f"Error calculating mass per area for construction '{largest_ext_wall_construction}' in base zone '{base_zone_id}': {e_mass}")
                     wall_mass_per_area = 0.0

@@ -92,6 +92,121 @@ def _make_table(data, col_widths, style):
     table.setStyle(style)
     return table
 
+def _process_category(category_name, settings, story, category_style, header_style, 
+                     key_cell_style, value_cell_style, doc):
+    """Process a single category and add it to the story"""
+    
+    # Special handling for DesignBuilder category
+    if category_name == 'designbuilder':
+        if settings and any(settings.values()):
+            story.append(Paragraph("DesignBuilder Metadata", category_style))
+            
+            db_param_map = {
+                'version': "DesignBuilder Version",
+                'date': "File Generation Date", 
+                'time': "File Generation Time",
+                'geometry_convention': "Geometry Convention",
+                'zone_geometry_surface_areas': "Zone Geometry Surface Areas",
+                'zone_volume_calculation': "Zone Volume Calculation",
+                'zone_floor_area_calculation': "Zone Floor Area Calculation",
+                'window_wall_ratio': "Window to Wall Ratio Method"
+            }
+            
+            table_data = [
+                [Paragraph('Parameter', header_style), Paragraph('Value', header_style)]
+            ]
+            
+            for key, display_name in db_param_map.items():
+                value = settings.get(key)
+                if value not in (None, ''):
+                    table_data.append([
+                        Paragraph(display_name, key_cell_style),
+                        Paragraph(str(value), value_cell_style)
+                    ])
+            
+            if len(table_data) > 1:
+                col_widths = [doc.width * 0.30, doc.width * 0.70]
+                table_style = _get_standard_table_style()
+                story.append(_make_table(table_data, col_widths, table_style))
+                story.append(Spacer(1, 0.8*cm))
+        # If no DesignBuilder metadata found, skip the section entirely
+        return
+    
+    # Standard category processing with improved display names
+    category_display_names = {
+        'version': 'Version Information',
+        'location': 'Site Location',
+        'algorithms': 'Calculation Algorithms',
+        'simulation': 'Simulation Parameters',
+        'site': 'Site Properties'
+    }
+    
+    display_category = category_display_names.get(category_name, category_name.replace('_', ' ').title())
+    story.append(Paragraph(display_category, category_style))
+    
+    table_data = [
+        [Paragraph('Setting', header_style), Paragraph('Value', header_style)]
+    ]
+    
+    # Improved key display names for algorithms
+    algorithm_key_names = {
+        'surface_convection_inside': 'Surface Convection Algorithm (Inside)',
+        'surface_convection_outside': 'Surface Convection Algorithm (Outside)', 
+        'heat_balance': 'Heat Balance Algorithm'
+    }
+    
+    for key, value in settings.items():
+        if category_name == 'algorithms' and key in algorithm_key_names:
+            display_key = algorithm_key_names[key]
+        else:
+            display_key = key.replace('_', ' ').title()
+        
+        if isinstance(value, dict):
+            formatted_value = format_dict_value(value)
+            value_para = Paragraph(formatted_value, value_cell_style)
+        elif value is None:
+            value_para = Paragraph("Not specified", value_cell_style)
+        else:
+            value_para = Paragraph(str(value), value_cell_style)
+        
+        key_para = Paragraph(display_key, key_cell_style)
+        table_data.append([key_para, value_para])
+    
+    col_widths = [doc.width * 0.30, doc.width * 0.70]
+    table_style = _get_standard_table_style()
+    story.append(_make_table(table_data, col_widths, table_style))
+    story.append(Spacer(1, 0.8*cm))
+
+def _get_standard_table_style():
+    """Get the standard table style for settings tables"""
+    return TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
+        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
+        ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+        ('TOPPADDING', (0, 0), (-1, 0), 6),
+
+        ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
+        ('FONTSIZE', (0, 1), (-1, -1), FONT_SIZES['table_body']),
+        ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
+        ('VALIGN', (0, 1), (-1, -1), 'TOP'),
+        ('ALIGN', (0, 1), (0, -1), 'LEFT'),
+        ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
+
+        ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
+        ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
+
+        ('LEFTPADDING', (0, 1), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 1), (-1, -1), 6),
+        ('TOPPADDING', (0, 1), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+    ])
+
 def generate_settings_report_pdf(settings_data, output_filename="output/settings.pdf",
                                  project_name: str = "N/A", run_id: str = "N/A",
                                  city_name: str = "N/A", area_name: str = "N/A"):
@@ -224,123 +339,30 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
             spaceAfter=0.3*cm
         )
 
-        if 'designbuilder' in settings_data:
-            designbuilder_data = settings_data.pop('designbuilder')
-            if designbuilder_data and any(designbuilder_data.values()):
-                story.append(Paragraph("DesignBuilder Metadata", category_style))
-
-                db_table_data = [
-                    [Paragraph('Parameter', header_style), Paragraph('Value', header_style)]
-                ]
-                db_param_map = {
-                    'version': "DesignBuilder Version",
-                    'date': "File Generation Date",
-                    'time': "File Generation Time",
-                    'geometry_convention': "Geometry Convention",
-                    'zone_geometry_surface_areas': "Zone Geometry Surface Areas",
-                    'zone_volume_calculation': "Zone Volume Calculation",
-                    'zone_floor_area_calculation': "Zone Floor Area Calculation",
-                    'window_wall_ratio': "Window to Wall Ratio Method"
-                }
-
-                for key, display_name in db_param_map.items():
-                    value = designbuilder_data.get(key)
-                    if value not in (None, ''):
-                        db_table_data.append([
-                            Paragraph(display_name, key_cell_style),
-                            Paragraph(str(value), value_cell_style)
-                        ])
-
-                if len(db_table_data) > 1:
-                    db_col_widths = [doc.width * 0.30, doc.width * 0.70]
-                    db_table_style = TableStyle([
-                        ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-                        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
-                        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                        ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
-                        ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
-                        ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),
-                        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-                        ('TOPPADDING', (0, 0), (-1, 0), 6),
-
-                        ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
-                        ('FONTSIZE', (0, 1), (-1, -1), FONT_SIZES['table_body']),
-                        ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
-                        ('VALIGN', (0, 1), (-1, -1), 'TOP'),
-                        ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
-
-                        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
-
-                        ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
-                        ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
-
-                        ('LEFTPADDING', (0, 1), (-1, -1), 6),
-                        ('RIGHTPADDING', (0, 1), (-1, -1), 6),
-                        ('TOPPADDING', (0, 1), (-1, -1), 4),
-                        ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
-                    ])
-                    story.append(_make_table(db_table_data, db_col_widths, db_table_style))
-                    story.append(Spacer(1, 0.8*cm))
-                else:
-                     story.append(Paragraph("No DesignBuilder metadata found.", value_cell_style))
-                     story.append(Spacer(1, 0.8*cm))
-            else:
-                story.append(Paragraph("No DesignBuilder metadata found.", value_cell_style))
-                story.append(Spacer(1, 0.8*cm))
-
+        # Define the order in which categories should appear
+        category_order = [
+            'designbuilder',
+            'version', 
+            'location',
+            'algorithms',
+            'simulation',
+            'site'
+        ]
+        
+        # Process categories in the defined order
+        processed_categories = set()
+        
+        for category_name in category_order:
+            if category_name in settings_data:
+                _process_category(category_name, settings_data[category_name], story, 
+                                category_style, header_style, key_cell_style, value_cell_style, doc)
+                processed_categories.add(category_name)
+        
+        # Process any remaining categories not in the order list
         for category_name, settings in settings_data.items():
-            display_category = category_name.replace('_', ' ').title()
-            story.append(Paragraph(display_category, category_style))
-            table_data = [
-                [Paragraph('Setting', header_style), Paragraph('Value', header_style)]
-            ]
-
-            for key, value in settings.items():
-                display_key = key.replace('_', ' ').title()
-
-                if isinstance(value, dict):
-                    formatted_value = format_dict_value(value)
-                    value_para = Paragraph(formatted_value, value_cell_style)
-                elif value is None:
-                    value_para = Paragraph("Not specified", value_cell_style)
-                else:
-                    value_para = Paragraph(str(value), value_cell_style)
-
-                key_para = Paragraph(display_key, key_cell_style)
-                table_data.append([key_para, value_para])
-
-            col_widths = [doc.width * 0.30, doc.width * 0.70]
-
-            style = TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-                ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
-                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
-                ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
-                ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-                ('TOPPADDING', (0, 0), (-1, 0), 6),
-
-                ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
-                ('FONTSIZE', (0, 1), (-1, -1), FONT_SIZES['table_body']),
-                ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
-                ('VALIGN', (0, 1), (-1, -1), 'TOP'),
-                ('ALIGN', (0, 1), (0, -1), 'LEFT'),
-                ('ALIGN', (1, 1), (1, -1), 'LEFT'),
-
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
-
-                ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
-                ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
-
-                ('LEFTPADDING', (0, 1), (-1, -1), 6),
-                ('RIGHTPADDING', (0, 1), (-1, -1), 6),
-                ('TOPPADDING', (0, 1), (-1, -1), 4),
-                ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
-            ])
-
-            story.append(_make_table(table_data, col_widths, style))
-            story.append(Spacer(1, 0.8*cm))
+            if category_name not in processed_categories:
+                _process_category(category_name, settings, story, 
+                                category_style, header_style, key_cell_style, value_cell_style, doc)
 
         if not story:
             logger.warning("No content was added to the story for settings report. PDF will be empty or may fail.")

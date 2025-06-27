@@ -151,6 +151,7 @@ class DataLoader:
         self._frame_divider_cache = {}
         self._daylighting_controls_cache = {}
         self._daylighting_reference_point_cache = {}
+        self._ideal_loads_cache = {}
 
     def ensure_output_variables(self, idf_path: str = None, idd_path: Optional[str] = None) -> bool:
         """Ensure required output variables exist in the IDF file before running the simulation.
@@ -234,6 +235,7 @@ class DataLoader:
             self._cache_frame_dividers()
             self._cache_daylighting()
             self._cache_outdoor_air_specifications()
+            self._cache_ideal_loads()
             
             logger.info(f"Successfully loaded IDF file: {idf_path}")
 
@@ -734,6 +736,45 @@ class DataLoader:
                     'raw_object': spec
                 }
 
+    def _cache_ideal_loads(self) -> None:
+        """Cache ZoneHVAC:IdealLoadsAirSystem data linked to zones."""
+        if not self._idf:
+            return
+
+        self._ideal_loads_cache.clear()
+        if 'ZONEHVAC:IDEALLOADSAIRSYSTEM' in self._idf.idfobjects:
+            for ideal_load in self._idf.idfobjects['ZONEHVAC:IDEALLOADSAIRSYSTEM']:
+                ideal_load_name = str(getattr(ideal_load, "Name", ""))
+                if not ideal_load_name:
+                    continue
+
+                # Extract zone name from ideal load name
+                # Pattern: "00:01XLIVING Ideal Loads Air" -> "00:01XLIVING"
+                zone_name = ""
+                if "Ideal Loads Air" in ideal_load_name:
+                    zone_name = ideal_load_name.replace(" Ideal Loads Air", "").strip()
+                
+                if not zone_name:
+                    continue
+
+                if zone_name not in self._ideal_loads_cache:
+                    self._ideal_loads_cache[zone_name] = []
+
+                self._ideal_loads_cache[zone_name].append({
+                    'id': ideal_load_name,
+                    'name': ideal_load_name,
+                    'zone_name': zone_name,
+                    'max_heating_supply_air_temperature': safe_float(getattr(ideal_load, "Maximum_Heating_Supply_Air_Temperature", 0.0)),
+                    'min_cooling_supply_air_temperature': safe_float(getattr(ideal_load, "Minimum_Cooling_Supply_Air_Temperature", 0.0)),
+                    'max_heating_supply_air_humidity_ratio': safe_float(getattr(ideal_load, "Maximum_Heating_Supply_Air_Humidity_Ratio", 0.0)),
+                    'min_cooling_supply_air_humidity_ratio': safe_float(getattr(ideal_load, "Minimum_Cooling_Supply_Air_Humidity_Ratio", 0.0)),
+                    'heating_limit': str(getattr(ideal_load, "Heating_Limit", "")),
+                    'cooling_limit': str(getattr(ideal_load, "Cooling_Limit", "")),
+                    'dehumidification_control_type': str(getattr(ideal_load, "Dehumidification_Control_Type", "")),
+                    'humidification_control_type': str(getattr(ideal_load, "Humidification_Control_Type", "")),
+                    'raw_object': ideal_load
+                })
+
     def _get_idfobjects(self, key: str) -> list:
         """Helper to safely get IDF objects by key, returns empty list if not found."""
         return self._idf.idfobjects.get(key, []) if self._idf and hasattr(self._idf, 'idfobjects') else []
@@ -852,6 +893,12 @@ class DataLoader:
         if zone_name:
             return {zone_name: self._ventilation_cache.get(zone_name, [])} if zone_name in self._ventilation_cache else {}
         return self._ventilation_cache
+
+    def get_ideal_loads(self, zone_name: Optional[str] = None) -> Dict[str, List[Dict[str, Any]]]:
+        """Get cached ideal loads air systems, optionally filtered by zone"""
+        if zone_name:
+            return {zone_name: self._ideal_loads_cache.get(zone_name, [])} if zone_name in self._ideal_loads_cache else {}
+        return self._ideal_loads_cache
 
     def get_windows(self) -> Dict[str, Dict[str, Any]]:
         """Get cached window data"""

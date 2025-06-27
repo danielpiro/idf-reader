@@ -49,6 +49,11 @@ class SettingsExtractor:
                 'ground_reflectance': {},
                 'ground_reflectance_snow_modifier': {}
             },
+            'algorithms': {
+                'surface_convection_inside': None,
+                'surface_convection_outside': None,
+                'heat_balance': None
+            },
             'simulation': {
                 'north': None,
                 'time_step': None,
@@ -197,6 +202,15 @@ class SettingsExtractor:
                 'Polygon_Clipping_Algorithm': ('simulation', 'shadow_calculation', 'polygon_clipping_algorithm'),
                 'Pixel_Counting_Resolution': ('simulation', 'shadow_calculation', 'pixel_counting_resolution'),
                 'Sky_Diffuse_Modeling_Algorithm': ('simulation', 'shadow_calculation', 'sky_diffuse_modeling_algorithm')
+            },
+            'SURFACECONVECTIONALGORITHM:INSIDE': {
+                'Algorithm': ('algorithms', 'surface_convection_inside')
+            },
+            'SURFACECONVECTIONALGORITHM:OUTSIDE': {
+                'Algorithm': ('algorithms', 'surface_convection_outside')
+            },
+            'HEATBALANCEALGORITHM': {
+                'Algorithm': ('algorithms', 'heat_balance')
             }
         }
 
@@ -317,6 +331,19 @@ class SettingsExtractor:
             if 'SHADOWCALCULATION' in idf.idfobjects:
                 for obj in idf.idfobjects['SHADOWCALCULATION']:
                     self.process_eppy_object('SHADOWCALCULATION', obj)
+
+            # Process algorithm settings
+            if 'SURFACECONVECTIONALGORITHM:INSIDE' in idf.idfobjects:
+                for obj in idf.idfobjects['SURFACECONVECTIONALGORITHM:INSIDE']:
+                    self.process_eppy_object('SURFACECONVECTIONALGORITHM:INSIDE', obj)
+
+            if 'SURFACECONVECTIONALGORITHM:OUTSIDE' in idf.idfobjects:
+                for obj in idf.idfobjects['SURFACECONVECTIONALGORITHM:OUTSIDE']:
+                    self.process_eppy_object('SURFACECONVECTIONALGORITHM:OUTSIDE', obj)
+
+            if 'HEATBALANCEALGORITHM' in idf.idfobjects:
+                for obj in idf.idfobjects['HEATBALANCEALGORITHM']:
+                    self.process_eppy_object('HEATBALANCEALGORITHM', obj)
 
         except Exception as e:
             pass
