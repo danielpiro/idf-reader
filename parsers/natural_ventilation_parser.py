@@ -2,7 +2,7 @@
 Extracts and processes natural ventilation data from ZoneVentilation:DesignFlowRate objects.
 """
 from typing import Dict, Any, Optional
-from utils.data_loader import DataLoader, safe_float
+from utils.data_loader import DataLoader
 
 class NaturalVentilationExtractor:
     """

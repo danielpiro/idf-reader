@@ -5,7 +5,7 @@ from reportlab.lib.pagesizes import landscape, A3
 from reportlab.lib.units import cm
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import Paragraph, Table, TableStyle, SimpleDocTemplate, Spacer
-from reportlab.lib.colors import black, lightgrey, Color
+from reportlab.lib.colors import lightgrey, Color
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import datetime
 import logging

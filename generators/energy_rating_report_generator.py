@@ -1006,7 +1006,7 @@ class EnergyRatingReportGenerator:
         except Exception as e:
             raise RuntimeError(f"Error generating energy rating report: {e}")
 
-    def generate_total_energy_rating_report(self, output_filename="total_energy_rating.pdf", settings_extractor=None):
+    def generate_total_energy_rating_report(self, output_filename="total-energy-rating.pdf", settings_extractor=None):
         """
         Generate Hebrew RTL total energy rating report with three sections:
         1. Header with project info
@@ -1129,46 +1129,34 @@ class EnergyRatingReportGenerator:
         """Create Section 1: Professional Hebrew header with project information"""
         elements = []
         
-        # Add logo at the top left if available
+        # Add logo at the top left if available (matching materials_report_generator pattern)
         logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
         if logo_image:
-            # Create title and logo in the same row
-            title_style = ParagraphStyle(
-                'HebrewTitle',
-                parent=self.styles['h1'],
-                fontSize=20,
-                fontName=hebrew_font,
-                textColor=COLORS['primary_blue'],
-                alignment=TA_CENTER,
-                spaceAfter=0.3*cm
-            )
-            title_para = Paragraph(encode_hebrew_text("דוח דירוג אנרגטי"), title_style)
-            
-            # Create table with logo and title
-            header_table_data = [[logo_image, title_para]]
-            header_table = Table(header_table_data, colWidths=[4*cm, 15*cm])
-            header_table.setStyle(TableStyle([
+            # Create a table to position logo on the left
+            logo_table_data = [[logo_image, ""]]
+            logo_table = Table(logo_table_data, colWidths=[5*cm, 14*cm])
+            logo_table.setStyle(TableStyle([
                 ('ALIGN', (0, 0), (0, 0), 'LEFT'),
-                ('ALIGN', (1, 0), (1, 0), 'CENTER'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                 ('LEFTPADDING', (0, 0), (-1, -1), 0),
                 ('RIGHTPADDING', (0, 0), (-1, -1), 0),
                 ('TOPPADDING', (0, 0), (-1, -1), 0),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
             ]))
-            elements.append(header_table)
-        else:
-            # Fallback: title without logo
-            title_style = ParagraphStyle(
-                'HebrewTitle',
-                parent=self.styles['h1'],
-                fontSize=20,
-                fontName=hebrew_font,
-                textColor=COLORS['primary_blue'],
-                alignment=TA_CENTER,
-                spaceAfter=0.3*cm
-            )
-            elements.append(Paragraph(encode_hebrew_text("דוח דירוג אנרגטי"), title_style))
+            elements.append(logo_table)
+            elements.append(Spacer(1, 10))
+        
+        # Add title separately below logo (centered)
+        title_style = ParagraphStyle(
+            'HebrewTitle',
+            parent=self.styles['h1'],
+            fontSize=20,
+            fontName=hebrew_font,
+            textColor=COLORS['primary_blue'],
+            alignment=TA_CENTER,
+            spaceAfter=0.3*cm
+        )
+        elements.append(Paragraph(encode_hebrew_text("דוח דירוג אנרגטי"), title_style))
         
         # Professional subtitle
         subtitle_style = ParagraphStyle(

@@ -7,8 +7,6 @@ class SettingsExtractor:
     Extracts settings and simulation parameters from IDF files using a DataLoader instance.
     """
     def __init__(self, data_loader: DataLoader):
-        if not data_loader:
-            raise ValueError("DataLoader instance is required.")
         self.data_loader = data_loader
         self.extracted_settings = {}
         self.initialize_settings()

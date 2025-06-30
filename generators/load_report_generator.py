@@ -389,7 +389,6 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
     content_width = width - left_margin - right_margin
     styles = getSampleStyleSheet()
     cell_style = create_cell_style(styles)
-    centered_cell_style = create_cell_style(styles, center_align=True)
     header_cell_style = create_cell_style(styles, is_header=True)
     title_style = styles['h1']
     title_style.textColor = COLORS['primary_blue']

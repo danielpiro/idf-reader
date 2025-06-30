@@ -1,7 +1,6 @@
 """
 Generates reports for area-specific information extracted from IDF files.
 """
-from reportlab.lib import colors
 from reportlab.lib.colors import Color
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import landscape, A4

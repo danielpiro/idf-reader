@@ -95,50 +95,6 @@ def create_lighting_table_style(header_rows=1):
     ]
     return TableStyle(style)
 
-def _format_lighting_row(entry, headers, precisions):
-    row = []
-    for i, header in enumerate(headers):
-        val = entry.get(header.replace('\n', ' ').replace(' (lux)', '').replace(' %', '').replace('Fraction Controlled', 'Fraction of Zone Controlled').replace('Illuminance Setpoint', 'Illuminance Setpoint').replace('Min Input Power Fraction', 'Minimum Input Power Fraction').replace('Min Light Output Fraction', 'Minimum Light Output Fraction'), '-')
-        precision = precisions[i]
-        if header == "Lighting\nArea %":
-            try:
-                row.append(f"{float(val) * 100:.0f}%")
-            except (ValueError, TypeError):
-                row.append(str(val))
-        elif precision is not None:
-            try:
-                row.append(f"{float(val):.{precision}f}")
-            except (ValueError, TypeError):
-                row.append(str(val))
-        else:
-            row.append(str(val))
-    return row
-
-def _span_table(table_data, col_idx):
-    from reportlab.lib import colors
-    span_cmds = []
-    start_row = 1
-    while start_row < len(table_data):
-        current_val_obj = table_data[start_row][col_idx]
-        current_val = getattr(current_val_obj, 'text', str(current_val_obj))
-        count = 1
-        for i in range(start_row + 1, len(table_data)):
-            next_val_obj = table_data[i][col_idx]
-            next_val = getattr(next_val_obj, 'text', str(next_val_obj))
-            if next_val == current_val:
-                count += 1
-                if getattr(table_data[i][col_idx], 'text', '') != "":
-                    table_data[i][col_idx] = wrap_text("", table_data[i][col_idx].style)
-            else:
-                break
-        if count > 1:
-            span_cmds.append(('SPAN', (col_idx, start_row), (col_idx, start_row + count - 1)))
-            for r in range(start_row, start_row + count - 1):
-                span_cmds.append(('LINEBELOW', (col_idx, r), (col_idx, r), 0.5, colors.white))
-                span_cmds.append(('LINEABOVE', (col_idx, r + 1), (col_idx, r + 1), 0.5, colors.white))
-        start_row += count
-    return span_cmds
-
 class LightingReportGenerator:
     """Generates a PDF report for parsed Daylighting data."""
 
@@ -447,35 +403,3 @@ class LightingReportGenerator:
             return False
         finally:
             pass
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
-    dummy_data = {
-        "controls": [
-            {
-                "Zone": "01:02XLIVING", "Availability Schedule Name": "Always On", "Lighting Control Type": "ContinuousOff",
-                "Number of Stepped Control Steps": 1, "Daylighting Reference": "01:02XLIVING Ref Point 1",
-                "Fraction of Zone Controlled": 1.0, "Illuminance Setpoint": 300.0,
-                "Minimum Input Power Fraction": 0.1, "Minimum Light Output Fraction": 0.1
-            },
-        ],
-        "reference_points": [
-            {
-                "Zone": "01:02XLIVING", "X-Coordinate": 10.123, "Y-Coordinate": 5.456, "Z-Coordinate": 0.8,
-                "Daylighting Reference": "01:02XLIVING Ref Point 1", "Fraction of Zone Controlled": 1.0, "Illuminance Setpoint": 300.0,
-                "Minimum Input Power Fraction": 0.1, "Minimum Light Output Fraction": 0.1
-            },
-        ],
-        "exterior_lights": [
-            {"Name": "EXTERIOR LIGHTING", "Lighting SCHEDULE Name": "On 24/7", "Design Equipment Level (W)": 100.0},
-            {"Name": "GARAGE LIGHTS", "Lighting SCHEDULE Name": "Dusk to Dawn", "Design Equipment Level (W)": 75.5},
-        ],
-        "task_lights": [
-            {"Zone Name": "02:03XMAMAD", "Lighting SCHEDULE Name": "8:00 - 18:00 Mon - Sat"},
-            {"Zone Name": "02:03XMAMAD", "Lighting SCHEDULE Name": "Evening Study"},
-            {"Zone Name": "01:01XSTUDY", "Lighting SCHEDULE Name": "Always On Task"},
-        ]
-    }
-    generator = LightingReportGenerator(dummy_data, "lighting_report_styled.pdf",
-                                        project_name="Test Project", run_id="Run_12345")
-    generator.generate_report()

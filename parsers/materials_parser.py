@@ -115,18 +115,47 @@ class MaterialsParser:
             return construction_id[:-4]   # Remove '_rev'
         return construction_id
 
-    def _is_reversed_construction(self, construction_id: str) -> bool:
+    def _calculate_material_mass_with_low_conductivity_adjustment(self, material_data, element_type: str = None, construction_id: str = None, low_conductivity_found: Dict = None) -> float:
         """
-        Check if the construction ID indicates a reversed construction.
-
+        Calculate material mass with low conductivity adjustment logic.
+        
         Args:
-            construction_id: The construction ID to check.
-
+            material_data: Material data object
+            element_type: Element type (for external wall specific logic)
+            construction_id: Construction ID (for tracking)
+            low_conductivity_found: Dictionary to track low conductivity materials found
+            
         Returns:
-            bool: True if the construction is reversed, False otherwise.
+            float: Adjusted mass value
         """
-        construction_lower = construction_id.lower()
-        return construction_lower.endswith(('_rev', '_reversed'))
+        mass = material_data.density * material_data.thickness
+        
+        # Apply low conductivity adjustment
+        if material_data.conductivity < 0.2 and material_data.conductivity != 0:
+            # For element data processing: only apply to external walls and track by construction
+            if element_type and low_conductivity_found is not None:
+                if element_type.lower() == "external wall" and construction_id not in low_conductivity_found.get(element_type, set()):
+                    mass = mass / 2
+                    if element_type not in low_conductivity_found:
+                        low_conductivity_found[element_type] = set()
+                    low_conductivity_found[element_type].add(construction_id)
+            else:
+                # For mass calculation: apply to first low conductivity material found
+                mass = mass / 2
+                
+        return mass
+
+    def _calculate_thermal_resistance(self, material_data) -> float:
+        """
+        Calculate thermal resistance for a material.
+        
+        Args:
+            material_data: Material data object
+            
+        Returns:
+            float: Thermal resistance value
+        """
+        return material_data.thickness / material_data.conductivity if material_data.conductivity != 0 else 0.0
 
     def _process_element_data(self) -> None:
         """
@@ -145,15 +174,12 @@ class MaterialsParser:
                 material_data = self.materials.get(layer_id)
                 if not material_data:
                     continue
-                thermal_resistance = material_data.thickness / material_data.conductivity if material_data.conductivity != 0 else 0.0
+                thermal_resistance = self._calculate_thermal_resistance(material_data)
                 for element_type in element_types:
                     film_resistance = self._get_surface_film_resistance(element_type)
-                    mass = material_data.density * material_data.thickness
-                    if element_type not in low_conductivity_found:
-                        low_conductivity_found[element_type] = set()
-                    if (element_type.lower() == "external wall" and material_data.conductivity < 0.2 and construction_id not in low_conductivity_found[element_type]):
-                        mass = mass / 2
-                        low_conductivity_found[element_type].add(construction_id)
+                    mass = self._calculate_material_mass_with_low_conductivity_adjustment(
+                        material_data, element_type, construction_id, low_conductivity_found
+                    )
                     self.element_data.append({
                         "element_type": element_type,
                         "element_name": construction_id,
@@ -358,13 +384,12 @@ class MaterialsParser:
         for layer_id in construction.material_layers:
             material = self.materials.get(layer_id)
             if material:
-                layer_mass = material.density * material.thickness
-                
-                # Apply the same low conductivity logic as in the manual calculation
-                if not found_low_conductivity:
-                    if material.conductivity < 0.2 and material.conductivity != 0:
-                        layer_mass /= 2
-                        found_low_conductivity = True
+                # Use helper method but only apply low conductivity reduction to first occurrence
+                if not found_low_conductivity and material.conductivity < 0.2 and material.conductivity != 0:
+                    layer_mass = self._calculate_material_mass_with_low_conductivity_adjustment(material)
+                    found_low_conductivity = True
+                else:
+                    layer_mass = material.density * material.thickness
                 
                 total_mass_per_area += layer_mass
         
@@ -389,8 +414,8 @@ class MaterialsParser:
 
         for layer_id in construction.material_layers:
             material = self.materials.get(layer_id)
-            if material and material.conductivity > 0:
-                total_resistance += material.thickness / material.conductivity
+            if material:
+                total_resistance += self._calculate_thermal_resistance(material)
 
         conductivity = total_thickness / total_resistance if total_resistance > 0 else 0.0
 
@@ -413,8 +438,8 @@ class MaterialsParser:
             total_resistance = 0.0
             for layer_id in material_layers:
                 material_data = self.materials.get(layer_id)
-                if material_data and material_data.conductivity != 0:
-                    total_resistance += material_data.thickness / material_data.conductivity
+                if material_data:
+                    total_resistance += self._calculate_thermal_resistance(material_data)
             element_types, _ = self._get_element_type(construction_id, self.data_loader.get_surfaces())
             film_resistance = self._get_surface_film_resistance(element_types[0]) if element_types else 0.0
             r_value_with_film = total_resistance + film_resistance

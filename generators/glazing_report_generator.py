@@ -351,27 +351,3 @@ def generate_glazing_report_pdf(parsed_glazing_data, output_filename, project_na
     generator = GlazingReportGenerator(parsed_glazing_data, project_name=project_name, run_id=run_id, 
                                       city_name=city_name, area_name=area_name)
     return generator.generate_report_pdf(output_filename)
-
-if __name__ == '__main__':
-    mock_parsed_data = {
-        "Exterior Window Simple": {
-            'id': "Exterior Window Simple", 'name': "Exterior Window Simple", 'type': 'Simple',
-            'system_details': {'Name': "Exterior Window Simple", 'Type': 'Simple Glazing', 'Thickness': None, 'U-Value': 2.5, 'VT': 0.7, 'SHGC': 0.6},
-            'glazing_layers': [], 'shading_layers': []
-        },
-        "Exterior Window Detailed": {
-            'id': "Exterior Window Detailed", 'name': "Exterior Window Detailed", 'type': 'Detailed',
-            'system_details': {'Name': "Exterior Window Detailed", 'Type': 'Detailed Glazing', 'Thickness': 0.0187, 'U-Value': None, 'VT': None, 'SHGC': None},
-            'glazing_layers': [
-                {'Name': 'Glass Layer 1', 'Type': 'Glazing', 'Thickness': 0.003, 'Conductivity': 1.0, 'VT': 0.8, 'ST': 0.7},
-                {'Name': 'Air Gap', 'Type': 'Gas (Air)', 'Thickness': 0.0127, 'Conductivity': None, 'VT': None, 'ST': None},
-                {'Name': 'Glass Layer 2', 'Type': 'Glazing', 'Thickness': 0.003, 'Conductivity': 1.0, 'VT': 0.8, 'ST': 0.7}
-            ],
-            'shading_layers': [
-                 {'Name': 'Interior Shade Material', 'Thickness': 0.001, 'Conductivity': 0.1, 'Transmittance': 0.2, 'Reflectivity': 0.5, 'Position': 'Unknown'}
-            ]
-        }
-    }
-
-    output_pdf = "test_glazing_report.pdf"
-    generate_glazing_report_pdf(mock_parsed_data, output_pdf)

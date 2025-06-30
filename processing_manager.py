@@ -13,7 +13,9 @@ from generators.glazing_report_generator import generate_glazing_report_pdf
 from generators.lighting_report_generator import LightingReportGenerator
 from generators.area_loss_report_generator import generate_area_loss_report_pdf
 from generators.natural_ventilation_report_generator import generate_natural_ventilation_report
+from generators.automatic_error_detection_report_generator import generate_automatic_error_detection_report
 from parsers.area_loss_parser import AreaLossParser
+from parsers.automatic_error_detection_parser import AutomaticErrorDetectionParser
 from generators.energy_rating_report_generator import EnergyRatingReportGenerator
 from parsers.energy_rating_parser import EnergyRatingParser
 from parsers.schedule_parser import ScheduleExtractor
@@ -109,6 +111,7 @@ class ProcessingManager:
             "area_loss": os.path.join(base_output, "area-loss.pdf"),
             "energy_rating": os.path.join(base_output, "energy-rating.pdf"),
             "natural_ventilation": os.path.join(base_output, "natural-ventilation.pdf"),
+            "automatic_error_detection": os.path.join(base_output, "automatic-validation.pdf"),
             "zones_dir": os.path.join(base_output, "zones")
         }
         for path_key, path_value in paths.items():
@@ -166,7 +169,8 @@ class ProcessingManager:
             "area": area_parser_for_loss,
             "lighting": LightingParser(data_loader),
             "area_loss": AreaLossParser(area_parser_for_loss, city_area_name),
-            "energy_rating": EnergyRatingParser(data_loader, area_parser_for_loss)
+            "energy_rating": EnergyRatingParser(data_loader, area_parser_for_loss),
+            "automatic_error_detection": AutomaticErrorDetectionParser(data_loader)
         }
         return parsers
 
@@ -201,6 +205,16 @@ class ProcessingManager:
             self.update_status("Warning: No simulation output CSV provided for EnergyRatingParser. Results may be incomplete.")
             energy_rating_parser.process_output() # Or handle this case differently
 
+        self.update_status("Processing automatic validation data...")
+        try:
+            parsers["automatic_error_detection"].process_idf(idf)
+            self.update_status("✅ Automatic validation data processed successfully")
+        except Exception as e:
+            error_message = f"Failed processing automatic validation data: {type(e).__name__} - {str(e)}"
+            self.update_status(error_message)
+            logger.error(f"Exception in automatic error detection processing: {e}", exc_info=True)
+        if self.is_cancelled: return
+
     def _extract_data_from_parsers(self, parsers: dict) -> dict:
         """
         Extracts processed data from parsers.
@@ -214,6 +228,7 @@ class ProcessingManager:
             "glazing": parsers["glazing"].parsed_glazing_data,
             "lighting": parsers["lighting"].parse(), # Ensure this returns data
             "area_loss": parsers["area_loss"].parse(), # Ensure this returns data
+            "automatic_error_detection": parsers["automatic_error_detection"].get_error_detection_data(),
         }
 
     def _generate_report_item(self, report_name: str, generation_function,
@@ -238,9 +253,10 @@ class ProcessingManager:
                     self.update_status(f"Generator class {report_name} does not have a generate_report method.")
                     return False
             else:
-                generation_function(data, output_path, project_name=project_name, run_id=run_id,
+                result = generation_function(data, output_path, project_name=project_name, run_id=run_id,
                                  city_name=city_name, area_name=area_name, **kwargs)
-                success = True
+                # Capture the return value if it's a boolean, otherwise assume success
+                success = result if isinstance(result, bool) else True
 
             if success:
                 self.update_status(f"{report_name} report generated successfully at {output_path}")
@@ -267,7 +283,7 @@ class ProcessingManager:
         """
         self.update_status("Generating reports...")
         progress_step = 0.7 # Initial progress after parsing
-        num_reports = 9 # Updated number of main report generation steps
+        num_reports = 10 # Updated number of main report generation steps (added automatic error detection)
         progress_increment = (1.0 - progress_step) / num_reports
 
         city_name_hebrew = self.city_info.get('city', 'N/A') if hasattr(self, 'city_info') and self.city_info else 'N/A'
@@ -346,6 +362,11 @@ class ProcessingManager:
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
+        # Automatic Validation
+        self._generate_report_item("Automatic Validation", generate_automatic_error_detection_report, extracted_data["automatic_error_detection"], report_paths["automatic_error_detection"], project_name, run_id, city_name_hebrew, area_name_for_reports)
+        progress_step += progress_increment; self.update_progress(progress_step)
+        if self.is_cancelled: return
+
         # Energy Rating
         self.update_status("Generating Energy Rating report (PDF)...")
         try:
@@ -395,7 +416,7 @@ class ProcessingManager:
 
                 # Generate total energy rating report
                 try:
-                    total_rating_path = energy_rating_gen.generate_total_energy_rating_report(output_filename="total_energy_rating.pdf")
+                    total_rating_path = energy_rating_gen.generate_total_energy_rating_report(output_filename="total-energy-rating.pdf")
                     if total_rating_path:
                         self.update_status(f"Total Energy Rating report generated successfully at {total_rating_path}")
                     else:
