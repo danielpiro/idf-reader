@@ -230,7 +230,6 @@ def generate_new_feature_report_pdf(data: Dict[str, Any],
         # Add metadata
         metadata_text = f"""
         Project: {project_name}<br/>
-        Run ID: {run_id}<br/>
         City: {city_name}<br/>
         Climate Zone: {area_name}<br/>
         """

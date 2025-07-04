@@ -76,13 +76,14 @@ class MaterialsParser:
         for construction_id, construction_data in construction_cache.items():
             construction_lower = construction_id.lower()
             
-            # Skip all constructions with _rev suffix (never show them)
-            if construction_lower.endswith('_rev'):
-                continue
-            elif construction_lower.endswith('_reversed'):
+            # Check for _reversed suffix first (longer suffix takes precedence)
+            if construction_lower.endswith('_reversed'):
                 # Handle _Reversed suffix with the original logic
                 base_name = self._get_base_construction_name(construction_id)
                 capital_reversed_constructions[base_name] = (construction_id, construction_data)
+            # Skip all constructions with _rev suffix (never show them)
+            elif construction_lower.endswith('_rev'):
+                continue
             else:
                 # Regular construction
                 regular_constructions[construction_id] = (construction_id, construction_data)

@@ -151,13 +151,13 @@ def _area_table_data(merged_data):
     return sorted(merged_data, key=custom_area_sort_key)
 
 def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_area=0.0, project_name="N/A", run_id="N/A", 
-                            city_name="N/A", area_name="N/A", wall_mass_per_area=0.0, location="Unknown", areas_data=None):
+                            city_name="N/A", area_name="N/A", wall_mass_per_area=0.0, location="Unknown", areas_data=None, glazing_data=None):
     """
-    Generate a PDF report with area information, including a header.
+    Generate a PDF report with area information, including a header and separate glazing table.
 
     Args:
         area_id (str): The area ID for the report.
-        area_data (List[Dict[str, Any]]): List of area data rows for this area.
+        area_data (List[Dict[str, Any]]): List of area data rows for this area (excluding glazing).
         output_filename (str): Path where to save the PDF report.
         total_floor_area (float): The total floor area for this area.
         project_name (str): Name of the project.
@@ -165,6 +165,7 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         wall_mass_per_area (float): Mass per area (kg/m²) of the largest external wall's construction.
         location (str): The location type of the area (e.g., Ground Floor, Intermediate Floor).
         areas_data: AreaParser instance or dictionary of area information by zone.
+        glazing_data (List[Dict[str, Any]]): List of glazing data rows for this area.
 
     Returns:
         bool: True if report generation was successful, False otherwise.
@@ -319,100 +320,14 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         story.append(summary_table)
         story.append(Spacer(1, 15))
 
-        cell_style = ParagraphStyle(
-            'CellStyle',
-            parent=styles['Normal'],
-            fontSize=9,
-            leading=10,
-            spaceBefore=0,
-            spaceAfter=0
-        )
+        # Add main area table (excluding glazing)
+        if merged_data:
+            story.extend(_create_area_table(merged_data, "", doc.width))
+            story.append(Spacer(1, 15))
 
-        header_style = ParagraphStyle(
-            'HeaderStyle',
-            parent=styles['Heading4'],
-            fontSize=10,
-            alignment=1,
-            textColor=COLORS['white']
-        )
-
-        headers = [
-            Paragraph("Zone", header_style),
-            Paragraph("Construction", header_style),
-            Paragraph("Element type", header_style),
-            Paragraph("Area", header_style),
-            Paragraph("U-Value", header_style)
-        ]
-
-        table_data = [headers]
-
-        sorted_rows = _area_table_data(merged_data)
-
-        last_zone = None
-
-        for row in sorted_rows:
-            construction_text = _format_construction_name(row['construction'])
-
-            if row['zone'] != last_zone:
-                zone_cell = Paragraph(row['zone'], cell_style)
-                last_zone = row['zone']
-            else:
-                zone_cell = ""
-
-            construction_cell = Paragraph(construction_text, cell_style)
-
-            element_type = row.get('element_type', '')
-            element_type_cell = Paragraph(_clean_element_type(element_type), cell_style)
-
-            area_value = f"{row['area']:.2f}"
-            u_value_to_format = row.get('weighted_u_value', row.get('u_value', 0.0))
-            u_value = f"{u_value_to_format:.3f}"
-
-            table_data.append([
-                zone_cell,
-                construction_cell,
-                element_type_cell,
-                area_value,
-                u_value
-            ])
-
-        col_widths = [
-            5.0*cm,
-            8.0*cm,
-            3.5*cm,
-            2.7*cm,
-            3.0*cm
-        ]
-
-        area_table = Table(table_data, colWidths=col_widths, repeatRows=1)
-
-        table_style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-            ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
-            ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),
-            ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
-
-            ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
-            ('FONTSIZE', (0, 1), (-1, -1), FONT_SIZES['table_body']),
-            ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
-            ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
-
-            ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
-            ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
-
-            ('LEFTPADDING', (0, 0), (-1, -1), 6),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-            ('TOPPADDING', (0, 0), (-1, -1), 4),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ])
-
-        area_table.setStyle(table_style)
-        story.append(area_table)
+        # Add glazing table if glazing data exists
+        if glazing_data:
+            story.extend(_create_glazing_table(glazing_data, "", doc.width))
 
         doc.build(story)
         return True
@@ -426,6 +341,234 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         return False
     finally:
         pass
+
+def _create_area_table(merged_data, table_title, page_width):
+    """
+    Create the main area table for building elements (excluding glazing).
+    
+    Args:
+        merged_data: List of area data rows
+        table_title: Title for the table (unused now)
+        page_width: Available page width
+        
+    Returns:
+        List of reportlab elements
+    """
+    elements = []
+    styles = getSampleStyleSheet()
+
+    cell_style = ParagraphStyle(
+        'CellStyle',
+        parent=styles['Normal'],
+        fontSize=9,
+        leading=10,
+        spaceBefore=0,
+        spaceAfter=0
+    )
+
+    header_style = ParagraphStyle(
+        'HeaderStyle',
+        parent=styles['Heading4'],
+        fontSize=10,
+        alignment=1,
+        textColor=COLORS['white']
+    )
+
+    headers = [
+        Paragraph("Zone", header_style),
+        Paragraph("Construction", header_style),
+        Paragraph("Element type", header_style),
+        Paragraph("Area", header_style),
+        Paragraph("U-Value", header_style)
+    ]
+
+    table_data = [headers]
+
+    sorted_rows = _area_table_data(merged_data)
+
+    last_zone = None
+
+    for row in sorted_rows:
+        construction_text = _format_construction_name(row['construction'])
+
+        if row['zone'] != last_zone:
+            zone_cell = Paragraph(row['zone'], cell_style)
+            last_zone = row['zone']
+        else:
+            zone_cell = ""
+
+        construction_cell = Paragraph(construction_text, cell_style)
+
+        element_type = row.get('element_type', '')
+        element_type_cell = Paragraph(_clean_element_type(element_type), cell_style)
+
+        area_value = f"{row['area']:.2f}"
+        u_value_to_format = row.get('weighted_u_value', row.get('u_value', 0.0))
+        u_value = f"{u_value_to_format:.3f}"
+
+        table_data.append([
+            zone_cell,
+            construction_cell,
+            element_type_cell,
+            area_value,
+            u_value
+        ])
+
+    col_widths = [
+        5.0*cm,
+        8.0*cm,
+        3.5*cm,
+        2.7*cm,
+        3.0*cm
+    ]
+
+    area_table = Table(table_data, colWidths=col_widths, repeatRows=1)
+
+    table_style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
+        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
+        ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),
+        ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+
+        ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
+        ('FONTSIZE', (0, 1), (-1, -1), FONT_SIZES['table_body']),
+        ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
+        ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
+
+        ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
+        ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
+
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ])
+
+    area_table.setStyle(table_style)
+    elements.append(area_table)
+    
+    return elements
+
+def _create_glazing_table(glazing_data, table_title, page_width):
+    """
+    Create the glazing table with shading information.
+    
+    Args:
+        glazing_data: List of glazing data rows
+        table_title: Title for the table (unused now)
+        page_width: Available page width
+        
+    Returns:
+        List of reportlab elements
+    """
+    elements = []
+    styles = getSampleStyleSheet()
+
+    cell_style = ParagraphStyle(
+        'CellStyle',
+        parent=styles['Normal'],
+        fontSize=9,
+        leading=10,
+        spaceBefore=0,
+        spaceAfter=0
+    )
+
+    header_style = ParagraphStyle(
+        'HeaderStyle',
+        parent=styles['Heading4'],
+        fontSize=10,
+        alignment=1,
+        textColor=COLORS['white']
+    )
+
+    headers = [
+        Paragraph("Zone", header_style),
+        Paragraph("Construction", header_style),
+        Paragraph("Element type", header_style),
+        Paragraph("Area", header_style),
+        Paragraph("U-Value", header_style),
+        Paragraph("Shading", header_style)
+    ]
+
+    table_data = [headers]
+
+    # Sort glazing data similar to area data
+    sorted_rows = sorted(glazing_data, key=custom_area_sort_key)
+
+    last_zone = None
+
+    for row in sorted_rows:
+        construction_text = _format_construction_name(row['construction'])
+
+        if row['zone'] != last_zone:
+            zone_cell = Paragraph(row['zone'], cell_style)
+            last_zone = row['zone']
+        else:
+            zone_cell = ""
+
+        construction_cell = Paragraph(construction_text, cell_style)
+
+        element_type = row.get('element_type', '')
+        element_type_cell = Paragraph(_clean_element_type(element_type), cell_style)
+
+        area_value = f"{row['area']:.2f}"
+        u_value = f"{row['u_value']:.3f}"
+        shading_value = row.get('shading', '-')
+
+        table_data.append([
+            zone_cell,
+            construction_cell,
+            element_type_cell,
+            area_value,
+            u_value,
+            shading_value
+        ])
+
+    col_widths = [
+        4.0*cm,
+        6.5*cm,
+        3.0*cm,
+        2.5*cm,
+        2.5*cm,
+        4.0*cm
+    ]
+
+    glazing_table = Table(table_data, colWidths=col_widths, repeatRows=1)
+
+    table_style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
+        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
+        ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),
+        ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+
+        ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
+        ('FONTSIZE', (0, 1), (-1, -1), FONT_SIZES['table_body']),
+        ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
+        ('ALIGN', (3, 1), (4, -1), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
+
+        ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
+        ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
+
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ])
+
+    glazing_table.setStyle(table_style)
+    elements.append(glazing_table)
+    
+    return elements
 
 def generate_area_reports(areas_data, output_dir: str = "output/areas",
                           project_name: str = "N/A", run_id: str = "N/A",
@@ -558,6 +701,13 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
 
                 area_table_data[area_id] = rows
 
+        # Get glazing table data separately
+        glazing_table_data = {}
+        if hasattr(areas_data, 'get_glazing_table_data'):
+            glazing_table_data = areas_data.get_glazing_table_data(materials_parser)
+        else:
+            logger.warning("AreaParser does not have get_glazing_table_data method. Glazing table will be empty.")
+
         area_locations = {}
         if hasattr(areas_data, 'get_area_h_values'):
             try:
@@ -606,6 +756,9 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
 
             temp_areas_data = TempAreasData(glazing_data_from_csv)
 
+            # Get glazing data for this area
+            area_glazing_data = glazing_table_data.get(area_id, [])
+
             success = generate_area_report_pdf(
                 area_id=area_id,
                 area_data=merged_rows,
@@ -617,7 +770,8 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                 area_name=area_name,
                 wall_mass_per_area=wall_mass_per_area,
                 location=location,
-                areas_data=temp_areas_data  # Pass the temporary object with glazing data
+                areas_data=temp_areas_data,
+                glazing_data=area_glazing_data  # Pass the glazing data for this area
             )
             if not success:
                 all_reports_successful = False
@@ -713,6 +867,13 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
             logger.warning("AreaParser does not have get_area_table_data_by_base_zone method.")
             return False
 
+        # Get glazing table data separately
+        glazing_table_data = {}
+        if hasattr(areas_data, 'get_glazing_table_data'):
+            glazing_table_data = areas_data.get_glazing_table_data(materials_parser)
+        else:
+            logger.warning("AreaParser does not have get_glazing_table_data method. Glazing table will be empty.")
+
         # Get area locations
         area_locations = {}
         if hasattr(areas_data, 'get_area_h_values'):
@@ -771,6 +932,17 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
             else:
                 temp_areas_data.glazing_data_from_csv = {}
 
+            # Get glazing data for this base zone (combine glazing from all areas in this base zone)
+            base_zone_glazing_data = []
+            if base_zone_id in base_zone_groupings:
+                for zone_id in base_zone_groupings[base_zone_id]:
+                    if hasattr(areas_data, 'areas_by_zone') and zone_id in areas_data.areas_by_zone:
+                        zone_area_id = areas_data.areas_by_zone[zone_id].get("area_id", "unknown")
+                        area_glazing = glazing_table_data.get(zone_area_id, [])
+                        # Filter glazing data for this specific zone
+                        zone_glazing = [g for g in area_glazing if g.get('zone') == zone_id]
+                        base_zone_glazing_data.extend(zone_glazing)
+
             logger.info(f"Generating base zone area report for: {base_zone_id} (includes {len(base_zone_groupings.get(base_zone_id, []))} zones)")
 
             success = generate_area_report_pdf(
@@ -784,7 +956,8 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
                 area_name=area_name,
                 wall_mass_per_area=wall_mass_per_area,
                 location=location,
-                areas_data=temp_areas_data
+                areas_data=temp_areas_data,
+                glazing_data=base_zone_glazing_data  # Pass the glazing data for this base zone
             )
             if not success:
                 all_reports_successful = False

@@ -541,6 +541,7 @@ class AreaParser:
     def get_area_table_data(self, materials_parser: Optional[MaterialsParser] = None) -> Dict[str, List[Dict[str, Any]]]:
         """
         Get data for area reports in table format.
+        Now excludes glazing elements - those are handled separately by get_glazing_table_data.
         Returns an empty dictionary if errors occur or prerequisites are not met.
         """
         result_by_area: Dict[str, List[Dict[str, Any]]] = {}
@@ -577,6 +578,21 @@ class AreaParser:
                             if dont_use or not determined_element_types:
                                 continue
 
+                            # Check if this construction is entirely glazing - if so, skip it completely
+                            elements = construction_data.get("elements", [])
+                            if not elements:
+                                continue
+                            
+                            is_glazing_construction = True
+                            for element in elements:
+                                element_specific_type = element.get("element_type", "Unknown")
+                                if not element_specific_type.endswith("Glazing"):
+                                    is_glazing_construction = False
+                                    break
+                            
+                            if is_glazing_construction:
+                                continue
+
                             total_area_constr = safe_float(construction_data.get("total_area", 0.0), 0.0)
                             total_area_u_value_constr = safe_float(construction_data.get("total_u_value", 0.0), 0.0)
 
@@ -588,10 +604,6 @@ class AreaParser:
 
                             primary_non_glazing_type = next((t for t in determined_element_types if t and "Glazing" not in t), "Unknown")
 
-                            elements = construction_data.get("elements", [])
-                            if not elements:
-                                continue
-
                             for element in elements:
                                 try:
                                     element_area = safe_float(element.get("area", 0.0), 0.0)
@@ -599,19 +611,14 @@ class AreaParser:
                                         continue
 
                                     element_specific_type = element.get("element_type", "Unknown")
-                                    element_u_value = safe_float(element.get("u_value", 0.0), 0.0)
-                                    element_surface_name = element.get("surface_name", "unknown_surface")
-
                                     is_glazing_element = element_specific_type.endswith("Glazing")
 
                                     if is_glazing_element:
-                                        display_element_type = element_specific_type
-                                        zone_constr_key = f"{zone_id}_{cleaned_construction_name}_{display_element_type}_{element_surface_name}"
-                                        reported_u_value = element_u_value
-                                    else:
-                                        display_element_type = primary_non_glazing_type
-                                        zone_constr_key = f"{zone_id}_{cleaned_construction_name}_{display_element_type}"
-                                        reported_u_value = construction_u_value_avg
+                                        continue
+
+                                    display_element_type = primary_non_glazing_type
+                                    zone_constr_key = f"{zone_id}_{cleaned_construction_name}_{display_element_type}"
+                                    reported_u_value = construction_u_value_avg
 
                                     if zone_constr_key not in zone_constructions_aggregated:
                                         zone_constructions_aggregated[zone_constr_key] = {
@@ -633,7 +640,8 @@ class AreaParser:
                             logger.warning(f"Error processing construction '{construction_name}' in zone '{zone_id}': {e_constr_proc}. Skipping construction.", exc_info=True)
                             continue
 
-                    result_by_area[area_id].extend(list(zone_constructions_aggregated.values()))
+                    filtered_results = [entry for entry in zone_constructions_aggregated.values() if entry.get("area", 0.0) > 0.0]
+                    result_by_area[area_id].extend(filtered_results)
 
                 except (TypeError, ValueError, AttributeError, KeyError) as e_zone_proc:
                     logger.error(f"Error processing zone '{zone_id}' for area table data: {e_zone_proc}. Skipping zone.", exc_info=True)
@@ -940,6 +948,21 @@ class AreaParser:
                             if dont_use or not determined_element_types:
                                 continue
 
+                            # Check if this construction is entirely glazing - if so, skip it completely
+                            elements = construction_data.get("elements", [])
+                            if not elements:
+                                continue
+                            
+                            is_glazing_construction = True
+                            for element in elements:
+                                element_specific_type = element.get("element_type", "Unknown")
+                                if not element_specific_type.endswith("Glazing"):
+                                    is_glazing_construction = False
+                                    break
+                            
+                            if is_glazing_construction:
+                                continue
+
                             total_area_constr = safe_float(construction_data.get("total_area", 0.0), 0.0)
                             total_area_u_value_constr = safe_float(construction_data.get("total_u_value", 0.0), 0.0)
 
@@ -951,10 +974,6 @@ class AreaParser:
 
                             primary_non_glazing_type = next((t for t in determined_element_types if t and "Glazing" not in t), "Unknown")
 
-                            elements = construction_data.get("elements", [])
-                            if not elements:
-                                continue
-
                             for element in elements:
                                 try:
                                     element_area = safe_float(element.get("area", 0.0), 0.0)
@@ -962,19 +981,14 @@ class AreaParser:
                                         continue
 
                                     element_specific_type = element.get("element_type", "Unknown")
-                                    element_u_value = safe_float(element.get("u_value", 0.0), 0.0)
-                                    element_surface_name = element.get("surface_name", "unknown_surface")
-
                                     is_glazing_element = element_specific_type.endswith("Glazing")
 
                                     if is_glazing_element:
-                                        display_element_type = element_specific_type
-                                        zone_constr_key = f"{zone_id}_{cleaned_construction_name}_{display_element_type}_{element_surface_name}"
-                                        reported_u_value = element_u_value
-                                    else:
-                                        display_element_type = primary_non_glazing_type
-                                        zone_constr_key = f"{zone_id}_{cleaned_construction_name}_{display_element_type}"
-                                        reported_u_value = construction_u_value_avg
+                                        continue
+                                        
+                                    display_element_type = primary_non_glazing_type
+                                    zone_constr_key = f"{zone_id}_{cleaned_construction_name}_{display_element_type}"
+                                    reported_u_value = construction_u_value_avg
 
                                     if zone_constr_key not in zone_constructions_aggregated:
                                         zone_constructions_aggregated[zone_constr_key] = {
@@ -999,11 +1013,11 @@ class AreaParser:
                         try:
                             aggregated_area = aggregated_data["area"]
                             aggregated_area_loss = aggregated_data["area_loss"]
+                            
+                            if aggregated_area <= 0:
+                                continue
 
-                            if aggregated_area > 0:
-                                weighted_u_value = aggregated_area_loss / aggregated_area
-                            else:
-                                weighted_u_value = aggregated_data["u_value"]
+                            weighted_u_value = aggregated_area_loss / aggregated_area
 
                             final_row = {
                                 "zone": aggregated_data["zone"],
@@ -1027,3 +1041,124 @@ class AreaParser:
         except Exception as e:
             logger.error(f"Critical error in get_area_table_data_by_base_zone: {e}", exc_info=True)
             return result_by_base_zone
+
+    def _get_shading_for_surface(self, surface_id: str) -> str:
+        """
+        Determine if a surface has shading and return the shading name.
+        
+        Args:
+            surface_id: The surface/window ID to check for shading
+            
+        Returns:
+            str: The shading name if found, "-" otherwise
+        """
+        try:
+            window_shading_controls = self.data_loader.get_window_shading_controls()
+            
+            for control_id, control_data in window_shading_controls.items():
+                window_names = control_data.get('window_names', [])
+                
+                # Check if this surface is controlled by this shading control
+                if surface_id in window_names:
+                    # Return the shading control name/ID as the shading name
+                    if control_id:
+                        return str(control_id)
+                    else:
+                        return "-"
+            
+            return "-"
+        except Exception as e:
+            logger.warning(f"Error determining shading for surface '{surface_id}': {e}")
+            return "-"
+
+    def get_glazing_table_data(self, materials_parser: Optional[MaterialsParser] = None) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Get data for glazing reports in table format, separate from main area data.
+        Includes shading information for each glazing element.
+        
+        Returns:
+            Dict[str, List[Dict[str, Any]]]: Dictionary with area_id as keys and lists of glazing data as values
+        """
+        result_by_area: Dict[str, List[Dict[str, Any]]] = {}
+        try:
+            parser_to_use = materials_parser if materials_parser else self.materials_parser
+            if not parser_to_use:
+                logger.error("MaterialsParser instance is required for get_glazing_table_data but none provided or set. Returning empty data.")
+                return result_by_area
+            if not self.processed:
+                logger.warning("Area data not processed. Call process_idf() first. Returning empty data for glazing table.")
+                return result_by_area
+
+            surfaces = self.data_loader.get_surfaces()
+            if not self.areas_by_zone:
+                return result_by_area
+
+            for zone_id, zone_data in self.areas_by_zone.items():
+                try:
+                    area_id = zone_data.get("area_id", "unknown")
+                    if "core" in area_id.lower():
+                        continue
+
+                    if area_id not in result_by_area:
+                        result_by_area[area_id] = []
+
+                    constructions_in_zone = zone_data.get("constructions", {})
+                    if not constructions_in_zone:
+                        continue
+
+                    for construction_name, construction_data in constructions_in_zone.items():
+                        try:
+                            determined_element_types, dont_use = parser_to_use._get_element_type(construction_name, surfaces)
+                            if dont_use or not determined_element_types:
+                                continue
+
+                            elements = construction_data.get("elements", [])
+                            if not elements:
+                                continue
+
+                            # Only process glazing elements
+                            for element in elements:
+                                try:
+                                    element_area = safe_float(element.get("area", 0.0), 0.0)
+                                    if element_area <= 0.0:
+                                        continue
+
+                                    element_specific_type = element.get("element_type", "Unknown")
+                                    element_u_value = safe_float(element.get("u_value", 0.0), 0.0)
+                                    element_surface_name = element.get("surface_name", "unknown_surface")
+
+                                    # Only include glazing elements
+                                    is_glazing_element = element_specific_type.endswith("Glazing")
+                                    if not is_glazing_element:
+                                        continue
+
+                                    # Get shading information for this glazing element
+                                    shading_info = self._get_shading_for_surface(element_surface_name)
+
+                                    glazing_row = {
+                                        "zone": zone_id,
+                                        "construction": construction_name,
+                                        "element_type": element_specific_type,
+                                        "area": element_area,
+                                        "u_value": element_u_value,
+                                        "shading": shading_info
+                                    }
+
+                                    result_by_area[area_id].append(glazing_row)
+
+                                except (TypeError, ValueError, AttributeError, KeyError) as e_elem:
+                                    logger.warning(f"Error processing glazing element within construction '{construction_name}', zone '{zone_id}': {e_elem}. Skipping element.", exc_info=True)
+                                    continue
+
+                        except (TypeError, ValueError, AttributeError, KeyError) as e_constr_proc:
+                            logger.warning(f"Error processing construction '{construction_name}' in zone '{zone_id}' for glazing table: {e_constr_proc}. Skipping construction.", exc_info=True)
+                            continue
+
+                except (TypeError, ValueError, AttributeError, KeyError) as e_zone_proc:
+                    logger.error(f"Error processing zone '{zone_id}' for glazing table data: {e_zone_proc}. Skipping zone.", exc_info=True)
+                    continue
+
+            return result_by_area
+        except Exception as e:
+            logger.critical(f"Critical error in get_glazing_table_data: {e}", exc_info=True)
+            return result_by_area
