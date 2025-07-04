@@ -200,6 +200,15 @@ class LightingReportGenerator:
             self._story.append(Paragraph("Daylighting Report", title_style))
             self._story.append(Spacer(1, 0.5*cm))
 
+            section_title_style = ParagraphStyle(
+                'SectionTitle',
+                parent=self._styles['h2'],
+                textColor=COLORS['primary_blue'],
+                fontName=FONTS['heading'],
+                fontSize=FONT_SIZES['heading'],
+                alignment=TA_CENTER
+            )
+
             table_style = create_lighting_table_style()
             cell_style = create_cell_style(self._styles, font_size=5, leading=6)
             header_cell_style = create_cell_style(self._styles, is_header=True, font_size=6, leading=7)
@@ -296,22 +305,15 @@ class LightingReportGenerator:
                 table_controls = Table(table_data_controls, colWidths=col_widths_controls, repeatRows=1)
                 table_controls.setStyle(final_controls_table_style)
                 self._story.append(table_controls)
-            else:
-                self._story.append(Paragraph("No Daylighting Controls data found.", self._styles['Normal']))
 
-            self._story.append(Spacer(1, 0.5*cm))
-
-            section_style = ParagraphStyle(
-                'SectionTitle',
-                parent=self._styles['h2'],
-                alignment=TA_CENTER
-            )
-            self._story.append(Paragraph("Exterior Lights", section_style))
-            self._story.append(Spacer(1, 0.2*cm))
             exterior_lights_data = self._data.get("exterior_lights", [])
             exterior_lights_data.sort(key=lambda x: x.get("Name", ""))
 
             if exterior_lights_data:
+                self._story.append(Spacer(1, 0.5*cm))
+                self._story.append(Paragraph("Exterior Lights", section_title_style))
+                self._story.append(Spacer(1, 0.2*cm))
+
                 headers_ext_lights = ["Name", "Lighting SCHEDULE Name", "Design Equipment Level (W)"]
                 styled_headers_ext_lights = [wrap_text(h, header_cell_style) for h in headers_ext_lights]
                 table_data_ext_lights = [styled_headers_ext_lights]
@@ -329,22 +331,15 @@ class LightingReportGenerator:
                 table_ext_lights = Table(table_data_ext_lights, colWidths=col_widths_ext, repeatRows=1)
                 table_ext_lights.setStyle(table_style)
                 self._story.append(table_ext_lights)
-            else:
-                self._story.append(Paragraph("No Exterior Lights data found.", self._styles['Normal']))
 
-            self._story.append(Spacer(1, 0.5*cm))
-
-            section_style = ParagraphStyle(
-                'SectionTitle',
-                parent=self._styles['h2'],
-                alignment=TA_CENTER
-            )
-            self._story.append(Paragraph("Task Lights", section_style))
-            self._story.append(Spacer(1, 0.2*cm))
             task_lights_data = self._data.get("task_lights", [])
             task_lights_data.sort(key=lambda x: (x.get("Zone Name", ""), x.get("Lighting SCHEDULE Name", "")))
 
             if task_lights_data:
+                self._story.append(Spacer(1, 0.5*cm))
+                self._story.append(Paragraph("Task Lights", section_title_style))
+                self._story.append(Spacer(1, 0.2*cm))
+
                 headers_task_lights = ["Zone Name", "Lighting SCHEDULE Name"]
                 styled_headers_task_lights = [wrap_text(h, header_cell_style) for h in headers_task_lights]
                 table_data_task_lights = [styled_headers_task_lights]
@@ -388,8 +383,6 @@ class LightingReportGenerator:
                 table_task_lights = Table(table_data_task_lights, colWidths=col_widths_task, repeatRows=1)
                 table_task_lights.setStyle(final_task_table_style)
                 self._story.append(table_task_lights)
-            else:
-                self._story.append(Paragraph("No Task Lights data found.", self._styles['Normal']))
 
             doc.build(self._story)
             return True
