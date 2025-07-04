@@ -415,17 +415,18 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
     hebrew_font = get_hebrew_font_name()
     header_info_style = ParagraphStyle('HeaderInfo', parent=styles['Normal'], fontSize=9, fontName=hebrew_font, textColor=COLORS['dark_gray'], alignment=2)
     now = datetime.datetime.now()
+    report_title = "Zone Loads Summary"
     header_text = safe_format_header_text(
         project_name=project_name,
         run_id=run_id,
         timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
         city_name=city_name,
         area_name=area_name,
-        report_title="Zone Loads Summary"
+        report_title=report_title
     )
     story.append(Paragraph(header_text, header_info_style))
     story.append(Spacer(1, 5))
-    story.append(Paragraph("IDF Zone Loads Report", title_style))
+    story.append(Paragraph(f"{report_title} Report", title_style))
     story.append(Spacer(1, 0.5 * cm))
     if not zone_data:
         story.append(Paragraph("No zones found or processed.", styles['Normal']))

@@ -181,13 +181,14 @@ class LightingReportGenerator:
                 textColor=COLORS['dark_gray'],
                 alignment=2
             )
+            report_title = "Daylighting Summary"
             header_text = safe_format_header_text(
                 project_name=self._project_name,
                 run_id=self._run_id,
                 timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
                 city_name=self._city_name,
                 area_name=self._area_name,
-                report_title="Daylighting Summary"
+                report_title=report_title
             )
             self._story.append(Paragraph(header_text, header_info_style))
             self._story.append(Spacer(1, 5))
@@ -197,7 +198,7 @@ class LightingReportGenerator:
             title_style.fontName = FONTS['title']
             title_style.fontSize = FONT_SIZES['title']
             title_style.alignment = TA_CENTER
-            self._story.append(Paragraph("Daylighting Report", title_style))
+            self._story.append(Paragraph(f"{report_title} Report", title_style))
             self._story.append(Spacer(1, 0.5*cm))
 
             section_title_style = ParagraphStyle(

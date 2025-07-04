@@ -113,11 +113,11 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
         story = []
 
         # Add logo if available
-        logo_image = create_logo_image(max_width=3*cm, max_height=1.5*cm)
+        logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
         if logo_image:
             # Create a table to position logo on the left
             logo_table_data = [[logo_image, ""]]
-            logo_table = Table(logo_table_data, colWidths=[4*cm, doc.width - 4*cm])
+            logo_table = Table(logo_table_data, colWidths=[5*cm, doc.width - 5*cm])
             logo_table.setStyle(TableStyle([
                 ('ALIGN', (0, 0), (0, 0), 'LEFT'),
                 ('VALIGN', (0, 0), (-1, -1), 'TOP'),
@@ -139,13 +139,14 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
             textColor=COLORS['dark_gray'],
             alignment=2
         )
+        report_title = "Area Loss - Thermal Performance"
         header_text = safe_format_header_text(
             project_name=project_name,
             run_id=run_id,
             timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
             city_name=city_name,
             area_name=area_name,
-            report_title="Area Loss - Thermal Performance"
+            report_title=report_title
         )
         story.append(Paragraph(header_text, header_style))
         story.append(Spacer(1, 5))
@@ -156,9 +157,10 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
             fontSize=FONT_SIZES['title'],
             fontName=FONTS['title'],
             textColor=COLORS['primary_blue'],
-            spaceAfter=20
+            spaceAfter=20,
+            alignment=1
         )
-        story.append(Paragraph("Area Loss - Thermal Performance Report", title_style))
+        story.append(Paragraph(f"{report_title} Report", title_style))
 
         cell_style = ParagraphStyle(
             'CellStyle',
