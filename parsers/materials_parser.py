@@ -319,9 +319,9 @@ class MaterialsParser:
 
         element_type = element_type.lower()
 
-        if element_type in ["internal wall", "ground floor", "ground ceiling", "intermediate ceiling" ,"intermediate floor"]:
+        if element_type in ["internal wall","intermediate ceiling" ,"intermediate floor"]:
             return 0.0
-        if element_type == "ground wall":
+        if element_type in ["ground floor", "ground wall" , "ground ceiling"]:
             return 0.1
         if element_type == "external wall":
             return 0.17
