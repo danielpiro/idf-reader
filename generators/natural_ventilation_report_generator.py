@@ -260,19 +260,20 @@ def generate_natural_ventilation_report(ventilation_data: Dict[str, List[Dict[st
         
         # Add header - matching load_report_generator.py format
         now = datetime.now()
+        report_title = "Natural Ventilation Summary"
         header_text = safe_format_header_text(
             project_name=project_name,
             run_id=run_id,
             timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
             city_name=city_name,
             area_name=area_name,
-            report_title="Natural Ventilation Summary"
+            report_title=report_title
         )
         story.append(Paragraph(header_text, header_info_style))
         story.append(Spacer(1, 5))
         
         # Add title
-        story.append(Paragraph("Natural Ventilation Report", title_style))
+        story.append(Paragraph(f"{report_title} Report", title_style))
         story.append(Spacer(1, 0.5 * cm))
         
         # Check if we have data

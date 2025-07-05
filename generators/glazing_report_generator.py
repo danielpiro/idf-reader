@@ -112,11 +112,11 @@ class GlazingReportGenerator:
             story = []
             
             # Add logo if available
-            logo_image = create_logo_image(max_width=3*cm, max_height=1.5*cm)
+            logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
             if logo_image:
                 # Create a table to position logo on the left
                 logo_table_data = [[logo_image, ""]]
-                logo_table = Table(logo_table_data, colWidths=[4*cm, doc.width - 4*cm])
+                logo_table = Table(logo_table_data, colWidths=[5*cm, doc.width - 5*cm])
                 logo_table.setStyle(TableStyle([
                     ('ALIGN', (0, 0), (0, 0), 'LEFT'),
                     ('VALIGN', (0, 0), (-1, -1), 'TOP'),
@@ -138,13 +138,14 @@ class GlazingReportGenerator:
                 textColor=COLORS['dark_gray'],
                 alignment=2
             )
+            report_title = "Glazing Constructions"
             header_text = safe_format_header_text(
                 project_name=self.project_name,
                 run_id=self.run_id,
                 timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
                 city_name=self.city_name,
                 area_name=self.area_name,
-                report_title="Glazing Constructions"
+                report_title=report_title
             )
             story.append(Paragraph(header_text, header_info_style))
             story.append(Spacer(1, 5))
@@ -153,7 +154,7 @@ class GlazingReportGenerator:
             title_style.textColor = COLORS['primary_blue']
             title_style.fontName = FONTS['title']
             title_style.fontSize = FONT_SIZES['title']
-            story.append(Paragraph("Glazing Constructions Report", title_style))
+            story.append(Paragraph(f"{report_title} Report", title_style))
             story.append(Spacer(1, 0.5*cm))
             for construction_id, data in self.glazing_data.items():
                 sub_heading_style = ParagraphStyle(

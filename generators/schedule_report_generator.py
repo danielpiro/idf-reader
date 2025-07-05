@@ -215,17 +215,18 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
         header_info_style = ParagraphStyle(
             'HeaderInfo', parent=styles['Normal'], fontSize=9, fontName=hebrew_font, textColor=COLORS['dark_gray'], alignment=2        )
         now = datetime.datetime.now()
+        report_title = "Unique Schedule Definitions"
         header_text = safe_format_header_text(
             project_name=project_name,
             run_id=run_id,
             timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
             city_name=city_name,
             area_name=area_name,
-            report_title="Unique Schedule Definitions"
+            report_title=report_title
         )
         
         # Add logo if available
-        logo_image = create_logo_image(max_width=3*cm, max_height=1.5*cm)
+        logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
         if logo_image:
             # Position logo at top left
             logo_width, logo_height = logo_image.drawWidth, logo_image.drawHeight
@@ -239,7 +240,7 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
         p_header.drawOn(c, width - margin_x - header_width_actual, current_y - header_height)
         current_y -= (header_height + 0.2*cm)
 
-        title_text = "IDF Unique Schedule Definitions"
+        title_text = f"{report_title} Report"
         title_style.alignment = 1  # Center alignment
         p_title = Paragraph(title_text, title_style)
         p_title.wrapOn(c, content_width, margin_y)

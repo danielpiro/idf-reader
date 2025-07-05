@@ -275,13 +275,14 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
             textColor=COLORS['dark_gray'],
             alignment=2
         )
+        report_title = "Settings Summary"
         header_text = safe_format_header_text(
             project_name=project_name,
             run_id=run_id,
             timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
             city_name=city_name,
             area_name=area_name,
-            report_title="Settings Summary"
+            report_title=report_title
         )
         story.append(Paragraph(header_text, header_style))
         story.append(Spacer(1, 5))
@@ -296,7 +297,7 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
             spaceBefore=0.5*cm,
             spaceAfter=1*cm
         )
-        story.append(Paragraph("Energy Plus Settings Summary", title_style))
+        story.append(Paragraph(f"{report_title} Report", title_style))
 
         header_style = ParagraphStyle(
             name='TableHeader',

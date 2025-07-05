@@ -339,13 +339,14 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
             textColor=COLORS['dark_gray'],
             alignment=2        )
         now = datetime.datetime.now()
+        report_title = "Building Elements Materials Properties"
         header_text = safe_format_header_text(
             project_name=project_name,
             run_id=run_id,
             timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
             city_name=city_name,
             area_name=area_name,
-            report_title="Building Elements Materials Properties"
+            report_title=report_title
         )
         # Add logo if available
         logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
@@ -368,7 +369,7 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
         story.extend([
             Paragraph(header_text, header_info_style),
             Spacer(1, 5),
-            Paragraph("Building Elements Materials Properties Report", title_style),
+            Paragraph(f"{report_title} Report", title_style),
             Spacer(1, 0.5 * cm)
         ])
         col_widths = [
