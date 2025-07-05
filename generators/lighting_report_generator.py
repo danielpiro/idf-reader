@@ -1,58 +1,31 @@
 """
 PDF Report generator for Daylighting data.
 """
+from typing import Dict, List, Any
+import logging
+from pathlib import Path
 from reportlab.lib.pagesizes import A3, landscape
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
-from reportlab.lib.colors import Color
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
-import datetime
-import logging
-from typing import Dict, List, Any
-from pathlib import Path
-from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
-from utils.logo_utils import create_logo_image
-
-COLORS = {
-    'primary_blue': Color(0.2, 0.4, 0.7),
-    'secondary_blue': Color(0.4, 0.6, 0.85),
-    'light_blue': Color(0.9, 0.94, 0.98),
-    'dark_gray': Color(0.2, 0.2, 0.2),
-    'medium_gray': Color(0.5, 0.5, 0.5),
-    'light_gray': Color(0.9, 0.9, 0.9),
-    'white': Color(1, 1, 1),
-    'border_gray': Color(0.8, 0.8, 0.8),
-}
-
-FONTS = {
-    'title': 'Helvetica-Bold',
-    'heading': 'Helvetica-Bold',
-    'body': 'Helvetica',
-    'table_header': 'Helvetica-Bold',
-    'table_body': 'Helvetica',
-}
-
-FONT_SIZES = {
-    'title': 16,
-    'heading': 12,
-    'body': 10,
-    'table_header': 9,
-    'table_body': 8,
-    'small': 7,
-}
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib import colors
+from generators.base_report_generator import BaseReportGenerator, handle_report_errors, StandardPageSizes
+from generators.shared_design_system import (
+    COLORS, FONTS, FONT_SIZES, LAYOUT,
+    create_standard_table_style, create_title_style, 
+    create_section_title_style, create_cell_style, wrap_text,
+    create_standardized_header
+)
+from generators.utils.formatting_utils import ValueFormatter
 
 logger = logging.getLogger(__name__)
 
-def wrap_text(text, style):
-    """Helper function to create wrapped text in a cell."""
-    return Paragraph(str(text), style)
 
-def create_cell_style(styles, is_header=False, font_size=6, leading=7):
-    """Create a cell style for wrapped text."""
+def create_lighting_cell_style(styles, is_header=False, font_size=6, leading=7):
+    """Create a specialized cell style for lighting tables."""
     style = ParagraphStyle(
-        'Cell',
+        'LightingCell',
         parent=styles['Normal'],
         fontSize=font_size,
         leading=leading,
@@ -95,7 +68,7 @@ def create_lighting_table_style(header_rows=1):
     ]
     return TableStyle(style)
 
-class LightingReportGenerator:
+class LightingReportGenerator(BaseReportGenerator):
     """Generates a PDF report for parsed Daylighting data."""
 
     def __init__(self, data: Dict[str, List[Dict[str, Any]]], output_path: str,
@@ -109,13 +82,10 @@ class LightingReportGenerator:
             output_path: The path to save the generated PDF report.
             project_name: Name of the project for the header.
             run_id: Identifier for the current run for the header.        """
+        super().__init__(project_name, run_id, city_name, area_name)
         self._data = data
         self._output_path = output_path
-        self._project_name = project_name
-        self._run_id = run_id
-        self._city_name = city_name
-        self._area_name = area_name
-        self._styles = getSampleStyleSheet()
+        self.formatter = ValueFormatter()
         self._story = []
 
 
@@ -153,66 +123,28 @@ class LightingReportGenerator:
                                     leftMargin=left_margin, rightMargin=right_margin,
                                     topMargin=top_margin, bottomMargin=bottom_margin)
 
-            # Add logo if available
-            logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
-            if logo_image:
-                # Create a table to position logo on the left
-                logo_table_data = [[logo_image, ""]]
-                logo_table = Table(logo_table_data, colWidths=[5*cm, doc.width - 5*cm])
-                logo_table.setStyle(TableStyle([
-                    ('ALIGN', (0, 0), (0, 0), 'LEFT'),
-                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                    ('TOPPADDING', (0, 0), (-1, -1), 0),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-                ]))
-                self._story.append(logo_table)
-                self._story.append(Spacer(1, 10))
-
-            # Add consistent header metadata structure like other reports
-            now = datetime.datetime.now()
-            hebrew_font = get_hebrew_font_name()
-            header_info_style = ParagraphStyle(
-                'HeaderInfo',
-                parent=self._styles['Normal'],
-                fontSize=9,
-                fontName=hebrew_font,
-                textColor=COLORS['dark_gray'],
-                alignment=2
-            )
+            # Add standardized header
             report_title = "Daylighting Summary"
-            header_text = safe_format_header_text(
-                project_name=self._project_name,
-                run_id=self._run_id,
-                timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
-                city_name=self._city_name,
-                area_name=self._area_name,
+            header_elements = create_standardized_header(
+                doc=doc,
+                project_name=self.project_name,
+                run_id=self.run_id,
+                city_name=self.city_name,
+                area_name=self.area_name,
                 report_title=report_title
             )
-            self._story.append(Paragraph(header_text, header_info_style))
-            self._story.append(Spacer(1, 5))
+            self._story.extend(header_elements)
 
-            title_style = self._styles['h1']
-            title_style.textColor = COLORS['primary_blue']
-            title_style.fontName = FONTS['title']
-            title_style.fontSize = FONT_SIZES['title']
-            title_style.alignment = TA_CENTER
+            title_style = create_title_style(self.styles)
             self._story.append(Paragraph(f"{report_title} Report", title_style))
             self._story.append(Spacer(1, 0.5*cm))
 
-            section_title_style = ParagraphStyle(
-                'SectionTitle',
-                parent=self._styles['h2'],
-                textColor=COLORS['primary_blue'],
-                fontName=FONTS['heading'],
-                fontSize=FONT_SIZES['heading'],
-                alignment=TA_CENTER
-            )
+            section_title_style = create_section_title_style(self.styles)
+            section_title_style.alignment = TA_CENTER
 
             table_style = create_lighting_table_style()
-            cell_style = create_cell_style(self._styles, font_size=5, leading=6)
-            header_cell_style = create_cell_style(self._styles, is_header=True, font_size=6, leading=7)
+            cell_style = create_lighting_cell_style(self.styles, font_size=5, leading=6)
+            header_cell_style = create_lighting_cell_style(self.styles, is_header=True, font_size=6, leading=7)
 
             controls_data = self._data.get("controls", [])
             controls_data.sort(key=lambda x: x.get("Zone", ""))

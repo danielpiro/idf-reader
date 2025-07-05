@@ -3,60 +3,28 @@ Natural Ventilation Report Generator
 Generates PDF reports for natural ventilation data from ZoneVentilation:DesignFlowRate objects.
 """
 from typing import Dict, List, Any
-from reportlab.lib import colors
 from reportlab.lib.pagesizes import landscape, A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib.enums import TA_CENTER
-from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
-from utils.logo_utils import create_logo_image
+from utils.hebrew_text_utils import get_hebrew_font_name
+from generators.shared_design_system import (
+    COLORS, FONTS, FONT_SIZES, 
+    create_cell_style, wrap_text, create_standardized_header
+)
 import logging
 import os
 import re
 from datetime import datetime
 
-# Color scheme - matching load_report_generator.py
-COLORS = {
-    'primary_blue': colors.Color(0.2, 0.4, 0.7),
-    'secondary_blue': colors.Color(0.4, 0.6, 0.85),
-    'light_blue': colors.Color(0.9, 0.94, 0.98),
-    'dark_gray': colors.Color(0.2, 0.2, 0.2),
-    'medium_gray': colors.Color(0.5, 0.5, 0.5),
-    'light_gray': colors.Color(0.9, 0.9, 0.9),
-    'white': colors.Color(1, 1, 1),
-    'border_gray': colors.Color(0.8, 0.8, 0.8),
-}
-
-# Font definitions - matching load_report_generator.py
-FONTS = {
-    'title': 'Helvetica-Bold',
-    'heading': 'Helvetica-Bold',
-    'body': 'Helvetica',
-    'table_header': 'Helvetica-Bold',
-    'table_body': 'Helvetica',
-}
-
-# Font sizes - matching load_report_generator.py
-FONT_SIZES = {
-    'title': 16,
-    'heading': 12,
-    'body': 10,
-    'table_header': 9,
-    'table_body': 8,
-    'small': 7,
-}
 
 logger = logging.getLogger(__name__)
 
 # Regex for extracting area ID
 AREA_ID_REGEX = re.compile(r"^\d{2}")
 
-def wrap_text(text, style):
-    """Helper function to create wrapped text in a cell."""
-    return Paragraph(str(text), style)
-
-def create_cell_style(styles, is_header=False, center_align=False):
+def create_cell_style_local(styles, is_header=False, center_align=False):
     """Create a cell style for wrapped text."""
     if is_header:
         style = ParagraphStyle(
@@ -241,36 +209,17 @@ def generate_natural_ventilation_report(ventilation_data: Dict[str, List[Dict[st
                                          fontSize=9, fontName=hebrew_font,
                                          textColor=COLORS['dark_gray'], alignment=2)
         
-        # Add logo if available
-        logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
-        if logo_image:
-            # Create a table to position logo on the left
-            logo_table_data = [[logo_image, ""]]
-            logo_table = Table(logo_table_data, colWidths=[5*cm, content_width - 5*cm])
-            logo_table.setStyle(TableStyle([
-                ('ALIGN', (0, 0), (0, 0), 'LEFT'),
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                ('TOPPADDING', (0, 0), (-1, -1), 0),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-            ]))
-            story.append(logo_table)
-            story.append(Spacer(1, 10))
-        
-        # Add header - matching load_report_generator.py format
-        now = datetime.now()
+        # Add standardized header with horizontal alignment
         report_title = "Natural Ventilation Summary"
-        header_text = safe_format_header_text(
+        header_elements = create_standardized_header(
+            doc=doc,
             project_name=project_name,
             run_id=run_id,
-            timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
             city_name=city_name,
             area_name=area_name,
             report_title=report_title
         )
-        story.append(Paragraph(header_text, header_info_style))
-        story.append(Spacer(1, 5))
+        story.extend(header_elements)
         
         # Add title
         story.append(Paragraph(f"{report_title} Report", title_style))

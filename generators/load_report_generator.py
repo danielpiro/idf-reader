@@ -11,7 +11,8 @@ from utils.logo_utils import create_logo_image
 from generators.shared_design_system import (
     COLORS, FONTS, FONT_SIZES, LAYOUT,
     create_multi_header_table_style, create_cell_style, 
-    create_title_style, create_header_info_style, wrap_text
+    create_title_style, create_header_info_style, wrap_text,
+    create_standardized_header
 )
 
 
@@ -308,34 +309,16 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
     title_style = create_title_style(styles)
     header_info_style = create_header_info_style(styles)
     
-    # Add logo if available
-    logo_image = create_logo_image(max_width=LAYOUT['logo']['max_width'], max_height=LAYOUT['logo']['max_height'])
-    if logo_image:
-        logo_table_data = [[logo_image, ""]]
-        logo_table = Table(logo_table_data, colWidths=[LAYOUT['logo']['table_width'], content_width - LAYOUT['logo']['table_width']])
-        logo_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ]))
-        story.append(logo_table)
-        story.append(Spacer(1, LAYOUT['spacing']['small']))
-
-    # Add header information
-    now = datetime.datetime.now()
-    header_text = safe_format_header_text(
+    # Add standardized header
+    header_elements = create_standardized_header(
+        doc=doc,
         project_name=project_name,
         run_id=run_id,
-        timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
         city_name=city_name,
         area_name=area_name,
         report_title="Zone Loads Summary"
     )
-    story.append(Paragraph(header_text, header_info_style))
-    story.append(Spacer(1, LAYOUT['spacing']['small']))
+    story.extend(header_elements)
     story.append(Paragraph("IDF Zone Loads Report", title_style))
     story.append(Spacer(1, LAYOUT['spacing']['standard']))
     if not zone_data:

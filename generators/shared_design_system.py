@@ -59,6 +59,7 @@ LAYOUT = {
         'max_width': 4 * cm,
         'max_height': 2 * cm,
         'table_width': 5 * cm,
+        'vertical_spacing': 0.3 * cm,  # Space around logo for better alignment
     }
 }
 
@@ -304,11 +305,103 @@ def create_total_row_style(row_index):
         ('BOTTOMPADDING', (0, row_index), (-1, row_index), 6),
     ]
 
+def create_standardized_header(doc, project_name="N/A", run_id="N/A", 
+                              city_name="N/A", area_name="N/A", 
+                              report_title="Report", timestamp=None):
+    """
+    Create a standardized header with logo on top left and metadata on top right.
+    
+    Args:
+        doc: ReportLab document object (for width calculations)
+        project_name (str): Name of the project
+        run_id (str): Run identifier
+        city_name (str): City name
+        area_name (str): Area name
+        report_title (str): Title of the report
+        timestamp (str): Timestamp string (if None, current time is used)
+    
+    Returns:
+        List of ReportLab elements for the header
+    """
+    from utils.logo_utils import create_logo_image
+    from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
+    from reportlab.platypus import Table, TableStyle, Paragraph, Spacer
+    import datetime
+    
+    elements = []
+    
+    # Use current time if timestamp not provided
+    if timestamp is None:
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Create logo image
+    logo_image = create_logo_image(
+        max_width=LAYOUT['logo']['max_width'], 
+        max_height=LAYOUT['logo']['max_height']
+    )
+    
+    # Create header info style optimized for horizontal alignment
+    hebrew_font = get_hebrew_font_name()
+    header_info_style = ParagraphStyle(
+        'StandardHeaderInfo',
+        parent=getSampleStyleSheet()['Normal'],
+        fontSize=FONT_SIZES['body'],
+        fontName=hebrew_font,
+        textColor=COLORS['dark_gray'],
+        alignment=TA_RIGHT,  # Right alignment for metadata
+        leading=FONT_SIZES['body'] + 2,  # Improved line spacing
+        spaceBefore=0,
+        spaceAfter=0
+    )
+    
+    # Format header text
+    header_text = safe_format_header_text(
+        project_name=project_name,
+        run_id=run_id,
+        timestamp=timestamp,
+        city_name=city_name,
+        area_name=area_name,
+        report_title=report_title
+    )
+    
+    # Create header metadata paragraph
+    header_metadata = Paragraph(header_text, header_info_style)
+    
+    # Create header table: logo on left, metadata on right with optimized spacing
+    available_width = doc.width
+    if logo_image:
+        # Reserve space for logo with some margin
+        logo_width = LAYOUT['logo']['table_width']
+        metadata_width = available_width - logo_width
+        header_data = [[logo_image, header_metadata]]
+        header_table = Table(header_data, colWidths=[logo_width, metadata_width])
+    else:
+        # If no logo, center the metadata or align to right with full width
+        header_data = [["", header_metadata]]
+        header_table = Table(header_data, colWidths=[0, available_width])
+    
+    # Style the header table for perfect horizontal alignment
+    header_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (0, 0), 'LEFT'),    # Logo left aligned
+        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),   # Metadata right aligned
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), # Middle vertical alignment for both logo and metadata
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),   # Remove left padding for cleaner alignment
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),  # Remove right padding for cleaner alignment
+        ('TOPPADDING', (0, 0), (-1, -1), 8),    # Consistent top padding
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8), # Consistent bottom padding
+        ('NOSPLIT', (0, 0), (-1, -1)),          # Prevent table from splitting across pages
+    ]))
+    
+    elements.append(header_table)
+    elements.append(Spacer(1, LAYOUT['spacing']['small']))
+    
+    return elements
+
 # Export all design elements for easy import
 __all__ = [
     'COLORS', 'FONTS', 'FONT_SIZES', 'LAYOUT',
     'create_standard_table_style', 'create_multi_header_table_style', 
     'create_cell_style', 'create_title_style', 'create_header_info_style',
     'create_section_title_style', 'wrap_text', 'create_error_table_style',
-    'create_total_row_style'
+    'create_total_row_style', 'create_standardized_header'
 ]

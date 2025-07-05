@@ -2,178 +2,78 @@
 Generates reports for area loss information extracted from IDF files.
 """
 from typing import Dict, Any, List
-from pathlib import Path
-import datetime
 import logging
 from reportlab.lib import colors
-from reportlab.lib.colors import Color
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
-from utils.logo_utils import create_logo_image
+from reportlab.platypus import Paragraph, Table
+from generators.base_report_generator import BaseReportGenerator, handle_report_errors, StandardPageSizes
+from generators.shared_design_system import (
+    COLORS, FONTS, create_standard_table_style, create_title_style
+)
+from generators.utils.formatting_utils import ValueFormatter
 
-COLORS = {
-    'primary_blue': Color(0.2, 0.4, 0.7),
-    'secondary_blue': Color(0.4, 0.6, 0.85),
-    'light_blue': Color(0.9, 0.94, 0.98),
-    'dark_gray': Color(0.2, 0.2, 0.2),
-    'medium_gray': Color(0.5, 0.5, 0.5),
-    'light_gray': Color(0.9, 0.9, 0.9),
-    'white': Color(1, 1, 1),
-    'border_gray': Color(0.8, 0.8, 0.8),
-}
-
-FONTS = {
-    'title': 'Helvetica-Bold',
-    'heading': 'Helvetica-Bold',
-    'body': 'Helvetica',
-    'table_header': 'Helvetica-Bold',
-    'table_body': 'Helvetica',
-}
-
-FONT_SIZES = {
-    'title': 16,
-    'heading': 12,
-    'body': 10,
-    'table_header': 9,
-    'table_body': 8,
-    'small': 7,
-}
 
 logger = logging.getLogger(__name__)
 
-def _compatibility_color(compatible: str) -> colors.Color:
-    """Returns green if compatible is 'Yes', otherwise red."""
-    return colors.green if compatible == "Yes" else colors.red
-
-def _area_loss_table_data(area_loss_data, cell_style, compatibility_style, header_style):
-    table_data = [[
-        Paragraph("Area", header_style),
-        Paragraph("Location", header_style),
-        Paragraph("H-Value", header_style),
-        Paragraph("H-Needed", header_style),
-        Paragraph("Compatible", header_style)
-    ]]
-    sorted_rows = sorted(area_loss_data, key=lambda x: x.get('area_id', ''))
-    for row in sorted_rows:
-        area_id = row.get('area_id', 'Unknown')
-        location = row.get('location', 'Unknown')
-        h_value = row.get('h_value', 0.0)
-        h_needed = row.get('h_needed', 0.0)
-        compatible = row.get('compatible', 'No')
-        h_value_formatted = f"{h_value:.3f}"
-        h_needed_formatted = f"{h_needed:.3f}"
-        color = _compatibility_color(compatible)
-        table_data.append([
-            Paragraph(area_id, cell_style),
-            Paragraph(location, cell_style),
-            h_value_formatted,
-            h_needed_formatted,
-            Paragraph(f"<font color={color}>{compatible}</font>", compatibility_style)
-        ])
-    return table_data
-
-def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
-                             output_filename: str,
-                             project_name: str = "N/A", 
-                             run_id: str = "N/A",
-                             city_name: str = "N/A",
-                             area_name: str = "N/A") -> bool:
-    """
-    Generate a PDF report with area loss information, including H-values.
-
-    Args:
-        area_loss_data (List[Dict[str, Any]]): List of area loss data rows.
-        output_filename (str): Path where to save the PDF report.
-        project_name (str): Name of the project.
-        run_id (str): Identifier for the current run.
-
-    Returns:
-        bool: True if report generation was successful, False otherwise.
-    """
-    doc = None
-    try:
-        output_path = Path(output_filename).parent
-        if not output_path.exists():
-            try:
-                output_path.mkdir(parents=True, exist_ok=True)
-            except OSError as e:
-                error_message = f"Error creating output directory '{output_path}': {e.strerror}"
-                logger.error(error_message, exc_info=True)
-                return False
-        elif not output_path.is_dir():
-            error_message = f"Error: Output path '{output_path}' exists but is not a directory."
-            logger.error(error_message)
-            return False
-
-        doc = SimpleDocTemplate(str(output_filename), pagesize=A4)
-        styles = getSampleStyleSheet()
+class AreaLossReportGenerator(BaseReportGenerator):
+    """Area Loss Report Generator using the refactored architecture."""
+    
+    def __init__(self, project_name="N/A", run_id="N/A", city_name="N/A", area_name="N/A"):
+        super().__init__(project_name, run_id, city_name, area_name)
+        self.formatter = ValueFormatter()
+    
+    @handle_report_errors("Area Loss")
+    def generate_report(self, area_loss_data: List[Dict[str, Any]], output_filename: str) -> bool:
+        """Generate area loss PDF report."""
+        # Get standard page configuration
+        page_config = StandardPageSizes.get_config('area_loss')
+        
+        # Create document
+        doc = self.create_document(
+            output_filename,
+            page_size=page_config['page_size'],
+            orientation=page_config['orientation']
+        )
+        
+        # Build story
         story = []
-
-        # Add logo if available
-        logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
-        if logo_image:
-            # Create a table to position logo on the left
-            logo_table_data = [[logo_image, ""]]
-            logo_table = Table(logo_table_data, colWidths=[5*cm, doc.width - 5*cm])
-            logo_table.setStyle(TableStyle([
-                ('ALIGN', (0, 0), (0, 0), 'LEFT'),
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                ('TOPPADDING', (0, 0), (-1, -1), 0),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-            ]))
-            story.append(logo_table)
-            story.append(Spacer(1, 10))
-
-        now = datetime.datetime.now()
-        hebrew_font = get_hebrew_font_name()
-        header_style = ParagraphStyle(
-            'HeaderInfo',
-            parent=styles['Normal'],
-            fontSize=9,
-            fontName=hebrew_font,
-            textColor=COLORS['dark_gray'],
-            alignment=2
-        )
         report_title = "Area Loss - Thermal Performance"
-        header_text = safe_format_header_text(
-            project_name=project_name,
-            run_id=run_id,
-            timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
-            city_name=city_name,
-            area_name=area_name,
-            report_title=report_title
-        )
-        story.append(Paragraph(header_text, header_style))
-        story.append(Spacer(1, 5))
-
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=FONT_SIZES['title'],
-            fontName=FONTS['title'],
-            textColor=COLORS['primary_blue'],
-            spaceAfter=20,
-            alignment=1
-        )
+        
+        # Add standardized header
+        header_elements = self.add_standardized_header(doc, report_title)
+        story.extend(header_elements)
+        
+        # Add title
+        title_style = create_title_style(self.styles)
         story.append(Paragraph(f"{report_title} Report", title_style))
-
+        
+        # Create and add table
+        if area_loss_data:
+            table = self._create_area_loss_table(area_loss_data)
+            story.append(table)
+        else:
+            no_data_paragraph = Paragraph("No area loss data available.", self.styles['Normal'])
+            story.append(no_data_paragraph)
+        
+        # Build document
+        return self.build_document(doc, story)
+    
+    def _create_area_loss_table(self, area_loss_data: List[Dict[str, Any]]) -> Table:
+        """Create area loss table with standardized styling."""
+        # Create styles
         cell_style = ParagraphStyle(
             'CellStyle',
-            parent=styles['Normal'],
+            parent=self.styles['Normal'],
             fontSize=9,
             leading=10,
             spaceBefore=0,
             spaceAfter=0
         )
-
+        
         header_style = ParagraphStyle(
             'HeaderStyle',
-            parent=styles['Normal'],
+            parent=self.styles['Normal'],
             fontSize=9,
             leading=10,
             spaceBefore=0,
@@ -181,65 +81,97 @@ def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
             fontName=FONTS['table_header'],
             textColor=COLORS['white']
         )
-
+        
         compatibility_style = ParagraphStyle(
             'CompatibilityStyle',
-            parent=styles['Normal'],
+            parent=self.styles['Normal'],
             fontSize=9,
             leading=10,
             spaceBefore=0,
             spaceAfter=0
         )
+        
+        # Create table data
+        table_data = self._prepare_table_data(area_loss_data, cell_style, compatibility_style, header_style)
+        
+        # Define column widths
+        col_widths = [3.0*cm, 5.0*cm, 3.0*cm, 3.0*cm, 3.0*cm]
+        
+        # Create table
+        table = Table(table_data, colWidths=col_widths, repeatRows=1)
+        
+        # Apply styling
+        table_style = create_standard_table_style(header_rows=1)
+        table_style.add('ALIGN', (2, 1), (3, -1), 'RIGHT')  # Right align H-Value and H-Needed
+        table.setStyle(table_style)
+        
+        return table
+    
+    def _prepare_table_data(self, area_loss_data, cell_style, compatibility_style, header_style):
+        """Prepare table data with headers and formatted content."""
+        # Header row
+        table_data = [[
+            Paragraph("Area", header_style),
+            Paragraph("Location", header_style),
+            Paragraph("H-Value", header_style),
+            Paragraph("H-Needed", header_style),
+            Paragraph("Compatible", header_style)
+        ]]
+        
+        # Sort data
+        sorted_rows = sorted(area_loss_data, key=lambda x: x.get('area_id', ''))
+        
+        # Data rows
+        for row in sorted_rows:
+            area_id = self.formatter.safe_string(row.get('area_id', 'Unknown'))
+            location = self.formatter.safe_string(row.get('location', 'Unknown'))
+            h_value = self.formatter.format_number(row.get('h_value', 0.0), precision=3)
+            h_needed = self.formatter.format_number(row.get('h_needed', 0.0), precision=3)
+            compatible = row.get('compatible', 'No')
+            
+            # Color-code compatibility
+            color = "green" if compatible == "Yes" else "red"
+            compatible_cell = Paragraph(f"<font color={color}>{compatible}</font>", compatibility_style)
+            
+            table_data.append([
+                Paragraph(area_id, cell_style),
+                Paragraph(location, cell_style),
+                h_value,
+                h_needed,
+                compatible_cell
+            ])
+        
+        return table_data
 
-        table_data = _area_loss_table_data(area_loss_data, cell_style, compatibility_style, header_style)
+# Backward compatibility function
+@handle_report_errors("Area Loss")
+def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
+                                 output_filename: str,
+                                 project_name: str = "N/A", 
+                                 run_id: str = "N/A",
+                                 city_name: str = "N/A",
+                                 area_name: str = "N/A") -> bool:
+    """
+    Generate a PDF report with area loss information, including H-values.
+    
+    This function provides backward compatibility while using the new refactored architecture.
 
-        col_widths = [
-            3.0*cm,
-            5.0*cm,
-            3.0*cm,
-            3.0*cm,
-            3.0*cm
-        ]
+    Args:
+        area_loss_data (List[Dict[str, Any]]): List of area loss data rows.
+        output_filename (str): Path where to save the PDF report.
+        project_name (str): Name of the project.
+        run_id (str): Identifier for the current run.
+        city_name (str): City name.
+        area_name (str): Area name.
 
-        area_loss_table = Table(table_data, colWidths=col_widths, repeatRows=1)
-
-        table_style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-            ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
-            ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),
-            ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
-
-            ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
-            ('FONTSIZE', (0, 1), (-1, -1), FONT_SIZES['table_body']),
-            ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
-            ('ALIGN', (2, 1), (3, -1), 'RIGHT'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
-
-            ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
-            ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
-
-            ('LEFTPADDING', (0, 0), (-1, -1), 6),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-            ('TOPPADDING', (0, 0), (-1, -1), 4),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ])
-
-        area_loss_table.setStyle(table_style)
-        story.append(area_loss_table)
-
-        doc.build(story)
-        return True
-    except (IOError, OSError) as e:
-        error_message = f"Error during file operation for Area Loss report '{output_filename}': {e.strerror}"
-        logger.error(error_message, exc_info=True)
-        return False
-    except Exception as e:
-        error_message = f"An unexpected error occurred while generating Area Loss report '{output_filename}': {type(e).__name__} - {str(e)}"
-        logger.error(error_message, exc_info=True)
-        return False
-    finally:
-        pass
+    Returns:
+        bool: True if report generation was successful, False otherwise.
+    """
+    generator = AreaLossReportGenerator(
+        project_name=project_name,
+        run_id=run_id,
+        city_name=city_name,
+        area_name=area_name
+    )
+    
+    return generator.generate_report(area_loss_data, output_filename)

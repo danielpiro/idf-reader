@@ -1,23 +1,151 @@
 """
 Generates reports for area-specific information extracted from IDF files.
 """
-from reportlab.lib.colors import Color
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.pagesizes import landscape, A4
-from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from pathlib import Path
-import datetime
+from typing import Dict, Any, List
 import logging
 from collections import defaultdict
-from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
-from utils.logo_utils import create_logo_image
+from pathlib import Path
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import cm
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+from generators.base_report_generator import BaseReportGenerator, handle_report_errors, StandardPageSizes
 from generators.shared_design_system import (
     COLORS, FONTS, FONT_SIZES, LAYOUT,
-    create_standard_table_style, create_title_style, create_header_info_style
+    create_standard_table_style, create_title_style
 )
+from generators.utils.formatting_utils import ValueFormatter
 
 logger = logging.getLogger(__name__)
+
+
+class AreaReportGenerator(BaseReportGenerator):
+    """Area Report Generator using the refactored architecture."""
+    
+    def __init__(self, project_name="N/A", run_id="N/A", city_name="N/A", area_name="N/A"):
+        super().__init__(project_name, run_id, city_name, area_name)
+        self.formatter = ValueFormatter()
+    
+    @handle_report_errors("Area")
+    def generate_report(self, area_id: str, area_data: List[Dict[str, Any]], 
+                       output_filename: str, total_floor_area: float = 0.0,
+                       wall_mass_per_area: float = 0.0, location: str = "Unknown",
+                       areas_data=None, glazing_data: List[Dict[str, Any]] = None) -> bool:
+        """Generate area PDF report."""
+        # Get standard page configuration
+        page_config = StandardPageSizes.get_config('area')
+        
+        # Create document
+        doc = self.create_document(
+            output_filename,
+            page_size=page_config['page_size'],
+            orientation=page_config['orientation']
+        )
+        
+        # Build story
+        story = []
+        report_title = f"Area {area_id} - Thermal Properties"
+        
+        # Add standardized header
+        header_elements = self.add_standardized_header(doc, report_title)
+        story.extend(header_elements)
+        
+        # Add title
+        title_style = create_title_style(self.styles)
+        title_style.spaceAfter = 20
+        story.append(Paragraph(f"{report_title} Report", title_style))
+        
+        # Add area summary
+        summary_element = self._create_area_summary(area_id, total_floor_area, location, 
+                                                   wall_mass_per_area, areas_data, doc)
+        story.append(summary_element)
+        story.append(Spacer(1, 15))
+        
+        # Add main area table (excluding glazing)
+        if area_data:
+            area_table_elements = _create_area_table(area_data, "", doc.width)
+            story.extend(area_table_elements)
+            story.append(Spacer(1, 15))
+        
+        # Add glazing table if glazing data exists
+        if glazing_data:
+            glazing_table_elements = _create_glazing_table(glazing_data, "", doc.width)
+            story.extend(glazing_table_elements)
+        
+        # Build document
+        return self.build_document(doc, story)
+    
+    def _create_area_summary(self, area_id: str, total_floor_area: float, location: str,
+                           wall_mass_per_area: float, areas_data, doc) -> Table:
+        """Create area summary table with standardized styling."""
+        # Collect window directions from CSV data
+        window_directions = set()
+        if areas_data:
+            if hasattr(areas_data, 'glazing_data_from_csv'):
+                glazing_data_from_csv = areas_data.glazing_data_from_csv
+                if glazing_data_from_csv:
+                    # Extract area ID from the current area_id
+                    current_area_id = area_id
+                    if ":" in current_area_id:
+                        current_area_id = current_area_id.split(":")[1]
+                    
+                    # Only include directions for surfaces in this area
+                    for surface_name, data in glazing_data_from_csv.items():
+                        # Extract area ID from surface name (e.g., "00:01XLIVING_WALL_4_0_0_0_0_0_WIN" -> "01")
+                        surface_area_id = None
+                        if ":" in surface_name:
+                            parts = surface_name.split(":")
+                            if len(parts) > 1 and parts[1][:2].isdigit():
+                                surface_area_id = parts[1][:2]
+                        
+                        if surface_area_id == current_area_id and 'CardinalDirection' in data:
+                            direction = data['CardinalDirection']
+                            if direction and direction != "Unknown":
+                                window_directions.add(direction)
+        
+        # Define custom sort order for directions
+        direction_order = {'North': 0, 'South': 1, 'East': 2, 'West': 3}
+        
+        # Sort directions according to custom order
+        sorted_directions = sorted(window_directions, key=lambda x: direction_order.get(x, 999))
+        
+        # Format window directions for display
+        window_directions_str = ", ".join(sorted_directions) if sorted_directions else "None"
+        
+        summary_content_style = ParagraphStyle(
+            'SummaryContent',
+            parent=self.styles['Normal'],
+            fontSize=FONT_SIZES['body'],
+            fontName=FONTS['body'],
+            textColor=COLORS['dark_gray'],
+            leading=14,
+            spaceBefore=0,
+            spaceAfter=0
+        )
+        
+        summary_text = f"""
+        <font name="{FONTS['heading']}" size="{FONT_SIZES['heading']}" color="{COLORS['primary_blue'].hexval()}"><b>Area Summary</b></font><br/>
+        <br/>
+        <b>Area Name:</b> {area_id}<br/>
+        <b>Total Area:</b> {total_floor_area:.2f} m²<br/>
+        <b>Location:</b> {location}<br/>
+        <b>Windows Directions:</b> {window_directions_str}<br/>
+        <b>Wall Mass:</b> {wall_mass_per_area:.2f} kg/m²
+        """
+        
+        summary_paragraph = Paragraph(summary_text, summary_content_style)
+        summary_table_data = [[summary_paragraph]]
+        summary_table = Table(summary_table_data, colWidths=[doc.width - 2*cm])
+        
+        summary_table_style = TableStyle([
+            ('BOX', (0, 0), (-1, -1), 1.5, COLORS['primary_blue']),
+            ('BACKGROUND', (0, 0), (-1, -1), COLORS['light_blue']),
+            ('PADDING', (0, 0), (-1, -1), 15),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
+        ])
+        
+        summary_table.setStyle(summary_table_style)
+        return summary_table
 
 def _format_construction_name(construction: str) -> str:
     """
@@ -126,10 +254,17 @@ def _area_table_data(merged_data):
     """
     return sorted(merged_data, key=custom_area_sort_key)
 
-def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_area=0.0, project_name="N/A", run_id="N/A", 
-                            city_name="N/A", area_name="N/A", wall_mass_per_area=0.0, location="Unknown", areas_data=None, glazing_data=None):
+# Backward compatibility function
+def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]], 
+                           output_filename: str, total_floor_area: float = 0.0, 
+                           project_name: str = "N/A", run_id: str = "N/A", 
+                           city_name: str = "N/A", area_name: str = "N/A", 
+                           wall_mass_per_area: float = 0.0, location: str = "Unknown", 
+                           areas_data=None, glazing_data: List[Dict[str, Any]] = None) -> bool:
     """
     Generate a PDF report with area information, including a header and separate glazing table.
+    
+    This function provides backward compatibility while using the new refactored architecture.
 
     Args:
         area_id (str): The area ID for the report.
@@ -138,6 +273,8 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         total_floor_area (float): The total floor area for this area.
         project_name (str): Name of the project.
         run_id (str): Identifier for the current run.
+        city_name (str): City name.
+        area_name (str): Area name.
         wall_mass_per_area (float): Mass per area (kg/m²) of the largest external wall's construction.
         location (str): The location type of the area (e.g., Ground Floor, Intermediate Floor).
         areas_data: AreaParser instance or dictionary of area information by zone.
@@ -146,163 +283,27 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
     Returns:
         bool: True if report generation was successful, False otherwise.
     """
-    doc = None
     try:
-        output_file_path = Path(output_filename)
-        output_dir = output_file_path.parent
-        if not output_dir.exists():
-            try:
-                output_dir.mkdir(parents=True, exist_ok=True)
-            except OSError as e:
-                error_message = f"Error creating output directory '{output_dir}' for area report '{area_id}': {e.strerror}"
-                logger.error(error_message, exc_info=True)
-                return False
-        elif not output_dir.is_dir():
-            error_message = f"Error: Output path '{output_dir}' for area report '{area_id}' exists but is not a directory."
-            logger.error(error_message)
-            return False
-
-        doc = SimpleDocTemplate(str(output_file_path), pagesize=landscape(A4))
-        styles = getSampleStyleSheet()
-        story = []
-
-        # Add logo if available
-        logo_image = create_logo_image(max_width=LAYOUT['logo']['max_width'], max_height=LAYOUT['logo']['max_height'])
-        if logo_image:
-            # Create a table to position logo on the left
-            logo_table_data = [[logo_image, ""]]
-            logo_table = Table(logo_table_data, colWidths=[LAYOUT['logo']['table_width'], doc.width - LAYOUT['logo']['table_width']])
-            logo_table.setStyle(TableStyle([
-                ('ALIGN', (0, 0), (0, 0), 'LEFT'),
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                ('TOPPADDING', (0, 0), (-1, -1), 0),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-            ]))
-            story.append(logo_table)
-            story.append(Spacer(1, 10))
-
-        now = datetime.datetime.now()
-        header_style = create_header_info_style(styles)
-        report_title = f"Area {area_id} - Thermal Properties"
-        header_text = safe_format_header_text(
+        generator = AreaReportGenerator(
             project_name=project_name,
             run_id=run_id,
-            timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
             city_name=city_name,
-            area_name=area_name,
-            report_title=report_title
+            area_name=area_name
         )
-        story.append(Paragraph(header_text, header_style))
-        story.append(Spacer(1, LAYOUT['spacing']['small']))
-
-        title_style = create_title_style(styles)
-        title_style.spaceAfter = 20
-        story.append(Paragraph(f"{report_title} Report", title_style))
-
-        merged_data = area_data
-
-        # Collect window directions from CSV data
-        window_directions = set()
-        if areas_data:
-            if hasattr(areas_data, 'glazing_data_from_csv'):
-                glazing_data_from_csv = areas_data.glazing_data_from_csv
-                if glazing_data_from_csv:
-                    # Extract area ID from the current area_id
-                    current_area_id = area_id
-                    if ":" in current_area_id:
-                        current_area_id = current_area_id.split(":")[1]
-                    
-                    # Only include directions for surfaces in this area
-                    for surface_name, data in glazing_data_from_csv.items():
-                        # Extract area ID from surface name (e.g., "00:01XLIVING_WALL_4_0_0_0_0_0_WIN" -> "01")
-                        surface_area_id = None
-                        if ":" in surface_name:
-                            parts = surface_name.split(":")
-                            if len(parts) > 1 and parts[1][:2].isdigit():
-                                surface_area_id = parts[1][:2]
-                        
-                        if surface_area_id == current_area_id and 'CardinalDirection' in data:
-                            direction = data['CardinalDirection']
-                            if direction and direction != "Unknown":
-                                window_directions.add(direction)
-
-        # Define custom sort order for directions
-        direction_order = {
-            'North': 0,
-            'South': 1,
-            'East': 2,
-            'West': 3
-        }
-
-        # Sort directions according to custom order
-        sorted_directions = sorted(window_directions, key=lambda x: direction_order.get(x, 999))
         
-        # Format window directions for display
-        
-        window_directions_str = ", ".join(sorted_directions) if sorted_directions else "None"
-
-        summary_content_style = ParagraphStyle(
-            'SummaryContent',
-            parent=styles['Normal'],
-            fontSize=FONT_SIZES['body'],
-            fontName=FONTS['body'],
-            textColor=COLORS['dark_gray'],
-            leading=14,
-            spaceBefore=0,
-            spaceAfter=0
+        return generator.generate_report(
+            area_id=area_id,
+            area_data=area_data,
+            output_filename=output_filename,
+            total_floor_area=total_floor_area,
+            wall_mass_per_area=wall_mass_per_area,
+            location=location,
+            areas_data=areas_data,
+            glazing_data=glazing_data
         )
-
-        summary_text = f"""
-        <font name="{FONTS['heading']}" size="{FONT_SIZES['heading']}" color="{COLORS['primary_blue'].hexval()}"><b>Area Summary</b></font><br/>
-        <br/>
-        <b>Area Name:</b> {area_id}<br/>
-        <b>Total Area:</b> {total_floor_area:.2f} m²<br/>
-        <b>Location:</b> {location}<br/>
-        <b>Windows Directions:</b> {window_directions_str}<br/>
-        <b>Wall Mass:</b> {wall_mass_per_area:.2f} kg/m²
-        """
-
-        summary_paragraph = Paragraph(summary_text, summary_content_style)
-
-        summary_table_data = [[summary_paragraph]]
-        summary_table = Table(summary_table_data, colWidths=[doc.width - 2*cm])
-
-        summary_table_style = TableStyle([
-            ('BOX', (0, 0), (-1, -1), 1.5, COLORS['primary_blue']),
-            ('BACKGROUND', (0, 0), (-1, -1), COLORS['light_blue']),
-            ('PADDING', (0, 0), (-1, -1), 15),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('INNERGRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
-        ])
-
-        summary_table.setStyle(summary_table_style)
-
-        story.append(summary_table)
-        story.append(Spacer(1, 15))
-
-        # Add main area table (excluding glazing)
-        if merged_data:
-            story.extend(_create_area_table(merged_data, "", doc.width))
-            story.append(Spacer(1, 15))
-
-        # Add glazing table if glazing data exists
-        if glazing_data:
-            story.extend(_create_glazing_table(glazing_data, "", doc.width))
-
-        doc.build(story)
-        return True
-    except (IOError, OSError) as e:
-        error_message = f"Error during file operation for Area report '{area_id}' (file: '{output_filename}'): {e.strerror}"
-        logger.error(error_message, exc_info=True)
-        return False
     except Exception as e:
-        error_message = f"An unexpected error occurred while generating Area report for '{area_id}' (file: '{output_filename}'): {type(e).__name__} - {str(e)}"
-        logger.error(error_message, exc_info=True)
+        logger.error(f"Error in generate_area_report_pdf: {type(e).__name__} - {str(e)}", exc_info=True)
         return False
-    finally:
-        pass
 
 def _create_area_table(merged_data, table_title, page_width):
     """

@@ -3,41 +3,15 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import Paragraph, Table, TableStyle
-from reportlab.lib import colors
-from reportlab.lib.colors import grey, Color
+from reportlab.lib.colors import grey
 import datetime
 import logging
 from pathlib import Path
 from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
 from utils.logo_utils import create_logo_image
-
-COLORS = {
-    'primary_blue': Color(0.2, 0.4, 0.7),
-    'secondary_blue': Color(0.4, 0.6, 0.85),
-    'light_blue': Color(0.9, 0.94, 0.98),
-    'dark_gray': Color(0.2, 0.2, 0.2),
-    'medium_gray': Color(0.5, 0.5, 0.5),
-    'light_gray': Color(0.9, 0.9, 0.9),
-    'white': Color(1, 1, 1),
-    'border_gray': Color(0.8, 0.8, 0.8),
-}
-
-FONTS = {
-    'title': 'Helvetica-Bold',
-    'heading': 'Helvetica-Bold',
-    'body': 'Helvetica',
-    'table_header': 'Helvetica-Bold',
-    'table_body': 'Helvetica',
-}
-
-FONT_SIZES = {
-    'title': 16,
-    'heading': 12,
-    'body': 10,
-    'table_header': 9,
-    'table_body': 8,
-    'small': 7,
-}
+from generators.shared_design_system import (
+    COLORS, FONTS, FONT_SIZES, create_standardized_header
+)
 
 logger = logging.getLogger(__name__)
 
@@ -225,20 +199,27 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
             report_title=report_title
         )
         
-        # Add logo if available
+        # Add logo and header with horizontal alignment
         logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
-        if logo_image:
-            # Position logo at top left
-            logo_width, logo_height = logo_image.drawWidth, logo_image.drawHeight
-            logo_x = margin_x
-            logo_y = height - margin_y - logo_height
-            logo_image.drawOn(c, logo_x, logo_y)
-            current_y -= (logo_height + 0.3*cm)
-        
         p_header = Paragraph(header_text, header_info_style)
         header_width_actual, header_height = p_header.wrapOn(c, content_width, margin_y)
-        p_header.drawOn(c, width - margin_x - header_width_actual, current_y - header_height)
-        current_y -= (header_height + 0.2*cm)
+        
+        if logo_image:
+            # Position logo at top left and header at top right, aligned horizontally
+            logo_width, logo_height = logo_image.drawWidth, logo_image.drawHeight
+            logo_x = margin_x
+            logo_y = height - margin_y - max(logo_height, header_height)
+            header_y = height - margin_y - header_height
+            
+            # Draw both at the same vertical level for horizontal alignment
+            logo_image.drawOn(c, logo_x, logo_y)
+            p_header.drawOn(c, width - margin_x - header_width_actual, header_y)
+            current_y -= (max(logo_height, header_height) + 0.3*cm)
+        else:
+            # No logo, just position header
+            header_y = height - margin_y - header_height
+            p_header.drawOn(c, width - margin_x - header_width_actual, header_y)
+            current_y -= (header_height + 0.3*cm)
 
         title_text = f"{report_title} Report"
         title_style.alignment = 1  # Center alignment
@@ -296,7 +277,7 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
             schedule_table_obj = create_hourly_schedule_table(rule_blocks, content_width)
 
             if schedule_table_obj:
-                table_width_actual_content, table_height = schedule_table_obj.wrapOn(c, content_width, margin_y)
+                _, table_height = schedule_table_obj.wrapOn(c, content_width, margin_y)
                 total_element_height = name_height + schedule_name_style.spaceAfter + table_height + space_after_table
 
                 if current_y - total_element_height < margin_y:

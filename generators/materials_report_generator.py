@@ -1,24 +1,113 @@
 """
 Generates PDF reports showing materials and their thermal properties within constructions.
 """
-from reportlab.lib.pagesizes import landscape, A3
-from reportlab.lib.units import cm
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import Paragraph, Table, TableStyle, SimpleDocTemplate, Spacer
-from reportlab.lib.colors import lightgrey, Color
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
-import datetime
+from typing import Dict, Any, List
 import logging
-from pathlib import Path
-from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
-from utils.logo_utils import create_logo_image
+from reportlab.lib.colors import lightgrey
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.platypus import Paragraph, Table
+from generators.base_report_generator import BaseReportGenerator, handle_report_errors, StandardPageSizes
 from generators.shared_design_system import (
     COLORS, FONTS, FONT_SIZES, LAYOUT,
     create_standard_table_style, create_cell_style, 
-    create_title_style, create_header_info_style, wrap_text
+    create_title_style, wrap_text
 )
+from generators.utils.formatting_utils import ValueFormatter
 
 logger = logging.getLogger(__name__)
+
+
+class MaterialsReportGenerator(BaseReportGenerator):
+    """Materials Report Generator using the refactored architecture."""
+    
+    def __init__(self, element_data: List[Dict[str, Any]], output_path: str, project_name="N/A", run_id="N/A", city_name="N/A", area_name="N/A"):
+        super().__init__(project_name, run_id, city_name, area_name)
+        self.element_data = element_data
+        self.output_path = output_path
+        self.formatter = ValueFormatter()
+    
+    @handle_report_errors("Materials")
+    def generate_report(self) -> bool:
+        """Generate materials PDF report."""
+        if not self.element_data:
+            logger.warning("No element data provided for materials report. Skipping generation.")
+            return False
+
+        # Group the data
+        grouped_data = group_element_data(self.element_data)
+        if not grouped_data:
+            logger.warning("Element data could not be grouped or resulted in no groups for materials report. Skipping generation.")
+            return False
+
+        # Get standard page configuration
+        page_config = StandardPageSizes.get_config('materials')
+        
+        # Create document
+        doc = self.create_document(
+            self.output_path,
+            page_size=page_config['page_size'],
+            orientation=page_config['orientation']
+        )
+        
+        # Build story
+        story = []
+        report_title = "Building Elements Materials Properties"
+        
+        # Add standardized header
+        header_elements = self.add_standardized_header(doc, report_title)
+        story.extend(header_elements)
+        
+        # Add title
+        title_style = create_title_style(self.styles)
+        story.append(Paragraph(f"{report_title} Report", title_style))
+        
+        # Create and add table
+        table = self._create_materials_table(grouped_data, doc)
+        story.append(table)
+        
+        # Build document
+        return self.build_document(doc, story)
+    
+    def _create_materials_table(self, grouped_data: List[Dict[str, Any]], doc) -> Table:
+        """Create materials table with standardized styling."""
+        # Create styles
+        cell_style = create_cell_style(self.styles, is_header=False, font_size=FONT_SIZES['table_body'])
+        header_cell_style = create_cell_style(self.styles, is_header=True, font_size=FONT_SIZES['table_header'])
+        total_style = create_cell_style(self.styles, is_header=False, font_size=FONT_SIZES['table_body'])
+        
+        # Calculate content width
+        page_size = doc.pagesize
+        margins = doc.leftMargin + doc.rightMargin
+        content_width = page_size[0] - margins
+        
+        # Define column widths
+        col_widths = [
+            content_width * 0.09, content_width * 0.12, content_width * 0.14, content_width * 0.06,
+            content_width * 0.07, content_width * 0.07, content_width * 0.07, content_width * 0.08,
+            content_width * 0.07, content_width * 0.09, content_width * 0.07, content_width * 0.07
+        ]
+        
+        # Build table data
+        table_data, total_rows = _build_table_data(grouped_data, cell_style, header_cell_style, total_style)
+        
+        # Create table
+        table = Table(table_data, colWidths=col_widths)
+        
+        # Apply styling
+        table_style = create_standard_table_style()
+        for i in range(1, len(table_data)):
+            if i in total_rows:
+                table_style.add('BACKGROUND', (0, i), (-1, i), lightgrey)
+                table_style.add('FONTNAME', (2, i), (2, i), 'Helvetica-Bold')
+                table_style.add('FONTNAME', (3, i), (3, i), 'Helvetica-Bold')
+                table_style.add('FONTNAME', (6, i), (6, i), 'Helvetica-Bold')
+                table_style.add('FONTNAME', (7, i), (7, i), 'Helvetica-Bold')
+                table_style.add('FONTNAME', (10, i), (10, i), 'Helvetica-Bold')
+                table_style.add('FONTNAME', (11, i), (11, i), 'Helvetica-Bold')
+        
+        table.setStyle(table_style)
+        return table
 
 
 def _normalize_glazing_str(s: str) -> str:
@@ -211,117 +300,37 @@ def _build_table_data(grouped_data, cell_style, header_cell_style, total_style):
         row_index += 1
     return table_data, total_rows
 
-def generate_materials_report_pdf(element_data, output_filename="output/materials.pdf", project_name="N/A", run_id="N/A",
-                                  city_name="N/A", area_name="N/A"):
+# Backward compatibility function
+@handle_report_errors("Materials")
+def generate_materials_report_pdf(element_data: List[Dict[str, Any]],
+                                 output_filename: str = "output/materials.pdf", 
+                                 project_name: str = "N/A", 
+                                 run_id: str = "N/A",
+                                 city_name: str = "N/A", 
+                                 area_name: str = "N/A") -> bool:
     """
-    Generates a PDF report containing materials thermal properties, including a header.
+    Generate a PDF report containing materials thermal properties.
+    
+    This function provides backward compatibility while using the new refactored architecture.
+    
     Args:
-        element_data (list): List of dictionaries containing element data.
+        element_data (List[Dict[str, Any]]): List of dictionaries containing element data.
         output_filename (str): The name of the output PDF file.
         project_name (str): Name of the project.
         run_id (str): Identifier for the current run.
+        city_name (str): City name.
+        area_name (str): Area name.
+    
     Returns:
         bool: True if report generated successfully, False otherwise.
     """
-    if not element_data:
-        logger.warning("No element data provided for materials report. Skipping generation.")
-        return False
-
-    doc = None
-    try:
-        output_file_path = Path(output_filename)
-        output_dir = output_file_path.parent
-        if not output_dir.exists():
-            try:
-                output_dir.mkdir(parents=True, exist_ok=True)
-            except OSError as e:
-                error_message = f"Error creating output directory '{output_dir}' for materials report: {e.strerror}"
-                logger.error(error_message, exc_info=True)
-                return False
-        elif not output_dir.is_dir():
-            error_message = f"Error: Output path '{output_dir}' for materials report exists but is not a directory."
-            logger.error(error_message)
-            return False
-
-        grouped_data = group_element_data(element_data)
-        if not grouped_data:
-            logger.warning("Element data could not be grouped or resulted in no groups for materials report. Skipping generation.")
-            return False
-
-        page_size = landscape(A3)
-        left_margin = right_margin = top_margin = bottom_margin = 1.0 * cm
-        doc = SimpleDocTemplate(str(output_file_path), pagesize=page_size, leftMargin=left_margin, rightMargin=right_margin, topMargin=top_margin, bottomMargin=bottom_margin)
-        width, _ = page_size
-        content_width = width - left_margin - right_margin
-        styles = getSampleStyleSheet()
-        title_style = create_title_style(styles)
-        title_style.spaceAfter = LAYOUT['spacing']['standard']
-        cell_style = create_cell_style(styles, is_header=False, font_size=FONT_SIZES['table_body'])
-        header_cell_style = create_cell_style(styles, is_header=True, font_size=FONT_SIZES['table_header'])
-        total_style = create_cell_style(styles, is_header=False, font_size=FONT_SIZES['table_body'])
-        header_info_style = create_header_info_style(styles)
-        now = datetime.datetime.now()
-        report_title = "Building Elements Materials Properties"
-        header_text = safe_format_header_text(
-            project_name=project_name,
-            run_id=run_id,
-            timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
-            city_name=city_name,
-            area_name=area_name,
-            report_title=report_title
-        )
-        # Add logo if available
-        logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
-        story = []
-        if logo_image:
-            # Create a table to position logo on the left
-            logo_table_data = [[logo_image, ""]]
-            logo_table = Table(logo_table_data, colWidths=[LAYOUT['logo']['table_width'], content_width - LAYOUT['logo']['table_width']])
-            logo_table.setStyle(TableStyle([
-                ('ALIGN', (0, 0), (0, 0), 'LEFT'),
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                ('TOPPADDING', (0, 0), (-1, -1), 0),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-            ]))
-            story.append(logo_table)
-            story.append(Spacer(1, 10))
-        
-        story.extend([
-            Paragraph(header_text, header_info_style),
-            Spacer(1, LAYOUT['spacing']['small']),
-            Paragraph(f"{report_title} Report", title_style),
-            Spacer(1, LAYOUT['spacing']['standard'])
-        ])
-        col_widths = [
-            content_width * 0.09, content_width * 0.12, content_width * 0.14, content_width * 0.06,
-            content_width * 0.07, content_width * 0.07, content_width * 0.07, content_width * 0.08,
-            content_width * 0.07, content_width * 0.09, content_width * 0.07, content_width * 0.07
-        ]
-        table_data, total_rows = _build_table_data(grouped_data, cell_style, header_cell_style, total_style)
-        materials_table = Table(table_data, colWidths=col_widths)
-        table_style = create_standard_table_style()
-        for i in range(1, len(table_data)):
-            if i in total_rows:
-                table_style.add('BACKGROUND', (0, i), (-1, i), lightgrey)
-                table_style.add('FONTNAME', (2, i), (2, i), 'Helvetica-Bold')
-                table_style.add('FONTNAME', (3, i), (3, i), 'Helvetica-Bold')
-                table_style.add('FONTNAME', (6, i), (6, i), 'Helvetica-Bold')
-                table_style.add('FONTNAME', (7, i), (7, i), 'Helvetica-Bold')
-                table_style.add('FONTNAME', (10, i), (10, i), 'Helvetica-Bold')
-                table_style.add('FONTNAME', (11, i), (11, i), 'Helvetica-Bold')
-        materials_table.setStyle(table_style)
-        story.append(materials_table)
-        doc.build(story)
-        return True
-    except (IOError, OSError) as e:
-        error_message = f"Error during file operation for Materials report '{output_filename}': {e.strerror}"
-        logger.error(error_message, exc_info=True)
-        return False
-    except Exception as e:
-        error_message = f"An unexpected error occurred while generating Materials report '{output_filename}': {type(e).__name__} - {str(e)}"
-        logger.error(error_message, exc_info=True)
-        return False
-    finally:
-        pass
+    generator = MaterialsReportGenerator(
+        element_data=element_data,
+        output_path=output_filename,
+        project_name=project_name,
+        run_id=run_id,
+        city_name=city_name,
+        area_name=area_name
+    )
+    
+    return generator.generate_report()

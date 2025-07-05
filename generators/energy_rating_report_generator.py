@@ -17,7 +17,7 @@ from utils.logo_utils import create_logo_image
 from generators.shared_design_system import (
     COLORS, FONTS, FONT_SIZES, LAYOUT,
     create_multi_header_table_style, create_title_style, 
-    create_header_info_style
+    create_header_info_style, create_standardized_header
 )
 
 from reportlab.lib.enums import TA_CENTER
@@ -914,52 +914,19 @@ class EnergyRatingReportGenerator:
                                     topMargin=self.margin, bottomMargin=self.margin)
             story = []
 
-            from reportlab.lib.styles import ParagraphStyle
-            from reportlab.lib.enums import TA_RIGHT
-            hebrew_font = get_hebrew_font_name()
-            header_info_style = ParagraphStyle(
-                'HeaderInfo',
-                parent=self.styles['Normal'],
-                fontSize=9,
-                fontName=hebrew_font,
-                textColor=COLORS['dark_gray'],
-                alignment=TA_RIGHT
-            )
-            now = datetime.datetime.now()
-            # Add logo if available
-            logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
-            if logo_image:
-                # Create a table to position logo on the left
-                logo_table_data = [[logo_image, ""]]
-                logo_table = Table(logo_table_data, colWidths=[5*cm, doc.width - 5*cm])
-                logo_table.setStyle(TableStyle([
-                    ('ALIGN', (0, 0), (0, 0), 'LEFT'),
-                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                    ('TOPPADDING', (0, 0), (-1, -1), 0),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-                ]))
-                story.append(logo_table)
-                story.append(Spacer(1, 10))
-            
+            # Add standardized header
             report_title = "Energy Rating Report"
-            header_text = safe_format_header_text(
+            header_elements = create_standardized_header(
+                doc=doc,
                 project_name=self.project_name,
                 run_id=self.run_id,
-                timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
                 city_name=self.selected_city_name or 'N/A',
                 area_name=self.area_name,
                 report_title=report_title
             )
-            story.append(Paragraph(header_text, header_info_style))
-            story.append(Spacer(1, 5))
+            story.extend(header_elements)
 
-            title_style = self.styles['h1']
-            title_style.alignment = TA_CENTER
-            title_style.textColor = COLORS['primary_blue']
-            title_style.fontName = FONTS['title']
-            title_style.fontSize = FONT_SIZES['title']
+            title_style = create_title_style(self.styles)
             story.append(Paragraph(f"{report_title} Report", title_style))
             story.append(Spacer(1, 0.7*cm))
 
@@ -1013,7 +980,19 @@ class EnergyRatingReportGenerator:
             story = []
             hebrew_font = get_hebrew_font_name()
 
-            # SECTION 1: Header Information
+            # Add standardized header with metadata
+            report_title = "Total Energy Rating Report"
+            header_elements = create_standardized_header(
+                doc=doc,
+                project_name=self.project_name,
+                run_id=self.run_id,
+                city_name=self.selected_city_name or 'N/A',
+                area_name=self.area_name,
+                report_title=report_title
+            )
+            story.extend(header_elements)
+
+            # SECTION 1: Hebrew Header Information (simplified since standardized header is above)
             story.extend(self._create_hebrew_header_section(settings_extractor, hebrew_font, total_score, letter_grade))
             story.append(Spacer(1, LAYOUT['spacing']['small']))
 
@@ -1108,24 +1087,7 @@ class EnergyRatingReportGenerator:
         """Create Section 1: Professional Hebrew header with project information"""
         elements = []
         
-        # Add logo at the top left if available (matching materials_report_generator pattern)
-        logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
-        if logo_image:
-            # Create a table to position logo on the left
-            logo_table_data = [[logo_image, ""]]
-            logo_table = Table(logo_table_data, colWidths=[5*cm, 14*cm])
-            logo_table.setStyle(TableStyle([
-                ('ALIGN', (0, 0), (0, 0), 'LEFT'),
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                ('TOPPADDING', (0, 0), (-1, -1), 0),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-            ]))
-            elements.append(logo_table)
-            elements.append(Spacer(1, 10))
-        
-        # Add title separately below logo (centered)
+        # Add title (centered) - logo is already in standardized header above
         title_style = ParagraphStyle(
             'HebrewTitle',
             parent=self.styles['h1'],
