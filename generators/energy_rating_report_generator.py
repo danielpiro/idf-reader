@@ -14,34 +14,12 @@ from reportlab.lib.colors import black, Color
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER
 from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name, encode_hebrew_text
 from utils.logo_utils import create_logo_image
+from generators.shared_design_system import (
+    COLORS, FONTS, FONT_SIZES, LAYOUT,
+    create_multi_header_table_style, create_title_style, 
+    create_header_info_style
+)
 
-COLORS = {
-    'primary_blue': Color(0.2, 0.4, 0.7),
-    'secondary_blue': Color(0.4, 0.6, 0.85),
-    'light_blue': Color(0.9, 0.94, 0.98),
-    'dark_gray': Color(0.2, 0.2, 0.2),
-    'medium_gray': Color(0.5, 0.5, 0.5),
-    'light_gray': Color(0.9, 0.9, 0.9),
-    'white': Color(1, 1, 1),
-    'border_gray': Color(0.8, 0.8, 0.8),
-}
-
-FONTS = {
-    'title': 'Helvetica-Bold',
-    'heading': 'Helvetica-Bold',
-    'body': 'Helvetica',
-    'table_header': 'Helvetica-Bold',
-    'table_body': 'Helvetica',
-}
-
-FONT_SIZES = {
-    'title': 16,
-    'heading': 12,
-    'body': 10,
-    'table_header': 9,
-    'table_body': 8,
-    'small': 7,
-}
 from reportlab.lib.enums import TA_CENTER
 from reportlab.graphics.shapes import Drawing, Rect, Polygon, String
 
@@ -1037,11 +1015,11 @@ class EnergyRatingReportGenerator:
 
             # SECTION 1: Header Information
             story.extend(self._create_hebrew_header_section(settings_extractor, hebrew_font, total_score, letter_grade))
-            story.append(Spacer(1, 0.4*cm))
+            story.append(Spacer(1, LAYOUT['spacing']['small']))
 
             # SECTION 2: Energy Rating Visual Table
             story.extend(self._create_energy_rating_section(total_score, letter_grade, hebrew_font))
-            story.append(Spacer(1, 0.4*cm))
+            story.append(Spacer(1, LAYOUT['spacing']['small']))
 
             # SECTION 3: Consultant Information
             story.extend(self._create_consultant_info_section(hebrew_font))

@@ -12,34 +12,10 @@ import logging
 from collections import defaultdict
 from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
 from utils.logo_utils import create_logo_image
-
-COLORS = {
-    'primary_blue': Color(0.2, 0.4, 0.7),
-    'secondary_blue': Color(0.4, 0.6, 0.85),
-    'light_blue': Color(0.9, 0.94, 0.98),
-    'dark_gray': Color(0.2, 0.2, 0.2),
-    'medium_gray': Color(0.5, 0.5, 0.5),
-    'light_gray': Color(0.9, 0.9, 0.9),
-    'white': Color(1, 1, 1),
-    'border_gray': Color(0.8, 0.8, 0.8),
-}
-
-FONTS = {
-    'title': 'Helvetica-Bold',
-    'heading': 'Helvetica-Bold',
-    'body': 'Helvetica',
-    'table_header': 'Helvetica-Bold',
-    'table_body': 'Helvetica',
-}
-
-FONT_SIZES = {
-    'title': 16,
-    'heading': 12,
-    'body': 10,
-    'table_header': 9,
-    'table_body': 8,
-    'small': 7,
-}
+from generators.shared_design_system import (
+    COLORS, FONTS, FONT_SIZES, LAYOUT,
+    create_standard_table_style, create_title_style, create_header_info_style
+)
 
 logger = logging.getLogger(__name__)
 
@@ -191,11 +167,11 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
         story = []
 
         # Add logo if available
-        logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
+        logo_image = create_logo_image(max_width=LAYOUT['logo']['max_width'], max_height=LAYOUT['logo']['max_height'])
         if logo_image:
             # Create a table to position logo on the left
             logo_table_data = [[logo_image, ""]]
-            logo_table = Table(logo_table_data, colWidths=[5*cm, doc.width - 5*cm])
+            logo_table = Table(logo_table_data, colWidths=[LAYOUT['logo']['table_width'], doc.width - LAYOUT['logo']['table_width']])
             logo_table.setStyle(TableStyle([
                 ('ALIGN', (0, 0), (0, 0), 'LEFT'),
                 ('VALIGN', (0, 0), (-1, -1), 'TOP'),
@@ -208,15 +184,7 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
             story.append(Spacer(1, 10))
 
         now = datetime.datetime.now()
-        hebrew_font = get_hebrew_font_name()
-        header_style = ParagraphStyle(
-            'HeaderInfo',
-            parent=styles['Normal'],
-            fontSize=9,
-            fontName=hebrew_font,
-            textColor=COLORS['dark_gray'],
-            alignment=2
-        )
+        header_style = create_header_info_style(styles)
         report_title = f"Area {area_id} - Thermal Properties"
         header_text = safe_format_header_text(
             project_name=project_name,
@@ -227,17 +195,10 @@ def generate_area_report_pdf(area_id, area_data, output_filename, total_floor_ar
             report_title=report_title
         )
         story.append(Paragraph(header_text, header_style))
-        story.append(Spacer(1, 5))
+        story.append(Spacer(1, LAYOUT['spacing']['small']))
 
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=FONT_SIZES['title'],
-            fontName=FONTS['title'],
-            textColor=COLORS['primary_blue'],
-            spaceAfter=20,
-            alignment=1
-        )
+        title_style = create_title_style(styles)
+        title_style.spaceAfter = 20
         story.append(Paragraph(f"{report_title} Report", title_style))
 
         merged_data = area_data
@@ -425,30 +386,9 @@ def _create_area_table(merged_data, table_title, page_width):
 
     area_table = Table(table_data, colWidths=col_widths, repeatRows=1)
 
-    table_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
-        ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),
-        ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
-
-        ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
-        ('FONTSIZE', (0, 1), (-1, -1), FONT_SIZES['table_body']),
-        ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
-        ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
-
-        ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
-        ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
-
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-    ])
+    table_style = create_standard_table_style()
+    # Add right alignment for numeric columns
+    table_style.add('ALIGN', (3, 1), (-1, -1), 'RIGHT')
 
     area_table.setStyle(table_style)
     elements.append(area_table)
@@ -541,30 +481,9 @@ def _create_glazing_table(glazing_data, table_title, page_width):
 
     glazing_table = Table(table_data, colWidths=col_widths, repeatRows=1)
 
-    table_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
-        ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),
-        ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
-
-        ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
-        ('FONTSIZE', (0, 1), (-1, -1), FONT_SIZES['table_body']),
-        ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
-        ('ALIGN', (3, 1), (4, -1), 'RIGHT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
-
-        ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
-        ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
-
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-    ])
+    table_style = create_standard_table_style()
+    # Add right alignment for numeric columns
+    table_style.add('ALIGN', (3, 1), (4, -1), 'RIGHT')
 
     glazing_table.setStyle(table_style)
     elements.append(glazing_table)

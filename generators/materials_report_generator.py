@@ -12,81 +12,14 @@ import logging
 from pathlib import Path
 from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
 from utils.logo_utils import create_logo_image
-
-COLORS = {
-    'primary_blue': Color(0.2, 0.4, 0.7),
-    'secondary_blue': Color(0.4, 0.6, 0.85),
-    'light_blue': Color(0.9, 0.94, 0.98),
-    'dark_gray': Color(0.2, 0.2, 0.2),
-    'medium_gray': Color(0.5, 0.5, 0.5),
-    'light_gray': Color(0.9, 0.9, 0.9),
-    'white': Color(1, 1, 1),
-    'border_gray': Color(0.8, 0.8, 0.8),
-}
-
-FONTS = {
-    'title': 'Helvetica-Bold',
-    'heading': 'Helvetica-Bold',
-    'body': 'Helvetica',
-    'table_header': 'Helvetica-Bold',
-    'table_body': 'Helvetica',
-}
-
-FONT_SIZES = {
-    'title': 16,
-    'heading': 12,
-    'body': 10,
-    'table_header': 9,
-    'table_body': 8,
-    'small': 7,
-}
+from generators.shared_design_system import (
+    COLORS, FONTS, FONT_SIZES, LAYOUT,
+    create_standard_table_style, create_cell_style, 
+    create_title_style, create_header_info_style, wrap_text
+)
 
 logger = logging.getLogger(__name__)
 
-def wrap_text(text, style):
-    """Create wrapped text in a cell."""
-    return Paragraph(str(text), style)
-
-def create_cell_style(styles, is_header=False, total_row=False):
-    """Create a cell style for wrapped text."""
-    return ParagraphStyle(
-        'Cell',
-        parent=styles['Normal'],
-        fontSize=8,
-        leading=10,
-        spaceBefore=2,
-        spaceAfter=2,
-        fontName='Helvetica-Bold' if is_header or total_row else 'Helvetica',
-        textColor=COLORS['white'] if is_header else COLORS['dark_gray'],
-        wordWrap='CJK',
-        alignment=TA_LEFT
-    )
-
-def create_table_style():
-    """Create a consistent table style for materials table."""
-    return TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
-        ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),
-
-        ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
-        ('FONTSIZE', (0, 1), (-1, -1), FONT_SIZES['table_body']),
-        ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
-
-        ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
-        ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
-
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-    ])
 
 def _normalize_glazing_str(s: str) -> str:
     return "External glazing" if s == "External Glazing" else s
@@ -321,23 +254,12 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
         width, _ = page_size
         content_width = width - left_margin - right_margin
         styles = getSampleStyleSheet()
-        title_style = styles['Heading1']
-        title_style.alignment = TA_CENTER
-        title_style.textColor = COLORS['primary_blue']
-        title_style.fontName = FONTS['title']
-        title_style.fontSize = FONT_SIZES['title']
-        title_style.spaceAfter = 0.5 * cm
-        cell_style = create_cell_style(styles)
-        header_cell_style = create_cell_style(styles, is_header=True)
-        total_style = create_cell_style(styles, total_row=True)
-        hebrew_font = get_hebrew_font_name()
-        header_info_style = ParagraphStyle(
-            'HeaderInfo',
-            parent=styles['Normal'],
-            fontSize=9,
-            fontName=hebrew_font,
-            textColor=COLORS['dark_gray'],
-            alignment=2        )
+        title_style = create_title_style(styles)
+        title_style.spaceAfter = LAYOUT['spacing']['standard']
+        cell_style = create_cell_style(styles, is_header=False, font_size=FONT_SIZES['table_body'])
+        header_cell_style = create_cell_style(styles, is_header=True, font_size=FONT_SIZES['table_header'])
+        total_style = create_cell_style(styles, is_header=False, font_size=FONT_SIZES['table_body'])
+        header_info_style = create_header_info_style(styles)
         now = datetime.datetime.now()
         report_title = "Building Elements Materials Properties"
         header_text = safe_format_header_text(
@@ -354,7 +276,7 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
         if logo_image:
             # Create a table to position logo on the left
             logo_table_data = [[logo_image, ""]]
-            logo_table = Table(logo_table_data, colWidths=[5*cm, content_width - 5*cm])
+            logo_table = Table(logo_table_data, colWidths=[LAYOUT['logo']['table_width'], content_width - LAYOUT['logo']['table_width']])
             logo_table.setStyle(TableStyle([
                 ('ALIGN', (0, 0), (0, 0), 'LEFT'),
                 ('VALIGN', (0, 0), (-1, -1), 'TOP'),
@@ -368,9 +290,9 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
         
         story.extend([
             Paragraph(header_text, header_info_style),
-            Spacer(1, 5),
+            Spacer(1, LAYOUT['spacing']['small']),
             Paragraph(f"{report_title} Report", title_style),
-            Spacer(1, 0.5 * cm)
+            Spacer(1, LAYOUT['spacing']['standard'])
         ])
         col_widths = [
             content_width * 0.09, content_width * 0.12, content_width * 0.14, content_width * 0.06,
@@ -379,7 +301,7 @@ def generate_materials_report_pdf(element_data, output_filename="output/material
         ]
         table_data, total_rows = _build_table_data(grouped_data, cell_style, header_cell_style, total_style)
         materials_table = Table(table_data, colWidths=col_widths)
-        table_style = create_table_style()
+        table_style = create_standard_table_style()
         for i in range(1, len(table_data)):
             if i in total_rows:
                 table_style.add('BACKGROUND', (0, i), (-1, i), lightgrey)

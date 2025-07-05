@@ -1,90 +1,19 @@
 """
 Generates PDF reports showing zone loads and their associated schedules.
 """
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, Spacer
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, Spacer, TableStyle
 from reportlab.lib.pagesizes import landscape, A4
 from reportlab.lib.units import cm
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.colors import black, Color
-from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.styles import getSampleStyleSheet
 import datetime
-from reportlab.platypus import TableStyle
-from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
+from utils.hebrew_text_utils import safe_format_header_text
 from utils.logo_utils import create_logo_image
+from generators.shared_design_system import (
+    COLORS, FONTS, FONT_SIZES, LAYOUT,
+    create_multi_header_table_style, create_cell_style, 
+    create_title_style, create_header_info_style, wrap_text
+)
 
-COLORS = {
-    'primary_blue': Color(0.2, 0.4, 0.7),
-    'secondary_blue': Color(0.4, 0.6, 0.85),
-    'light_blue': Color(0.9, 0.94, 0.98),
-    'dark_gray': Color(0.2, 0.2, 0.2),
-    'medium_gray': Color(0.5, 0.5, 0.5),
-    'light_gray': Color(0.9, 0.9, 0.9),
-    'white': Color(1, 1, 1),
-    'border_gray': Color(0.8, 0.8, 0.8),
-}
-
-FONTS = {
-    'title': 'Helvetica-Bold',
-    'heading': 'Helvetica-Bold',
-    'body': 'Helvetica',
-    'table_header': 'Helvetica-Bold',
-    'table_body': 'Helvetica',
-}
-
-FONT_SIZES = {
-    'title': 16,
-    'heading': 12,
-    'body': 10,
-    'table_header': 9,
-    'table_body': 8,
-    'small': 7,
-}
-
-def wrap_text(text, style):
-    """Helper function to create wrapped text in a cell."""
-    return Paragraph(str(text), style)
-
-def create_cell_style(styles, is_header=False, center_align=False):
-    """Create a cell style for wrapped text."""
-    if is_header:
-        style = ParagraphStyle(
-            'HeaderCell',
-            parent=styles['Normal'],
-            fontSize=5,
-            leading=6,
-            spaceBefore=3,
-            spaceAfter=3,
-            fontName='Helvetica-Bold',
-            textColor=COLORS['white'],
-            wordWrap='CJK',
-            alignment=1  # Center alignment
-        )
-    else:
-        if center_align:
-            style = ParagraphStyle(
-                'CenteredCell',
-                parent=styles['Normal'],
-                fontSize=5,
-                leading=6,
-                spaceBefore=0,
-                spaceAfter=0,
-                fontName='Helvetica',
-                wordWrap='CJK',
-                alignment=1  # Center alignment
-            )
-        else:
-            style = ParagraphStyle(
-                'Cell',
-                parent=styles['Normal'],
-                fontSize=5,
-                leading=6,
-                spaceBefore=1,
-                spaceAfter=1,
-                fontName='Helvetica',
-                wordWrap='CJK',
-                alignment=0  # Left alignment for data
-            )
-    return style
 
 def create_table1_style():
     """Create table style for table 1 (Zone, Occupancy, Lighting, Non Fixed Equipment, Fixed Equipment)."""
@@ -94,46 +23,7 @@ def create_table1_style():
         ('SPAN', (6, 0), (7, 0)),  # Non Fixed Equipment
         ('SPAN', (8, 0), (9, 0))   # Fixed Equipment
     ]
-
-    style = [
-        ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
-        ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_body']),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
-        ('TOPPADDING', (0, 0), (-1, 0), 4),
-
-        ('BACKGROUND', (0, 1), (-1, 1), COLORS['secondary_blue']),
-        ('TEXTCOLOR', (0, 1), (-1, 1), COLORS['white']),
-        ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
-        ('VALIGN', (0, 1), (-1, 1), 'MIDDLE'),
-        ('FONTNAME', (0, 1), (-1, 1), FONTS['table_header']),
-        ('FONTSIZE', (0, 1), (-1, 1), FONT_SIZES['small']),
-        ('TOPPADDING', (0, 1), (-1, 1), 2),
-        ('BOTTOMPADDING', (0, 1), (-1, 1), 2),
-
-        ('TEXTCOLOR', (0, 2), (-1, -1), COLORS['dark_gray']),
-        ('ALIGN', (0, 2), (-1, -1), 'LEFT'),
-        ('ALIGN', (0, 2), (0, -1), 'CENTER'),  # Center align zone column
-        ('VALIGN', (0, 2), (-1, -1), 'MIDDLE'),
-        ('VALIGN', (0, 2), (0, -1), 'MIDDLE'),  # Ensure zone column is vertically centered
-        ('FONTNAME', (0, 2), (-1, -1), FONTS['table_body']),
-        ('FONTSIZE', (0, 2), (-1, -1), FONT_SIZES['small']),
-        ('TOPPADDING', (0, 2), (-1, -1), 2),
-        ('BOTTOMPADDING', (0, 2), (-1, -1), 2),
-
-        ('ROWBACKGROUNDS', (0, 2), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
-
-        ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
-        ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
-
-        ('LEFTPADDING', (0, 0), (-1, -1), 4),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 4)
-    ]
-
-    return TableStyle(spans + style)
+    return create_multi_header_table_style(header_rows=2, spans=spans)
 
 def create_table2_style():
     """Create table style for table 2 (Zone, Heating, Cooling, Infiltration, Natural Ventilation, Mechanical Ventilation)."""
@@ -144,46 +34,7 @@ def create_table2_style():
         ('SPAN', (9, 0), (10, 0)), # Natural Ventilation
         ('SPAN', (11, 0), (12, 0)) # Mechanical Ventilation
     ]
-
-    style = [
-        ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
-        ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_body']),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
-        ('TOPPADDING', (0, 0), (-1, 0), 4),
-
-        ('BACKGROUND', (0, 1), (-1, 1), COLORS['secondary_blue']),
-        ('TEXTCOLOR', (0, 1), (-1, 1), COLORS['white']),
-        ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
-        ('VALIGN', (0, 1), (-1, 1), 'MIDDLE'),
-        ('FONTNAME', (0, 1), (-1, 1), FONTS['table_header']),
-        ('FONTSIZE', (0, 1), (-1, 1), FONT_SIZES['small']),
-        ('TOPPADDING', (0, 1), (-1, 1), 2),
-        ('BOTTOMPADDING', (0, 1), (-1, 1), 2),
-
-        ('TEXTCOLOR', (0, 2), (-1, -1), COLORS['dark_gray']),
-        ('ALIGN', (0, 2), (-1, -1), 'LEFT'),
-        ('ALIGN', (0, 2), (0, -1), 'CENTER'),  # Center align zone column
-        ('VALIGN', (0, 2), (-1, -1), 'MIDDLE'),
-        ('VALIGN', (0, 2), (0, -1), 'MIDDLE'),  # Ensure zone column is vertically centered
-        ('FONTNAME', (0, 2), (-1, -1), FONTS['table_body']),
-        ('FONTSIZE', (0, 2), (-1, -1), FONT_SIZES['small']),
-        ('TOPPADDING', (0, 2), (-1, -1), 2),
-        ('BOTTOMPADDING', (0, 2), (-1, -1), 2),
-
-        ('ROWBACKGROUNDS', (0, 2), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
-
-        ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
-        ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
-
-        ('LEFTPADDING', (0, 0), (-1, -1), 4),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 4)
-    ]
-
-    return TableStyle(spans + style)
+    return create_multi_header_table_style(header_rows=2, spans=spans)
 
 def extract_setpoint(schedule_values, setpoint_type, zone_name=None, all_schedules=None):
     """
@@ -440,29 +291,28 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
     Returns:
         bool: True if report generated successfully, False otherwise.
     """
-    left_margin = right_margin = 0.5 * cm
-    top_margin = bottom_margin = 1.0 * cm
+    # Use standardized layout settings
+    margins = LAYOUT['margins']['default']
     page_size = landscape(A4)
     doc = SimpleDocTemplate(output_filename, pagesize=page_size,
-                            leftMargin=left_margin, rightMargin=right_margin,
-                            topMargin=top_margin, bottomMargin=bottom_margin)
+                            leftMargin=margins, rightMargin=margins,
+                            topMargin=margins, bottomMargin=margins)
     story = []
     width, _ = page_size
-    content_width = width - left_margin - right_margin
+    content_width = width - (margins * 2)
     styles = getSampleStyleSheet()
-    cell_style = create_cell_style(styles)
-    header_cell_style = create_cell_style(styles, is_header=True)
-    title_style = styles['h1']
-    title_style.textColor = COLORS['primary_blue']
-    title_style.fontName = FONTS['title']
-    title_style.fontSize = FONT_SIZES['title']
-    title_style.alignment = TA_CENTER
+    
+    # Create standardized styles
+    cell_style = create_cell_style(styles, font_size=FONT_SIZES['small'])
+    header_cell_style = create_cell_style(styles, is_header=True, font_size=FONT_SIZES['small'])
+    title_style = create_title_style(styles)
+    header_info_style = create_header_info_style(styles)
+    
     # Add logo if available
-    logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
+    logo_image = create_logo_image(max_width=LAYOUT['logo']['max_width'], max_height=LAYOUT['logo']['max_height'])
     if logo_image:
-        # Create a table to position logo on the left
         logo_table_data = [[logo_image, ""]]
-        logo_table = Table(logo_table_data, colWidths=[5*cm, content_width - 5*cm])
+        logo_table = Table(logo_table_data, colWidths=[LAYOUT['logo']['table_width'], content_width - LAYOUT['logo']['table_width']])
         logo_table.setStyle(TableStyle([
             ('ALIGN', (0, 0), (0, 0), 'LEFT'),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
@@ -472,10 +322,9 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
             ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ]))
         story.append(logo_table)
-        story.append(Spacer(1, 10))
+        story.append(Spacer(1, LAYOUT['spacing']['small']))
 
-    hebrew_font = get_hebrew_font_name()
-    header_info_style = ParagraphStyle('HeaderInfo', parent=styles['Normal'], fontSize=9, fontName=hebrew_font, textColor=COLORS['dark_gray'], alignment=2)
+    # Add header information
     now = datetime.datetime.now()
     header_text = safe_format_header_text(
         project_name=project_name,
@@ -486,9 +335,9 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
         report_title="Zone Loads Summary"
     )
     story.append(Paragraph(header_text, header_info_style))
-    story.append(Spacer(1, 5))
+    story.append(Spacer(1, LAYOUT['spacing']['small']))
     story.append(Paragraph("IDF Zone Loads Report", title_style))
-    story.append(Spacer(1, 0.5 * cm))
+    story.append(Spacer(1, LAYOUT['spacing']['standard']))
     if not zone_data:
         story.append(Paragraph("No zones found or processed.", styles['Normal']))
         try:
@@ -621,7 +470,7 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
             story.append(table1)
             
             # Add spacing between tables
-            story.append(Spacer(1, 0.8 * cm))
+            story.append(Spacer(1, LAYOUT['spacing']['section']))
             
             # Table 2 column widths (13 columns) - reduced to fit A4 width
             table2_col_widths = [
@@ -642,11 +491,8 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
             table2 = Table(table2_data, colWidths=table2_col_widths, hAlign='CENTER', repeatRows=2)
             table2.setStyle(create_table2_style())
             
-            # Add spacing before table 2
-            story.append(Spacer(1, 0.2 * cm))
             story.append(table2)
-            # Add spacing after table 2
-            story.append(Spacer(1, 0.4 * cm))
+            story.append(Spacer(1, LAYOUT['spacing']['standard']))
         else:
             story.append(Paragraph("No zone load data to display.", styles['Normal']))
         doc.build(story)

@@ -10,34 +10,11 @@ import logging
 from pathlib import Path
 from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
 from utils.logo_utils import create_logo_image
-
-COLORS = {
-    'primary_blue': Color(0.2, 0.4, 0.7),
-    'secondary_blue': Color(0.4, 0.6, 0.85),
-    'light_blue': Color(0.9, 0.94, 0.98),
-    'dark_gray': Color(0.2, 0.2, 0.2),
-    'medium_gray': Color(0.5, 0.5, 0.5),
-    'light_gray': Color(0.9, 0.9, 0.9),
-    'white': Color(1, 1, 1),
-    'border_gray': Color(0.8, 0.8, 0.8),
-}
-
-FONTS = {
-    'title': 'Helvetica-Bold',
-    'heading': 'Helvetica-Bold',
-    'body': 'Helvetica',
-    'table_header': 'Helvetica-Bold',
-    'table_body': 'Helvetica',
-}
-
-FONT_SIZES = {
-    'title': 16,
-    'heading': 12,
-    'body': 10,
-    'table_header': 9,
-    'table_body': 8,
-    'small': 7,
-}
+from generators.shared_design_system import (
+    COLORS, FONTS, FONT_SIZES, LAYOUT,
+    create_standard_table_style, create_title_style, create_header_info_style,
+    create_section_title_style
+)
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +105,7 @@ def _process_category(category_name, settings, story, category_style, header_sty
                 col_widths = [doc.width * 0.30, doc.width * 0.70]
                 table_style = _get_standard_table_style()
                 story.append(_make_table(table_data, col_widths, table_style))
-                story.append(Spacer(1, 0.8*cm))
+                story.append(Spacer(1, LAYOUT['spacing']['section']))
         # If no DesignBuilder metadata found, skip the section entirely
         return
     
@@ -179,33 +156,14 @@ def _process_category(category_name, settings, story, category_style, header_sty
 
 def _get_standard_table_style():
     """Get the standard table style for settings tables"""
-    return TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), COLORS['primary_blue']),
-        ('TEXTCOLOR', (0, 0), (-1, 0), COLORS['white']),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, 0), FONTS['table_header']),
-        ('FONTSIZE', (0, 0), (-1, 0), FONT_SIZES['table_header']),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-        ('TOPPADDING', (0, 0), (-1, 0), 6),
-
-        ('FONTNAME', (0, 1), (-1, -1), FONTS['table_body']),
-        ('FONTSIZE', (0, 1), (-1, -1), FONT_SIZES['table_body']),
-        ('TEXTCOLOR', (0, 1), (-1, -1), COLORS['dark_gray']),
-        ('VALIGN', (0, 1), (-1, -1), 'TOP'),
-        ('ALIGN', (0, 1), (0, -1), 'LEFT'),
-        ('ALIGN', (1, 1), (1, -1), 'LEFT'),
-
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [COLORS['white'], COLORS['light_blue']]),
-
-        ('GRID', (0, 0), (-1, -1), 0.5, COLORS['border_gray']),
-        ('BOX', (0, 0), (-1, -1), 1, COLORS['medium_gray']),
-
-        ('LEFTPADDING', (0, 1), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 1), (-1, -1), 6),
-        ('TOPPADDING', (0, 1), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
-    ])
+    style = create_standard_table_style()
+    # Add custom styling for settings tables
+    style.add('VALIGN', (0, 1), (-1, -1), 'TOP')
+    style.add('ALIGN', (0, 1), (0, -1), 'LEFT')
+    style.add('ALIGN', (1, 1), (1, -1), 'LEFT')
+    style.add('BOTTOMPADDING', (0, 0), (-1, 0), 6)
+    style.add('TOPPADDING', (0, 0), (-1, 0), 6)
+    return style
 
 def generate_settings_report_pdf(settings_data, output_filename="output/settings.pdf",
                                  project_name: str = "N/A", run_id: str = "N/A",
@@ -249,11 +207,11 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
         story = []
 
         # Add logo if available
-        logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
+        logo_image = create_logo_image(max_width=LAYOUT['logo']['max_width'], max_height=LAYOUT['logo']['max_height'])
         if logo_image:
             # Create a table to position logo on the left
             logo_table_data = [[logo_image, ""]]
-            logo_table = Table(logo_table_data, colWidths=[5*cm, doc.width - 5*cm])
+            logo_table = Table(logo_table_data, colWidths=[LAYOUT['logo']['table_width'], doc.width - LAYOUT['logo']['table_width']])
             logo_table.setStyle(TableStyle([
                 ('ALIGN', (0, 0), (0, 0), 'LEFT'),
                 ('VALIGN', (0, 0), (-1, -1), 'TOP'),
@@ -266,15 +224,7 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
             story.append(Spacer(1, 10))
 
         now = datetime.datetime.now()
-        hebrew_font = get_hebrew_font_name()
-        header_style = ParagraphStyle(
-            'HeaderInfo',
-            parent=styles['Normal'],
-            fontSize=9,
-            fontName=hebrew_font,
-            textColor=COLORS['dark_gray'],
-            alignment=2
-        )
+        header_style = create_header_info_style(styles)
         report_title = "Settings Summary"
         header_text = safe_format_header_text(
             project_name=project_name,
@@ -285,18 +235,11 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
             report_title=report_title
         )
         story.append(Paragraph(header_text, header_style))
-        story.append(Spacer(1, 5))
+        story.append(Spacer(1, LAYOUT['spacing']['small']))
 
-        title_style = ParagraphStyle(
-            name='CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=FONT_SIZES['title'],
-            fontName=FONTS['title'],
-            alignment=TA_CENTER,
-            textColor=COLORS['primary_blue'],
-            spaceBefore=0.5*cm,
-            spaceAfter=1*cm
-        )
+        title_style = create_title_style(styles)
+        title_style.spaceBefore = LAYOUT['spacing']['standard']
+        title_style.spaceAfter = LAYOUT['spacing']['large']
         story.append(Paragraph(f"{report_title} Report", title_style))
 
         header_style = ParagraphStyle(
@@ -331,14 +274,11 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
             alignment=TA_LEFT
         )
 
-        category_style = ParagraphStyle(
-            name='CategoryHeader',
-            parent=styles['Heading2'],
-            fontSize=14,
-            textColor=colors.darkblue,
-            spaceBefore=0.5*cm,
-            spaceAfter=0.3*cm
-        )
+        category_style = create_section_title_style(styles)
+        category_style.fontSize = 14
+        category_style.textColor = colors.darkblue
+        category_style.spaceBefore = LAYOUT['spacing']['standard']
+        category_style.spaceAfter = LAYOUT['spacing']['small']
 
         # Define the order in which categories should appear
         category_order = [
