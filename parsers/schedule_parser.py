@@ -367,7 +367,8 @@ class ScheduleExtractor:
             zones = self.data_loader.get_zones()
             for zone_name in zones:
                 if zone_id.lower() in zone_name.lower():
-                    zone_type = self.data_loader.get_zone_type(zone_name)
+                    # zone_type is not implemented in DataLoader, using None for now
+                    zone_type = None  # Could be enhanced later if zone type detection is needed
                     break
 
         self.processed_schedules[name] = ScheduleData(
@@ -407,7 +408,8 @@ class ScheduleExtractor:
                 zones = self.data_loader.get_zones()
                 for zone_name in zones:
                     if zone_id.lower() in zone_name.lower():
-                        zone_type = self.data_loader.get_zone_type(zone_name)
+                        # zone_type is not implemented in DataLoader, using None for now
+                        zone_type = None  # Could be enhanced later if zone type detection is needed
                         break
 
             schedule_data = {

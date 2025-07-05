@@ -137,6 +137,27 @@ class ProcessingManager:
         idf = eppy_handler.load_idf(input_file)
         return data_loader, eppy_handler, idf
 
+    def _get_climate_zone_from_city_info(self) -> str:
+        """
+        Extract climate zone from city_info based on area name.
+        Maps Hebrew area names to Latin letters for validation.
+        
+        Returns:
+            str: Climate zone letter (A, B, C, D), defaults to 'A'
+        """
+        if not hasattr(self, 'city_info') or not self.city_info:
+            return 'A'
+            
+        area_name = self.city_info.get('area_name', '')
+        
+        # Map Hebrew area names to Latin letters for validation
+        # This matches the mapping from gui.py
+        area_name_map_to_latin = {"א": "A", "ב": "B", "ג": "C", "ד": "D"}
+        climate_zone = area_name_map_to_latin.get(area_name, 'A')
+        
+        logger.info(f"Climate zone mapping: area_name='{area_name}' -> climate_zone='{climate_zone}'")
+        return climate_zone
+    
     def _initialize_parsers(self, data_loader: DataLoader, area_parser_for_loss: 'AreaParser', city_area_name: str) -> dict:
         """
         Initializes all required parsers.
@@ -170,7 +191,7 @@ class ProcessingManager:
             "lighting": LightingParser(data_loader),
             "area_loss": AreaLossParser(area_parser_for_loss, city_area_name),
             "energy_rating": EnergyRatingParser(data_loader, area_parser_for_loss),
-            "automatic_error_detection": AutomaticErrorDetectionParser(data_loader)
+            "automatic_error_detection": AutomaticErrorDetectionParser(data_loader, self._get_climate_zone_from_city_info())
         }
         return parsers
 
@@ -207,7 +228,17 @@ class ProcessingManager:
 
         self.update_status("Processing automatic validation data...")
         try:
-            parsers["automatic_error_detection"].process_idf(idf)
+            # Get ISO type from city_info for validation
+            raw_iso_type = self.city_info.get('iso_type', 'Office') if hasattr(self, 'city_info') and self.city_info else 'Office'
+            # Extract the year from ISO type (e.g., "RESIDENTIAL 2017" -> "2017")
+            if "2017" in str(raw_iso_type):
+                current_iso_type = "2017"
+            elif "2023" in str(raw_iso_type):
+                current_iso_type = "2023"
+            else:
+                current_iso_type = "Office"
+            logger.info(f"Automatic validation: Raw ISO type '{raw_iso_type}' -> Mapped to '{current_iso_type}'")
+            parsers["automatic_error_detection"].process_idf(idf, current_iso_type)
             self.update_status("✅ Automatic validation data processed successfully")
         except Exception as e:
             error_message = f"Failed processing automatic validation data: {type(e).__name__} - {str(e)}"
