@@ -225,8 +225,8 @@ def extract_setpoint(schedule_values, setpoint_type, zone_name=None, all_schedul
                 avail_schedule = all_schedules[avail_key]
                 break
     
-    # Parse availability schedule to find active periods
-    active_periods = []
+    # Parse availability schedule to find periods and their availability status
+    period_availability = {}
     if avail_schedule and isinstance(avail_schedule, dict) and 'schedule_values' in avail_schedule:
         avail_values = avail_schedule['schedule_values']
         current_period = None
@@ -236,8 +236,8 @@ def extract_setpoint(schedule_values, setpoint_type, zone_name=None, all_schedul
             
             if val_str.startswith('through:'):
                 current_period = val_str.replace('through:', '').strip()
-            elif val_str == '1' and current_period:
-                active_periods.append(current_period)
+            elif val_str in ['0', '1'] and current_period:
+                period_availability[current_period] = val_str == '1'
     
     # Parse setpoint schedule to extract temperatures by period
     period_temps = {}
@@ -259,89 +259,151 @@ def extract_setpoint(schedule_values, setpoint_type, zone_name=None, all_schedul
                 except (ValueError, TypeError):
                     pass
     
-    # Separate active and inactive period temperatures
-    active_temps = []
-    inactive_temps = []
-    
-    for period, temps in period_temps.items():
-        if not temps:
-            continue
-            
-        # Get representative temperature for this period (usually just one value per period)
-        period_temp = temps[0] if len(temps) == 1 else max(temps) if is_heating else min(temps)
+    # Check if we have availability schedule and if any periods are available
+    if period_availability:
+        # Check if any periods have availability = 1 (system is available)
+        has_available_periods = any(period_availability.values())
         
-        # Validate temperature (filter out extreme values that indicate "off" mode)
-        is_valid_active_temp = False
-        if is_heating and period_temp > 5:  # Valid heating setpoint
-            is_valid_active_temp = True
-        elif is_cooling and 15 <= period_temp <= 35:  # Valid cooling setpoint
-            is_valid_active_temp = True
+        if not has_available_periods:
+            # No periods are available, return '-'
+            return '-'
+        
+        # Find which periods are available and get their temperatures
+        available_temps = []
+        unavailable_temps = []
+        
+        for period, temps in period_temps.items():
+            if not temps:
+                continue
             
-        if period in active_periods and is_valid_active_temp:
-            active_temps.append(period_temp)
-        elif period not in active_periods or not is_valid_active_temp:
-            inactive_temps.append(period_temp)
-    
-    # Return appropriate setpoint based on request type
-    if setpoint_type == 'work':
-        # Work setpoint: use active period temperatures
-        if active_temps:
-            if is_heating:
-                return str(max(active_temps))  # Highest heating setpoint during active periods
+            # Get representative temperature for this period
+            period_temp = temps[0] if len(temps) == 1 else max(temps) if is_heating else min(temps)
+            
+            # Check if this period is available
+            is_available = period_availability.get(period, False)
+            
+            if is_available:
+                # Validate temperature (filter out extreme values that indicate "off" mode)
+                is_valid_temp = False
+                if is_heating and period_temp > 5:  # Valid heating setpoint
+                    is_valid_temp = True
+                elif is_cooling and 15 <= period_temp <= 35:  # Valid cooling setpoint
+                    is_valid_temp = True
+                
+                if is_valid_temp:
+                    available_temps.append(period_temp)
             else:
-                return str(min(active_temps))  # Lowest cooling setpoint during active periods
-        else:
-            # Fallback: if no clear active periods, use all valid temperatures
-            all_valid_temps = []
-            for period, temps in period_temps.items():
-                if temps:
-                    temp = temps[0] if len(temps) == 1 else max(temps) if is_heating else min(temps)
-                    if is_heating and temp > 5:
-                        all_valid_temps.append(temp)
-                    elif is_cooling and 15 <= temp <= 35:
-                        all_valid_temps.append(temp)
-            
-            if all_valid_temps:
-                return str(max(all_valid_temps) if is_heating else min(all_valid_temps))
-    
-    elif setpoint_type == 'non_work':
-        # Non-work setpoint: for seasonal schedules, this could mean inactive periods
-        # or a different interpretation based on the schedule structure
+                unavailable_temps.append(period_temp)
         
-        # If we have both active and inactive periods, use inactive for non-work
-        if active_temps and inactive_temps:
-            # Use inactive period temperatures for non-work
-            if is_heating:
-                return str(max(inactive_temps))
-            else:
-                return str(min(inactive_temps))
-        
-        # If we only have active periods, look for time-based variations within periods
-        elif active_temps:
-            # For seasonal schedules with only active periods, work and non-work might be similar
-            # Try to find a slightly different setpoint for energy savings
-            if len(active_temps) > 1:
-                sorted_temps = sorted(active_temps)
+        # Return appropriate setpoint based on request type
+        if setpoint_type == 'work':
+            # Work setpoint: use available period temperatures
+            if available_temps:
                 if is_heating:
-                    # Non-work heating: slightly lower for energy savings
-                    return str(sorted_temps[0]) if len(sorted_temps) > 1 else str(sorted_temps[0] - 2)
+                    return str(max(available_temps))  # Highest heating setpoint during available periods
                 else:
-                    # Non-work cooling: slightly higher for energy savings
-                    return str(sorted_temps[-1]) if len(sorted_temps) > 1 else str(sorted_temps[0] + 2)
+                    return str(min(available_temps))  # Lowest cooling setpoint during available periods
             else:
-                # Only one active temperature, apply offset for energy savings
-                base_temp = active_temps[0]
-                if is_heating:
-                    return str(base_temp - 2)  # Lower heating setpoint for non-work
-                else:
-                    return str(base_temp + 2)  # Higher cooling setpoint for non-work
+                return '-'  # No available periods with valid temperatures
         
-        # Fallback to inactive periods or extreme values
-        elif inactive_temps:
-            if is_heating:
-                return str(max(inactive_temps))
+        elif setpoint_type == 'non_work':
+            # Non-work setpoint: check if unavailable periods have meaningful temperatures
+            if unavailable_temps:
+                # Check if unavailable periods have valid temperatures (not extreme values)
+                valid_unavailable_temps = []
+                for temp in unavailable_temps:
+                    if is_heating and temp > 5:  # Valid heating setpoint
+                        valid_unavailable_temps.append(temp)
+                    elif is_cooling and 15 <= temp <= 35:  # Valid cooling setpoint
+                        valid_unavailable_temps.append(temp)
+                
+                if valid_unavailable_temps:
+                    if is_heating:
+                        return str(max(valid_unavailable_temps))
+                    else:
+                        return str(min(valid_unavailable_temps))
+                else:
+                    # Unavailable periods have extreme values, return '-'
+                    return '-'
             else:
-                return str(min(inactive_temps))
+                # No unavailable periods or only available periods exist
+                # For non-work time, if system is not available, return '-'
+                return '-'
+    
+    else:
+        # No availability schedule found, use original logic
+        # Parse setpoint schedule to extract temperatures by period
+        active_temps = []
+        inactive_temps = []
+        
+        for period, temps in period_temps.items():
+            if not temps:
+                continue
+                
+            # Get representative temperature for this period (usually just one value per period)
+            period_temp = temps[0] if len(temps) == 1 else max(temps) if is_heating else min(temps)
+            
+            # Validate temperature (filter out extreme values that indicate "off" mode)
+            is_valid_active_temp = False
+            if is_heating and period_temp > 5:  # Valid heating setpoint
+                is_valid_active_temp = True
+            elif is_cooling and 15 <= period_temp <= 35:  # Valid cooling setpoint
+                is_valid_active_temp = True
+                
+            if is_valid_active_temp:
+                active_temps.append(period_temp)
+            else:
+                inactive_temps.append(period_temp)
+        
+        # Return appropriate setpoint based on request type
+        if setpoint_type == 'work':
+            # Work setpoint: use active period temperatures
+            if active_temps:
+                if is_heating:
+                    return str(max(active_temps))  # Highest heating setpoint during active periods
+                else:
+                    return str(min(active_temps))  # Lowest cooling setpoint during active periods
+            else:
+                return '-'
+        
+        elif setpoint_type == 'non_work':
+            # Non-work setpoint: for seasonal schedules, this could mean inactive periods
+            # or a different interpretation based on the schedule structure
+            
+            # If we have both active and inactive periods, use inactive for non-work
+            if active_temps and inactive_temps:
+                # Use inactive period temperatures for non-work
+                if is_heating:
+                    return str(max(inactive_temps))
+                else:
+                    return str(min(inactive_temps))
+            
+            # If we only have active periods, look for time-based variations within periods
+            elif active_temps:
+                # For seasonal schedules with only active periods, work and non-work might be similar
+                # Try to find a slightly different setpoint for energy savings
+                if len(active_temps) > 1:
+                    sorted_temps = sorted(active_temps)
+                    if is_heating:
+                        # Non-work heating: slightly lower for energy savings
+                        return str(sorted_temps[0]) if len(sorted_temps) > 1 else str(sorted_temps[0] - 2)
+                    else:
+                        # Non-work cooling: slightly higher for energy savings
+                        return str(sorted_temps[-1]) if len(sorted_temps) > 1 else str(sorted_temps[0] + 2)
+                else:
+                    # Only one active temperature, apply offset for energy savings
+                    base_temp = active_temps[0]
+                    if is_heating:
+                        return str(base_temp - 2)  # Lower heating setpoint for non-work
+                    else:
+                        return str(base_temp + 2)  # Higher cooling setpoint for non-work
+            
+            # Fallback to inactive periods or extreme values
+            elif inactive_temps:
+                if is_heating:
+                    return str(max(inactive_temps))
+                else:
+                    return str(min(inactive_temps))
     
     return '-'
 
