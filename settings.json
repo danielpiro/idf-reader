@@ -1,7 +1,7 @@
 {
-    "last_input": "C:/Users/daniel/Desktop/idf-reader/tests/lights.idf",
-    "last_eplus_dir": "C:/EnergyPlusV9-4-0",
-    "last_output": "C:/Users/daniel/Desktop",
+    "last_input": "/home/danielpiro/idf-reader/tests/3.1.idf",
+    "last_eplus_dir": "/home/danielpiro/EnergyPlusV9-4-0",
+    "last_output": "/home/danielpiro",
     "last_city": "\u05e8\u05d0\u05e9\u05d5\u05df \u05dc\u05e6\u05d9\u05d5\u05df - \u05de\u05e8\u05db\u05d6",
     "last_iso_type": "RESIDNTIAL 2017"
 }
