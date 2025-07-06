@@ -889,16 +889,22 @@ class AutomaticErrorDetectionParser:
         if not current_rule or not recommended_rule:
             return False
         
-        # Normalize both rules by removing extra whitespace and splitting into values
-        def normalize_schedule(rule):
-            # Remove line breaks and extra spaces, then split by spaces
-            normalized = ' '.join(rule.replace('\n', ' ').split())
-            return normalized
+        # Normalize both rules by extracting just the numeric values
+        def extract_numeric_values(rule):
+            # Remove date prefixes like "12/31:", line breaks, and extract only numeric values
+            import re
+            # Remove date patterns like "12/31:", "01/01 ->", etc.
+            rule_clean = re.sub(r'\d{1,2}/\d{1,2}:', '', rule)
+            rule_clean = re.sub(r'\d{1,2}/\d{1,2}\s*->\s*\d{1,2}/\d{1,2}:', '', rule_clean)
+            
+            # Extract all numeric values (including decimals)
+            numeric_values = re.findall(r'\d+(?:\.\d+)?', rule_clean)
+            return ' '.join(numeric_values)
         
-        current_normalized = normalize_schedule(current_rule)
-        recommended_normalized = normalize_schedule(recommended_rule)
+        current_values = extract_numeric_values(current_rule)
+        recommended_values = extract_numeric_values(recommended_rule)
         
-        return current_normalized == recommended_normalized
+        return current_values == recommended_values
     
     def _is_schedule_all_zeros(self, schedule_name, schedule_data):
         """Check if a schedule rule is all zeros."""
@@ -1105,11 +1111,7 @@ class AutomaticErrorDetectionParser:
                     ach_rate = zone_infiltration.get('rate_ach', 0)
                     recommended_ach = float(climate_hvac_table['Infiltration']['rate_ach']['recommended'])
                     
-                    # Debug output for specific zone
-                    if zone_id == '00:01XLIVING':
-                        print(f"DEBUG: Zone {zone_id} - Infiltration ACH: {ach_rate}, Recommended: {recommended_ach}")
-                    
-                    if abs(ach_rate - recommended_ach) > 0.1:
+                    if abs(round(ach_rate, 1) - round(recommended_ach, 1)) > 0.1:
                         self.error_detection_data.append({
                             'zone_name': zone_id,
                             'category': f'Infiltration Rate (Climate {climate_zone})',
@@ -1131,7 +1133,7 @@ class AutomaticErrorDetectionParser:
                         ach_rate = infiltration_item.get('air_changes_per_hour', 0)
                         recommended_ach = float(climate_hvac_table['Infiltration']['rate_ach']['recommended'])
                         
-                        if abs(ach_rate - recommended_ach) > 0.1:
+                        if abs(round(ach_rate, 1) - round(recommended_ach, 1)) > 0.1:
                             self.error_detection_data.append({
                                 'zone_name': zone_id,
                                 'category': f'Infiltration Rate (Climate {climate_zone})',
@@ -1167,11 +1169,7 @@ class AutomaticErrorDetectionParser:
                     
                     recommended_ach = float(climate_hvac_table['Natural Ventilation']['rate_ach']['recommended'])
                     
-                    # Debug output for specific zone
-                    if zone_id == '00:01XLIVING':
-                        print(f"DEBUG: Zone {zone_id} - Natural Ventilation ACH: {ach_rate}, Recommended: {recommended_ach}")
-                    
-                    if abs(ach_rate - recommended_ach) > 0.1:
+                    if abs(round(ach_rate, 1) - round(recommended_ach, 1)) > 0.1:
                         self.error_detection_data.append({
                             'zone_name': zone_id,
                             'category': f'Natural Ventilation Rate (Climate {climate_zone})',
@@ -1194,7 +1192,7 @@ class AutomaticErrorDetectionParser:
                         ach_rate = nat_vent_item.get('air_changes_per_hour', 0)
                         recommended_ach = float(climate_hvac_table['Natural Ventilation']['rate_ach']['recommended'])
                         
-                        if abs(ach_rate - recommended_ach) > 0.1:
+                        if abs(round(ach_rate, 1) - round(recommended_ach, 1)) > 0.1:
                             self.error_detection_data.append({
                                 'zone_name': zone_id,
                                 'category': f'Natural Ventilation Rate (Climate {climate_zone})',
