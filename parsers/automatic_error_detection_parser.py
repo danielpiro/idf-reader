@@ -663,6 +663,10 @@ class AutomaticErrorDetectionParser:
                         fixed_watts = zone_equipment['fixed_equipment'].get('watts_per_area')
                         fixed_schedule = zone_equipment['fixed_equipment'].get('schedule', None)
                     
+                    # Skip validation if no equipment data is found
+                    if non_fixed_watts is None and fixed_watts is None:
+                        continue
+                    
                     # Convert None to 0 for calculations, but track if data was missing
                     non_fixed_watts_calc = non_fixed_watts if non_fixed_watts is not None else 0
                     fixed_watts_calc = fixed_watts if fixed_watts is not None else 0
@@ -897,14 +901,44 @@ class AutomaticErrorDetectionParser:
             rule_clean = re.sub(r'\d{1,2}/\d{1,2}:', '', rule)
             rule_clean = re.sub(r'\d{1,2}/\d{1,2}\s*->\s*\d{1,2}/\d{1,2}:', '', rule_clean)
             
-            # Extract all numeric values (including decimals)
-            numeric_values = re.findall(r'\d+(?:\.\d+)?', rule_clean)
-            return ' '.join(numeric_values)
+            # Split by semicolon to handle multiple date ranges
+            parts = rule_clean.split(';')
+            all_values = []
+            
+            for part in parts:
+                # Extract numeric values from each part, but only those that are likely schedule values
+                # Look for patterns like "1 1 1 1" or "0.5 0.5 0.5" but not date components
+                numeric_values = re.findall(r'\b(?:0|1|0\.\d+|1\.\d+)\b', part)
+                if numeric_values:
+                    all_values.extend(numeric_values)
+            
+            # If no specific schedule values found, fall back to all numeric values
+            if not all_values:
+                numeric_values = re.findall(r'\d+(?:\.\d+)?', rule_clean)
+                all_values = numeric_values
+            
+            return ' '.join(all_values)
         
         current_values = extract_numeric_values(current_rule)
         recommended_values = extract_numeric_values(recommended_rule)
         
+        # Special case: if both rules represent all 1's (for infiltration/ventilation), they match
+        if self._is_all_ones_schedule(current_rule) and self._is_all_ones_schedule(recommended_rule):
+            return True
+        
         return current_values == recommended_values
+    
+    def _is_all_ones_schedule(self, schedule_rule):
+        """Check if a schedule rule represents all 1's (commonly used for infiltration/ventilation)."""
+        if not schedule_rule:
+            return False
+        
+        import re
+        # Extract all numeric values from the rule
+        numeric_values = re.findall(r'\b(?:0|1|0\.\d+|1\.\d+)\b', schedule_rule)
+        
+        # Check if all values are 1 or 1.0
+        return len(numeric_values) > 0 and all(float(val) == 1.0 for val in numeric_values)
     
     def _is_schedule_all_zeros(self, schedule_name, schedule_data):
         """Check if a schedule rule is all zeros."""
@@ -1223,14 +1257,16 @@ class AutomaticErrorDetectionParser:
             # Extract hourly values from schedule data
             current_rule = self._extract_schedule_rule(schedule_data)
             
-            if current_rule and current_rule != recommended_rule:
-                self.error_detection_data.append({
-                    'zone_name': zone_id,
-                    'category': category,
-                    'current_model_value': current_rule[:100] + '...' if len(current_rule) > 100 else current_rule,
-                    'recommended_standard_value': recommended_rule[:100] + '...' if len(recommended_rule) > 100 else recommended_rule,
-                    'remark': 'Schedule rule does not match standard'
-                })
+            if current_rule:
+                # Use the improved comparison method
+                if not self._compare_schedule_rules(current_rule, recommended_rule):
+                    self.error_detection_data.append({
+                        'zone_name': zone_id,
+                        'category': category,
+                        'current_model_value': current_rule[:100] + '...' if len(current_rule) > 100 else current_rule,
+                        'recommended_standard_value': recommended_rule[:100] + '...' if len(recommended_rule) > 100 else recommended_rule,
+                        'remark': f'Schedule rule does not match standard for {schedule_name}'
+                    })
                 
         except Exception:
             pass
@@ -1456,7 +1492,7 @@ class AutomaticErrorDetectionParser:
         """
         try:
             if isinstance(schedule_rules, list):
-                for i, rule in enumerate(schedule_rules):
+                for rule in schedule_rules:
                     if isinstance(rule, str):
                         # Skip time patterns like "Until: 24:00", look for standalone numbers
                         if rule.lower().startswith('until:') or ':' in rule:
