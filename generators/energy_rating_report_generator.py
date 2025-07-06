@@ -8,7 +8,7 @@ import datetime
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
-from utils.data_loader import get_energy_consumption
+from utils.data_loader import get_energy_consumption, safe_float
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.colors import black, Color
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER
