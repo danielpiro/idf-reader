@@ -231,17 +231,7 @@ def create_title_style(styles):
     title_style.alignment = TA_CENTER
     return title_style
 
-def create_header_info_style(styles):
-    """Create a standardized header info style."""
-    hebrew_font = get_hebrew_font_name()
-    return ParagraphStyle(
-        'HeaderInfo',
-        parent=styles['Normal'],
-        fontSize=9,
-        fontName=hebrew_font,
-        textColor=COLORS['dark_gray'],
-        alignment=TA_RIGHT
-    )
+
 
 def create_section_title_style(styles):
     """Create a standardized section title style."""
@@ -305,11 +295,29 @@ def create_total_row_style(row_index):
         ('BOTTOMPADDING', (0, row_index), (-1, row_index), 6),
     ]
 
+def create_metadata_table_style():
+    """Create a professional style for the header metadata table."""
+    return TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (-1, -1), FONTS['body']),
+        ('FONTSIZE', (0, 0), (-1, -1), FONT_SIZES['body']),
+        ('TEXTCOLOR', (0, 0), (-1, -1), COLORS['dark_gray']),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+        # Style for labels (first column)
+        ('FONTNAME', (0, 0), (0, -1), FONTS['heading']),
+        ('TEXTCOLOR', (0, 0), (0, -1), COLORS['primary_blue']),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+    ])
+
 def create_standardized_header(doc, project_name="N/A", run_id="N/A", 
                               city_name="N/A", area_name="N/A", 
                               report_title="Report", timestamp=None):
     """
-    Create a standardized header with logo on top left and metadata on top right.
+    Create a standardized header with logo on top left and a styled metadata table on top right.
     
     Args:
         doc: ReportLab document object (for width calculations)
@@ -324,72 +332,65 @@ def create_standardized_header(doc, project_name="N/A", run_id="N/A",
         List of ReportLab elements for the header
     """
     from utils.logo_utils import create_logo_image
-    from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
+    from utils.hebrew_text_utils import get_hebrew_font_name, reverse_hebrew_text, encode_hebrew_text
     from reportlab.platypus import Table, TableStyle, Paragraph, Spacer
     import datetime
     
     elements = []
     
-    # Use current time if timestamp not provided
     if timestamp is None:
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
-    # Create logo image
     logo_image = create_logo_image(
         max_width=LAYOUT['logo']['max_width'], 
         max_height=LAYOUT['logo']['max_height']
     )
     
-    # Create header info style optimized for horizontal alignment
     hebrew_font = get_hebrew_font_name()
-    header_info_style = ParagraphStyle(
-        'StandardHeaderInfo',
-        parent=getSampleStyleSheet()['Normal'],
-        fontSize=FONT_SIZES['body'],
-        fontName=hebrew_font,
-        textColor=COLORS['dark_gray'],
-        alignment=TA_RIGHT,  # Right alignment for metadata
-        leading=FONT_SIZES['body'] + 2,  # Improved line spacing
-        spaceBefore=0,
-        spaceAfter=0
-    )
     
-    # Format header text
-    header_text = safe_format_header_text(
-        project_name=project_name,
-        run_id=run_id,
-        timestamp=timestamp,
-        city_name=city_name,
-        area_name=area_name,
-        report_title=report_title
-    )
+    # Metadata formatted into a list of lists for a table
+    metadata_data = [
+        [f'{reverse_hebrew_text("דוח")}:', report_title],
+        [f'{reverse_hebrew_text("פרויקט")}:', project_name],
+        [f'{reverse_hebrew_text("הרצה")}:', run_id],
+        [f'{reverse_hebrew_text("עיר")}:', encode_hebrew_text(city_name)],
+        [f'{reverse_hebrew_text("אזור")}:', encode_hebrew_text(area_name)],
+        [f'{reverse_hebrew_text("תאריך")}:', timestamp],
+    ]
+
+    # Wrap each cell in a Paragraph for consistent styling
+    body_style = ParagraphStyle('Body', fontName=hebrew_font, fontSize=FONT_SIZES['body'], alignment=TA_LEFT)
+    label_style = ParagraphStyle('Label', fontName=hebrew_font, fontSize=FONT_SIZES['body'], textColor=COLORS['primary_blue'], alignment=TA_LEFT)
+
+    styled_metadata = []
+    for row in metadata_data:
+        styled_metadata.append([
+            Paragraph(row[0], label_style),
+            Paragraph(row[1], body_style)
+        ])
+
+    metadata_table = Table(styled_metadata, colWidths=['25%', '75%'])
+    metadata_table.setStyle(create_metadata_table_style())
     
-    # Create header metadata paragraph
-    header_metadata = Paragraph(header_text, header_info_style)
-    
-    # Create header table: logo on left, metadata on right with optimized spacing
     available_width = doc.width
     if logo_image:
-        # Reserve space for logo with some margin
         logo_width = LAYOUT['logo']['table_width']
         metadata_width = available_width - logo_width
-        header_data = [[logo_image, header_metadata]]
+        header_data = [[logo_image, metadata_table]]
         header_table = Table(header_data, colWidths=[logo_width, metadata_width])
     else:
-        # If no logo, center the metadata or align to right with full width
-        header_data = [["", header_metadata]]
+        header_data = [["", metadata_table]]
         header_table = Table(header_data, colWidths=[0, available_width])
     
-    # Style the header table for perfect horizontal alignment
     header_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (0, 0), 'LEFT'),    # Logo left aligned
-        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),   # Metadata right aligned
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), # Middle vertical alignment for both logo and metadata
-        ('LEFTPADDING', (0, 0), (-1, -1), 0),   # Remove left padding for cleaner alignment
-        ('RIGHTPADDING', (0, 0), (-1, -1), 0),  # Remove right padding for cleaner alignment
-        ('TOPPADDING', (0, 0), (-1, -1), 8),    # Consistent top padding
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8), # Consistent bottom padding
-        ('NOSPLIT', (0, 0), (-1, -1)),          # Prevent table from splitting across pages
+        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('NOSPLIT', (0, 0), (-1, -1)),
     ]))
     
     elements.append(header_table)
@@ -401,7 +402,7 @@ def create_standardized_header(doc, project_name="N/A", run_id="N/A",
 __all__ = [
     'COLORS', 'FONTS', 'FONT_SIZES', 'LAYOUT',
     'create_standard_table_style', 'create_multi_header_table_style', 
-    'create_cell_style', 'create_title_style', 'create_header_info_style',
+    'create_cell_style', 'create_title_style',
     'create_section_title_style', 'wrap_text', 'create_error_table_style',
-    'create_total_row_style', 'create_standardized_header'
+    'create_total_row_style', 'create_standardized_header', 'create_metadata_table_style'
 ]

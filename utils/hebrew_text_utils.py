@@ -108,32 +108,7 @@ def encode_hebrew_text(text):
         # Fallback: return the original text with HTML escaping
         return html.escape(str(text) if text else "N/A", quote=False)
 
-def safe_format_header_text(project_name, run_id, timestamp, city_name, area_name, report_title, version="Alpha"):
-    """
-    Safely format header text preserving Hebrew characters with proper encoding.
-    
-    Args:
-        project_name: Project name
-        run_id: Run identifier
-        timestamp: Formatted timestamp string
-        city_name: City name (may contain Hebrew)
-        area_name: Area name (may contain Hebrew)
-        report_title: Report title
-        version: Version identifier (defaults to "Alpha")
-        
-    Returns:
-        str: Properly formatted header text with Hebrew support
-    """
-    safe_city_name = encode_hebrew_text(city_name)
-    safe_area_name = encode_hebrew_text(area_name)
-    
-    return f"""
-    Project: {html.escape(str(project_name), quote=False)}<br/>
-    Date: {timestamp}<br/>
-    Version: {html.escape(str(version), quote=False)}<br/>
-    City: {safe_city_name}<br/>
-    Area: {safe_area_name}<br/>
-    """
+
 
 def get_hebrew_font_name():
     """
@@ -152,3 +127,16 @@ def get_hebrew_font_name():
     except Exception as e:
         logger.warning(f"Error getting Hebrew font: {e}")
         return 'Helvetica'
+
+def reverse_hebrew_text(text):
+    """Reverses Hebrew text for correct display in ReportLab.
+
+    Args:
+        text (str): The text to reverse.
+
+    Returns:
+        str: The reversed text.
+    """
+    if not text:
+        return ""
+    return text[::-1]

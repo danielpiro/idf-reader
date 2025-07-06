@@ -8,12 +8,12 @@ from reportlab.lib.enums import TA_LEFT, TA_CENTER
 import datetime
 import logging
 from pathlib import Path
-from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
+from utils.hebrew_text_utils import get_hebrew_font_name
 from utils.logo_utils import create_logo_image
 from generators.shared_design_system import (
     COLORS, FONTS, FONT_SIZES, LAYOUT,
-    create_standard_table_style, create_title_style, create_header_info_style,
-    create_section_title_style, create_standardized_header
+    create_standard_table_style, create_title_style, create_section_title_style,
+    create_standardized_header
 )
 
 logger = logging.getLogger(__name__)

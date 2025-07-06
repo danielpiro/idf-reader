@@ -63,13 +63,13 @@ class LightingParser:
             zone_name = str(getattr(control, "Zone_Name", ""))
             lighting_control_type = str(getattr(control, "Lighting_Control_Type", ""))
             availability_schedule = str(getattr(control, "Availability_Schedule_Name", ""))
-            num_stepped_steps = int(safe_float(getattr(control, "Number_of_Stepped_Control_Steps", 0)))
+            num_stepped_steps = int(safe_float(getattr(control, "Number_of_Stepped_Control_Steps"))) if getattr(control, "Number_of_Stepped_Control_Steps", None) is not None else None
             min_power_frac = None
             min_output_frac = None
 
             if lighting_control_type in ["Continuous", "ContinuousOff"]:
-                min_power_frac = safe_float(getattr(control, "Minimum_Input_Power_Fraction_for_Continuous_or_ContinuousOff_Dimming_Control", 0.0))
-                min_output_frac = safe_float(getattr(control, "Minimum_Light_Output_Fraction_for_Continuous_or_ContinuousOff_Dimming_Control", 0.0))
+                min_power_frac = safe_float(getattr(control, "Minimum_Input_Power_Fraction_for_Continuous_or_ContinuousOff_Dimming_Control"))
+                min_output_frac = safe_float(getattr(control, "Minimum_Light_Output_Fraction_for_Continuous_or_ContinuousOff_Dimming_Control"))
 
             for i in range(1, 11):
                 ref_point_field_name = f"Daylighting_Reference_Point_{i}_Name"
@@ -82,8 +82,8 @@ class LightingParser:
                         break
                     continue
 
-                fraction = safe_float(getattr(control, fraction_field_name, 0.0))
-                setpoint = safe_float(getattr(control, setpoint_field_name, 0.0))
+                fraction = safe_float(getattr(control, fraction_field_name))
+                setpoint = safe_float(getattr(control, setpoint_field_name))
 
                 controls.append({
                     "Zone": zone_name,
@@ -121,8 +121,8 @@ class LightingParser:
                 min_power_frac_ref = None
                 min_output_frac_ref = None
                 if control_type_for_ref in ["Continuous", "ContinuousOff"]:
-                    min_power_frac_ref = safe_float(getattr(control_obj, "Minimum_Input_Power_Fraction_for_Continuous_or_ContinuousOff_Dimming_Control", 0.0))
-                    min_output_frac_ref = safe_float(getattr(control_obj, "Minimum_Light_Output_Fraction_for_Continuous_or_ContinuousOff_Dimming_Control", 0.0))
+                    min_power_frac_ref = safe_float(getattr(control_obj, "Minimum_Input_Power_Fraction_for_Continuous_or_ContinuousOff_Dimming_Control"))
+                    min_output_frac_ref = safe_float(getattr(control_obj, "Minimum_Light_Output_Fraction_for_Continuous_or_ContinuousOff_Dimming_Control"))
 
                 for i in range(1, 11):
                     ref_point_field_name = f"Daylighting_Reference_Point_{i}_Name"
@@ -132,14 +132,14 @@ class LightingParser:
                     control_ref_point_name = str(getattr(control_obj, ref_point_field_name, ""))
 
                     if control_ref_point_name == ref_point_id:
-                        fraction = safe_float(getattr(control_obj, fraction_field_name, 0.0))
-                        setpoint = safe_float(getattr(control_obj, setpoint_field_name, 0.0))
+                        fraction = safe_float(getattr(control_obj, fraction_field_name))
+                        setpoint = safe_float(getattr(control_obj, setpoint_field_name))
 
                         reference_points.append({
                             "Zone": zone_name,
-                            "X-Coordinate": safe_float(getattr(ref_point, "XCoordinate_of_Reference_Point", 0.0)),
-                            "Y-Coordinate": safe_float(getattr(ref_point, "YCoordinate_of_Reference_Point", 0.0)),
-                            "Z-Coordinate": safe_float(getattr(ref_point, "ZCoordinate_of_Reference_Point", 0.0)),
+                            "X-Coordinate": safe_float(getattr(ref_point, "XCoordinate_of_Reference_Point")),
+                            "Y-Coordinate": safe_float(getattr(ref_point, "YCoordinate_of_Reference_Point")),
+                            "Z-Coordinate": safe_float(getattr(ref_point, "ZCoordinate_of_Reference_Point")),
                             "Daylighting Reference": ref_point_id,
                             "Fraction of Zone Controlled": fraction,
                             "Illuminance Setpoint": setpoint,
@@ -162,7 +162,7 @@ class LightingParser:
         return [{
             "Name": ext_light.get("name", "-"),
             "Lighting SCHEDULE Name": ext_light.get("schedule_name", "-"),
-            "Design Equipment Level (W)": ext_light.get("design_level", 0.0)
+            "Design Equipment Level (W)": ext_light.get("design_level")
         } for ext_light in exterior_lights_raw]
 
     def _parse_task_lights(self, lights_raw) -> List[Dict[str, Any]]:

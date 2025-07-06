@@ -34,13 +34,13 @@ class LoadExtractor:
                     "multiplier": zone_data['multiplier']
                 },
                 "loads": {
-                    "people": {"people_per_area": 0.0, "activity_schedule": None, "schedule": None},
-                    "lights": {"watts_per_area": 0.0, "schedule": None},
-                    "non_fixed_equipment": {"watts_per_area": 0.0, "schedule": None},
-                    "fixed_equipment": {"watts_per_area": 0.0, "schedule": None},
-                    "infiltration": {"rate_ach": 0.0, "schedule": None},
-                    "ventilation": {"rate_ach": 0.0, "schedule": None},
-                    "mechanical_ventilation": {"outdoor_air_flow_per_person": 0.0, "schedule": None}
+                    "people": {"people_per_area": None, "activity_schedule": None, "schedule": None},
+                    "lights": {"watts_per_area": None, "schedule": None},
+                    "non_fixed_equipment": {"watts_per_area": None, "schedule": None},
+                    "fixed_equipment": {"watts_per_area": None, "schedule": None},
+                    "infiltration": {"rate_ach": None, "schedule": None},
+                    "ventilation": {"rate_ach": None, "schedule": None},
+                    "mechanical_ventilation": {"outdoor_air_flow_per_person": None, "schedule": None}
                 },
                 "schedules": {"heating": None, "cooling": None}
             }
@@ -52,6 +52,8 @@ class LoadExtractor:
                 continue
             zone_load_data = self.loads_by_zone[zone_name]["loads"]["people"]
             for load in loads:
+                if zone_load_data["people_per_area"] is None:
+                    zone_load_data["people_per_area"] = 0.0
                 zone_load_data["people_per_area"] += load['people_per_area']
                 if zone_load_data["schedule"] is None:
                     zone_load_data["schedule"] = load['schedule']
@@ -67,6 +69,8 @@ class LoadExtractor:
                 continue
             zone_load_data = self.loads_by_zone[zone_name]["loads"]["lights"]
             for load in loads:
+                if zone_load_data["watts_per_area"] is None:
+                    zone_load_data["watts_per_area"] = 0.0
                 zone_load_data["watts_per_area"] += load['watts_per_area']
                 if zone_load_data["schedule"] is None:
                     zone_load_data["schedule"] = load['schedule']
@@ -79,6 +83,8 @@ class LoadExtractor:
             for load in loads:
                 key = "fixed_equipment" if load['type'] == 'fixed' else "non_fixed_equipment"
                 zone_load_data = self.loads_by_zone[zone_name]["loads"][key]
+                if zone_load_data["watts_per_area"] is None:
+                    zone_load_data["watts_per_area"] = 0.0
                 zone_load_data["watts_per_area"] += load['watts_per_area']
                 if zone_load_data["schedule"] is None:
                     zone_load_data["schedule"] = load['schedule']
@@ -90,6 +96,8 @@ class LoadExtractor:
                 continue
             zone_load_data = self.loads_by_zone[zone_name]["loads"]["infiltration"]
             for load in loads:
+                if zone_load_data["rate_ach"] is None:
+                    zone_load_data["rate_ach"] = 0.0
                 zone_load_data["rate_ach"] += load['air_changes_per_hour']
                 if zone_load_data["schedule"] is None:
                     zone_load_data["schedule"] = load['schedule']
@@ -106,6 +114,8 @@ class LoadExtractor:
                 design_flow_rate = safe_float(getattr(load['raw_object'], "Design_Flow_Rate", 0.0))
                 if zone_volume > 0:
                     ach = (design_flow_rate * 3600) / zone_volume
+                    if zone_load_data["rate_ach"] is None:
+                        zone_load_data["rate_ach"] = 0.0
                     zone_load_data["rate_ach"] += ach
                 if zone_load_data["schedule"] is None:
                     zone_load_data["schedule"] = load.get('schedule_name', '')
@@ -117,7 +127,7 @@ class LoadExtractor:
         for zone_name, spec_data in outdoor_air_specs.items():
             if zone_name in self.loads_by_zone:
                 zone_load_data = self.loads_by_zone[zone_name]["loads"]["mechanical_ventilation"]
-                zone_load_data["outdoor_air_flow_per_person"] = spec_data.get('outdoor_air_flow_per_person', 0.0)
+                zone_load_data["outdoor_air_flow_per_person"] = spec_data.get('outdoor_air_flow_per_person')
                 if zone_load_data["schedule"] is None:
                     zone_load_data["schedule"] = spec_data.get('outdoor_air_flow_rate_fraction_schedule_name')
 

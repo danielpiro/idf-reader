@@ -121,6 +121,8 @@ def _format_number(value):
     """
     Format number for display in the report.
     """
+    if value is None:
+        return '-'
     try:
         if isinstance(value, (int, float)):
             if value == 0:
@@ -138,12 +140,6 @@ def _format_number(value):
         return str(value)
     except Exception:
         return str(value)
-
-def safe_float(value, default=0.0):
-    try:
-        return float(value)
-    except (ValueError, TypeError):
-        return default
 
 def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_total_area, group_model_csv_area_desc, model_year, model_area_definition):
     """
@@ -268,6 +264,11 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
         logger.warning("_calculate_total_energy_rating: raw_table_data is empty or None.")
         return None, None
 
+    def safe_float(value, default=0.0):
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return default
 
     grouped_data = {}
     for row in raw_table_data:
@@ -678,6 +679,12 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
     group_sums_for_display = {}
     group_total_floor_areas = {}
     if raw_table_data:
+        def safe_float(value, default=0.0):
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return default
+
         for row_dict in raw_table_data:
             item_group_key_for_sum = (str(row_dict.get('floor_id_report','N/A')), str(row_dict.get('area_id_report','N/A')))
             # For 2023, exclude lighting from energy calculations

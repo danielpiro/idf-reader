@@ -188,10 +188,10 @@ def custom_material_sort_key(item):
 
 def _calc_group_totals(group):
     """Calculate totals and derived values for a group of layers."""
-    total_thickness = sum(float(g.get('thickness', 0)) for g in group)
-    total_mass = sum(float(g.get('mass', 0)) for g in group)
-    total_resistance = sum(float(g.get('thermal_resistance', 0)) for g in group)
-    film_resistance = float(group[0].get('surface_film_resistance', 0)) if group else 0
+    total_thickness = sum(g.get('thickness') or 0.0 for g in group)
+    total_mass = sum(g.get('mass') or 0.0 for g in group)
+    total_resistance = sum(g.get('thermal_resistance') or 0.0 for g in group)
+    film_resistance = (group[0].get('surface_film_resistance') or 0.0) if group else 0.0
     r_value = total_resistance
     r_value_with_film = r_value + film_resistance
     u_value = 1.0 / r_value_with_film if r_value_with_film > 0 else 0.0

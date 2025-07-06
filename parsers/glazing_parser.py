@@ -2,7 +2,7 @@ import csv
 import os
 from typing import Dict, Any
 
-def safe_float(value: Any, default: float = 0.0) -> float:
+def safe_float(value: Any, default: float = None) -> float:
     """
     Safely convert a value to float, returning a default if conversion fails.
     Handles numpy float types by converting them to Python floats.

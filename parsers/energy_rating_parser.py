@@ -9,6 +9,12 @@ from venv import logger
 from parsers.area_parser import AreaParser
 from utils.data_loader import safe_float
 
+def safe_float(value, default=None):
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
 class EnergyRatingParser:
     """
     Processes energy consumption data from EnergyPlus output files (eplusout.csv).

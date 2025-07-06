@@ -90,8 +90,8 @@ class AreaParser:
                     # Also extract base zone ID for potential grouping
                     base_zone_id = self._extract_base_zone_id(zone_id)
 
-                    floor_area = safe_float(zone_data.get("floor_area", 0.0), 0.0)
-                    multiplier = int(safe_float(zone_data.get("multiplier", 1), 1))
+                    floor_area = safe_float(zone_data.get("floor_area"))
+                    multiplier = int(safe_float(zone_data.get("multiplier"), 1))
 
                     self.areas_by_zone[zone_id] = {
                         "area_id": area_id,
@@ -141,8 +141,8 @@ class AreaParser:
                     if not construction_name:
                         continue
 
-                    original_area = safe_float(surface.get("area", 0.0), 0.0)
-                    if original_area <= 0.0:
+                    original_area = safe_float(surface.get("area"))
+                    if original_area is None or original_area <= 0.0:
                         continue
 
                     area = original_area
@@ -154,7 +154,7 @@ class AreaParser:
                             logger.warning(f"Error calculating net area for surface '{surface_id}': {e_sum}. Using original area.", exc_info=True)
                             area = original_area
 
-                    u_value = 0.0
+                    u_value = None
                     is_glazing_from_idf = surface.get("is_glazing", False)
                     is_glazing_from_csv = False
                     glazing_area_override = None
@@ -178,13 +178,13 @@ class AreaParser:
                         area_from_glazing = glazing_details_csv.get('Area')
 
                         if u_value_from_glazing is not None:
-                            u_value = safe_float(u_value_from_glazing, 0.0)
+                            u_value = safe_float(u_value_from_glazing)
                         else:
                             logger.warning(f"U-Value missing for surface '{surface_id}' (lookup key '{surface_id_upper}', construction '{construction_name}') in glazing CSV data. Calculating.")
                             u_value = self._calculate_u_value(construction_name)
 
                         if area_from_glazing is not None:
-                            glazing_area_override = safe_float(area_from_glazing, 0.0)
+                            glazing_area_override = safe_float(area_from_glazing)
 
                         is_glazing_from_csv = True
                     else:

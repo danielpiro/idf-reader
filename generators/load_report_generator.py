@@ -259,8 +259,8 @@ def extract_setpoint(schedule_values, setpoint_type, zone_name=None, all_schedul
     
     return '-'
 
-def _get_load_data(loads, load_type, key, default='-'):
-    return loads.get(load_type, {}).get(key, default) or default
+def _get_load_data(loads, load_type, key, default=None):
+    return loads.get(load_type, {}).get(key, default)
 
 def _get_schedule_name(schedules, schedule_type, default='-'):
     sched_info = schedules.get(schedule_type)
@@ -269,14 +269,15 @@ def _get_schedule_name(schedules, schedule_type, default='-'):
     return sched_info or default
 
 def _to_str(val, precision=None):
-    if val is None:
+    if val is None or val == '-':
         return '-'
-    if precision is not None:
-        try:
-            return f"{float(val):.{precision}f}"
-        except (ValueError, TypeError):
-            return str(val)
-    return str(val)
+    try:
+        val_float = float(val)
+        if precision is not None:
+            return f"{val_float:.{precision}f}"
+        return str(val_float)
+    except (ValueError, TypeError):
+        return str(val)
 
 def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", project_name="N/A", run_id="N/A", 
                              city_name="N/A", area_name="N/A"):
@@ -368,14 +369,14 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
             schedules = zone_info.get('schedules', {})
             
             # Extract data for both tables
-            people_density = _get_load_data(loads, 'people', 'people_per_area', 0.0)
+            people_density = _get_load_data(loads, 'people', 'people_per_area')
             people_activity_sched = _get_load_data(loads, 'people', 'activity_schedule')
             people_sched = _get_load_data(loads, 'people', 'schedule')
-            lights_density = _get_load_data(loads, 'lights', 'watts_per_area', 0.0)
+            lights_density = _get_load_data(loads, 'lights', 'watts_per_area')
             lights_sched = _get_load_data(loads, 'lights', 'schedule')
-            non_fixed_density = _get_load_data(loads, 'non_fixed_equipment', 'watts_per_area', 0.0)
+            non_fixed_density = _get_load_data(loads, 'non_fixed_equipment', 'watts_per_area')
             non_fixed_sched = _get_load_data(loads, 'non_fixed_equipment', 'schedule')
-            fixed_density = _get_load_data(loads, 'fixed_equipment', 'watts_per_area', 0.0)
+            fixed_density = _get_load_data(loads, 'fixed_equipment', 'watts_per_area')
             fixed_sched = _get_load_data(loads, 'fixed_equipment', 'schedule')
             
             heating_schedule_obj = schedules.get('heating')
@@ -390,11 +391,11 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
             cooling_setpoint = extract_setpoint(cooling_sched_values, 'work', zone_name, cooling_schedule_obj)
             cooling_setpoint_non_work = extract_setpoint(cooling_sched_values, 'non_work', zone_name, cooling_schedule_obj)
             
-            infil_rate = _get_load_data(loads, 'infiltration', 'rate_ach', 0.0)
+            infil_rate = _get_load_data(loads, 'infiltration', 'rate_ach')
             infil_sched = _get_load_data(loads, 'infiltration', 'schedule')
-            vent_rate = _get_load_data(loads, 'ventilation', 'rate_ach', 0.0)
+            vent_rate = _get_load_data(loads, 'ventilation', 'rate_ach')
             vent_sched = _get_load_data(loads, 'ventilation', 'schedule')
-            mech_vent_flow_per_person = _get_load_data(loads, 'mechanical_ventilation', 'outdoor_air_flow_per_person', 0.0)
+            mech_vent_flow_per_person = _get_load_data(loads, 'mechanical_ventilation', 'outdoor_air_flow_per_person')
             mech_vent_sched = _get_load_data(loads, 'mechanical_ventilation', 'schedule')
             
             # Table 1 row data

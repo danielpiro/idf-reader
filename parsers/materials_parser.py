@@ -31,11 +31,11 @@ class MaterialsParser:
                 self.materials[material_id] = MaterialData(
                     id=material_id,
                     name=material_id,
-                    conductivity=raw_material_data.get('conductivity', 0.0),
-                    density=raw_material_data.get('density', 0.0),
-                    specific_heat=raw_material_data.get('specific_heat', 0.0),
-                    thickness=raw_material_data.get('thickness', 0.0),
-                    solar_absorptance=raw_material_data.get('solar_absorptance', 0.0)
+                    conductivity=raw_material_data.get('conductivity'),
+                    density=raw_material_data.get('density'),
+                    specific_heat=raw_material_data.get('specific_heat'),
+                    thickness=raw_material_data.get('thickness'),
+                    solar_absorptance=raw_material_data.get('solar_absorptance')
                 )
             construction_cache = self.data_loader.get_constructions()
             
@@ -129,10 +129,13 @@ class MaterialsParser:
         Returns:
             float: Adjusted mass value
         """
-        mass = material_data.density * material_data.thickness
+        density = material_data.density or 0.0
+        thickness = material_data.thickness or 0.0
+        mass = density * thickness
         
         # Apply low conductivity adjustment
-        if material_data.conductivity < 0.2 and material_data.conductivity != 0:
+        conductivity = material_data.conductivity
+        if conductivity is not None and conductivity < 0.2 and conductivity != 0:
             # For element data processing: only apply to external walls and track by construction
             if element_type and low_conductivity_found is not None:
                 if element_type.lower() == "external wall" and construction_id not in low_conductivity_found.get(element_type, set()):
@@ -156,7 +159,9 @@ class MaterialsParser:
         Returns:
             float: Thermal resistance value
         """
-        return material_data.thickness / material_data.conductivity if material_data.conductivity != 0 else 0.0
+        thickness = material_data.thickness or 0.0
+        conductivity = material_data.conductivity
+        return thickness / conductivity if conductivity else 0.0
 
     def _process_element_data(self) -> None:
         """

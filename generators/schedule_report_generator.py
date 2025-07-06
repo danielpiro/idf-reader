@@ -7,7 +7,7 @@ from reportlab.lib.colors import grey
 import datetime
 import logging
 from pathlib import Path
-from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
+from utils.hebrew_text_utils import get_hebrew_font_name
 from utils.logo_utils import create_logo_image
 from generators.shared_design_system import (
     COLORS, FONTS, FONT_SIZES, create_standardized_header
@@ -190,36 +190,24 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
             'HeaderInfo', parent=styles['Normal'], fontSize=9, fontName=hebrew_font, textColor=COLORS['dark_gray'], alignment=2        )
         now = datetime.datetime.now()
         report_title = "Unique Schedule Definitions"
-        header_text = safe_format_header_text(
-            project_name=project_name,
-            run_id=run_id,
-            timestamp=now.strftime('%Y-%m-%d %H:%M:%S'),
-            city_name=city_name,
-            area_name=area_name,
-            report_title=report_title
+
+        
+        header_table = create_standardized_header(
+            logo_path='data/logo.png',
+            metadata=[
+                ("Project Name", project_name),
+                ("Run ID", run_id),
+                ("City", city_name),
+                ("Area", area_name),
+                ("Report Date", now.strftime('%Y-%m-%d %H:%M:%S')),
+                ("Report Title", report_title)
+            ],
+            width=content_width,
+            margin_x=margin_x
         )
-        
-        # Add logo and header with horizontal alignment
-        logo_image = create_logo_image(max_width=4*cm, max_height=2*cm)
-        p_header = Paragraph(header_text, header_info_style)
-        header_width_actual, header_height = p_header.wrapOn(c, content_width, margin_y)
-        
-        if logo_image:
-            # Position logo at top left and header at top right, aligned horizontally
-            logo_width, logo_height = logo_image.drawWidth, logo_image.drawHeight
-            logo_x = margin_x
-            logo_y = height - margin_y - max(logo_height, header_height)
-            header_y = height - margin_y - header_height
-            
-            # Draw both at the same vertical level for horizontal alignment
-            logo_image.drawOn(c, logo_x, logo_y)
-            p_header.drawOn(c, width - margin_x - header_width_actual, header_y)
-            current_y -= (max(logo_height, header_height) + 0.3*cm)
-        else:
-            # No logo, just position header
-            header_y = height - margin_y - header_height
-            p_header.drawOn(c, width - margin_x - header_width_actual, header_y)
-            current_y -= (header_height + 0.3*cm)
+        header_height = header_table.wrap(0, 0)[1]
+        header_table.drawOn(c, margin_x, height - margin_y - header_height)
+        current_y -= (header_height + 0.5 * cm)
 
         title_text = f"{report_title} Report"
         title_style.alignment = 1  # Center alignment

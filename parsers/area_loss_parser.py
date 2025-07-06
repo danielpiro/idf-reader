@@ -33,12 +33,15 @@ class AreaLossParser:
             for item in self.area_loss_data:
                 area_id = item.get('area_id', '')
                 location = item.get('location', 'Unknown')
-                total_floor_area = item.get('total_floor_area', 0)
-                wall_mass_per_area = wall_mass_data.get(area_id, 0)
-                h_needed = self._calculate_h_needed(location, total_floor_area, wall_mass_per_area, area_id)
+                total_floor_area = item.get('total_floor_area')
+                wall_mass_per_area = wall_mass_data.get(area_id)
+                h_needed = self._calculate_h_needed(location, total_floor_area or 0, wall_mass_per_area or 0, area_id)
                 item['h_needed'] = h_needed
-                h_value = item.get('h_value', 0)
-                item['compatible'] = "Yes" if h_value < h_needed else "No"
+                h_value = item.get('h_value')
+                if h_value is None:
+                    item['compatible'] = "No"
+                else:
+                    item['compatible'] = "Yes" if h_value < h_needed else "No"
             self.processed = True
             return self.area_loss_data
         except Exception as e:
@@ -71,8 +74,10 @@ class AreaLossParser:
                     area_id = element.get('area_id', '')
                     if not area_id:
                         continue
-                    mass = element.get('mass_per_area', 0.0)
-                    wall_mass_data[area_id] = max(wall_mass_data.get(area_id, 0.0), mass)
+                    mass = element.get('mass_per_area')
+                    if mass is not None:
+                        current_mass = wall_mass_data.get(area_id, 0.0)
+                        wall_mass_data[area_id] = max(current_mass, mass)
         except Exception as e:
             logger.error(f"Error calculating wall mass per area: {e}")
         return wall_mass_data

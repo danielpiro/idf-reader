@@ -126,10 +126,10 @@ class AreaReportGenerator(BaseReportGenerator):
         <font name="{FONTS['heading']}" size="{FONT_SIZES['heading']}" color="{COLORS['primary_blue'].hexval()}"><b>Area Summary</b></font><br/>
         <br/>
         <b>Area Name:</b> {area_id}<br/>
-        <b>Total Area:</b> {total_floor_area:.2f} m²<br/>
+        <b>Total Area:</b> {self.formatter.format_number(total_floor_area, precision=2)} m²<br/>
         <b>Location:</b> {location}<br/>
         <b>Windows Directions:</b> {window_directions_str}<br/>
-        <b>Wall Mass:</b> {wall_mass_per_area:.2f} kg/m²
+        <b>Wall Mass:</b> {self.formatter.format_number(wall_mass_per_area, precision=2)} kg/m²
         """
         
         summary_paragraph = Paragraph(summary_text, summary_content_style)

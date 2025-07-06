@@ -125,8 +125,8 @@ class AreaLossReportGenerator(BaseReportGenerator):
         for row in sorted_rows:
             area_id = self.formatter.safe_string(row.get('area_id', 'Unknown'))
             location = self.formatter.safe_string(row.get('location', 'Unknown'))
-            h_value = self.formatter.format_number(row.get('h_value', 0.0), precision=3)
-            h_needed = self.formatter.format_number(row.get('h_needed', 0.0), precision=3)
+            h_value = self.formatter.format_number(row.get('h_value'), precision=3)
+            h_needed = self.formatter.format_number(row.get('h_needed'), precision=3)
             compatible = row.get('compatible', 'No')
             
             # Color-code compatibility
