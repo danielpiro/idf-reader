@@ -1244,8 +1244,8 @@ class AutomaticErrorDetectionParser:
                                                         climate_hvac_table['Natural Ventilation']['schedule_rule']['recommended'],
                                                         zone_id, f'Natural Ventilation Schedule Rule (Climate {climate_zone})')
         
-        # Validate window directions per floor (not per zone)
-        self._validate_window_directions_per_floor(zones, areas_parser, climate_hvac_table, climate_zone)
+        # Validate window directions per area (not per floor or zone)
+        self._validate_window_directions_per_area(zones, areas_parser, climate_hvac_table, climate_zone)
 
     def get_error_detection_data(self) -> List[Dict[str, Any]]:
         """Returns the processed error detection data."""
@@ -1414,72 +1414,167 @@ class AutomaticErrorDetectionParser:
             
         return len(window_directions) 
     
-    def _validate_window_directions_per_floor(self, zones, areas_parser, climate_hvac_table, climate_zone):
-        """Validate window directions per floor (not per zone)."""
+    def _validate_window_directions_per_area(self, zones, areas_parser, climate_hvac_table, climate_zone):
+        """Validate window directions per area (not per floor or zone)."""
         try:
-            # Group zones by floor, excluding CORE zones
-            floors_data = {}
+            print(f"\n=== DEBUG: Window Direction Validation for Climate {climate_zone} ===")
+            
+            # Group zones by area, excluding CORE zones
+            areas_data = {}
+            print(f"DEBUG: Processing {len(zones)} zones")
+            
             for zone_id in zones.keys():
                 # Skip CORE zones
                 if any(keyword in zone_id.lower() for keyword in ['core', 'corridor', 'stair']):
+                    print(f"DEBUG: Skipping CORE zone: {zone_id}")
                     continue
                     
-                # Extract floor number (e.g., "00:01XLIVING" -> "01")
-                if ':' in zone_id:
-                    parts = zone_id.split(':')
-                    if len(parts) > 1 and len(parts[1]) >= 2:
-                        floor_prefix = parts[1][:2]  # Get first 2 digits after colon
-                    else:
-                        floor_prefix = zone_id[:2]  # Fallback
-                else:
-                    floor_prefix = zone_id[:2]  # Fallback
+                # Extract area ID using the same logic as AreaParser
+                area_id = self._extract_area_id_from_zone(zone_id)
+                print(f"DEBUG: Zone {zone_id} -> Area {area_id}")
                 
-                if floor_prefix not in floors_data:
-                    floors_data[floor_prefix] = {
+                if area_id not in areas_data:
+                    areas_data[area_id] = {
                         'zones': [],
                         'window_directions': set()
                     }
                 
-                floors_data[floor_prefix]['zones'].append(zone_id)
+                areas_data[area_id]['zones'].append(zone_id)
             
-            # Collect window directions per floor from glazing data
-            if hasattr(areas_parser, 'glazing_data_from_csv'):
+            print(f"DEBUG: Created {len(areas_data)} areas: {list(areas_data.keys())}")
+            for area_id, area_info in areas_data.items():
+                print(f"DEBUG: Area {area_id} contains zones: {area_info['zones']}")
+            
+            # Collect window directions per area from glazing data
+            if hasattr(areas_parser, 'glazing_data_from_csv') and areas_parser.glazing_data_from_csv:
                 glazing_data = areas_parser.glazing_data_from_csv
+                print(f"DEBUG: Found glazing data with {len(glazing_data)} surfaces")
+                
+                # Show first few surface names as examples
+                surface_names = list(glazing_data.keys())[:5]
+                print(f"DEBUG: Example surface names: {surface_names}")
+                
+                surfaces_processed = 0
+                directions_found = 0
                 
                 for surface_name, data in glazing_data.items():
+                    surfaces_processed += 1
+                    
                     # Ensure data is a dict before calling .get()
                     if not isinstance(data, dict):
+                        print(f"DEBUG: Surface {surface_name} has non-dict data: {type(data)}")
                         continue
                         
-                    # Extract floor from surface name
-                    if ':' in surface_name:
-                        parts = surface_name.split(':')
-                        if len(parts) > 1 and len(parts[1]) >= 2:
-                            floor_prefix = parts[1][:2]  # Get floor from surface name
-                            direction = data.get('CardinalDirection', 'Unknown')
-                            
-                            if direction and direction != 'Unknown' and floor_prefix in floors_data:
-                                floors_data[floor_prefix]['window_directions'].add(direction)
+                    # Extract area ID from surface name
+                    area_id = self._extract_area_id_from_surface_name(surface_name)
+                    direction = data.get('CardinalDirection', 'Unknown')
+                    
+                    if surfaces_processed <= 10:  # Show details for first 10 surfaces
+                        print(f"DEBUG: Surface {surface_name}")
+                        print(f"       -> Extracted area_id: {area_id}")
+                        print(f"       -> Direction: {direction}")
+                        print(f"       -> Area exists in areas_data: {area_id in areas_data}")
+                        print(f"       -> Data keys: {list(data.keys())}")
+                    
+                    if direction and direction != 'Unknown':
+                        directions_found += 1
+                        if area_id in areas_data:
+                            areas_data[area_id]['window_directions'].add(direction)
+                            print(f"DEBUG: ✓ Added direction {direction} to area {area_id}")
+                        else:
+                            print(f"DEBUG: ✗ Area {area_id} not found in areas_data for surface {surface_name}")
+                
+                print(f"DEBUG: Processed {surfaces_processed} surfaces, found {directions_found} valid directions")
+                
+            else:
+                print("DEBUG: No glazing CSV data available - skipping window direction validation")
+                print("DEBUG: Window direction validation requires EnergyPlus simulation output (eplustbl.csv)")
+                print("DEBUG: Run EnergyPlus simulation to generate glazing data with cardinal directions")
+                # Skip validation entirely when no glazing data is available
+                return
             
-            # Validate each floor's window directions
+            # Show final window directions per area
+            print(f"\nDEBUG: Final window directions per area:")
+            for area_id, area_info in areas_data.items():
+                directions = list(area_info['window_directions'])
+                print(f"       Area {area_id}: {len(directions)} directions -> {directions}")
+            
+            # Validate each area's window directions
             required_directions = int(climate_hvac_table['Natural Ventilation']['windows_directions_required']['recommended'])
+            print(f"DEBUG: Required directions: {required_directions}")
             
-            for floor_prefix, floor_info in floors_data.items():
-                window_directions = floor_info['window_directions']
+            validation_errors = 0
+            for area_id, area_info in areas_data.items():
+                window_directions = area_info['window_directions']
                 window_count = len(window_directions)
                 
+                print(f"DEBUG: Validating Area {area_id}: {window_count} vs {required_directions} required")
+                
                 if window_count < required_directions:
-                    # Add validation error for the floor
+                    validation_errors += 1
+                    print(f"DEBUG: ✗ Area {area_id} FAILED validation - {window_count} < {required_directions}")
+                    # Add validation error for the area
                     self.error_detection_data.append({
-                        'zone_name': f'Floor {floor_prefix}',
+                        'zone_name': f'{area_id} Natural Ventilation',
                         'category': f'Natural Ventilation Windows (Climate {climate_zone})',
                         'current_model_value': f"{window_count} directions: {list(window_directions)}",
                         'recommended_standard_value': f"{required_directions} different directions required",
-                        'remark': f'Floor missing {required_directions - window_count} window directions'
+                        'remark': f'Area missing {required_directions - window_count} window directions'
                     })
+                else:
+                    print(f"DEBUG: ✓ Area {area_id} PASSED validation - {window_count} >= {required_directions}")
+            
+            print(f"DEBUG: Generated {validation_errors} validation errors")
+            print(f"=== END DEBUG: Window Direction Validation ===\n")
                     
+        except Exception as e:
+            print(f"DEBUG: Exception in _validate_window_directions_per_area: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _extract_area_id_from_zone(self, zone_id):
+        """Extract area ID from zone name using same logic as AreaParser."""
+        if ":" not in zone_id:
+            return "unknown"
+        
+        try:
+            parts = zone_id.split(":", 1)
+            if len(parts) < 2 or not parts[1]:
+                return "unknown"
+                
+            zone_part = parts[1]
+            
+            # Handle patterns like A338X... where A338 should be the area_id
+            if "X" in zone_part:
+                x_index = zone_part.find("X")
+                area_candidate = zone_part[:x_index]
+                if area_candidate and len(area_candidate) >= 2:
+                    return area_candidate
+            
+            # Fallback to original logic
+            if len(zone_part) >= 2 and zone_part[:2].isdigit():
+                return zone_part[:2]
+            elif zone_part:
+                return zone_part
+                
+            return "unknown"
         except Exception:
-            pass
+            return "unknown"
+    
+    def _extract_area_id_from_surface_name(self, surface_name):
+        """Extract area ID from surface name - same logic as area report generator."""
+        try:
+            # Extract area ID from surface name (e.g., "00:01XLIVING_WALL_4_0_0_0_0_0_WIN" -> "01")
+            if ":" in surface_name:
+                parts = surface_name.split(":")
+                if len(parts) > 1:
+                    zone_part = parts[1]
+                    if len(zone_part) >= 2 and zone_part[:2].isdigit():
+                        return zone_part[:2]
+            
+            return "unknown"
+        except Exception:
+            return "unknown"
     
     def _extract_setpoint_from_schedule(self, schedule_rules):
         """Extract temperature setpoint from schedule rules.
