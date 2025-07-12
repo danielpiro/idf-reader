@@ -49,193 +49,133 @@ class GlazingReportGenerator(BaseReportGenerator):
         story.append(Paragraph(f"{report_title} Report", title_style))
         story.append(Spacer(1, LAYOUT['spacing']['standard']))
         
-        for construction_id, data in self.glazing_data.items():
-            sub_heading_style = ParagraphStyle(
-                'SubHeading',
-                parent=self.styles['h3'],
-                textColor=COLORS['primary_blue'],
-                alignment=TA_CENTER
-            )
-            story.append(Paragraph(f"Construction: {construction_id}", sub_heading_style))
-            story.append(Spacer(1, LAYOUT['spacing']['small']))
-            
-            system_table = self._create_system_table(data.get('system_details', {}))
-            if system_table:
-                glazing_system_style = ParagraphStyle(
-                    'GlazingSystemStyle',
+        # Create separate tables for each construction
+        if self.glazing_data:
+            for construction_id, data in self.glazing_data.items():
+                # Add construction heading
+                sub_heading_style = ParagraphStyle(
+                    'SubHeading',
                     parent=self.styles['h3'],
                     textColor=COLORS['primary_blue'],
                     alignment=TA_CENTER
                 )
-                title_p = Paragraph("Glazing System", glazing_system_style)
-                outer_data = [[title_p, system_table]]
-                title_col_width = 3.5*cm
-                outer_table = Table(outer_data, colWidths=[title_col_width, None])
-                outer_style = TableStyle([
-                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                    ('LEFTPADDING', (0, 0), (0, 0), 0),
-                    ('RIGHTPADDING', (0, 0), (0, 0), 0.2*cm),
-                    ('LEFTPADDING', (1, 0), (1, 0), 0),
-                    ('RIGHTPADDING', (1, 0), (1, 0), 0),
-                ])
-                outer_table.setStyle(outer_style)
-                story.append(outer_table)
+                story.append(Paragraph(f"Construction: {construction_id}", sub_heading_style))
                 story.append(Spacer(1, LAYOUT['spacing']['small']))
-            
-            details_table = self._create_details_table(data.get('glazing_layers', []))
-            if details_table:
-                glazing_details_style = ParagraphStyle(
-                    'GlazingDetailsStyle',
-                    parent=self.styles['h3'],
-                    textColor=COLORS['primary_blue'],
-                    alignment=TA_CENTER
-                )
-                title_p = Paragraph("Glazing Details (Layers)", glazing_details_style)
-                outer_data = [[title_p, details_table]]
-                title_col_width = 3.5*cm
-                outer_table = Table(outer_data, colWidths=[title_col_width, None])
-                outer_style = TableStyle([
-                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                    ('LEFTPADDING', (0, 0), (0, 0), 0),
-                    ('RIGHTPADDING', (0, 0), (0, 0), 0.2*cm),
-                    ('LEFTPADDING', (1, 0), (1, 0), 0),
-                    ('RIGHTPADDING', (1, 0), (1, 0), 0),
-                ])
-                outer_table.setStyle(outer_style)
-                story.append(outer_table)
-                story.append(Spacer(1, LAYOUT['spacing']['small']))
-            
-            shading_table = self._create_shading_table(data.get('shading_layers', []))
-            if shading_table:
-                shading_style = ParagraphStyle(
-                    'ShadingStyle',
-                    parent=self.styles['h3'],
-                    textColor=COLORS['primary_blue'],
-                    alignment=TA_CENTER
-                )
-                title_p = Paragraph("Shading", shading_style)
-                outer_data = [[title_p, shading_table]]
-                title_col_width = 3.5*cm
-                outer_table = Table(outer_data, colWidths=[title_col_width, None])
-                outer_style = TableStyle([
-                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                    ('LEFTPADDING', (0, 0), (0, 0), 0),
-                    ('RIGHTPADDING', (0, 0), (0, 0), 0.2*cm),
-                    ('LEFTPADDING', (1, 0), (1, 0), 0),
-                    ('RIGHTPADDING', (1, 0), (1, 0), 0),
-                ])
-                outer_table.setStyle(outer_style)
-                story.append(outer_table)
-                story.append(Spacer(1, LAYOUT['spacing']['small']))
-            
-            frame_table = self._create_frame_table(data.get('frame_details'))
-            if frame_table:
-                frame_style = ParagraphStyle(
-                    'FrameStyle',
-                    parent=self.styles['h3'],
-                    textColor=COLORS['primary_blue'],
-                    alignment=TA_CENTER
-                )
-                title_p = Paragraph("Frame", frame_style)
-                outer_data = [[title_p, frame_table]]
-                title_col_width = 3.5*cm
-                outer_table = Table(outer_data, colWidths=[title_col_width, None])
-                outer_style = TableStyle([
-                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                    ('LEFTPADDING', (0, 0), (0, 0), 0),
-                    ('RIGHTPADDING', (0, 0), (0, 0), 0.2*cm),
-                    ('LEFTPADDING', (1, 0), (1, 0), 0),
-                    ('RIGHTPADDING', (1, 0), (1, 0), 0),
-                ])
-                outer_table.setStyle(outer_style)
-                story.append(outer_table)
-                story.append(Spacer(1, LAYOUT['spacing']['small']))
-            
-            story.append(Spacer(1, LAYOUT['spacing']['section']))
+                
+                # Create table for this construction
+                construction_table = self._create_construction_table(construction_id, data)
+                if construction_table:
+                    story.append(construction_table)
+                    story.append(Spacer(1, LAYOUT['spacing']['section']))
+        else:
+            # Fallback message if no data
+            story.append(Paragraph("No glazing data available.", self.styles['Normal']))
         
         # Build document
         return self.build_document(doc, story)
 
-    def _create_system_table(self, system_details):
-        if not system_details:
-            return None
-        headers = ["Name", "Type", "Thickness (m)", "U-Value (W/m²K)", "VT", "SHGC"]
-        data = [
-            [wrap_text(h, self.header_style) for h in headers],
-            [
+    def _create_construction_table(self, construction_id, data):
+        """Create a table for a single construction with improved spacing."""
+        # Table headers - simplified and better spaced for A3 landscape
+        headers = [
+            "Component\nType", "Name/ID", "Type", "Thickness\n(m)", 
+            "Conductivity\n(W/mK)", "U-Value\n(W/m²K)", "VT\n(Visible Trans.)", 
+            "SHGC\n(Solar Heat Gain)", "ST\n(Solar Trans.)", "Transmittance", 
+            "Reflectivity", "Position/Notes"
+        ]
+        
+        table_data = [[wrap_text(h, self.header_style) for h in headers]]
+        
+        # Add system details
+        system_details = data.get('system_details', {})
+        if system_details:
+            row = [
+                wrap_text("System", self.cell_style),
                 wrap_text(system_details.get('Name', '-'), self.cell_style),
                 wrap_text(system_details.get('Type', '-'), self.cell_style),
                 wrap_text(self.formatter.format_number(system_details.get('Thickness'), precision=4), self.cell_style),
+                wrap_text("-", self.cell_style),
                 wrap_text(self.formatter.format_number(system_details.get('U-Value')), self.cell_style),
                 wrap_text(self.formatter.format_number(system_details.get('VT')), self.cell_style),
-                wrap_text(self.formatter.format_number(system_details.get('SHGC')), self.cell_style)
+                wrap_text(self.formatter.format_number(system_details.get('SHGC')), self.cell_style),
+                wrap_text("-", self.cell_style),
+                wrap_text("-", self.cell_style),
+                wrap_text("-", self.cell_style),
+                wrap_text("Overall system properties", self.cell_style)
             ]
-        ]
-        col_widths = [3*cm, 3*cm, 2.5*cm, 3*cm, 2*cm, 2*cm]
-        table = Table(data, colWidths=col_widths)
-        style = create_standard_table_style()
-        style.add('ALIGN', (2, 1), (-1, -1), 'RIGHT')
-        table.setStyle(style)
-        return table
-
-    def _create_details_table(self, glazing_layers):
-        if not glazing_layers:
-            return None
-        headers = ["Name", "Type", "Thickness (m)", "Conductivity (W/mK)", "VT", "ST"]
-        data = [[wrap_text(h, self.header_style) for h in headers]]
-        for layer in glazing_layers:
-            data.append([
+            table_data.append(row)
+        
+        # Add glazing layers
+        glazing_layers = data.get('glazing_layers', [])
+        for i, layer in enumerate(glazing_layers):
+            row = [
+                wrap_text(f"Glazing Layer {i+1}", self.cell_style),
                 wrap_text(layer.get('Name', '-'), self.cell_style),
                 wrap_text(layer.get('Type', '-'), self.cell_style),
                 wrap_text(self.formatter.format_number(layer.get('Thickness'), precision=4), self.cell_style),
                 wrap_text(self.formatter.format_number(layer.get('Conductivity')), self.cell_style),
+                wrap_text("-", self.cell_style),
                 wrap_text(self.formatter.format_number(layer.get('VT')), self.cell_style),
-                wrap_text(self.formatter.format_number(layer.get('ST')), self.cell_style)
-            ])
-        col_widths = [4*cm, 3*cm, 2.5*cm, 3*cm, 2*cm, 2*cm]
-        table = Table(data, colWidths=col_widths)
-        style = create_standard_table_style()
-        style.add('ALIGN', (2, 1), (-1, -1), 'RIGHT')
-        table.setStyle(style)
-        return table
-
-    def _create_shading_table(self, shading_layers):
-        if not shading_layers:
-            return None
-        headers = ["Name", "Thickness (m)", "Conductivity (W/mK)", "Transmittance", "Reflectivity", "Position"]
-        data = [[wrap_text(h, self.header_style) for h in headers]]
-        for layer in shading_layers:
-            data.append([
+                wrap_text("-", self.cell_style),
+                wrap_text(self.formatter.format_number(layer.get('ST')), self.cell_style),
+                wrap_text("-", self.cell_style),
+                wrap_text("-", self.cell_style),
+                wrap_text("Glass layer", self.cell_style)
+            ]
+            table_data.append(row)
+        
+        # Add shading layers
+        shading_layers = data.get('shading_layers', [])
+        for i, layer in enumerate(shading_layers):
+            row = [
+                wrap_text(f"Shading Layer {i+1}", self.cell_style),
                 wrap_text(layer.get('Name', '-'), self.cell_style),
+                wrap_text("-", self.cell_style),
                 wrap_text(self.formatter.format_number(layer.get('Thickness'), precision=4), self.cell_style),
                 wrap_text(self.formatter.format_number(layer.get('Conductivity')), self.cell_style),
+                wrap_text("-", self.cell_style),
+                wrap_text("-", self.cell_style),
+                wrap_text("-", self.cell_style),
+                wrap_text("-", self.cell_style),
                 wrap_text(self.formatter.format_number(layer.get('Transmittance')), self.cell_style),
                 wrap_text(self.formatter.format_number(layer.get('Reflectivity')), self.cell_style),
-                wrap_text(layer.get('Position') or '-', self.cell_style)
-            ])
-        col_widths = [4*cm, 2.5*cm, 3*cm, 2.5*cm, 2.5*cm, 2.5*cm]
-        table = Table(data, colWidths=col_widths)
-        style = create_standard_table_style()
-        style.add('ALIGN', (1, 1), (4, -1), 'RIGHT')
-        table.setStyle(style)
-        return table
-
-    def _create_frame_table(self, frame_details):
-        if not frame_details:
-            return None
-        headers = ["ID", "Width (m)", "Conductance (W/mK)"]
-        data = [
-            [wrap_text(h, self.header_style) for h in headers],
-            [
-                wrap_text(frame_details.get('id', '-'), self.cell_style),
-                wrap_text(self.formatter.format_number(frame_details.get('frame_width'), precision=4), self.cell_style),
-                wrap_text(self.formatter.format_number(frame_details.get('frame_conductance')), self.cell_style)
+                wrap_text(layer.get('Position', 'Shading element'), self.cell_style)
             ]
-        ]
-        col_widths = [4*cm, 3*cm, 3*cm]
-        table = Table(data, colWidths=col_widths)
+            table_data.append(row)
+        
+        # Add frame details
+        frame_details = data.get('frame_details')
+        if frame_details:
+            frame_width = self.formatter.format_number(frame_details.get('frame_width'), precision=4)
+            frame_conductance = self.formatter.format_number(frame_details.get('frame_conductance'))
+            row = [
+                wrap_text("Frame", self.cell_style),
+                wrap_text(frame_details.get('id', '-'), self.cell_style),
+                wrap_text("-", self.cell_style),
+                wrap_text(f"{frame_width} m", self.cell_style),
+                wrap_text(f"{frame_conductance} W/mK", self.cell_style),
+                wrap_text("-", self.cell_style),
+                wrap_text("-", self.cell_style),
+                wrap_text("-", self.cell_style),
+                wrap_text("-", self.cell_style),
+                wrap_text("-", self.cell_style),
+                wrap_text("-", self.cell_style),
+                wrap_text("Window frame properties", self.cell_style)
+            ]
+            table_data.append(row)
+        
+        if len(table_data) <= 1:  # Only headers
+            return None
+            
+        # Define column widths optimized for A3 landscape (42cm - 2.8cm margins = ~39cm usable)
+        col_widths = [3.5*cm, 4.5*cm, 3*cm, 2.5*cm, 3*cm, 3*cm, 3*cm, 3.5*cm, 2.5*cm, 3*cm, 3*cm, 4.5*cm]
+        
+        table = Table(table_data, colWidths=col_widths)
         style = create_standard_table_style()
-        style.add('ALIGN', (1, 1), (-1, -1), 'RIGHT')
+        
+        # Right-align numeric columns
+        style.add('ALIGN', (3, 1), (10, -1), 'RIGHT')
+        
         table.setStyle(style)
         return table
 

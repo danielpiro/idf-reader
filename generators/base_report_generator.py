@@ -231,7 +231,7 @@ class StandardPageSizes:
             'materials': cls.LANDSCAPE_A3,
             'loads': cls.LANDSCAPE_A4,
             'settings': cls.PORTRAIT_A4,
-            'glazing': cls.LANDSCAPE_A4,
+            'glazing': cls.LANDSCAPE_A3,
             'lighting': cls.PORTRAIT_A4,
             'natural_ventilation': cls.PORTRAIT_A4,
             'schedule': cls.PORTRAIT_A4,
