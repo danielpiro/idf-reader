@@ -9,8 +9,9 @@ class AutomaticErrorDetectionParser:
     """
     Extracts automatic error detection data using validation tables.
     """
-    def __init__(self, data_loader: Optional[DataLoader] = None, climate_zone: str = 'A'):
+    def __init__(self, data_loader: Optional[DataLoader] = None, climate_zone: str = 'A', area_parser=None):
         self.data_loader = data_loader
+        self.area_parser = area_parser  # Accept existing AreaParser with CSV data
         self.error_detection_data = []
         self.supported_iso_types = ['Office', '2017', '2023']
         self.settings_extractor = None
@@ -441,15 +442,21 @@ class AutomaticErrorDetectionParser:
             
             lighting_parser = LightingParser(self.data_loader) 
             schedule_parser = ScheduleExtractor(self.data_loader)
-            materials_parser = MaterialsParser(self.data_loader)  # Create MaterialsParser first
-            areas_parser = AreaParser(self.data_loader, materials_parser)  # Pass materials_parser
             load_parser = LoadExtractor(self.data_loader)
             
-            # Process all parsers
+            # Use existing area_parser if provided, otherwise create a new one
+            if self.area_parser:
+                areas_parser = self.area_parser
+            else:
+                from parsers.materials_parser import MaterialsParser
+                materials_parser = MaterialsParser(self.data_loader)
+                materials_parser.process_idf(idf)
+                areas_parser = AreaParser(self.data_loader, materials_parser)  # Let it find CSV automatically
+                areas_parser.process_idf(idf)
+            
+            # Process parsers (areas_parser may already be processed)
             # lighting_parser.parse() is called directly, no process_idf() needed
             schedule_parser.process_idf(idf)
-            materials_parser.process_idf(idf)  # Process materials first
-            areas_parser.process_idf(idf)
             load_parser.process_idf(idf)
             
             # Get extracted data
@@ -969,15 +976,21 @@ class AutomaticErrorDetectionParser:
             
             natural_vent_parser = NaturalVentilationExtractor(self.data_loader)
             schedule_parser = ScheduleExtractor(self.data_loader)
-            materials_parser = MaterialsParser(self.data_loader)  # Create MaterialsParser first
-            areas_parser = AreaParser(self.data_loader, materials_parser)  # Pass materials_parser
             load_parser = LoadExtractor(self.data_loader)
             
-            # Process all parsers
+            # Use existing area_parser if provided, otherwise create a new one
+            if self.area_parser:
+                areas_parser = self.area_parser
+            else:
+                from parsers.materials_parser import MaterialsParser
+                materials_parser = MaterialsParser(self.data_loader)
+                materials_parser.process_idf(idf)
+                areas_parser = AreaParser(self.data_loader, materials_parser)  # Let it find CSV automatically
+                areas_parser.process_idf(idf)
+            
+            # Process parsers (areas_parser may already be processed)
             natural_vent_parser.process_idf(idf)
             schedule_parser.process_idf(idf)
-            materials_parser.process_idf(idf)  # Process materials first
-            areas_parser.process_idf(idf)
             load_parser.process_idf(idf)
             
             # Get extracted data

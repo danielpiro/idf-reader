@@ -191,7 +191,7 @@ class ProcessingManager:
             "lighting": LightingParser(data_loader),
             "area_loss": AreaLossParser(area_parser_for_loss, city_area_name),
             "energy_rating": EnergyRatingParser(data_loader, area_parser_for_loss),
-            "automatic_error_detection": AutomaticErrorDetectionParser(data_loader, self._get_climate_zone_from_city_info())
+            "automatic_error_detection": AutomaticErrorDetectionParser(data_loader, self._get_climate_zone_from_city_info(), area_parser_for_loss)
         }
         return parsers
 

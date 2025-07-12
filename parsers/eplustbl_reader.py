@@ -29,11 +29,24 @@ def safe_float(value: Any, default: float = 0.0) -> float:
         return default
 
 def _find_csv_path(csv_path: Optional[str]) -> Optional[str]:
+    # Check provided path first
     if csv_path and os.path.exists(csv_path):
         return csv_path
-    default_path = os.path.join("simulation_output", "eplustbl.csv")
-    if os.path.exists(default_path):
-        return default_path
+    
+    # Try multiple possible locations
+    search_paths = [
+        os.path.join("simulation_output", "eplustbl.csv"),  # Default relative path
+        os.path.join(os.getcwd(), "simulation_output", "eplustbl.csv"),  # Absolute from current directory
+        "eplustbl.csv",  # Current directory
+        os.path.join("tests", "eplustbl-test.csv")  # Development fallback
+    ]
+    
+    for path in search_paths:
+        if os.path.exists(path):
+            logger.info(f"Found eplustbl.csv at: {path}")
+            return path
+    
+    logger.warning(f"No eplustbl.csv found. Searched paths: {search_paths}")
     return None
 
 def _parse_exterior_fenestration_table(reader) -> Dict[str, Dict[str, Any]]:
