@@ -652,7 +652,7 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                 raw_element_type = row.get('element_type', '')
                 cleaned_type_str = _clean_element_type(raw_element_type).lower()
 
-                if 'external wall' in cleaned_type_str.split('\n'):
+                if 'external wall' in cleaned_type_str:
                     current_area = row.get('area', 0.0)
                     if current_area > largest_ext_wall_area:
                         largest_ext_wall_area = current_area
@@ -821,7 +821,7 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
                 raw_element_type = row.get('element_type', '')
                 cleaned_type_str = _clean_element_type(raw_element_type).lower()
 
-                if 'external wall' in cleaned_type_str.split('\n'):
+                if 'external wall' in cleaned_type_str:
                     current_area = row.get('area', 0.0)
                     if current_area > largest_ext_wall_area:
                         largest_ext_wall_area = current_area

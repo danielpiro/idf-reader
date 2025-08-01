@@ -1,0 +1,910 @@
+2025-08-01 12:02:04,283 - gui - INFO - Window icon set using: C:\Users\daniel\Desktop\idf-reader\data\logo.ico
+2025-08-01 12:02:04,284 - gui - INFO - Data directory found at: C:\Users\daniel\Desktop\idf-reader\data
+2025-08-01 12:02:04,284 - gui - INFO - Available data files: ['1.epw', '2.epw', '2017_model.csv', '2023_model.csv', '3.epw', '4.epw', '5.epw', '6.epw', '7.epw', '8.epw', 'a.epw', 'b.epw', 'c.epw', 'countries-selection.csv', 'd.epw', 'logo.ico', 'logo.png', 'office_model.csv']
+2025-08-01 12:02:04,681 - gui - INFO - GUI: 🎉 Welcome! Configure fields to begin.
+2025-08-01 12:02:04,716 - gui - INFO - GUI: Selected city: ראשון לציון - מרכז, Area: ב, Code: 5
+2025-08-01 12:02:05,503 - gui - INFO - GUI: Simulation output will be in: C:/Users/daniel/Desktop\reports-01-08-2025-12-02-05\simulation
+2025-08-01 12:02:05,504 - gui - INFO - GUI: ISO type RESIDNTIAL 2017: Using EPW by area letter: b.epw
+2025-08-01 12:02:05,514 - gui - INFO - GUI: Using weather file: C:\Users\daniel\Desktop\idf-reader\data\b.epw
+2025-08-01 12:02:05,515 - gui - INFO - GUI: Starting EnergyPlus simulation...
+2025-08-01 12:02:05,533 - gui - INFO - GUI: Ensuring required IDF output variables...
+2025-08-01 12:02:08,705 - utils.eppy_handler - INFO - Successfully loaded IDF file: C:/Users/daniel/Desktop/idf-reader/tests/in.idf
+2025-08-01 12:02:09,008 - gui - INFO - GUI: IDF output variables ensured/updated.
+2025-08-01 12:02:09,010 - gui - INFO - GUI: Running E+ command with normalized paths: C:/EnergyPlusV9-4-0\energyplus.exe -w C:\Users\daniel\Desktop\idf-reader\data\b.epw -r -d C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\simulation C:\Users\daniel\Desktop\idf-reader\tests\in.idf
+2025-08-01 12:02:53,261 - gui - INFO - E+ STDOUT:
+EnergyPlus Starting
+EnergyPlus, Version 9.4.0-998c4b761e, YMD=2025.08.01 12:02
+Adjusting Air System Sizing
+Adjusting Standard 62.1 Ventilation Sizing
+Initializing Simulation
+Reporting Surfaces
+Beginning Primary Simulation
+Initializing New Environment Parameters
+Warming up {1}
+Warming up {2}
+Warming up {3}
+Warming up {4}
+Warming up {5}
+Warming up {6}
+Warming up {7}
+Warming up {8}
+Warming up {9}
+Warming up {10}
+Warming up {11}
+Warming up {12}
+Warming up {13}
+Warming up {14}
+Warming up {15}
+Warming up {16}
+Warming up {17}
+Warming up {18}
+Starting Simulation at 01/01/2002 for TEL AVIV (01-01:31-12)
+Updating Shadowing Calculations, Start Date=01/21/2002
+Continuing Simulation at 01/21/2002 for TEL AVIV (01-01:31-12)
+Updating Shadowing Calculations, Start Date=02/10/2002
+Continuing Simulation at 02/10/2002 for TEL AVIV (01-01:31-12)
+Updating Shadowing Calculations, Start Date=03/02/2002
+Continuing Simulation at 03/02/2002 for TEL AVIV (01-01:31-12)
+Updating Shadowing Calculations, Start Date=03/22/2002
+Continuing Simulation at 03/22/2002 for TEL AVIV (01-01:31-12)
+Updating Shadowing Calculations, Start Date=04/11/2002
+Continuing Simulation at 04/11/2002 for TEL AVIV (01-01:31-12)
+Updating Shadowing Calculations, Start Date=05/01/2002
+Continuing Simulation at 05/01/2002 for TEL AVIV (01-01:31-12)
+Updating Shadowing Calculations, Start Date=05/21/2002
+Continuing Simulation at 05/21/2002 for TEL AVIV (01-01:31-12)
+Updating Shadowing Calculations, Start Date=06/10/2002
+Continuing Simulation at 06/10/2002 for TEL AVIV (01-01:31-12)
+Updating Shadowing Calculations, Start Date=06/30/2002
+Continuing Simulation at 06/30/2002 for TEL AVIV (01-01:31-12)
+Updating Shadowing Calculations, Start Date=07/20/2002
+Continuing Simulation at 07/20/2002 for TEL AVIV (01-01:31-12)
+Updating Shadowing Calculations, Start Date=08/09/2002
+Continuing Simulation at 08/09/2002 for TEL AVIV (01-01:31-12)
+Updating Shadowing Calculations, Start Date=08/29/2002
+Continuing Simulation at 08/29/2002 for TEL AVIV (01-01:31-12)
+Updating Shadowing Calculations, Start Date=09/18/2002
+Continuing Simulation at 09/18/2002 for TEL AVIV (01-01:31-12)
+Updating Shadowing Calculations, Start Date=10/08/2002
+Continuing Simulation at 10/08/2002 for TEL AVIV (01-01:31-12)
+Updating Shadowing Calculations, Start Date=10/28/2002
+Continuing Simulation at 10/28/2002 for TEL AVIV (01-01:31-12)
+Updating Shadowing Calculations, Start Date=11/17/2002
+Continuing Simulation at 11/17/2002 for TEL AVIV (01-01:31-12)
+Updating Shadowing Calculations, Start Date=12/07/2002
+Continuing Simulation at 12/07/2002 for TEL AVIV (01-01:31-12)
+Updating Shadowing Calculations, Start Date=12/27/2002
+Continuing Simulation at 12/27/2002 for TEL AVIV (01-01:31-12)
+Writing tabular output file results using comma format.
+Writing tabular output file results using HTML format.
+ ReadVarsESO program starting.
+ ReadVars Run Time=00hr 00min  0.05sec
+ ReadVarsESO program completed successfully.
+ ReadVarsESO program starting.
+ ReadVars Run Time=00hr 00min  0.00sec
+ ReadVarsESO program completed successfully.
+EnergyPlus Run Time=00hr 00min 44.23sec
+
+2025-08-01 12:02:53,261 - gui - WARNING - E+ STDERR:
+EnergyPlus Completed Successfully.
+
+2025-08-01 12:02:53,269 - gui - INFO - GUI: EnergyPlus simulation successful. Output: C:/Users/daniel/Desktop\reports-01-08-2025-12-02-05\simulation\eplustbl.csv
+2025-08-01 12:02:53,289 - gui - INFO - GUI: Starting IDF processing and report generation...
+2025-08-01 12:02:53,303 - gui - INFO - GUI: Initializing...
+2025-08-01 12:02:53,305 - gui - INFO - GUI: Successfully created directory: C:/Users/daniel/Desktop\reports-01-08-2025-12-02-05\zones
+2025-08-01 12:02:53,312 - gui - INFO - GUI: Loading IDF file...
+2025-08-01 12:02:56,184 - utils.eppy_handler - INFO - Successfully loaded IDF file: C:/Users/daniel/Desktop/idf-reader/tests/in.idf
+2025-08-01 12:02:58,046 - utils.data_loader - INFO - Successfully loaded IDF file: C:/Users/daniel/Desktop/idf-reader/tests/in.idf
+2025-08-01 12:03:00,753 - utils.eppy_handler - INFO - Successfully loaded IDF file: C:/Users/daniel/Desktop/idf-reader/tests/in.idf
+2025-08-01 12:03:00,759 - gui - INFO - GUI: Using city area 'ב' for thermal loss calculations.
+2025-08-01 12:03:00,763 - gui - INFO - GUI: Initializing parsers...
+2025-08-01 12:03:00,764 - processing_manager - INFO - Climate zone mapping: area_name='ב' -> climate_zone='B'
+2025-08-01 12:03:00,771 - gui - INFO - GUI: Processing settings...
+2025-08-01 12:03:00,774 - gui - INFO - GUI: Processing schedules...
+2025-08-01 12:03:00,779 - gui - INFO - GUI: Processing other data (loads, materials, area)...
+2025-08-01 12:03:00,780 - parsers.materials_parser - INFO - Starting element data processing
+2025-08-01 12:03:00,780 - parsers.materials_parser - INFO - Processing 9 filtered constructions
+2025-08-01 12:03:00,780 - parsers.materials_parser - INFO - Construction '_Floor 501_3cm' has element types: ['Separation floor', 'Ground floor', 'External floor'], dont_use: False
+2025-08-01 12:03:00,783 - parsers.materials_parser - INFO - Construction '_IntFloor1_Reversed' has element types: ['Separation ceiling', 'Intermediate ceiling'], dont_use: False
+2025-08-01 12:03:00,784 - parsers.materials_parser - INFO - Construction '_IntPartition' has element types: ['Internal wall'], dont_use: False
+2025-08-01 12:03:00,784 - parsers.materials_parser - INFO - Construction '_ExtWall 201_5cm' has element types: ['External wall', 'Ground wall'], dont_use: False
+2025-08-01 12:03:00,786 - parsers.materials_parser - INFO - Construction '_Core_401 3 cm' has element types: ['Separation wall'], dont_use: False
+2025-08-01 12:03:00,786 - parsers.materials_parser - INFO - Construction '_ExtWall 201_5cm MMD' has element types: ['External wall'], dont_use: False
+2025-08-01 12:03:00,786 - parsers.materials_parser - INFO - Construction '_Roof 564_5 cm' has element types: ['Roof'], dont_use: False
+2025-08-01 12:03:00,786 - parsers.materials_parser - DEBUG - Construction '_IntFloor1' issue - Surfaces: 5, HVAC surfaces: 0, Element types: ['Separation floor'], Dont_use: True
+2025-08-01 12:03:00,786 - parsers.materials_parser - INFO - Construction '_IntFloor1' has element types: ['Separation floor'], dont_use: True
+2025-08-01 12:03:00,787 - parsers.materials_parser - INFO - Construction '_Floor 501_3cm_Reversed' has element types: ['Separation ceiling'], dont_use: False
+2025-08-01 12:03:00,787 - parsers.materials_parser - INFO - Element data processing complete: 58 entries created, 1 constructions skipped
+2025-08-01 12:03:00,787 - parsers.materials_parser - INFO - === CONSTRUCTION SKIP SUMMARY ===
+2025-08-01 12:03:00,787 - parsers.materials_parser - INFO - Total constructions processed: 9
+2025-08-01 12:03:00,787 - parsers.materials_parser - INFO - Total constructions skipped: 1
+2025-08-01 12:03:00,787 - parsers.materials_parser - INFO - Constructions skipped due to 'dont_use' flag (1): ['_IntFloor1']
+2025-08-01 12:03:00,787 - parsers.materials_parser - INFO - === END CONSTRUCTION SKIP SUMMARY ===
+2025-08-01 12:03:00,820 - parsers.area_parser - WARNING - Mismatch for surface '00X01:01XLIVING_Wall_5_0_0_1_0_0_Win' (lookup key '00X01:01XLIVING_WALL_5_0_0_1_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,820 - parsers.area_parser - WARNING - Mismatch for surface '00X01:01XLIVING_Wall_6_0_0_0_0_0_Win' (lookup key '00X01:01XLIVING_WALL_6_0_0_0_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,820 - parsers.area_parser - WARNING - Mismatch for surface '00X01:01XMMD_Wall_3_0_0_0_0_0_Win' (lookup key '00X01:01XMMD_WALL_3_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,820 - parsers.area_parser - WARNING - Mismatch for surface '00X02:02XMMD_Wall_3_0_0_0_0_0_Win' (lookup key '00X02:02XMMD_WALL_3_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,820 - parsers.area_parser - WARNING - Mismatch for surface '00X02:02XLIVING_Wall_3_0_0_0_0_0_Win' (lookup key '00X02:02XLIVING_WALL_3_0_0_0_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,820 - parsers.area_parser - WARNING - Mismatch for surface '00X03:03XLIVING_Wall_8_0_0_1_0_0_Win' (lookup key '00X03:03XLIVING_WALL_8_0_0_1_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,820 - parsers.area_parser - WARNING - Mismatch for surface '00X03:03XMMD_Wall_5_0_0_0_0_0_Win' (lookup key '00X03:03XMMD_WALL_5_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,820 - parsers.area_parser - WARNING - Mismatch for surface '01X04:04XLIVING_Wall_6_0_0_0_0_0_Win' (lookup key '01X04:04XLIVING_WALL_6_0_0_0_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1004' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1004'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,821 - parsers.area_parser - WARNING - Mismatch for surface '01X04:04XMMD_Wall_3_0_0_0_0_0_Win' (lookup key '01X04:04XMMD_WALL_3_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,821 - parsers.area_parser - WARNING - Mismatch for surface '01X05:05XMMD_Wall_3_0_0_0_0_0_Win' (lookup key '01X05:05XMMD_WALL_3_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,821 - parsers.area_parser - WARNING - Mismatch for surface '01X05:05XLIVING_Wall_2_0_0_0_0_2_Win' (lookup key '01X05:05XLIVING_WALL_2_0_0_0_0_2_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,821 - parsers.area_parser - WARNING - Mismatch for surface '01X06:06XMMD_Wall_5_0_0_0_0_0_Win' (lookup key '01X06:06XMMD_WALL_5_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,821 - parsers.area_parser - WARNING - Mismatch for surface '01X06:06XLIVING_Wall_2_0_0_1_0_0_Win' (lookup key '01X06:06XLIVING_WALL_2_0_0_1_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,821 - parsers.area_parser - WARNING - Mismatch for surface '01X07:07XLIVING_Wall_5_0_0_1_0_0_Win' (lookup key '01X07:07XLIVING_WALL_5_0_0_1_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,821 - parsers.area_parser - WARNING - Mismatch for surface '01X07:07XMMD_Wall_6_0_0_0_0_0_Win' (lookup key '01X07:07XMMD_WALL_6_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,821 - parsers.area_parser - WARNING - Mismatch for surface '02X08:08XLIVING_Wall_6_0_0_0_0_0_Win' (lookup key '02X08:08XLIVING_WALL_6_0_0_0_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,821 - parsers.area_parser - WARNING - Mismatch for surface '02X08:08XMMD_Wall_3_0_0_0_0_0_Win' (lookup key '02X08:08XMMD_WALL_3_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,821 - parsers.area_parser - WARNING - Mismatch for surface '02X09:09XMMD_Wall_3_0_0_0_0_0_Win' (lookup key '02X09:09XMMD_WALL_3_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,821 - parsers.area_parser - WARNING - Mismatch for surface '02X09:09XLIVING_Wall_2_0_0_0_0_2_Win' (lookup key '02X09:09XLIVING_WALL_2_0_0_0_0_2_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,821 - parsers.area_parser - WARNING - Mismatch for surface '02X10:10XMMD_Wall_5_0_0_0_0_0_Win' (lookup key '02X10:10XMMD_WALL_5_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '02X10:10XLIVING_Wall_2_0_0_1_0_0_Win' (lookup key '02X10:10XLIVING_WALL_2_0_0_1_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '02X11:11XLIVING_Wall_5_0_0_1_0_0_Win' (lookup key '02X11:11XLIVING_WALL_5_0_0_1_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '02X11:11XMMD_Wall_6_0_0_0_0_0_Win' (lookup key '02X11:11XMMD_WALL_6_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '03X12:12XLIVING_Wall_6_0_0_0_0_0_Win' (lookup key '03X12:12XLIVING_WALL_6_0_0_0_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '03X12:12XMMD_Wall_3_0_0_0_0_0_Win' (lookup key '03X12:12XMMD_WALL_3_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '03X13:13XMMD_Wall_3_0_0_0_0_0_Win' (lookup key '03X13:13XMMD_WALL_3_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '03X13:13XLIVING_Wall_2_0_0_0_0_2_Win' (lookup key '03X13:13XLIVING_WALL_2_0_0_0_0_2_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '03X14:14XMMD_Wall_5_0_0_0_0_0_Win' (lookup key '03X14:14XMMD_WALL_5_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '03X14:14XLIVING_Wall_2_0_0_1_0_0_Win' (lookup key '03X14:14XLIVING_WALL_2_0_0_1_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '03X15:15XLIVING_Wall_5_0_0_1_0_0_Win' (lookup key '03X15:15XLIVING_WALL_5_0_0_1_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '03X15:15XMMD_Wall_6_0_0_0_0_0_Win' (lookup key '03X15:15XMMD_WALL_6_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '04X16:16XLIVING_Wall_6_0_0_0_0_0_Win' (lookup key '04X16:16XLIVING_WALL_6_0_0_0_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '04X16:16XMMD_Wall_3_0_0_0_0_0_Win' (lookup key '04X16:16XMMD_WALL_3_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '04X17:17XMMD_Wall_3_0_0_0_0_0_Win' (lookup key '04X17:17XMMD_WALL_3_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '04X17:17XLIVING_Wall_2_0_0_0_0_2_Win' (lookup key '04X17:17XLIVING_WALL_2_0_0_0_0_2_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '04X18:18XMMD_Wall_5_0_0_0_0_0_Win' (lookup key '04X18:18XMMD_WALL_5_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '04X18:18XLIVING_Wall_2_0_0_1_0_0_Win' (lookup key '04X18:18XLIVING_WALL_2_0_0_1_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '04X19:19XLIVING_Wall_5_0_0_1_0_0_Win' (lookup key '04X19:19XLIVING_WALL_5_0_0_1_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '04X19:19XMMD_Wall_6_0_0_0_0_0_Win' (lookup key '04X19:19XMMD_WALL_6_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,822 - parsers.area_parser - WARNING - Mismatch for surface '05X20:20XLIVING_Wall_6_0_0_0_0_0_Win' (lookup key '05X20:20XLIVING_WALL_6_0_0_0_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '05X20:20XMMD_Wall_3_0_0_0_0_0_Win' (lookup key '05X20:20XMMD_WALL_3_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '05X21:21XMMD_Wall_3_0_0_0_0_0_Win' (lookup key '05X21:21XMMD_WALL_3_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '05X21:21XLIVING_Wall_2_0_0_0_0_2_Win' (lookup key '05X21:21XLIVING_WALL_2_0_0_0_0_2_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '05X22:22XMMD_Wall_5_0_0_0_0_0_Win' (lookup key '05X22:22XMMD_WALL_5_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '05X22:22XLIVING_Wall_2_0_0_1_0_0_Win' (lookup key '05X22:22XLIVING_WALL_2_0_0_1_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '05X23:23XLIVING_Wall_5_0_0_1_0_0_Win' (lookup key '05X23:23XLIVING_WALL_5_0_0_1_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '05X23:23XMMD_Wall_6_0_0_0_0_0_Win' (lookup key '05X23:23XMMD_WALL_6_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '06X24:24XLIVING_Wall_6_0_0_0_0_0_Win' (lookup key '06X24:24XLIVING_WALL_6_0_0_0_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '06X24:24XMMD_Wall_3_0_0_0_0_0_Win' (lookup key '06X24:24XMMD_WALL_3_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '06X26:26XLIVING_Wall_5_0_0_1_0_0_Win' (lookup key '06X26:26XLIVING_WALL_5_0_0_1_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '06X26:26XMMD_Wall_6_0_0_0_0_0_Win' (lookup key '06X26:26XMMD_WALL_6_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '06X25:25XMMD_Wall_5_0_0_0_0_0_Win' (lookup key '06X25:25XMMD_WALL_5_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '06X25:25XLIVING_Wall_2_0_0_0_0_3_Win' (lookup key '06X25:25XLIVING_WALL_2_0_0_0_0_3_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '06X25:25XLIVING_Wall_2_0_0_1_0_2_Win' (lookup key '06X25:25XLIVING_WALL_2_0_0_1_0_2_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '06X25:25XLIVING_Wall_2_0_0_3_0_0_Win' (lookup key '06X25:25XLIVING_WALL_2_0_0_3_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '06X25:25XLIVING_Wall_3_0_0_2_0_0_Win' (lookup key '06X25:25XLIVING_WALL_3_0_0_2_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '06X25:25XLIVING_Wall_13_0_0_0_0_1_Win' (lookup key '06X25:25XLIVING_WALL_13_0_0_0_0_1_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '07X27:27XLIVING_Wall_11_0_0_0_0_0_Win' (lookup key '07X27:27XLIVING_WALL_11_0_0_0_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '07X27:27XMMD_Wall_6_0_0_0_0_0_Win' (lookup key '07X27:27XMMD_WALL_6_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '07X28:28XMMD_Wall_5_0_0_0_0_0_Win' (lookup key '07X28:28XMMD_WALL_5_0_0_0_0_0_WIN'): IDF construction '_4mm - 1003' vs CSV construction '_4MM - 1003'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '07X28:28XLIVING_Wall_2_0_0_3_0_0_Win' (lookup key '07X28:28XLIVING_WALL_2_0_0_3_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,823 - parsers.area_parser - WARNING - Mismatch for surface '07X28:28XLIVING_Wall_3_0_0_0_0_0_Win' (lookup key '07X28:28XLIVING_WALL_3_0_0_0_0_0_WIN'): IDF construction '_6-12-6 SunergyClear - 1002' vs CSV construction '_6-12-6 SUNERGYCLEAR - 1002'. Using CSV data for U-value/Area if available.
+2025-08-01 12:03:00,827 - gui - INFO - GUI: Processing energy rating data...
+2025-08-01 12:03:24,889 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '01:01XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '01:01XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '02:02XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '02:02XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '03:03XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '03:03XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '04:04XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '04:04XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '05:05XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '05:05XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '06:06XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '06:06XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '07:07XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '07:07XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '08:08XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '08:08XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '09:09XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '09:09XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '10:10XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '10:10XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '11:11XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '11:11XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '12:12XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '12:12XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '13:13XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '13:13XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '14:14XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '14:14XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '15:15XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '15:15XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '16:16XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '16:16XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '17:17XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '17:17XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '18:18XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '18:18XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '19:19XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,890 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '19:19XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,891 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '20:20XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,891 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '20:20XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,891 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '21:21XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,891 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '21:21XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,891 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '22:22XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,891 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '22:22XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,891 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '23:23XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,891 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '23:23XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,891 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '24:24XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,891 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '24:24XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,891 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '26:26XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,891 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '26:26XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,891 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '25:25XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,891 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '25:25XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,891 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '27:27XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,891 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '27:27XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,891 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '28:28XMMD' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,891 - parsers.energy_rating_parser - WARNING - Total area for grouping related to '28:28XLIVING' is 0.0. Per-area values will be set to absolute energy values (or 0 if energy is 0).
+2025-08-01 12:03:24,892 - gui - INFO - GUI: Processing automatic validation data...
+2025-08-01 12:03:24,892 - processing_manager - INFO - Automatic validation: Raw ISO type 'RESIDNTIAL 2017' -> Mapped to '2017'
+2025-08-01 12:03:24,893 - parsers.automatic_error_detection_parser - INFO - Settings validation completed. Found 1 issues
+2025-08-01 12:03:24,896 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 01 (Total Area: 64.97 m², Zones: 2)
+2025-08-01 12:03:24,896 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 02 (Total Area: 45.72 m², Zones: 2)
+2025-08-01 12:03:24,897 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 03 (Total Area: 93.92 m², Zones: 2)
+2025-08-01 12:03:24,897 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 04 (Total Area: 65.06 m², Zones: 2)
+2025-08-01 12:03:24,897 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 05 (Total Area: 92.56 m², Zones: 2)
+2025-08-01 12:03:24,897 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 06 (Total Area: 106.56 m², Zones: 2)
+2025-08-01 12:03:24,897 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 07 (Total Area: 84.29 m², Zones: 2)
+2025-08-01 12:03:24,898 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 08 (Total Area: 65.06 m², Zones: 2)
+2025-08-01 12:03:24,898 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 09 (Total Area: 92.56 m², Zones: 2)
+2025-08-01 12:03:24,898 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 10 (Total Area: 106.56 m², Zones: 2)
+2025-08-01 12:03:24,898 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 11 (Total Area: 84.29 m², Zones: 2)
+2025-08-01 12:03:24,898 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 12 (Total Area: 65.06 m², Zones: 2)
+2025-08-01 12:03:24,899 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 13 (Total Area: 92.56 m², Zones: 2)
+2025-08-01 12:03:24,899 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 14 (Total Area: 106.56 m², Zones: 2)
+2025-08-01 12:03:24,899 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 15 (Total Area: 84.29 m², Zones: 2)
+2025-08-01 12:03:24,899 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 16 (Total Area: 65.06 m², Zones: 2)
+2025-08-01 12:03:24,899 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 17 (Total Area: 92.56 m², Zones: 2)
+2025-08-01 12:03:24,900 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 18 (Total Area: 106.56 m², Zones: 2)
+2025-08-01 12:03:24,900 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 19 (Total Area: 84.29 m², Zones: 2)
+2025-08-01 12:03:24,900 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 20 (Total Area: 65.06 m², Zones: 2)
+2025-08-01 12:03:24,900 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 21 (Total Area: 92.56 m², Zones: 2)
+2025-08-01 12:03:24,900 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 22 (Total Area: 106.56 m², Zones: 2)
+2025-08-01 12:03:24,901 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 23 (Total Area: 84.29 m², Zones: 2)
+2025-08-01 12:03:24,901 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 24 (Total Area: 65.06 m², Zones: 2)
+2025-08-01 12:03:24,901 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 26 (Total Area: 84.29 m², Zones: 2)
+2025-08-01 12:03:24,902 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 25 (Total Area: 133.24 m², Zones: 2)
+2025-08-01 12:03:24,902 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 27 (Total Area: 129.47 m², Zones: 2)
+2025-08-01 12:03:24,902 - parsers.automatic_error_detection_parser - DEBUG - Validating floor: 28 (Total Area: 119.80 m², Zones: 2)
+2025-08-01 12:03:24,913 - gui - INFO - GUI: ✅ Automatic validation data processed successfully
+2025-08-01 12:03:24,921 - gui - INFO - GUI: Extracting processed data...
+2025-08-01 12:03:24,921 - parsers.materials_parser - DEBUG - Returning 58 element data entries
+2025-08-01 12:03:25,338 - parsers.materials_parser - DEBUG - Returning 58 element data entries
+2025-08-01 12:03:25,346 - gui - INFO - GUI: Generating reports...
+2025-08-01 12:03:25,347 - gui - INFO - GUI: Generating Settings report...
+2025-08-01 12:03:25,354 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:25,354 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:25,354 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:25,360 - utils.hebrew_text_utils - INFO - Successfully registered Hebrew font: C:/Windows/Fonts/arial.ttf
+2025-08-01 12:03:25,441 - gui - INFO - GUI: Settings report generated successfully at C:/Users/daniel/Desktop\reports-01-08-2025-12-02-05\settings.pdf
+2025-08-01 12:03:25,449 - gui - INFO - GUI: Generating Schedules report...
+2025-08-01 12:03:25,450 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:25,450 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:25,450 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:25,523 - gui - INFO - GUI: Schedules report generated successfully at C:/Users/daniel/Desktop\reports-01-08-2025-12-02-05\schedules.pdf
+2025-08-01 12:03:25,531 - gui - INFO - GUI: Generating Loads report...
+2025-08-01 12:03:25,532 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:25,532 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:25,532 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:25,785 - gui - INFO - GUI: Loads report generated successfully at C:/Users/daniel/Desktop\reports-01-08-2025-12-02-05\loads.pdf
+2025-08-01 12:03:25,792 - gui - INFO - GUI: Generating Materials report...
+2025-08-01 12:03:25,793 - generators.base_report_generator - DEBUG - Created document: C:/Users/daniel/Desktop\reports-01-08-2025-12-02-05\materials.pdf, page_size: (1190.5529999999999, 841.89105), orientation: landscape
+2025-08-01 12:03:25,793 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:25,793 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:25,794 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:25,910 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:25,911 - gui - INFO - GUI: Materials report generated successfully at C:/Users/daniel/Desktop\reports-01-08-2025-12-02-05\materials.pdf
+2025-08-01 12:03:25,921 - gui - INFO - GUI: Generating Area (Zones) reports with base zone grouping...
+2025-08-01 12:03:25,921 - parsers.materials_parser - INFO - Starting element data processing
+2025-08-01 12:03:25,921 - parsers.materials_parser - INFO - Processing 9 filtered constructions
+2025-08-01 12:03:25,922 - parsers.materials_parser - INFO - Construction '_Floor 501_3cm' has element types: ['Separation floor', 'Ground floor', 'External floor'], dont_use: False
+2025-08-01 12:03:25,924 - parsers.materials_parser - INFO - Construction '_IntFloor1_Reversed' has element types: ['Separation ceiling', 'Intermediate ceiling'], dont_use: False
+2025-08-01 12:03:25,926 - parsers.materials_parser - INFO - Construction '_IntPartition' has element types: ['Internal wall'], dont_use: False
+2025-08-01 12:03:25,926 - parsers.materials_parser - INFO - Construction '_ExtWall 201_5cm' has element types: ['External wall', 'Ground wall'], dont_use: False
+2025-08-01 12:03:25,928 - parsers.materials_parser - INFO - Construction '_Core_401 3 cm' has element types: ['Separation wall'], dont_use: False
+2025-08-01 12:03:25,928 - parsers.materials_parser - INFO - Construction '_ExtWall 201_5cm MMD' has element types: ['External wall'], dont_use: False
+2025-08-01 12:03:25,928 - parsers.materials_parser - INFO - Construction '_Roof 564_5 cm' has element types: ['Roof'], dont_use: False
+2025-08-01 12:03:25,928 - parsers.materials_parser - DEBUG - Construction '_IntFloor1' issue - Surfaces: 5, HVAC surfaces: 0, Element types: ['Separation floor'], Dont_use: True
+2025-08-01 12:03:25,928 - parsers.materials_parser - INFO - Construction '_IntFloor1' has element types: ['Separation floor'], dont_use: True
+2025-08-01 12:03:25,929 - parsers.materials_parser - INFO - Construction '_Floor 501_3cm_Reversed' has element types: ['Separation ceiling'], dont_use: False
+2025-08-01 12:03:25,929 - parsers.materials_parser - INFO - Element data processing complete: 58 entries created, 1 constructions skipped
+2025-08-01 12:03:25,929 - parsers.materials_parser - INFO - === CONSTRUCTION SKIP SUMMARY ===
+2025-08-01 12:03:25,929 - parsers.materials_parser - INFO - Total constructions processed: 9
+2025-08-01 12:03:25,929 - parsers.materials_parser - INFO - Total constructions skipped: 1
+2025-08-01 12:03:25,929 - parsers.materials_parser - INFO - Constructions skipped due to 'dont_use' flag (1): ['_IntFloor1']
+2025-08-01 12:03:25,929 - parsers.materials_parser - INFO - === END CONSTRUCTION SKIP SUMMARY ===
+2025-08-01 12:03:25,929 - parsers.area_parser - INFO - Base zone groupings created:
+2025-08-01 12:03:25,929 - parsers.area_parser - INFO -   00X01:01 -> ['00X01:01XLIVING', '00X01:01XMMD']
+2025-08-01 12:03:25,929 - parsers.area_parser - INFO -   00X02:02 -> ['00X02:02XMMD', '00X02:02XLIVING']
+2025-08-01 12:03:25,929 - parsers.area_parser - INFO -   00X03:03 -> ['00X03:03XLIVING', '00X03:03XMMD']
+2025-08-01 12:03:25,930 - parsers.area_parser - DEBUG -   00:CORE -> 00:CORE (single zone)
+2025-08-01 12:03:25,930 - parsers.area_parser - INFO -   01X04:04 -> ['01X04:04XLIVING', '01X04:04XMMD']
+2025-08-01 12:03:25,930 - parsers.area_parser - INFO -   01X05:05 -> ['01X05:05XMMD', '01X05:05XLIVING']
+2025-08-01 12:03:25,930 - parsers.area_parser - INFO -   01X06:06 -> ['01X06:06XMMD', '01X06:06XLIVING']
+2025-08-01 12:03:25,930 - parsers.area_parser - INFO -   01X07:07 -> ['01X07:07XLIVING', '01X07:07XMMD']
+2025-08-01 12:03:25,930 - parsers.area_parser - DEBUG -   01:CORE -> 01:CORE (single zone)
+2025-08-01 12:03:25,930 - parsers.area_parser - INFO -   02X08:08 -> ['02X08:08XLIVING', '02X08:08XMMD']
+2025-08-01 12:03:25,930 - parsers.area_parser - INFO -   02X09:09 -> ['02X09:09XMMD', '02X09:09XLIVING']
+2025-08-01 12:03:25,930 - parsers.area_parser - INFO -   02X10:10 -> ['02X10:10XMMD', '02X10:10XLIVING']
+2025-08-01 12:03:25,930 - parsers.area_parser - INFO -   02X11:11 -> ['02X11:11XLIVING', '02X11:11XMMD']
+2025-08-01 12:03:25,930 - parsers.area_parser - DEBUG -   02:CORE -> 02:CORE (single zone)
+2025-08-01 12:03:25,930 - parsers.area_parser - INFO -   03X12:12 -> ['03X12:12XLIVING', '03X12:12XMMD']
+2025-08-01 12:03:25,930 - parsers.area_parser - INFO -   03X13:13 -> ['03X13:13XMMD', '03X13:13XLIVING']
+2025-08-01 12:03:25,930 - parsers.area_parser - INFO -   03X14:14 -> ['03X14:14XMMD', '03X14:14XLIVING']
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO -   03X15:15 -> ['03X15:15XLIVING', '03X15:15XMMD']
+2025-08-01 12:03:25,931 - parsers.area_parser - DEBUG -   03:CORE -> 03:CORE (single zone)
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO -   04X16:16 -> ['04X16:16XLIVING', '04X16:16XMMD']
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO -   04X17:17 -> ['04X17:17XMMD', '04X17:17XLIVING']
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO -   04X18:18 -> ['04X18:18XMMD', '04X18:18XLIVING']
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO -   04X19:19 -> ['04X19:19XLIVING', '04X19:19XMMD']
+2025-08-01 12:03:25,931 - parsers.area_parser - DEBUG -   04:CORE -> 04:CORE (single zone)
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO -   05X20:20 -> ['05X20:20XLIVING', '05X20:20XMMD']
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO -   05X21:21 -> ['05X21:21XMMD', '05X21:21XLIVING']
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO -   05X22:22 -> ['05X22:22XMMD', '05X22:22XLIVING']
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO -   05X23:23 -> ['05X23:23XLIVING', '05X23:23XMMD']
+2025-08-01 12:03:25,931 - parsers.area_parser - DEBUG -   05:CORE -> 05:CORE (single zone)
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO -   06X24:24 -> ['06X24:24XLIVING', '06X24:24XMMD']
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO -   06X26:26 -> ['06X26:26XLIVING', '06X26:26XMMD']
+2025-08-01 12:03:25,931 - parsers.area_parser - DEBUG -   06:CORE -> 06:CORE (single zone)
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO -   06X25:25 -> ['06X25:25XMMD', '06X25:25XLIVING']
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO -   07X27:27 -> ['07X27:27XLIVING', '07X27:27XMMD']
+2025-08-01 12:03:25,931 - parsers.area_parser - DEBUG -   07:CORE -> 07:CORE (single zone)
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO -   07X28:28 -> ['07X28:28XMMD', '07X28:28XLIVING']
+2025-08-01 12:03:25,931 - parsers.area_parser - DEBUG -   000:CORE -> 000:CORE (single zone)
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO - Grouping statistics:
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO -   Total base zones: 37
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO -   Multi-zone groups: 28
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO -   Single-zone groups: 9
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO -   Total individual zones: 65
+2025-08-01 12:03:25,931 - parsers.area_parser - INFO -   Example multi-zone groups: ['00X01:01', '00X02:02', '00X03:03', '01X04:04', '01X05:05']
+2025-08-01 12:03:25,931 - generators.area_report_generator - INFO - Found 37 base zone groups
+2025-08-01 12:03:27,163 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:27,163 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:27,163 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:27,163 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:27,163 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:27,163 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:27,163 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:27,163 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:27,163 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:27,163 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:27,163 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:27,163 - generators.area_report_generator - INFO - Generating base zone area report for: 00X01:01 (includes 2 zones)
+2025-08-01 12:03:27,164 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\00X01_01.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:27,164 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:27,164 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:27,164 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:27,221 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:27,221 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:27,221 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:27,221 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:27,221 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:27,221 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:27,221 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:27,221 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:27,221 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:27,221 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:27,221 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:27,221 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:27,221 - generators.area_report_generator - INFO - Generating base zone area report for: 00X02:02 (includes 2 zones)
+2025-08-01 12:03:27,222 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\00X02_02.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:27,222 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:27,222 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:27,222 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:27,277 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:27,277 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:27,277 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:27,277 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:27,277 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:27,277 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:27,277 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:27,277 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:27,277 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:27,277 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:27,277 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:27,277 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:27,277 - generators.area_report_generator - INFO - Generating base zone area report for: 00X03:03 (includes 2 zones)
+2025-08-01 12:03:27,278 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\00X03_03.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:27,278 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:27,278 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:27,278 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:27,335 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:27,335 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:27,335 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:27,335 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:27,335 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:27,335 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:27,335 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:27,335 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:27,335 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:27,335 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:27,335 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:27,335 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:27,335 - generators.area_report_generator - INFO - Generating base zone area report for: 01X04:04 (includes 2 zones)
+2025-08-01 12:03:27,335 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\01X04_04.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:27,335 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:27,336 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:27,336 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:27,394 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:27,394 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:27,394 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:27,394 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:27,394 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:27,394 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:27,394 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:27,394 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:27,394 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:27,394 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:27,394 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:27,394 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:27,394 - generators.area_report_generator - INFO - Generating base zone area report for: 01X05:05 (includes 2 zones)
+2025-08-01 12:03:27,394 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\01X05_05.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:27,394 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:27,395 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:27,395 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:27,455 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:27,455 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:27,455 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:27,455 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:27,455 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:27,455 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:27,455 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:27,455 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:27,455 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:27,455 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:27,455 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:27,455 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:27,455 - generators.area_report_generator - INFO - Generating base zone area report for: 01X06:06 (includes 2 zones)
+2025-08-01 12:03:27,455 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\01X06_06.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:27,455 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:27,456 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:27,456 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:27,517 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:27,517 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:27,517 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:27,517 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:27,517 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:27,517 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:27,518 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:27,518 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:27,518 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:27,518 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:27,518 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:27,518 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:27,518 - generators.area_report_generator - INFO - Generating base zone area report for: 01X07:07 (includes 2 zones)
+2025-08-01 12:03:27,518 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\01X07_07.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:27,518 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:27,518 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:27,518 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:27,577 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:27,577 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:27,577 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:27,577 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:27,577 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:27,578 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:27,578 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:27,578 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:27,578 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:27,578 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:27,578 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:27,578 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:27,578 - generators.area_report_generator - INFO - Generating base zone area report for: 02X08:08 (includes 2 zones)
+2025-08-01 12:03:27,578 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\02X08_08.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:27,578 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:27,578 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:27,578 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:27,635 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:27,635 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:27,635 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:27,635 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:27,635 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:27,635 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:27,635 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:27,635 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:27,635 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:27,635 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:27,635 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:27,635 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:27,635 - generators.area_report_generator - INFO - Generating base zone area report for: 02X09:09 (includes 2 zones)
+2025-08-01 12:03:27,636 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\02X09_09.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:27,636 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:27,636 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:27,636 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:27,694 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:27,694 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:27,694 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:27,695 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:27,695 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:27,695 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:27,695 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:27,695 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:27,695 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:27,695 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:27,695 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:27,695 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:27,695 - generators.area_report_generator - INFO - Generating base zone area report for: 02X10:10 (includes 2 zones)
+2025-08-01 12:03:27,695 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\02X10_10.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:27,695 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:27,695 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:27,695 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:27,752 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:27,752 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:27,753 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:27,753 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:27,753 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:27,753 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:27,753 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:27,753 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:27,753 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:27,753 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:27,753 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:27,753 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:27,753 - generators.area_report_generator - INFO - Generating base zone area report for: 02X11:11 (includes 2 zones)
+2025-08-01 12:03:27,753 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\02X11_11.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:27,753 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:27,753 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:27,753 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:27,810 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:27,810 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:27,810 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:27,810 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:27,810 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:27,810 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:27,810 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:27,810 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:27,810 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:27,810 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:27,810 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:27,810 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:27,810 - generators.area_report_generator - INFO - Generating base zone area report for: 03X12:12 (includes 2 zones)
+2025-08-01 12:03:27,811 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\03X12_12.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:27,811 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:27,811 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:27,811 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:27,869 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:27,869 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:27,869 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:27,869 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:27,870 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:27,870 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:27,870 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:27,870 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:27,870 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:27,870 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:27,870 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:27,870 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:27,870 - generators.area_report_generator - INFO - Generating base zone area report for: 03X13:13 (includes 2 zones)
+2025-08-01 12:03:27,870 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\03X13_13.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:27,870 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:27,870 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:27,870 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:27,930 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:27,930 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:27,930 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:27,930 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:27,930 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:27,930 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:27,930 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:27,930 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:27,930 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:27,930 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:27,930 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:27,930 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:27,930 - generators.area_report_generator - INFO - Generating base zone area report for: 03X14:14 (includes 2 zones)
+2025-08-01 12:03:27,931 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\03X14_14.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:27,931 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:27,931 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:27,931 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:27,989 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:27,989 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:27,989 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:27,989 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:27,989 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:27,989 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:27,989 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:27,989 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:27,989 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:27,989 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:27,989 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:27,989 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:27,989 - generators.area_report_generator - INFO - Generating base zone area report for: 03X15:15 (includes 2 zones)
+2025-08-01 12:03:27,989 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\03X15_15.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:27,989 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:27,990 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:27,990 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:28,047 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:28,047 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:28,047 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:28,047 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:28,047 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:28,047 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:28,047 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:28,047 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:28,047 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:28,047 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:28,047 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:28,047 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:28,048 - generators.area_report_generator - INFO - Generating base zone area report for: 04X16:16 (includes 2 zones)
+2025-08-01 12:03:28,048 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\04X16_16.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:28,048 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:28,048 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:28,048 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:28,105 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:28,106 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:28,106 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:28,106 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:28,106 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:28,106 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:28,106 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:28,106 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:28,106 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:28,106 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:28,106 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:28,106 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:28,106 - generators.area_report_generator - INFO - Generating base zone area report for: 04X17:17 (includes 2 zones)
+2025-08-01 12:03:28,106 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\04X17_17.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:28,106 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:28,106 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:28,106 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:28,166 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:28,167 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:28,167 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:28,167 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:28,167 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:28,167 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:28,167 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:28,167 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:28,167 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:28,167 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:28,167 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:28,167 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:28,167 - generators.area_report_generator - INFO - Generating base zone area report for: 04X18:18 (includes 2 zones)
+2025-08-01 12:03:28,167 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\04X18_18.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:28,167 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:28,167 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:28,167 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:28,226 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:28,226 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:28,226 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:28,226 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:28,226 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:28,226 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:28,226 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:28,226 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:28,226 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:28,226 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:28,226 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:28,227 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:28,227 - generators.area_report_generator - INFO - Generating base zone area report for: 04X19:19 (includes 2 zones)
+2025-08-01 12:03:28,227 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\04X19_19.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:28,227 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:28,227 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:28,227 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:28,289 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:28,290 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:28,290 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:28,290 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:28,290 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:28,290 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:28,290 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:28,290 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:28,290 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:28,290 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:28,290 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:28,290 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:28,290 - generators.area_report_generator - INFO - Generating base zone area report for: 05X20:20 (includes 2 zones)
+2025-08-01 12:03:28,290 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\05X20_20.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:28,290 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:28,290 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:28,290 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:28,349 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:28,349 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:28,349 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:28,349 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:28,349 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:28,349 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:28,349 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:28,349 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:28,349 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:28,349 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:28,349 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:28,350 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:28,350 - generators.area_report_generator - INFO - Generating base zone area report for: 05X21:21 (includes 2 zones)
+2025-08-01 12:03:28,350 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\05X21_21.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:28,350 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:28,350 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:28,350 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:28,408 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:28,408 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:28,408 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:28,408 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:28,408 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:28,408 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:28,408 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:28,408 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:28,408 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:28,408 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:28,408 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:28,408 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:28,409 - generators.area_report_generator - INFO - Generating base zone area report for: 05X22:22 (includes 2 zones)
+2025-08-01 12:03:28,409 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\05X22_22.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:28,409 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:28,409 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:28,409 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:28,466 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:28,466 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:28,466 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:28,466 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:28,466 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:28,466 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:28,466 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:28,466 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:28,466 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:28,466 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:28,466 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:28,466 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:28,466 - generators.area_report_generator - INFO - Generating base zone area report for: 05X23:23 (includes 2 zones)
+2025-08-01 12:03:28,466 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\05X23_23.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:28,467 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:28,467 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:28,467 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:28,523 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:28,524 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:28,524 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:28,524 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:28,524 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:28,524 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:28,524 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:28,524 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:28,524 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:28,524 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:28,524 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:28,524 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:28,524 - generators.area_report_generator - INFO - Generating base zone area report for: 06X24:24 (includes 2 zones)
+2025-08-01 12:03:28,524 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\06X24_24.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:28,524 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:28,524 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:28,524 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:28,582 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:28,582 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:28,582 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:28,582 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:28,582 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:28,582 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:28,582 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:28,582 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:28,582 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:28,582 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:28,582 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:28,582 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:28,582 - generators.area_report_generator - INFO - Generating base zone area report for: 06X26:26 (includes 2 zones)
+2025-08-01 12:03:28,583 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\06X26_26.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:28,583 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:28,583 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:28,583 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:28,641 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:28,641 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:28,641 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:28,641 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:28,641 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:28,641 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:28,641 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:28,641 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:28,641 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:28,641 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:28,641 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:28,641 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:28,641 - generators.area_report_generator - INFO - Generating base zone area report for: 06X25:25 (includes 2 zones)
+2025-08-01 12:03:28,642 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\06X25_25.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:28,642 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:28,642 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:28,642 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:28,702 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:28,702 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:28,702 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:28,702 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:28,702 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:28,702 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:28,702 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:28,702 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:28,702 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:28,702 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:28,702 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:28,702 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:28,702 - generators.area_report_generator - INFO - Generating base zone area report for: 07X27:27 (includes 2 zones)
+2025-08-01 12:03:28,702 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\07X27_27.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:28,702 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:28,702 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:28,702 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:28,760 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:28,760 - parsers.materials_parser - DEBUG - Calculating mass per area for construction: _ExtWall 201_5cm
+2025-08-01 12:03:28,760 - parsers.materials_parser - DEBUG - Construction '_ExtWall 201_5cm' has material layers: ['_1045_Cemented Plaster_2.2_.02', '_1045_RegularConcrete_1.1.1_.2', '_1045 Cellular Glass 24_14.10_.05', '_1045 Gypsum Board_3.3_.0125']
+2025-08-01 12:03:28,760 - parsers.materials_parser - DEBUG - Processing layer '_1045_Cemented Plaster_2.2_.02' - density: 1800.0, thickness: 0.02, conductivity: 1.0
+2025-08-01 12:03:28,760 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_Cemented Plaster_2.2_.02': 36.0
+2025-08-01 12:03:28,760 - parsers.materials_parser - DEBUG - Processing layer '_1045_RegularConcrete_1.1.1_.2' - density: 2400.0, thickness: 0.2, conductivity: 2.0
+2025-08-01 12:03:28,760 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045_RegularConcrete_1.1.1_.2': 480.0
+2025-08-01 12:03:28,760 - parsers.materials_parser - DEBUG - Processing layer '_1045 Cellular Glass 24_14.10_.05' - density: 100.0, thickness: 0.05, conductivity: 0.034
+2025-08-01 12:03:28,760 - parsers.materials_parser - DEBUG - Applied low conductivity adjustment to layer '_1045 Cellular Glass 24_14.10_.05' - adjusted mass: 2.5
+2025-08-01 12:03:28,760 - parsers.materials_parser - DEBUG - Processing layer '_1045 Gypsum Board_3.3_.0125' - density: 800.0, thickness: 0.0125, conductivity: 0.25
+2025-08-01 12:03:28,760 - parsers.materials_parser - DEBUG - Normal mass calculation for layer '_1045 Gypsum Board_3.3_.0125': 10.0
+2025-08-01 12:03:28,760 - parsers.materials_parser - DEBUG - Total mass per area for construction '_ExtWall 201_5cm': 528.5
+2025-08-01 12:03:28,760 - generators.area_report_generator - INFO - Generating base zone area report for: 07X28:28 (includes 2 zones)
+2025-08-01 12:03:28,760 - generators.base_report_generator - DEBUG - Created document: C:\Users\daniel\Desktop\reports-01-08-2025-12-02-05\zones\07X28_28.pdf, page_size: (841.8897637795277, 595.2755905511812), orientation: landscape
+2025-08-01 12:03:28,761 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:28,761 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:28,761 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:28,820 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:28,821 - gui - INFO - GUI: Area (Zones) reports with base zone grouping generation attempted.
+2025-08-01 12:03:28,830 - gui - INFO - GUI: Generating Glazing report...
+2025-08-01 12:03:28,830 - generators.base_report_generator - DEBUG - Created document: C:/Users/daniel/Desktop\reports-01-08-2025-12-02-05\glazing.pdf, page_size: (1190.5529999999999, 841.89105), orientation: landscape
+2025-08-01 12:03:28,830 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:28,831 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:28,831 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:28,895 - generators.base_report_generator - INFO - Successfully built document
+2025-08-01 12:03:28,896 - gui - INFO - GUI: Glazing report generated successfully at C:/Users/daniel/Desktop\reports-01-08-2025-12-02-05\glazing.pdf
+2025-08-01 12:03:28,904 - gui - INFO - GUI: Generating Lighting report...
+2025-08-01 12:03:28,905 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:28,905 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:28,905 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:28,956 - gui - INFO - GUI: Lighting report generated successfully at C:/Users/daniel/Desktop\reports-01-08-2025-12-02-05\lighting.pdf
+2025-08-01 12:03:28,969 - gui - INFO - GUI: Generating Natural Ventilation report...
+2025-08-01 12:03:28,970 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:28,970 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:28,970 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:29,089 - generators.natural_ventilation_report_generator - INFO - Natural ventilation report generated successfully: C:/Users/daniel/Desktop\reports-01-08-2025-12-02-05\natural-ventilation.pdf
+2025-08-01 12:03:29,090 - gui - INFO - GUI: Natural Ventilation report generated successfully at C:/Users/daniel/Desktop\reports-01-08-2025-12-02-05\natural-ventilation.pdf
+2025-08-01 12:03:29,098 - gui - INFO - GUI: Generating Automatic Validation report...
+2025-08-01 12:03:29,098 - generators.automatic_error_detection_report_generator - INFO - Starting automatic validation report generation: C:/Users/daniel/Desktop\reports-01-08-2025-12-02-05\automatic-validation.pdf
+2025-08-01 12:03:29,099 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:29,099 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:29,099 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:29,210 - generators.automatic_error_detection_report_generator - INFO - Automatic error detection report generated successfully: C:/Users/daniel/Desktop\reports-01-08-2025-12-02-05\automatic-validation.pdf
+2025-08-01 12:03:29,211 - gui - INFO - GUI: Automatic Validation report generated successfully at C:/Users/daniel/Desktop\reports-01-08-2025-12-02-05\automatic-validation.pdf
+2025-08-01 12:03:29,219 - gui - INFO - GUI: Generating Energy Rating report (PDF)...
+2025-08-01 12:03:29,220 - gui - INFO - GUI: Energy Rating: Using Latin area letter 'B' for 2017 model
+2025-08-01 12:03:29,223 - gui - INFO - GUI: Energy Rating Report: Using City='ראשון לציון - מרכז', Year=2017, AreaDef='B'
+2025-08-01 12:03:29,223 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:29,223 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:29,223 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:29,317 - gui - INFO - GUI: Energy Rating report generated successfully at C:/Users/daniel/Desktop\reports-01-08-2025-12-02-05\energy-rating.pdf
+2025-08-01 12:03:29,340 - generators.energy_rating_report_generator - DEBUG - Group ('01', '01'): score=5.0, effective_area=129.94, raw_area=129.94, numerator_contribution=649.71
+2025-08-01 12:03:29,340 - generators.energy_rating_report_generator - DEBUG - Group ('02', '02'): score=5.0, effective_area=91.45, raw_area=91.45, numerator_contribution=457.23
+2025-08-01 12:03:29,340 - generators.energy_rating_report_generator - DEBUG - Group ('03', '03'): score=5.0, effective_area=187.84, raw_area=187.84, numerator_contribution=939.19
+2025-08-01 12:03:29,340 - generators.energy_rating_report_generator - DEBUG - Group ('04', '04'): score=4.0, effective_area=130.13, raw_area=130.13, numerator_contribution=520.50
+2025-08-01 12:03:29,340 - generators.energy_rating_report_generator - DEBUG - Group ('05', '05'): score=5.0, effective_area=185.13, raw_area=185.13, numerator_contribution=925.63
+2025-08-01 12:03:29,340 - generators.energy_rating_report_generator - DEBUG - Group ('06', '06'): score=4.0, effective_area=213.12, raw_area=213.12, numerator_contribution=852.49
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('07', '07'): score=5.0, effective_area=168.59, raw_area=168.59, numerator_contribution=842.93
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('08', '08'): score=4.0, effective_area=130.13, raw_area=130.13, numerator_contribution=520.50
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('09', '09'): score=5.0, effective_area=185.13, raw_area=185.13, numerator_contribution=925.63
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('10', '10'): score=4.0, effective_area=213.12, raw_area=213.12, numerator_contribution=852.49
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('11', '11'): score=5.0, effective_area=168.59, raw_area=168.59, numerator_contribution=842.93
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('12', '12'): score=4.0, effective_area=130.13, raw_area=130.13, numerator_contribution=520.50
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('13', '13'): score=5.0, effective_area=185.13, raw_area=185.13, numerator_contribution=925.63
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('14', '14'): score=4.0, effective_area=213.12, raw_area=213.12, numerator_contribution=852.49
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('15', '15'): score=5.0, effective_area=168.59, raw_area=168.59, numerator_contribution=842.93
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('16', '16'): score=4.0, effective_area=130.13, raw_area=130.13, numerator_contribution=520.50
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('17', '17'): score=5.0, effective_area=185.13, raw_area=185.13, numerator_contribution=925.63
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('18', '18'): score=4.0, effective_area=213.12, raw_area=213.12, numerator_contribution=852.49
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('19', '19'): score=5.0, effective_area=168.59, raw_area=168.59, numerator_contribution=842.93
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('20', '20'): score=4.0, effective_area=130.13, raw_area=130.13, numerator_contribution=520.50
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('21', '21'): score=5.0, effective_area=185.13, raw_area=185.13, numerator_contribution=925.63
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('22', '22'): score=4.0, effective_area=213.12, raw_area=213.12, numerator_contribution=852.49
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('23', '23'): score=5.0, effective_area=168.59, raw_area=168.59, numerator_contribution=842.93
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('24', '24'): score=4.0, effective_area=130.13, raw_area=130.13, numerator_contribution=520.50
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('26', '26'): score=5.0, effective_area=168.59, raw_area=168.59, numerator_contribution=842.93
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('25', '25'): score=4.0, effective_area=266.49, raw_area=266.49, numerator_contribution=1065.94
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('27', '27'): score=4.0, effective_area=258.93, raw_area=258.93, numerator_contribution=1035.73
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - DEBUG - Group ('28', '28'): score=4.0, effective_area=239.61, raw_area=239.61, numerator_contribution=958.44
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - INFO - _calculate_total_energy_rating: weighted_sum_numerator=22177.43, denominator=4957.77, raw_average=4.47
+2025-08-01 12:03:29,341 - generators.energy_rating_report_generator - INFO - _calculate_total_energy_rating: Calculated final_score = 4, letter_grade = A
+2025-08-01 12:03:29,341 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-08-01 12:03:29,341 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-08-01 12:03:29,341 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
+2025-08-01 12:03:29,417 - generators.energy_rating_report_generator - INFO - Generated Hebrew total energy rating report: C:/Users/daniel/Desktop\reports-01-08-2025-12-02-05\total-energy-rating.pdf
+2025-08-01 12:03:29,418 - gui - INFO - GUI: Total Energy Rating report generated successfully at C:/Users/daniel/Desktop\reports-01-08-2025-12-02-05\total-energy-rating.pdf
+2025-08-01 12:03:29,426 - gui - INFO - GUI: Processing completed successfully!
+2025-08-01 12:03:29,428 - gui - INFO - GUI: All reports generated successfully!
