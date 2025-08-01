@@ -1,6 +1,0 @@
-2025-08-01 11:37:34,508 - utils.eppy_handler - INFO - Successfully loaded IDF file: C:\Users\daniel\Desktop\idf-reader/tests/in.idf
-2025-08-01 11:38:14,374 - utils.data_loader - INFO - Successfully loaded IDF file: C:\Users\daniel\Desktop\idf-reader/tests/in.idf
-2025-08-01 11:38:18,144 - utils.eppy_handler - INFO - Successfully loaded IDF file: C:\Users\daniel\Desktop\idf-reader/tests/in.idf
-2025-08-01 11:38:18,145 - parsers.eplustbl_reader - INFO - Found eplustbl.csv at: tests\eplustbl-test.csv
-2025-08-01 11:38:18,190 - parsers.materials_parser - INFO - Starting element data processing
-2025-08-01 11:38:18,200 - parsers.materials_parser - INFO - Retrieved 821 surfaces that use filtered constructions (from 980 total surfaces)
