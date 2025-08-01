@@ -2,19 +2,37 @@
 Extracts and processes materials and constructions.
 Uses DataLoader for cached access to IDF data.
 """
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Tuple
 from utils.data_loader import DataLoader
 from utils.data_models import MaterialData, ConstructionData
 from utils.logging_config import get_logger
+from .utils import safe_float, filter_hvac_zones
+from .base_parser import BaseParser
 
 logger = get_logger(__name__)
 
-class MaterialsParser:
+# Surface film resistance configuration
+SURFACE_FILM_RESISTANCE = {
+    "internal wall": 0.0,
+    "intermediate ceiling": 0.0, 
+    "intermediate floor": 0.0,
+    "ground floor": 0.1,
+    "ground wall": 0.1,
+    "ground ceiling": 0.1,
+    "external wall": 0.17,
+    "separation wall": 0.26,
+    "external floor": 0.21,
+    "separation floor": 0.34,
+    "separation ceiling": 0.2,
+    "default": 0.14
+}
+
+class MaterialsParser(BaseParser):
     """
     Extracts material properties and construction definitions using cached data from DataLoader.
     """
     def __init__(self, data_loader: Optional[DataLoader] = None):
-        self.data_loader = data_loader
+        super().__init__(data_loader, "MaterialsParser")
         self.element_data = []
         self.materials = {}
         self.constructions = {}
@@ -275,166 +293,127 @@ class MaterialsParser:
         
         return '', ''
 
-    def _get_element_type(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]], construction_mapping: Dict[str, str] = None):
+    def _get_element_type(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]], construction_mapping: Dict[str, str] = None) -> Tuple[List[str], bool]:
         """
-        Determine element type based on construction usage.
-        Implementation moved from DataLoader.
-
-        Args:
-            construction_id: ID of the construction
-            surfaces: Dictionary of surface data from cache
-            construction_mapping: Dictionary mapping _rev construction names to base names
-
-        Returns:
-            tuple: (element_types, dont_use) where:
-                  - element_types: list - List of element type descriptions
-                  - dont_use: bool - Flag indicating if this construction should be excluded from output
+        Determine element type based on construction usage - simplified version.
         """
-        # Find surfaces that reference this construction directly
+        construction_surfaces = self._find_construction_surfaces(construction_id, surfaces, construction_mapping)
+        if not construction_surfaces:
+            return [], False
+
+        element_types = set()
+        hvac_zones = self.data_loader.get_hvac_zones()
+        surfaces_with_hvac_zones = 0
+        surfaces_without_hvac_zones = 0
+        
+        for surface in construction_surfaces:
+            if surface.get('is_glazing', False):
+                element_types.add("Glazing")
+                continue
+            
+            surface_has_hvac, is_zone_interior = self._check_surface_hvac_zones(surface, hvac_zones)
+            if surface_has_hvac:
+                surfaces_with_hvac_zones += 1
+            else:
+                surfaces_without_hvac_zones += 1
+            
+            element_type = self._determine_surface_element_type(surface, is_zone_interior)
+            if element_type:
+                element_types.add(element_type)
+        
+        dont_use = surfaces_with_hvac_zones == 0 and surfaces_without_hvac_zones > 0
+        
+        if dont_use or not element_types:
+            self.logger.debug(f"Construction '{construction_id}' issue - Surfaces: {len(construction_surfaces)}, HVAC surfaces: {surfaces_with_hvac_zones}, Element types: {list(element_types)}, Dont_use: {dont_use}")
+        
+        return list(element_types), dont_use
+    
+    def _find_construction_surfaces(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]], construction_mapping: Dict[str, str] = None) -> List[Dict[str, Any]]:
+        """Find all surfaces that use this construction."""
         construction_surfaces = [s for s in surfaces.values() if s.get('construction_name') == construction_id]
         
-        # Also find surfaces that reference _rev versions that map to this construction
         if construction_mapping:
             for rev_name, base_name in construction_mapping.items():
                 if base_name == construction_id:
                     mapped_surfaces = [s for s in surfaces.values() if s.get('construction_name') == rev_name]
                     construction_surfaces.extend(mapped_surfaces)
         
-        if not construction_surfaces:
-            return [], False
-
-        element_types = set()
-        is_zone_interior = False
-        dont_use = False
-        zones = self.data_loader.get_hvac_zones()
+        return construction_surfaces
+    
+    def _check_surface_hvac_zones(self, surface: Dict[str, Any], hvac_zones: List[str]) -> Tuple[bool, bool]:
+        """Check if surface connects HVAC zones and if it's zone interior."""
+        boundary = surface.get('boundary_condition', '').lower()
         
-
-        surfaces_with_hvac_zones = 0
-        surfaces_without_hvac_zones = 0
+        if boundary != "surface":
+            return True, False  # Non-surface boundaries automatically have HVAC zones
         
-        for surface in construction_surfaces:
-            
-            if surface.get('is_glazing', False):
-                element_types.add("Glazing")
-                continue
-
-            s_type = surface.get('surface_type', '').lower() if surface.get('surface_type') else ""
-            boundary = surface.get('boundary_condition', '').lower() if surface.get('boundary_condition') else ""
-
-
+        try:
             raw_object = surface.get('raw_object')
+            if not raw_object:
+                return False, False
+            
             outside_boundary_obj_name = None
-            is_zone_interior = False
-            surface_has_hvac_zones = False
-
-            # Only check HVAC zones if boundary condition is "surface"
-            if boundary == "surface":
-                try:
-                    if raw_object:
-                        if hasattr(raw_object, 'Outside_Boundary_Condition_Object'):
-                            outside_boundary_obj_name = raw_object.Outside_Boundary_Condition_Object
-                        elif isinstance(raw_object, dict) and 'Outside_Boundary_Condition_Object' in raw_object:
-                            outside_boundary_obj_name = raw_object['Outside_Boundary_Condition_Object']
-
-                    if isinstance(outside_boundary_obj_name, str) and outside_boundary_obj_name:
-                        zone_name_candidate = outside_boundary_obj_name.split("_")[0].strip()
-                        if zone_name_candidate:
-                            construction_zone = raw_object.Name.split("_")[0].strip()
-                            is_hvac_inside = construction_zone in zones
-                            is_hvac_outside = zone_name_candidate in zones
-                            
-                            if not is_hvac_inside and not is_hvac_outside:
-                                surface_has_hvac_zones = False
-                            else:
-                                surface_has_hvac_zones = True
-                                is_zone_interior = is_hvac_inside and is_hvac_outside
-
-                except Exception as e:
-                    pass
-            else:
-                # For non-surface boundaries (outdoors, ground), automatically mark as having HVAC zones
-                surface_has_hvac_zones = True
-
-            # Track whether this surface has HVAC zones
-            if surface_has_hvac_zones:
-                surfaces_with_hvac_zones += 1
-            else:
-                surfaces_without_hvac_zones += 1
-
-            element_type = ""
-            if s_type == "wall":
-                if boundary == "outdoors":
-                    element_type = "External wall"
-                elif boundary == "ground":
-                    element_type = "Ground wall"
-                else:
-                    element_type = "Internal wall" if is_zone_interior else "Separation wall"
-
-            elif s_type == "floor":
-                if boundary == "outdoors":
-                    element_type = "External floor"
-                elif boundary == "ground":
-                    element_type = "Ground floor"
-                else:
-                    element_type = "Intermediate floor" if is_zone_interior else "Separation floor"
-
-            elif s_type == "ceiling":
-                if boundary == "ground":
-                    element_type = "Ground ceiling"
-                elif boundary == "outdoors":
-                    element_type = "External ceiling"
-                else:
-                    element_type = "Intermediate ceiling" if is_zone_interior else "Separation ceiling"
-
-            elif s_type == "roof":
-                element_type = "Roof"
-
-            if element_type:
-                element_types.add(element_type)
+            if hasattr(raw_object, 'Outside_Boundary_Condition_Object'):
+                outside_boundary_obj_name = raw_object.Outside_Boundary_Condition_Object
+            elif isinstance(raw_object, dict) and 'Outside_Boundary_Condition_Object' in raw_object:
+                outside_boundary_obj_name = raw_object['Outside_Boundary_Condition_Object']
+            
+            if not isinstance(outside_boundary_obj_name, str) or not outside_boundary_obj_name:
+                return False, False
+            
+            zone_name_candidate = outside_boundary_obj_name.split("_")[0].strip()
+            construction_zone = raw_object.Name.split("_")[0].strip()
+            
+            is_hvac_inside = construction_zone in hvac_zones
+            is_hvac_outside = zone_name_candidate in hvac_zones
+            
+            surface_has_hvac_zones = is_hvac_inside or is_hvac_outside
+            is_zone_interior = is_hvac_inside and is_hvac_outside
+            
+            return surface_has_hvac_zones, is_zone_interior
+            
+        except Exception:
+            return False, False
+    
+    def _determine_surface_element_type(self, surface: Dict[str, Any], is_zone_interior: bool) -> str:
+        """Determine element type based on surface type and boundary condition."""
+        s_type = surface.get('surface_type', '').lower()
+        boundary = surface.get('boundary_condition', '').lower()
         
-        # Determine dont_use based on whether ANY surfaces have HVAC zones
-        # Only mark as dont_use if ALL surfaces lack HVAC zones
-        dont_use = surfaces_with_hvac_zones == 0 and surfaces_without_hvac_zones > 0
+        element_type_map = {
+            "wall": {
+                "outdoors": "External wall",
+                "ground": "Ground wall",
+                "default": "Internal wall" if is_zone_interior else "Separation wall"
+            },
+            "floor": {
+                "outdoors": "External floor", 
+                "ground": "Ground floor",
+                "default": "Intermediate floor" if is_zone_interior else "Separation floor"
+            },
+            "ceiling": {
+                "ground": "Ground ceiling",
+                "outdoors": "External ceiling",
+                "default": "Intermediate ceiling" if is_zone_interior else "Separation ceiling"
+            },
+            "roof": {
+                "default": "Roof"
+            }
+        }
         
-        # Only log detailed info for problematic constructions
-        if dont_use or not element_types:
-            logger.debug(f"Construction '{construction_id}' issue - Surfaces: {len(construction_surfaces)}, HVAC surfaces: {surfaces_with_hvac_zones}, Element types: {list(element_types)}, Dont_use: {dont_use}")
-            if not element_types:
-                surface_types = [f"{s.get('surface_type', 'unknown')}({s.get('boundary_condition', 'unknown')})" for s in construction_surfaces]
-                logger.debug(f"  Surface types found: {surface_types}")
-
-        return list(element_types), dont_use
+        if s_type in element_type_map:
+            type_config = element_type_map[s_type]
+            return type_config.get(boundary, type_config.get("default", ""))
+        
+        return ""
 
     def _get_surface_film_resistance(self, element_type: str) -> float:
         """
-        Determine the surface film resistance constant based on element type and boundary.
-
-        Args:
-            s_type: Surface type (wall, floor, ceiling, roof)
-            boundary: Boundary condition (outdoors, ground, etc.)
-
-        Returns:
-            float: Surface film resistance constant to add to R-Value
+        Determine the surface film resistance constant based on element type.
+        Now uses configuration instead of hardcoded values.
         """
-
-        element_type = element_type.lower()
-
-        if element_type in ["internal wall","intermediate ceiling" ,"intermediate floor"]:
-            return 0.0
-        if element_type in ["ground floor", "ground wall" , "ground ceiling"]:
-            return 0.1
-        if element_type == "external wall":
-            return 0.17
-        elif element_type == "separation wall":
-            return 0.26
-        elif element_type == "external floor":
-            return 0.21
-        elif element_type == "separation floor":
-            return 0.34
-        elif element_type == "separation ceiling":
-            return 0.2
-        else:
-            return 0.14
+        element_type_lower = element_type.lower()
+        return SURFACE_FILM_RESISTANCE.get(element_type_lower, SURFACE_FILM_RESISTANCE["default"])
 
     def get_element_data(self) -> list:
         """

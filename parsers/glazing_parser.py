@@ -1,28 +1,12 @@
 import csv
 import os
 from typing import Dict, Any
+from .utils import safe_float as utils_safe_float
 
+# Use the shared safe_float from utils instead of duplicate implementation
 def safe_float(value: Any, default: float = None) -> float:
-    """
-    Safely convert a value to float, returning a default if conversion fails.
-    Handles numpy float types by converting them to Python floats.
-
-    Args:
-        value: Value to convert to float
-        default: Default value to return if conversion fails
-
-    Returns:
-        float: Converted value or default
-    """
-    if value is None or value == '':
-        return default
-
-    try:
-        if hasattr(value, 'item'):
-            return float(value.item())
-        return float(value)
-    except (ValueError, TypeError, AttributeError):
-        return default
+    """Wrapper for utils safe_float to maintain compatibility."""
+    return utils_safe_float(value, default or 0.0)
 
 class GlazingParser:
     """

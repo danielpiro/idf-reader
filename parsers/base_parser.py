@@ -1,0 +1,225 @@
+"""
+Base parser class to standardize common patterns across all parsers.
+Reduces code duplication and provides consistent error handling.
+"""
+from abc import ABC, abstractmethod
+from typing import Any, Dict, Optional, List
+from utils.logging_config import get_logger
+from .utils import handle_parser_errors, log_processing_stats, validate_required_fields
+
+class BaseParser(ABC):
+    """
+    Abstract base class for all parsers with common functionality.
+    """
+    
+    def __init__(self, data_loader=None, parser_name: str = None):
+        """
+        Initialize base parser with common setup.
+        
+        Args:
+            data_loader: DataLoader instance for accessing IDF data
+            parser_name: Name of the parser for logging
+        """
+        self.data_loader = data_loader
+        self.parser_name = parser_name or self.__class__.__name__
+        self.logger = get_logger(self.parser_name)
+        self.processed = False
+        self._processing_errors = []
+        self._processing_stats = {
+            "total_items": 0,
+            "processed_items": 0,
+            "error_items": 0
+        }
+    
+    @abstractmethod
+    def process_idf(self, idf=None) -> None:
+        """
+        Main processing method that each parser must implement.
+        
+        Args:
+            idf: Optional IDF object for processing
+        """
+        pass
+    
+    def is_processed(self) -> bool:
+        """Check if parser has been processed."""
+        return self.processed
+    
+    def get_processing_stats(self) -> Dict[str, int]:
+        """Get processing statistics."""
+        return self._processing_stats.copy()
+    
+    def get_processing_errors(self) -> List[str]:
+        """Get list of processing errors."""
+        return self._processing_errors.copy()
+    
+    def _log_start_processing(self, total_items: int = 0):
+        """Log start of processing with item count."""
+        self.logger.info(f"{self.parser_name}: Starting processing" + 
+                        (f" of {total_items} items" if total_items > 0 else ""))
+        self._processing_stats["total_items"] = total_items
+    
+    def _log_item_processed(self, item_name: str = None):
+        """Log successful processing of an item."""
+        self._processing_stats["processed_items"] += 1
+        if item_name:
+            self.logger.debug(f"{self.parser_name}: Processed {item_name}")
+    
+    def _log_item_error(self, error_msg: str, item_name: str = None):
+        """Log error processing an item."""
+        self._processing_stats["error_items"] += 1
+        self._processing_errors.append(error_msg)
+        full_msg = f"{self.parser_name}: Error processing"
+        if item_name:
+            full_msg += f" {item_name}"
+        full_msg += f" - {error_msg}"
+        self.logger.error(full_msg)
+    
+    def _log_processing_complete(self):
+        """Log completion of processing with statistics."""
+        stats = self._processing_stats
+        log_processing_stats(
+            self.parser_name,
+            stats["processed_items"], 
+            stats["total_items"],
+            stats["error_items"]
+        )
+        self.processed = True
+    
+    def _validate_initialization(self) -> bool:
+        """Validate that parser is properly initialized."""
+        if not self.data_loader:
+            self.logger.error(f"{self.parser_name}: DataLoader not provided")
+            return False
+        return True
+    
+    def _safe_get_data(self, data_type: str) -> Dict[str, Any]:
+        """
+        Safely get data from DataLoader with error handling.
+        
+        Args:
+            data_type: Type of data to retrieve (e.g., 'zones', 'surfaces')
+            
+        Returns:
+            Dictionary of data or empty dict if error
+        """
+        try:
+            getter_method = getattr(self.data_loader, f"get_{data_type}", None)
+            if not getter_method:
+                self.logger.error(f"{self.parser_name}: DataLoader missing get_{data_type} method")
+                return {}
+            
+            data = getter_method()
+            if not isinstance(data, dict):
+                self.logger.warning(f"{self.parser_name}: Expected dict from get_{data_type}, got {type(data)}")
+                return {}
+            
+            self.logger.debug(f"{self.parser_name}: Retrieved {len(data)} {data_type}")
+            return data
+            
+        except Exception as e:
+            self.logger.error(f"{self.parser_name}: Error getting {data_type} - {e}")
+            return {}
+    
+    def _process_items_safely(self, items: Dict[str, Any], process_func, item_type: str = "items"):
+        """
+        Process a collection of items with error handling and logging.
+        
+        Args:
+            items: Dictionary of items to process
+            process_func: Function to process each item
+            item_type: Type of items for logging
+        """
+        if not items:
+            self.logger.warning(f"{self.parser_name}: No {item_type} to process")
+            return
+        
+        self._log_start_processing(len(items))
+        
+        for item_id, item_data in items.items():
+            try:
+                process_func(item_id, item_data)
+                self._log_item_processed(item_id)
+            except Exception as e:
+                self._log_item_error(str(e), item_id)
+                continue
+        
+        self._log_processing_complete()
+    
+    def _extract_numeric_field(self, obj, field_name: str, default: float = 0.0) -> float:
+        """
+        Extract numeric field from object with safe conversion.
+        
+        Args:
+            obj: Object to extract field from
+            field_name: Name of field to extract
+            default: Default value if extraction fails
+            
+        Returns:
+            Extracted numeric value or default
+        """
+        from .utils import parse_numeric_field
+        return parse_numeric_field(obj, field_name, default)
+    
+    def _filter_hvac_zones(self, zones: Dict[str, Any]) -> Dict[str, Any]:
+        """Filter out non-HVAC zones using common patterns."""
+        from .utils import filter_hvac_zones
+        return filter_hvac_zones(zones)
+    
+    def _validate_required_data(self, data: Dict[str, Any], required_fields: List[str], 
+                              item_name: str = "item") -> bool:
+        """
+        Validate that required fields are present in data.
+        
+        Args:
+            data: Data dictionary to validate
+            required_fields: List of required field names
+            item_name: Name of item for error logging
+            
+        Returns:
+            True if valid, False otherwise
+        """
+        missing_fields = validate_required_fields(data, required_fields)
+        if missing_fields:
+            self._log_item_error(f"Missing required fields: {missing_fields}", item_name)
+            return False
+        return True
+
+class SimpleParser(BaseParser):
+    """
+    Simple parser implementation for basic data extraction.
+    Can be used directly for simple parsers or as a reference.
+    """
+    
+    def __init__(self, data_loader, data_type: str, parser_name: str = None):
+        """
+        Initialize simple parser.
+        
+        Args:
+            data_loader: DataLoader instance
+            data_type: Type of data to extract (e.g., 'zones', 'surfaces')
+            parser_name: Optional parser name
+        """
+        super().__init__(data_loader, parser_name)
+        self.data_type = data_type
+        self.extracted_data = {}
+    
+    def process_idf(self, idf=None) -> None:
+        """Process IDF by extracting specified data type."""
+        if not self._validate_initialization():
+            return
+        
+        if self.processed:
+            return
+        
+        self.extracted_data = self._safe_get_data(self.data_type)
+        self._processing_stats["total_items"] = len(self.extracted_data)
+        self._processing_stats["processed_items"] = len(self.extracted_data)
+        self._log_processing_complete()
+    
+    def get_data(self) -> Dict[str, Any]:
+        """Get extracted data."""
+        if not self.processed:
+            self.logger.warning(f"{self.parser_name}: Data not processed yet. Call process_idf() first.")
+            return {}
+        return self.extracted_data.copy()

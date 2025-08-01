@@ -6,18 +6,16 @@ import re
 from typing import Dict, List, Any, Optional, Tuple
 from utils.data_loader import DataLoader
 from utils.data_models import ScheduleData
+from .schedule_utils import (
+    time_str_to_minutes, 
+    expand_time_value_pairs_to_hourly,
+    parse_date_range,
+    create_default_schedule_block,
+    normalize_schedule_value
+)
+from .base_parser import BaseParser
 
-def time_str_to_minutes(time_str: str) -> int:
-    """Convert HH:MM time string to minutes since midnight."""
-    try:
-        hours, minutes = map(int, time_str.split(':'))
-        if hours == 24 and minutes == 0:
-            return 24 * 60
-        if 0 <= hours < 24 and 0 <= minutes < 60:
-            return hours * 60 + minutes
-        raise ValueError(f"Time out of range: {time_str}")
-    except Exception:
-        return 0
+# time_str_to_minutes moved to schedule_utils.py
 
 BASIC_TYPES = [
     "on", "off", "work efficiency", "opaqueshade",
@@ -117,101 +115,7 @@ def _extract_zone_id_from_schedule(schedule_id: str) -> Optional[str]:
             return parts[0]
     return None
 
-def _expand_rules_to_hourly(time_value_pairs: List[Dict[str, str]]) -> List[Optional[str]]:
-    """
-    Expands a list of time-value pairs into a list of 24 hourly values.
-
-    Args:
-        time_value_pairs: List of {'end_time': 'HH:MM', 'value': str} dicts.
-
-    Returns:
-        A list of 24 strings representing the value for each hour (00:00-01:00 is index 0, ..., 23:00-24:00 is index 23).
-        Returns list of Nones if input is empty or invalid.
-    """
-    if not time_value_pairs:
-        return [None] * 24
-
-    hourly_values = [None] * 24
-    last_minute = 0
-
-    for pair in time_value_pairs:
-        end_time_str = pair['end_time']
-        value = pair['value']
-        current_minute = time_str_to_minutes(end_time_str)
-
-        current_minute = min(current_minute, 24 * 60)
-        if current_minute == 0 and end_time_str != "00:00":
-             current_minute = 24*60
-
-        if current_minute <= last_minute:
-            continue
-
-        start_hour_index = last_minute // 60
-        end_hour_index = (current_minute + 59) // 60
-
-        end_hour_index = min(end_hour_index, 24)
-
-        for h in range(start_hour_index, end_hour_index):
-             if h < 24:
-                hourly_values[h] = value
-
-        last_minute = current_minute
-
-        if last_minute >= 24 * 60:
-            break
-
-    if last_minute < 24 * 60 and time_value_pairs:
-         last_value = time_value_pairs[-1]['value']
-         start_fill_index = last_minute // 60
-         for h in range(start_fill_index, 24):
-             if hourly_values[h] is None:
-                 hourly_values[h] = last_value
-
-    if hourly_values[0] is None and time_value_pairs:
-         first_val_minute = time_str_to_minutes(time_value_pairs[0]['end_time'])
-         if first_val_minute > 0:
-             hourly_values[0] = time_value_pairs[0]['value']
-             final_value = None
-             temp_last_minute = 0
-             for pair in time_value_pairs:
-                 temp_current_minute = time_str_to_minutes(pair['end_time'])
-                 temp_current_minute = min(temp_current_minute, 24 * 60)
-                 if temp_current_minute > temp_last_minute:
-                     final_value = pair['value']
-                     temp_last_minute = temp_current_minute
-                 if temp_last_minute >= 24*60: break
-             if final_value is not None:
-                 for h in range(first_val_minute // 60):
-                     if hourly_values[h] is None:
-                         hourly_values[h] = final_value
-
-    last_known_value = '0'
-    for i in range(len(hourly_values)):
-        if hourly_values[i] is not None:
-            last_known_value = hourly_values[i]
-        elif hourly_values[i] is None:
-             hourly_values[i] = last_known_value
-
-    processed_values = list(hourly_values)
-    for h in range(1, 24):
-        if hourly_values[h] != hourly_values[h-1]:
-            processed_values[h-1] = hourly_values[h]
-
-    if hourly_values[0] != hourly_values[23]:
-         processed_values[23] = hourly_values[0]
-
-    formatted_hourly_values = []
-    for val in processed_values:
-        try:
-            num_val = float(val)
-            if num_val == int(num_val):
-                 formatted_hourly_values.append(str(int(num_val)))
-            else:
-                 formatted_hourly_values.append(f"{num_val:.2f}")
-        except (ValueError, TypeError):
-            formatted_hourly_values.append(str(val) if val is not None else '')
-
-    return formatted_hourly_values
+# _expand_rules_to_hourly moved to schedule_utils.py as expand_time_value_pairs_to_hourly
 
 def _parse_compact_rule_blocks(rule_fields: List[str]) -> List[Dict[str, Any]]:
     """
@@ -241,7 +145,7 @@ def _parse_compact_rule_blocks(rule_fields: List[str]) -> List[Dict[str, Any]]:
 
         if field_lower.startswith("through:"):
             if current_block_rules:
-                hourly_values = _expand_rules_to_hourly(current_block_rules)
+                hourly_values = expand_time_value_pairs_to_hourly(current_block_rules)
                 rule_blocks.append({
                     'through': current_through,
                     'for_days': current_for,
@@ -271,7 +175,7 @@ def _parse_compact_rule_blocks(rule_fields: List[str]) -> List[Dict[str, Any]]:
             i += 1
 
     if current_block_rules:
-        hourly_values = _expand_rules_to_hourly(current_block_rules)
+        hourly_values = expand_time_value_pairs_to_hourly(current_block_rules)
         rule_blocks.append({
             'through': current_through,
             'for_days': current_for,
