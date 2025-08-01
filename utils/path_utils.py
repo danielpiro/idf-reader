@@ -6,10 +6,10 @@ import os
 import sys
 import tempfile
 import shutil
-import logging
+from utils.logging_config import get_logger
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def get_data_file_path(filename: str) -> str:
     """

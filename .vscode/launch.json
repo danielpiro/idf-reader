@@ -19,7 +19,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/main.py",
       "args": [
-        "${workspaceFolder}/tests/3.1.idf",
+        "${workspaceFolder}/tests/in.idf",
         "--idd",
         "C:/EnergyPlusV9-4-0/Energy+.idd"
       ],

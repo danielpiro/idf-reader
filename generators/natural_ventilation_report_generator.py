@@ -13,13 +13,13 @@ from generators.shared_design_system import (
     COLORS, FONTS, FONT_SIZES, 
     create_cell_style, wrap_text, create_standardized_header
 )
-import logging
+from utils.logging_config import get_logger
 import os
 import re
 from datetime import datetime
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Regex for extracting area ID
 AREA_ID_REGEX = re.compile(r"^\d{2}")

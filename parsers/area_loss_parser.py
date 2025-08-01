@@ -2,12 +2,12 @@
 Extracts and processes area loss information for thermal performance analysis.
 """
 from typing import Dict, Any, List
-import logging
+from utils.logging_config import get_logger
 import re
 from parsers.area_parser import AreaParser
 from collections import defaultdict
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class AreaLossParser:
     """

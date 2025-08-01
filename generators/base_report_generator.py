@@ -5,7 +5,7 @@ Provides common functionality for all PDF report generators to eliminate code du
 and ensure consistency across all report types.
 """
 import datetime
-import logging
+from utils.logging_config import get_logger
 from pathlib import Path
 from functools import wraps
 from reportlab.platypus import SimpleDocTemplate
@@ -15,7 +15,7 @@ from generators.shared_design_system import (
     LAYOUT, create_standardized_header
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def handle_report_errors(report_type_name):

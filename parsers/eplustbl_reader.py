@@ -13,9 +13,9 @@ based on the simulation results rather than the IDF input file values.
 import csv
 import os
 from typing import Dict, Any, Optional
-import logging
+from utils.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def safe_float(value: Any, default: float = 0.0) -> float:
     """

@@ -2,7 +2,7 @@
 Generates reports for area-specific information extracted from IDF files.
 """
 from typing import Dict, Any, List
-import logging
+from utils.logging_config import get_logger
 from collections import defaultdict
 from pathlib import Path
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -15,7 +15,7 @@ from generators.shared_design_system import (
 )
 from generators.utils.formatting_utils import ValueFormatter
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AreaReportGenerator(BaseReportGenerator):

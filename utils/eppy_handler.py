@@ -3,11 +3,11 @@ Handles eppy IDF model loading, initialization and common operations.
 Includes support for Hebrew/Unicode characters in file paths.
 """
 import os
-import logging
+from utils.logging_config import get_logger
 from eppy.modeleditor import IDF
 from .path_utils import contains_non_ascii, create_safe_path_for_energyplus
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 SETTINGS_OBJECT_TYPES = [
     "Version",

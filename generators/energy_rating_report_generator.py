@@ -1,7 +1,7 @@
 """
 Generates energy rating reports from processed energy consumption data.
 """
-import logging
+from utils.logging_config import get_logger
 import os
 import math
 import datetime
@@ -23,7 +23,7 @@ from generators.shared_design_system import (
 from reportlab.lib.enums import TA_CENTER
 from reportlab.graphics.shapes import Drawing, Rect, Polygon, String
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 ENERGY_RATING_DATA_2017 = {
     "Zone A": [

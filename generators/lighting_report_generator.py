@@ -2,7 +2,7 @@
 PDF Report generator for Daylighting data.
 """
 from typing import Dict, List, Any
-import logging
+from utils.logging_config import get_logger
 from pathlib import Path
 from reportlab.lib.pagesizes import A3, landscape
 from reportlab.lib.styles import ParagraphStyle
@@ -19,7 +19,7 @@ from generators.shared_design_system import (
 )
 from generators.utils.formatting_utils import ValueFormatter
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def create_lighting_cell_style(styles, is_header=False, font_size=6, leading=7):

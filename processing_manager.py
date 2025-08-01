@@ -1,5 +1,5 @@
 import os
-import logging
+from utils.logging_config import get_logger
 from pathlib import Path
 from datetime import datetime
 from utils.data_loader import DataLoader
@@ -26,12 +26,7 @@ from parsers.area_parser import AreaParser
 from parsers.glazing_parser import GlazingParser
 from parsers.lighting_parser import LightingParser
 
-logger = logging.getLogger(__name__)
-# BasicConfig should ideally be called once at the application entry point.
-# If gui.py also calls it, this might lead to unexpected behavior or be redundant.
-# Consider moving basicConfig to main.py or ensuring it's called only once.
-# For now, keeping it here as it was in the original gui.py context for ProcessingManager.
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+logger = get_logger(__name__)
 
 
 class ProcessingManager:

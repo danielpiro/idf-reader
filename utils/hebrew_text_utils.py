@@ -2,12 +2,12 @@
 Utilities for handling Hebrew text in PDF reports.
 """
 import html
-import logging
+from utils.logging_config import get_logger
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import os
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def register_hebrew_font():
     """

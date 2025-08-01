@@ -5,7 +5,7 @@ import json
 import os
 import subprocess
 import threading
-import logging
+from utils.logging_config import get_logger
 from pathlib import Path
 from datetime import datetime
 import shutil
@@ -36,10 +36,7 @@ def fix_hebrew_text_display(text):
 # Hebrew text display helper - moved from separate functions
 
 # Logger for the GUI part
-logger = logging.getLogger(__name__)
-# Ensure basicConfig is called, but if main.py or another entry point handles it,
-# this might be redundant or could be configured more centrally.
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
+logger = get_logger(__name__)
 
 from processing_manager import ProcessingManager
 

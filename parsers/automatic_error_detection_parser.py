@@ -4,6 +4,9 @@ Uses validation tables for settings, loads, and HVAC.
 """
 from typing import Dict, Any, Optional, List
 from utils.data_loader import DataLoader
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 class AutomaticErrorDetectionParser:
     """
@@ -299,9 +302,7 @@ class AutomaticErrorDetectionParser:
         if version_info.get('energyplus'):
             current_version = version_info['energyplus']
             recommended_version = self.settings_table['EnergyPlus Version']['recommended']
-            print(f"EnergyPlus Version - Current: {current_version}, Recommended: {recommended_version}")
             if current_version != recommended_version:
-                print(f"✗ VERSION MISMATCH DETECTED!")
                 self.error_detection_data.append({
                     'zone_name': 'Site',
                     'category': 'EnergyPlus Version',
@@ -310,18 +311,16 @@ class AutomaticErrorDetectionParser:
                     'remark': self.settings_table['EnergyPlus Version']['details']
                 })
             else:
-                print(f"✓ Version matches standard")
+                pass  # Version matches standard
         else:
-            print("⚠ No EnergyPlus version found in settings")
+            logger.warning("No EnergyPlus version found in settings")
         
         # Validate terrain
         site_info = current_settings.get('site', {})
         if site_info.get('terrain'):
             current_terrain = site_info['terrain']
             recommended_terrain = self.settings_table['Terrain']['recommended']
-            print(f"Terrain - Current: {current_terrain}, Recommended: {recommended_terrain}")
             if current_terrain != recommended_terrain:
-                print(f"✗ TERRAIN MISMATCH DETECTED!")
                 self.error_detection_data.append({
                     'zone_name': 'Site',
                     'category': 'Terrain',
@@ -330,9 +329,9 @@ class AutomaticErrorDetectionParser:
                     'remark': 'Need to change'
                 })
             else:
-                print(f"✓ Terrain matches standard")
+                pass  # Terrain matches standard
         else:
-            print("⚠ No terrain found in settings")
+            logger.warning("No terrain found in settings")
         
         # Validate Surface Convection Algorithms
         algorithms = current_settings.get('algorithms', {})
@@ -422,7 +421,7 @@ class AutomaticErrorDetectionParser:
         
         # Summary
         settings_issues = [item for item in self.error_detection_data if 'Site' in item.get('zone_name', '') or 'Global' in item.get('zone_name', '')]
-        print(f"Settings validation completed. Found {len(settings_issues)} issues.\n")
+        logger.info(f"Settings validation completed. Found {len(settings_issues)} issues")
         
     def _validate_loads(self, iso_type: str, idf) -> None:
         """Validate loads using the loads table for specific ISO type."""
@@ -547,8 +546,7 @@ class AutomaticErrorDetectionParser:
             total_floor_area = floor_info['total_area']
             zones_in_floor = floor_info['zones']
             
-            print(f"\nValidating floor: {floor_prefix} (Total Area: {total_floor_area:.2f} m²)")
-            print(f"  Zones in floor: {zones_in_floor}")
+            logger.debug(f"Validating floor: {floor_prefix} (Total Area: {total_floor_area:.2f} m², Zones: {len(zones_in_floor)})")
             
             # Determine area category (≤150 or >150 m²)
             is_small_area = total_floor_area <= 150
@@ -1430,21 +1428,21 @@ class AutomaticErrorDetectionParser:
     def _validate_window_directions_per_area(self, zones, areas_parser, climate_hvac_table, climate_zone):
         """Validate window directions per area (not per floor or zone)."""
         try:
-            print(f"\n=== DEBUG: Window Direction Validation for Climate {climate_zone} ===")
+            # Window Direction Validation for Climate zone
             
             # Group zones by area, excluding CORE zones
             areas_data = {}
-            print(f"DEBUG: Processing {len(zones)} zones")
+            # Processing zones for window direction validation
             
             for zone_id in zones.keys():
                 # Skip CORE zones
                 if any(keyword in zone_id.lower() for keyword in ['core', 'corridor', 'stair']):
-                    print(f"DEBUG: Skipping CORE zone: {zone_id}")
+                    # Skip CORE zones
                     continue
                     
                 # Extract area ID using the same logic as AreaParser
                 area_id = self._extract_area_id_from_zone(zone_id)
-                print(f"DEBUG: Zone {zone_id} -> Area {area_id}")
+                # Map zone to area
                 
                 if area_id not in areas_data:
                     areas_data[area_id] = {
@@ -1454,18 +1452,18 @@ class AutomaticErrorDetectionParser:
                 
                 areas_data[area_id]['zones'].append(zone_id)
             
-            print(f"DEBUG: Created {len(areas_data)} areas: {list(areas_data.keys())}")
+            # Created areas for validation
             for area_id, area_info in areas_data.items():
-                print(f"DEBUG: Area {area_id} contains zones: {area_info['zones']}")
+                # Process area zones
+                pass
             
             # Collect window directions per area from glazing data
             if hasattr(areas_parser, 'glazing_data_from_csv') and areas_parser.glazing_data_from_csv:
                 glazing_data = areas_parser.glazing_data_from_csv
-                print(f"DEBUG: Found glazing data with {len(glazing_data)} surfaces")
+                # Found glazing data for validation
                 
                 # Show first few surface names as examples
-                surface_names = list(glazing_data.keys())[:5]
-                print(f"DEBUG: Example surface names: {surface_names}")
+                # Process glazing surfaces
                 
                 surfaces_processed = 0
                 directions_found = 0
@@ -1475,57 +1473,48 @@ class AutomaticErrorDetectionParser:
                     
                     # Ensure data is a dict before calling .get()
                     if not isinstance(data, dict):
-                        print(f"DEBUG: Surface {surface_name} has non-dict data: {type(data)}")
+                        # Skip non-dict data
                         continue
                         
                     # Extract area ID from surface name
                     area_id = self._extract_area_id_from_surface_name(surface_name)
                     direction = data.get('CardinalDirection', 'Unknown')
                     
-                    if surfaces_processed <= 10:  # Show details for first 10 surfaces
-                        print(f"DEBUG: Surface {surface_name}")
-                        print(f"       -> Extracted area_id: {area_id}")
-                        print(f"       -> Direction: {direction}")
-                        print(f"       -> Area exists in areas_data: {area_id in areas_data}")
-                        print(f"       -> Data keys: {list(data.keys())}")
+                    # Process surface direction data
                     
                     if direction and direction != 'Unknown':
                         directions_found += 1
                         if area_id in areas_data:
                             areas_data[area_id]['window_directions'].add(direction)
-                            print(f"DEBUG: ✓ Added direction {direction} to area {area_id}")
+                            # Added direction to area
                         else:
-                            print(f"DEBUG: ✗ Area {area_id} not found in areas_data for surface {surface_name}")
+                            # Area not found for surface
+                            pass
                 
-                print(f"DEBUG: Processed {surfaces_processed} surfaces, found {directions_found} valid directions")
+                # Processed surfaces for direction validation
                 
             else:
-                print("DEBUG: No glazing CSV data available - skipping window direction validation")
-                print("DEBUG: Window direction validation requires EnergyPlus simulation output (eplustbl.csv)")
-                print("DEBUG: Run EnergyPlus simulation to generate glazing data with cardinal directions")
+                logger.info("No glazing CSV data available - skipping window direction validation")
                 # Skip validation entirely when no glazing data is available
                 return
             
             # Show final window directions per area
-            print(f"\nDEBUG: Final window directions per area:")
-            for area_id, area_info in areas_data.items():
-                directions = list(area_info['window_directions'])
-                print(f"       Area {area_id}: {len(directions)} directions -> {directions}")
+            # Validate window directions per area
             
             # Validate each area's window directions
             required_directions = int(climate_hvac_table['Natural Ventilation']['windows_directions_required']['recommended'])
-            print(f"DEBUG: Required directions: {required_directions}")
+            # Check against required directions
             
             validation_errors = 0
             for area_id, area_info in areas_data.items():
                 window_directions = area_info['window_directions']
                 window_count = len(window_directions)
                 
-                print(f"DEBUG: Validating Area {area_id}: {window_count} vs {required_directions} required")
+                # Validate area window directions
                 
                 if window_count < required_directions:
                     validation_errors += 1
-                    print(f"DEBUG: ✗ Area {area_id} FAILED validation - {window_count} < {required_directions}")
+                    # Area failed window direction validation
                     # Add validation error for the area
                     self.error_detection_data.append({
                         'zone_name': f'{area_id} Natural Ventilation',
@@ -1535,15 +1524,13 @@ class AutomaticErrorDetectionParser:
                         'remark': f'Area missing {required_directions - window_count} window directions'
                     })
                 else:
-                    print(f"DEBUG: ✓ Area {area_id} PASSED validation - {window_count} >= {required_directions}")
+                    # Area passed window direction validation
+                    pass
             
-            print(f"DEBUG: Generated {validation_errors} validation errors")
-            print(f"=== END DEBUG: Window Direction Validation ===\n")
+            # Window direction validation completed
                     
         except Exception as e:
-            print(f"DEBUG: Exception in _validate_window_directions_per_area: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Exception in window direction validation: {e}", exc_info=True)
     
     def _extract_area_id_from_zone(self, zone_id):
         """Extract area ID from zone name using same logic as AreaParser."""

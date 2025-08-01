@@ -2,7 +2,7 @@
 Generates PDF reports showing materials and their thermal properties within constructions.
 """
 from typing import Dict, Any, List
-import logging
+from utils.logging_config import get_logger
 from reportlab.lib.colors import lightgrey
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
@@ -15,7 +15,7 @@ from generators.shared_design_system import (
 )
 from generators.utils.formatting_utils import ValueFormatter
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class MaterialsReportGenerator(BaseReportGenerator):

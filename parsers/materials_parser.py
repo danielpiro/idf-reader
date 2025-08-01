@@ -5,6 +5,9 @@ Uses DataLoader for cached access to IDF data.
 from typing import Dict, Any, Optional
 from utils.data_loader import DataLoader
 from utils.data_models import MaterialData, ConstructionData
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 class MaterialsParser:
     """
@@ -21,13 +24,41 @@ class MaterialsParser:
         Process materials and constructions using data from DataLoader.
         """
         if not self.data_loader:
+            logger.error("MaterialsParser requires a DataLoader instance")
             raise RuntimeError("MaterialsParser requires a DataLoader instance.")
+        
+        logger.info("Starting materials and constructions processing")
+        
         try:
             self.materials.clear()
             self.constructions.clear()
             self.element_data.clear()
+            
+            # Process materials
             material_cache = self.data_loader.get_materials()
+            logger.info(f"Processing {len(material_cache)} materials from cache")
+            
+            
+            materials_processed = 0
+            materials_with_missing_data = 0
+            
             for material_id, raw_material_data in material_cache.items():
+                logger.debug(f"Processing material: {material_id}")
+                logger.debug(f"Material data: {raw_material_data}")
+                
+                # Check for missing critical data
+                missing_fields = []
+                if raw_material_data.get('conductivity') is None:
+                    missing_fields.append('conductivity')
+                if raw_material_data.get('density') is None:
+                    missing_fields.append('density')
+                if raw_material_data.get('thickness') is None:
+                    missing_fields.append('thickness')
+                
+                if missing_fields:
+                    materials_with_missing_data += 1
+                    logger.warning(f"Material '{material_id}' missing fields: {missing_fields}")
+                
                 self.materials[material_id] = MaterialData(
                     id=material_id,
                     name=material_id,
@@ -37,29 +68,76 @@ class MaterialsParser:
                     thickness=raw_material_data.get('thickness'),
                     solar_absorptance=raw_material_data.get('solar_absorptance')
                 )
+                materials_processed += 1
+            
+            logger.info(f"Processed {materials_processed} materials ({materials_with_missing_data} with missing data)")
+            
+            # Process constructions
             construction_cache = self.data_loader.get_constructions()
+            logger.info(f"Processing {len(construction_cache)} constructions from cache")
+            
             
             # Filter constructions to handle reversed logic
             filtered_constructions = self._filter_reversed_constructions(construction_cache)
+            logger.info(f"After filtering reversed constructions: {len(filtered_constructions)} remain")
+            
+            
+            constructions_processed = 0
+            constructions_with_missing_materials = 0
             
             for construction_id, raw_construction_data in filtered_constructions.items():
+                logger.debug(f"Processing construction: {construction_id}")
+                
+                
                 material_layers = raw_construction_data['material_layers']
-                total_thickness = sum(self.materials[layer_id].thickness for layer_id in material_layers if layer_id in self.materials)
+                logger.debug(f"Construction '{construction_id}' has material layers: {material_layers}")
+                
+                
+                # Check for missing materials
+                missing_materials = []
+                valid_materials = []
+                total_thickness = 0.0
+                
+                for layer_id in material_layers:
+                    if layer_id in self.materials:
+                        valid_materials.append(layer_id)
+                        material_thickness = self.materials[layer_id].thickness
+                        if material_thickness:
+                            total_thickness += material_thickness
+                        else:
+                            logger.warning(f"Material '{layer_id}' in construction '{construction_id}' has no thickness")
+                    else:
+                        missing_materials.append(layer_id)
+                
+                if missing_materials:
+                    constructions_with_missing_materials += 1
+                    logger.warning(f"Construction '{construction_id}' references missing materials: {missing_materials}")
+                
                 self.constructions[construction_id] = ConstructionData(
                     id=construction_id,
                     name=construction_id,
                     material_layers=material_layers,
                     thickness=total_thickness
                 )
+                constructions_processed += 1
+                
+            
+            logger.info(f"Processed {constructions_processed} constructions ({constructions_with_missing_materials} with missing materials)")
+            
+            # Process element data
+            logger.info("Processing element data")
             self._process_element_data()
+            logger.info(f"Generated {len(self.element_data)} element data entries")
+            
         except Exception as e:
+            logger.error(f"Error processing materials and constructions: {e}", exc_info=True)
             raise RuntimeError(f"Error processing materials and constructions: {e}")
 
     def _filter_reversed_constructions(self, construction_cache: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
         """
         Filter constructions to handle reversed construction logic:
         - Never show constructions with _rev suffix (regardless of whether non-reversed version exists)
-        - For _Reversed suffix: only show if no non-reversed version exists
+        - For _Reversed suffix: only show if no identical regular version exists (same materials)
         
         Args:
             construction_cache: Dictionary of all constructions from DataLoader
@@ -67,35 +145,83 @@ class MaterialsParser:
         Returns:
             Dict[str, Dict[str, Any]]: Filtered construction cache
         """
+        logger.info(f"Filtering reversed constructions from {len(construction_cache)} total constructions")
+        
         filtered = {}
         
         # First, identify all regular and reversed constructions
         regular_constructions = {}
         capital_reversed_constructions = {}  # Only for _Reversed suffix
+        rev_suffix_constructions = []  # Track _rev suffix constructions that are skipped
         
         for construction_id, construction_data in construction_cache.items():
             construction_lower = construction_id.lower()
+            
             
             # Check for _reversed suffix first (longer suffix takes precedence)
             if construction_lower.endswith('_reversed'):
                 # Handle _Reversed suffix with the original logic
                 base_name = self._get_base_construction_name(construction_id)
                 capital_reversed_constructions[base_name] = (construction_id, construction_data)
+                pass  # Removed debug logging
             # Skip all constructions with _rev suffix (never show them)
             elif construction_lower.endswith('_rev'):
+                rev_suffix_constructions.append(construction_id)
                 continue
             else:
                 # Regular construction
                 regular_constructions[construction_id] = (construction_id, construction_data)
         
+        logger.info(f"Construction categorization: {len(regular_constructions)} regular, {len(capital_reversed_constructions)} _Reversed, {len(rev_suffix_constructions)} _rev (skipped)")
+        
         # Add regular constructions
         for construction_id, (orig_id, construction_data) in regular_constructions.items():
             filtered[orig_id] = construction_data
         
-        # Add _Reversed constructions only if no regular version exists
+        # Add _Reversed constructions ONLY if no identical regular version exists (same materials)
+        reversed_added = 0
         for base_name, (reversed_id, construction_data) in capital_reversed_constructions.items():
-            if base_name not in regular_constructions:
+            # Check if there's a regular construction with the same base name AND same materials
+            identical_regular_found = False
+            
+            if base_name in regular_constructions:
+                regular_materials = regular_constructions[base_name][1].get('material_layers', [])
+                reversed_materials = construction_data.get('material_layers', [])
+                
+                # Compare material layers - check if they're the same regardless of order
+                # This handles the case where _Reversed constructions have materials in reverse order
+                if (regular_materials == reversed_materials or 
+                    regular_materials == list(reversed(reversed_materials))):
+                    identical_regular_found = True
+            
+            if not identical_regular_found:
                 filtered[reversed_id] = construction_data
+                reversed_added += 1
+        
+        logger.info(f"Added {reversed_added} _Reversed constructions (only when no identical regular version exists)")
+        logger.info(f"Final filtered constructions: {len(filtered)}")
+        
+        # Detailed summary of filtered constructions
+        total_filtered_out = len(construction_cache) - len(filtered)
+        if total_filtered_out > 0:
+            logger.info(f"=== CONSTRUCTION FILTERING SUMMARY ===")
+            logger.info(f"Total original constructions: {len(construction_cache)}")
+            logger.info(f"Constructions kept after filtering: {len(filtered)}")
+            logger.info(f"Constructions filtered out: {total_filtered_out}")
+            
+            if rev_suffix_constructions:
+                logger.info(f"Filtered out _rev suffix constructions ({len(rev_suffix_constructions)}): {rev_suffix_constructions}")
+            
+            # Show which _Reversed constructions were filtered out
+            skipped_reversed = []
+            for base_name, (reversed_id, construction_data) in capital_reversed_constructions.items():
+                if reversed_id not in filtered:
+                    skipped_reversed.append(reversed_id)
+            
+            if skipped_reversed:
+                logger.info(f"Filtered out _Reversed constructions ({len(skipped_reversed)}): {skipped_reversed}")
+            
+            logger.info(f"=== END CONSTRUCTION FILTERING SUMMARY ===")
         
         return filtered
 
@@ -168,25 +294,68 @@ class MaterialsParser:
         Process element data for report generation.
         This combines materials and constructions to create report data.
         """
+        logger.info("Starting element data processing")
+        
         surfaces = self.data_loader.get_surfaces()
+        logger.info(f"Retrieved {len(surfaces)} surfaces from data loader")
+        
+        # Debug: Check what constructions are referenced by surfaces
+        surface_constructions = {}
+        for surface_id, surface_data in surfaces.items():
+            const_name = surface_data.get('construction_name')
+            if const_name:
+                if const_name not in surface_constructions:
+                    surface_constructions[const_name] = 0
+                surface_constructions[const_name] += 1
+        
+        
+        # Create mapping for _rev constructions to their base versions
+        construction_mapping = {}
+        for surface_const in surface_constructions.keys():
+            if surface_const not in self.constructions:
+                # Check if this is a _rev construction that should map to base version
+                if surface_const.lower().endswith('_rev'):
+                    base_name = surface_const[:-4]  # Remove '_Rev' or '_rev'
+                    if base_name in self.constructions:
+                        construction_mapping[surface_const] = base_name
+        
         low_conductivity_found = {}
+        element_data_count = 0
+        skipped_constructions = 0
+        skipped_reasons = {"dont_use": [], "no_element_types": [], "no_surfaces": []}
+        
         for construction_id, construction_data in self.constructions.items():
             # Note: Reversed constructions are already filtered out during process_idf
-            element_types, dont_use = self._get_element_type(construction_id, surfaces)
-            if dont_use or not element_types:
+            element_types, dont_use = self._get_element_type(construction_id, surfaces, construction_mapping)
+            
+            if dont_use:
+                skipped_reasons["dont_use"].append(construction_id)
+                skipped_constructions += 1
                 continue
-            s_type, boundary = self._get_surface_type_and_boundary(construction_id, surfaces)
+                
+            if not element_types:
+                skipped_reasons["no_element_types"].append(construction_id)
+                skipped_constructions += 1
+                continue
+            
+            s_type, boundary = self._get_surface_type_and_boundary(construction_id, surfaces, construction_mapping)
+            
+            
             for layer_id in construction_data.material_layers:
                 material_data = self.materials.get(layer_id)
                 if not material_data:
+                    logger.warning(f"Material '{layer_id}' not found in materials cache for construction '{construction_id}'")
                     continue
+                
                 thermal_resistance = self._calculate_thermal_resistance(material_data)
+                
                 for element_type in element_types:
                     film_resistance = self._get_surface_film_resistance(element_type)
                     mass = self._calculate_material_mass_with_low_conductivity_adjustment(
                         material_data, element_type, construction_id, low_conductivity_found
                     )
-                    self.element_data.append({
+                    
+                    element_entry = {
                         "element_type": element_type,
                         "element_name": construction_id,
                         "material_name": layer_id,
@@ -200,25 +369,60 @@ class MaterialsParser:
                         "surface_film_resistance": film_resistance,
                         "surface_type": s_type,
                         "boundary_condition": boundary
-                    })
+                    }
+                    
+                    self.element_data.append(element_entry)
+                    element_data_count += 1
+                    
+        
+        logger.info(f"Element data processing complete: {element_data_count} entries created, {skipped_constructions} constructions skipped")
+        
+        # Detailed debug logging for skipped constructions
+        if skipped_constructions > 0:
+            logger.info(f"=== CONSTRUCTION SKIP SUMMARY ===")
+            logger.info(f"Total constructions processed: {len(self.constructions)}")
+            logger.info(f"Total constructions skipped: {skipped_constructions}")
+            
+            if skipped_reasons["dont_use"]:
+                logger.info(f"Constructions skipped due to 'dont_use' flag ({len(skipped_reasons['dont_use'])}): {skipped_reasons['dont_use']}")
+            
+            if skipped_reasons["no_element_types"]:
+                logger.info(f"Constructions skipped due to 'no element types' ({len(skipped_reasons['no_element_types'])}): {skipped_reasons['no_element_types']}")
+            
+            if skipped_reasons["no_surfaces"]:
+                logger.info(f"Constructions skipped due to 'no surfaces' ({len(skipped_reasons['no_surfaces'])}): {skipped_reasons['no_surfaces']}")
+            
+            logger.info(f"=== END CONSTRUCTION SKIP SUMMARY ===")
+        
 
-    def _get_surface_type_and_boundary(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]]):
+    def _get_surface_type_and_boundary(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]], construction_mapping: Dict[str, str] = None):
         """
         Get the surface type and boundary condition for a given construction ID.
 
         Args:
             construction_id: The construction ID.
             surfaces: The surfaces data dictionary.
+            construction_mapping: Dictionary mapping _rev construction names to base names
 
         Returns:
             tuple: A tuple containing the surface type and boundary condition.
         """
+        # Check direct references first
         for surface in surfaces.values():
             if surface.get('construction_name') == construction_id:
                 return surface.get('surface_type', '').lower(), surface.get('boundary_condition', '').lower()
+        
+        # Check mapped references
+        if construction_mapping:
+            for rev_name, base_name in construction_mapping.items():
+                if base_name == construction_id:
+                    for surface in surfaces.values():
+                        if surface.get('construction_name') == rev_name:
+                            return surface.get('surface_type', '').lower(), surface.get('boundary_condition', '').lower()
+        
         return '', ''
 
-    def _get_element_type(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]]):
+    def _get_element_type(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]], construction_mapping: Dict[str, str] = None):
         """
         Determine element type based on construction usage.
         Implementation moved from DataLoader.
@@ -226,13 +430,23 @@ class MaterialsParser:
         Args:
             construction_id: ID of the construction
             surfaces: Dictionary of surface data from cache
+            construction_mapping: Dictionary mapping _rev construction names to base names
 
         Returns:
             tuple: (element_types, dont_use) where:
                   - element_types: list - List of element type descriptions
                   - dont_use: bool - Flag indicating if this construction should be excluded from output
         """
+        # Find surfaces that reference this construction directly
         construction_surfaces = [s for s in surfaces.values() if s.get('construction_name') == construction_id]
+        
+        # Also find surfaces that reference _rev versions that map to this construction
+        if construction_mapping:
+            for rev_name, base_name in construction_mapping.items():
+                if base_name == construction_id:
+                    mapped_surfaces = [s for s in surfaces.values() if s.get('construction_name') == rev_name]
+                    construction_surfaces.extend(mapped_surfaces)
+        
         if not construction_surfaces:
             return [], False
 
@@ -240,8 +454,13 @@ class MaterialsParser:
         is_zone_interior = False
         dont_use = False
         zones = self.data_loader.get_hvac_zones()
+        
 
+        surfaces_with_hvac_zones = 0
+        surfaces_without_hvac_zones = 0
+        
         for surface in construction_surfaces:
+            
             if surface.get('is_glazing', False):
                 element_types.add("Glazing")
                 continue
@@ -249,10 +468,11 @@ class MaterialsParser:
             s_type = surface.get('surface_type', '').lower() if surface.get('surface_type') else ""
             boundary = surface.get('boundary_condition', '').lower() if surface.get('boundary_condition') else ""
 
+
             raw_object = surface.get('raw_object')
             outside_boundary_obj_name = None
             is_zone_interior = False
-            surface_dont_use = False
+            surface_has_hvac_zones = False
 
             try:
                 if raw_object:
@@ -261,22 +481,29 @@ class MaterialsParser:
                     elif isinstance(raw_object, dict) and 'Outside_Boundary_Condition_Object' in raw_object:
                         outside_boundary_obj_name = raw_object['Outside_Boundary_Condition_Object']
 
+
                 if isinstance(outside_boundary_obj_name, str) and outside_boundary_obj_name:
                     zone_name_candidate = outside_boundary_obj_name.split("_")[0].strip()
                     if zone_name_candidate:
                         construction_zone = raw_object.Name.split("_")[0].strip()
                         is_hvac_inside = construction_zone in zones
                         is_hvac_outside = zone_name_candidate in zones
+                        
+                        
                         if not is_hvac_inside and not is_hvac_outside:
-                            surface_dont_use = True
+                            surface_has_hvac_zones = False
                         else:
+                            surface_has_hvac_zones = True
                             is_zone_interior = is_hvac_inside and is_hvac_outside
 
-            except Exception:
+            except Exception as e:
                 pass
 
-            if surface_dont_use:
-                dont_use = True
+            # Track whether this surface has HVAC zones
+            if surface_has_hvac_zones:
+                surfaces_with_hvac_zones += 1
+            else:
+                surfaces_without_hvac_zones += 1
 
             element_type = ""
             if s_type == "wall":
@@ -308,6 +535,17 @@ class MaterialsParser:
 
             if element_type:
                 element_types.add(element_type)
+        
+        # Determine dont_use based on whether ANY surfaces have HVAC zones
+        # Only mark as dont_use if ALL surfaces lack HVAC zones
+        dont_use = surfaces_with_hvac_zones == 0 and surfaces_without_hvac_zones > 0
+        
+        # Only log detailed info for problematic constructions
+        if dont_use or not element_types:
+            logger.debug(f"Construction '{construction_id}' issue - Surfaces: {len(construction_surfaces)}, HVAC surfaces: {surfaces_with_hvac_zones}, Element types: {list(element_types)}, Dont_use: {dont_use}")
+            if not element_types:
+                surface_types = [f"{s.get('surface_type', 'unknown')}({s.get('boundary_condition', 'unknown')})" for s in construction_surfaces]
+                logger.debug(f"  Surface types found: {surface_types}")
 
         return list(element_types), dont_use
 
@@ -349,6 +587,7 @@ class MaterialsParser:
         Returns:
             list: List of dictionaries containing element data and calculated properties
         """
+        logger.debug(f"Returning {len(self.element_data)} element data entries")
         return self.element_data
 
     def get_all_materials(self) -> Dict[str, MaterialData]:
@@ -358,6 +597,9 @@ class MaterialsParser:
         Returns:
             Dict[str, MaterialData]: Dictionary of all materials
         """
+        logger.debug(f"Returning {len(self.materials)} processed materials")
+        if not self.materials:
+            logger.warning("No materials available - materials dictionary is empty")
         return self.materials
 
     def get_all_constructions(self) -> Dict[str, ConstructionData]:
@@ -367,6 +609,9 @@ class MaterialsParser:
         Returns:
             Dict[str, ConstructionData]: Dictionary of all constructions
         """
+        logger.debug(f"Returning {len(self.constructions)} processed constructions")
+        if not self.constructions:
+            logger.warning("No constructions available - constructions dictionary is empty")
         return self.constructions
 
     def calculate_construction_mass_per_area(self, construction_id: str) -> float:
@@ -380,9 +625,14 @@ class MaterialsParser:
         Returns:
             float: The total mass per square meter (kg/m²).
         """
+        logger.debug(f"Calculating mass per area for construction: {construction_id}")
+        
         construction = self.constructions.get(construction_id)
         if not construction:
+            logger.warning(f"Construction '{construction_id}' not found for mass calculation")
             return 0.0
+        
+        logger.debug(f"Construction '{construction_id}' has material layers: {construction.material_layers}")
         
         total_mass_per_area = 0.0
         found_low_conductivity = False
@@ -390,15 +640,22 @@ class MaterialsParser:
         for layer_id in construction.material_layers:
             material = self.materials.get(layer_id)
             if material:
+                logger.debug(f"Processing layer '{layer_id}' - density: {material.density}, thickness: {material.thickness}, conductivity: {material.conductivity}")
+                
                 # Use helper method but only apply low conductivity reduction to first occurrence
-                if not found_low_conductivity and material.conductivity < 0.2 and material.conductivity != 0:
+                if not found_low_conductivity and material.conductivity is not None and material.conductivity < 0.2 and material.conductivity != 0:
                     layer_mass = self._calculate_material_mass_with_low_conductivity_adjustment(material)
                     found_low_conductivity = True
+                    logger.debug(f"Applied low conductivity adjustment to layer '{layer_id}' - adjusted mass: {layer_mass}")
                 else:
-                    layer_mass = material.density * material.thickness
+                    layer_mass = (material.density or 0.0) * (material.thickness or 0.0)
+                    logger.debug(f"Normal mass calculation for layer '{layer_id}': {layer_mass}")
                 
                 total_mass_per_area += layer_mass
+            else:
+                logger.warning(f"Material '{layer_id}' not found for construction '{construction_id}'")
         
+        logger.debug(f"Total mass per area for construction '{construction_id}': {total_mass_per_area}")
         return total_mass_per_area
 
     def calculate_construction_properties(self, construction_id: str) -> Dict[str, float]:
@@ -446,7 +703,7 @@ class MaterialsParser:
                 material_data = self.materials.get(layer_id)
                 if material_data:
                     total_resistance += self._calculate_thermal_resistance(material_data)
-            element_types, _ = self._get_element_type(construction_id, self.data_loader.get_surfaces())
+            element_types, _ = self._get_element_type(construction_id, self.data_loader.get_surfaces(), None)
             film_resistance = self._get_surface_film_resistance(element_types[0]) if element_types else 0.0
             r_value_with_film = total_resistance + film_resistance
             u_value = 1.0 / r_value_with_film if r_value_with_film > 0 else 0.0

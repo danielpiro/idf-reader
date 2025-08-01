@@ -5,7 +5,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import Paragraph, Table, TableStyle
 from reportlab.lib.colors import grey
 import datetime
-import logging
+from utils.logging_config import get_logger
 from pathlib import Path
 from utils.hebrew_text_utils import safe_format_header_text,get_hebrew_font_name
 from utils.logo_utils import create_logo_image
@@ -13,7 +13,7 @@ from generators.shared_design_system import (
     COLORS, FONTS, FONT_SIZES, create_standardized_header
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def parse_date_string(date_str: str) -> datetime.date:
     """

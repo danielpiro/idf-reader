@@ -16,13 +16,13 @@ from generators.shared_design_system import (
     create_header_info_style, create_cell_style, wrap_text,
     create_standardized_header
 )
-import logging
+from utils.logging_config import get_logger
 import os
 from datetime import datetime
 from pathlib import Path
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 

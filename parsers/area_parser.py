@@ -2,12 +2,12 @@
 Extracts and processes area information including floor areas and material properties.
 """
 from typing import Dict, Any, List, Optional
-import logging
+from utils.logging_config import get_logger
 from parsers.materials_parser import MaterialsParser
 from utils.data_loader import safe_float
 from parsers.eplustbl_reader import read_glazing_data_from_csv
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class AreaParser:
     """

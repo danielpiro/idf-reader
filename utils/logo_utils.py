@@ -3,13 +3,13 @@ Utility functions for handling logo assets in the IDF Reader application.
 Provides consistent logo handling across GUI and PDF reports.
 """
 import os
-import logging
+from utils.logging_config import get_logger
 from pathlib import Path
 from reportlab.platypus import Image
 from reportlab.lib.units import cm
 from utils.path_utils import get_data_file_path
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def get_logo_path(logo_type='jpg'):
     """

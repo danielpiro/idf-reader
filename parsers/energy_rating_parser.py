@@ -5,7 +5,9 @@ from typing import Dict, Any, List, Optional
 import re
 import csv
 import os
-from venv import logger
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 from parsers.area_parser import AreaParser
 from utils.data_loader import safe_float
 
@@ -256,9 +258,8 @@ class EnergyRatingParser:
                     if potential_zone_keys:
                         # Use the first matching zone as the key
                         full_zone_id_key = potential_zone_keys[0]
-                        logger.info(f"✅ Successfully mapped energy output '{floor} {area_zone_id}' to IDF zone '{full_zone_id_key}'")
-                        if len(potential_zone_keys) > 1:
-                            logger.debug(f"Multiple IDF zones found for '{floor} {area_zone_id}': {potential_zone_keys}, using first: '{full_zone_id_key}'")
+                        # Successfully mapped energy output to IDF zone
+                        pass
                     else:
                         # Fallback: construct a generic key
                         full_zone_id_key = f"{floor}:{area_zone_id}XLIV"
@@ -291,7 +292,7 @@ class EnergyRatingParser:
                                 zone_key.endswith(zone_name_from_header) or
                                 full_zone_id_key in zone_key):
                                 matched_zone_data = zone_data
-                                logger.info(f"Found fuzzy match for '{full_zone_id_key}' -> '{zone_key}'")
+                                # Found fuzzy match for zone
                                 break
                         
                         if matched_zone_data:
@@ -330,8 +331,7 @@ class EnergyRatingParser:
                     per_zone_value = processed_value / zone_multiplier if zone_multiplier > 0 else processed_value
                     self.energy_data_by_area[full_zone_id_key][category] += per_zone_value
                     
-                    if zone_multiplier > 1:
-                        logger.debug(f"Applied zone multiplier {zone_multiplier} to {category} for zone '{full_zone_id_key}': {processed_value:.3f} / {zone_multiplier} = {per_zone_value:.3f}")
+                    # Apply zone multiplier for repeated zones
                 elif category:
                     logger.warning(f"Category '{category}' derived from header '{header}' not pre-defined in energy_data_by_area structure for key '{full_zone_id_key}'. Value not added.")
 
@@ -345,41 +345,12 @@ class EnergyRatingParser:
                 logger.error(f"Unexpected error processing header '{header}': {e}. Skipping this header.", exc_info=True)
                 continue
         
-        # Enhanced logging for debugging missing zones
-        logger.info(f"Energy parsing summary:")
-        logger.info(f"  Total headers with 'X': {total_headers_with_X}")
-        logger.info(f"  Headers matched by regex: {matched_headers}")
-        logger.info(f"  Unique zones found in output: {len(zone_keys_found)}")
-        logger.info(f"  Zones missing from IDF cache: {len(zone_keys_missing)}")
+        # Report processing results
+        if zone_keys_missing:
+            logger.warning(f"Zone keys found in eplusout.csv but missing from IDF: {len(zone_keys_missing)} zones")
         
         if unmatched_headers:
-            logger.warning(f"Headers with 'X' that didn't match regex pattern ({len(unmatched_headers)} total):")
-            for header in unmatched_headers[:10]:  # Show first 10 to avoid spam
-                logger.warning(f"  Unmatched: '{header}'")
-            if len(unmatched_headers) > 10:
-                logger.warning(f"  ... and {len(unmatched_headers) - 10} more")
-        
-        if zone_keys_missing:
-            logger.warning(f"Zone keys found in eplusout.csv but missing from IDF:")
-            for missing_key in sorted(list(zone_keys_missing)[:10]):  # Show first 10
-                logger.warning(f"  Missing: '{missing_key}'")
-            if len(zone_keys_missing) > 10:
-                logger.warning(f"  ... and {len(zone_keys_missing) - 10} more")
-                
-        if isinstance(all_zones_data_from_loader, dict):
-            idf_zone_keys = set(all_zones_data_from_loader.keys())
-            logger.info(f"IDF contains {len(idf_zone_keys)} zones. Sample IDF zone keys:")
-            for sample_key in sorted(list(idf_zone_keys)[:10]):
-                logger.info(f"  IDF zone: '{sample_key}'")
-            
-            # Find zones in IDF but not in output
-            zones_in_idf_not_output = idf_zone_keys - zone_keys_found
-            if zones_in_idf_not_output:
-                logger.warning(f"Zones in IDF but not found in energy output ({len(zones_in_idf_not_output)} total):")
-                for missing_output in sorted(list(zones_in_idf_not_output)[:10]):
-                    logger.warning(f"  No output data: '{missing_output}'")
-                if len(zones_in_idf_not_output) > 10:
-                    logger.warning(f"  ... and {len(zones_in_idf_not_output) - 10} more")
+            logger.warning(f"Headers with 'X' that didn't match regex pattern: {len(unmatched_headers)} headers")
 
     def _process_value(self, value: float, header_lower: str) -> float:
         """
@@ -527,7 +498,7 @@ class EnergyRatingParser:
                 else:
                     return default_location
             
-            logger.debug(f"Using default location '{default_location}' for area_id '{area_id}'")
+            # Using default location for area_id
             return default_location
             
         except Exception as e:

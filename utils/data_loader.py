@@ -13,7 +13,7 @@ from utils.path_utils import (
 import os
 import sys
 import re
-import logging
+from utils.logging_config import get_logger
 import pandas as pd
 
 def get_energy_consumption(iso_type_input: str, area_location_input: str, area_definition_input: str) -> float:
@@ -104,7 +104,7 @@ def get_energy_consumption(iso_type_input: str, area_location_input: str, area_d
         raise ValueError(f"Invalid data format in CSV. Cannot convert '{value_str}' to float for location '{area_location_input}', definition '{area_definition_input.upper()}' in {file_path}")
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 AREA_ID_REGEX = re.compile(r"^\d{2}")
 

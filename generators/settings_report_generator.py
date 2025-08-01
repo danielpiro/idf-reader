@@ -6,7 +6,7 @@ from reportlab.lib import colors
 from reportlab.lib.colors import Color
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 import datetime
-import logging
+from utils.logging_config import get_logger
 from pathlib import Path
 from utils.hebrew_text_utils import get_hebrew_font_name
 from utils.logo_utils import create_logo_image
@@ -16,7 +16,7 @@ from generators.shared_design_system import (
     create_standardized_header
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def format_dict_value(value_dict):
     """Format dictionary values for display in the report"""
