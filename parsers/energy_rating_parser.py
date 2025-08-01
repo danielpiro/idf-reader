@@ -179,6 +179,15 @@ class EnergyRatingParser:
 
         all_zones_data_from_loader = self.data_loader.get_zones()
         
+        # DEBUG: Log zone data from DataLoader
+        logger.debug(f"DEBUG: DataLoader zone data type: {type(all_zones_data_from_loader)}")
+        if isinstance(all_zones_data_from_loader, dict):
+            logger.debug(f"DEBUG: DataLoader has {len(all_zones_data_from_loader)} zones")
+            for zone_key, zone_data in list(all_zones_data_from_loader.items())[:5]:  # Log first 5 zones
+                logger.debug(f"DEBUG: Zone '{zone_key}': {zone_data}")
+        else:
+            logger.debug(f"DEBUG: DataLoader zones data: {all_zones_data_from_loader}")
+        
         # Track processing stats for debugging
         total_headers_with_X = 0
         matched_headers = 0
@@ -244,65 +253,58 @@ class EnergyRatingParser:
                 value = safe_float(value_str, 0.0)
                 processed_value = self._process_value(value, header.lower())
 
-                # Construct the zone ID key for lookup in IDF data
-                if pattern_used == "space":
-                    # For space format like "25 E342", construct "25:E342XLIV" format for IDF lookup
-                    # We need to find the matching IDF zone
-                    potential_zone_keys = []
-                    if isinstance(all_zones_data_from_loader, dict):
-                        search_pattern = f"{floor}:{area_zone_id}X"
-                        for idf_zone_key in all_zones_data_from_loader.keys():
-                            if idf_zone_key.startswith(search_pattern):
-                                potential_zone_keys.append(idf_zone_key)
-                    
-                    if potential_zone_keys:
-                        # Use the first matching zone as the key
-                        full_zone_id_key = potential_zone_keys[0]
-                        # Successfully mapped energy output to IDF zone
-                        pass
+                # Find the matching zone from DataLoader instead of constructing the key
+                matched_zone_key = None
+                if isinstance(all_zones_data_from_loader, dict):
+                    # Search for zones that match the area_id and zone_name from the header
+                    if pattern_used == "space":
+                        # For space format, we have floor and area_zone_id
+                        target_area_id = area_zone_id
+                        zone_name_from_header = "LIV"  # Default for space format
                     else:
-                        # Fallback: construct a generic key
-                        full_zone_id_key = f"{floor}:{area_zone_id}XLIV"
-                        logger.warning(f"❌ No IDF zone found for energy output '{floor} {area_zone_id}', using fallback key '{full_zone_id_key}'")
+                        # For standard format, we have area_id_from_header and zone_name_from_header
+                        target_area_id = area_id_from_header
                     
-                    # Extract components for reporting
-                    area_id_from_header = area_zone_id
-                    zone_name_from_header = "LIV"  # Default suffix
+                    # Look for zones with matching area_id and zone name
+                    for zone_key, zone_data in all_zones_data_from_loader.items():
+                        zone_area_id = zone_data.get('area_id', '')
+                        if (zone_area_id == target_area_id and 
+                            zone_name_from_header in zone_key):
+                            matched_zone_key = zone_key
+                            logger.debug(f"DEBUG: Found matching zone '{zone_key}' for area_id='{target_area_id}', zone_name='{zone_name_from_header}'")
+                            break
+                
+                if matched_zone_key:
+                    full_zone_id_key = matched_zone_key
                 else:
-                    # Standard format
-                    if zone_name_from_header is None:
-                        logger.warning(f"Zone name part is None for header '{header}' after regex match. Skipping this header.")
-                        continue
-                    full_zone_id_key = f"{floor}:{area_id_from_header}X{zone_name_from_header}"
+                    # Fallback: use a constructed key for energy data storage
+                    if pattern_used == "space":
+                        full_zone_id_key = f"ENERGY_{floor}_{area_zone_id}_LIV"
+                        area_id_from_header = area_zone_id
+                        zone_name_from_header = "LIV"
+                    else:
+                        full_zone_id_key = f"ENERGY_{floor}_{area_id_from_header}_{zone_name_from_header}"
+                    logger.warning(f"⚠️ No matching zone found for area_id='{area_id_from_header if pattern_used != 'space' else area_zone_id}', zone_name='{zone_name_from_header}'. Using fallback key '{full_zone_id_key}'")
                 zone_keys_found.add(full_zone_id_key)
 
                 if full_zone_id_key not in self.energy_data_by_area:
                     zone_multiplier = 1
                     individual_zone_floor_area = 0.0
 
-                    if isinstance(all_zones_data_from_loader, dict) and full_zone_id_key in all_zones_data_from_loader:
-                        dl_zone_data = all_zones_data_from_loader[full_zone_id_key]
+                    # DEBUG: Log zone lookup attempt
+                    logger.debug(f"DEBUG: Using zone key '{full_zone_id_key}' for energy data")
+                    
+                    # If we found a matching zone, get its data directly
+                    if matched_zone_key and isinstance(all_zones_data_from_loader, dict) and matched_zone_key in all_zones_data_from_loader:
+                        dl_zone_data = all_zones_data_from_loader[matched_zone_key]
                         zone_multiplier = int(dl_zone_data.get('multiplier', 1))
                         individual_zone_floor_area = safe_float(dl_zone_data.get('floor_area', 0.0), 0.0)
-                    elif isinstance(all_zones_data_from_loader, dict):
-                        # Try to find a matching zone with more flexible matching
-                        matched_zone_data = None
-                        for zone_key, zone_data in all_zones_data_from_loader.items():
-                            if (zone_key == full_zone_id_key or 
-                                zone_key.endswith(zone_name_from_header) or
-                                full_zone_id_key in zone_key):
-                                matched_zone_data = zone_data
-                                # Found fuzzy match for zone
-                                break
-                        
-                        if matched_zone_data:
-                            zone_multiplier = int(matched_zone_data.get('multiplier', 1))
-                            individual_zone_floor_area = safe_float(matched_zone_data.get('floor_area', 0.0), 0.0)
-                        else:
-                            zone_keys_missing.add(full_zone_id_key)
-                            logger.warning(f"EnergyRatingParser: Key '{full_zone_id_key}' (from eplusout.csv) NOT FOUND in DataLoader's cached zones (which has {len(all_zones_data_from_loader)} items). Using defaults for multiplier/floor_area.")
+                        logger.debug(f"DEBUG: Using matched zone '{matched_zone_key}': multiplier={zone_multiplier}, floor_area={individual_zone_floor_area}")
                     else:
-                        logger.warning(f"EnergyRatingParser: DataLoader's cached zones is not a valid dictionary or is empty when trying to get key '{full_zone_id_key}'. Using defaults for multiplier/floor_area.")
+                        # No matching zone found, use defaults
+                        zone_keys_missing.add(full_zone_id_key)
+                        logger.warning(f"EnergyRatingParser: No matching zone found for '{full_zone_id_key}'. Using defaults for multiplier/floor_area.")
+                        logger.debug(f"DEBUG: Using defaults for '{full_zone_id_key}'")
 
                     total_area_for_legacy_grouping = self._get_area_total_for_area_id(area_id_from_header)
                     location_for_grouping = self._determine_location(area_id_from_header)
@@ -317,6 +319,9 @@ class EnergyRatingParser:
                         'location': location_for_grouping,
                         'total_area_of_legacy_grouping': total_area_for_legacy_grouping
                     }
+                    
+                    # DEBUG: Log the created zone data structure
+                    logger.debug(f"DEBUG: Created energy data for zone '{full_zone_id_key}': floor_area={individual_zone_floor_area}, multiplier={zone_multiplier}, total_area_legacy={total_area_for_legacy_grouping}")
 
                 category = None
                 header_lower = header.lower()
@@ -441,8 +446,14 @@ class EnergyRatingParser:
                 logger.warning(f"AreaParser not available or not processed when getting total for area_id '{area_id}'. Returning 0.0.")
                 return 0.0
 
+            # DEBUG: Log area parser call
+            logger.debug(f"DEBUG: Getting area totals from AreaParser for area_id '{area_id}'")
             area_totals = self.area_parser.get_area_totals(area_id)
-            return safe_float(area_totals.get("total_floor_area", 0.0), 0.0)
+            logger.debug(f"DEBUG: AreaParser returned for '{area_id}': {area_totals}")
+            
+            result = safe_float(area_totals.get("total_floor_area", 0.0), 0.0)
+            logger.debug(f"DEBUG: Final area total for '{area_id}': {result}")
+            return result
         except AttributeError:
             logger.error(f"AttributeError accessing AreaParser for area_id '{area_id}'. Returning 0.0.", exc_info=True)
             return 0.0
