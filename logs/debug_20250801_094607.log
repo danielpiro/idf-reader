@@ -1,5 +1,0 @@
-2025-08-01 09:46:07,552 - gui - INFO - Window icon set using: C:\Users\daniel\Desktop\idf-reader\data\logo.ico
-2025-08-01 09:46:07,553 - gui - INFO - Data directory found at: C:\Users\daniel\Desktop\idf-reader\data
-2025-08-01 09:46:07,553 - gui - INFO - Available data files: ['1.epw', '2.epw', '2017_model.csv', '2023_model.csv', '3.epw', '4.epw', '5.epw', '6.epw', '7.epw', '8.epw', 'a.epw', 'b.epw', 'c.epw', 'countries-selection.csv', 'd.epw', 'logo.ico', 'logo.png', 'office_model.csv']
-2025-08-01 09:46:07,948 - gui - INFO - GUI: 🎉 Welcome! Configure fields to begin.
-2025-08-01 09:46:07,983 - gui - INFO - GUI: Selected city: ראשון לציון - מרכז, Area: ב, Code: 5
