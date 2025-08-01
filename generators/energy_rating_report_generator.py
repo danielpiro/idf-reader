@@ -922,7 +922,7 @@ class EnergyRatingReportGenerator:
             story = []
 
             # Add standardized header
-            report_title = "Energy Rating Report"
+            report_title = "Energy Rating"
             header_elements = create_standardized_header(
                 doc=doc,
                 project_name=self.project_name,
