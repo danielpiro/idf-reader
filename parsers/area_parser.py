@@ -574,7 +574,10 @@ class AreaParser:
 
                     for construction_name, construction_data in constructions_in_zone.items():
                         try:
-                            determined_element_types, dont_use = parser_to_use._get_element_type(construction_name, surfaces)
+                            # Filter surfaces to only include those from current zone for accurate element type detection
+                            zone_surfaces = {k: v for k, v in surfaces.items() 
+                                           if v.get('zone_name', '').lower() == zone_id.lower()}
+                            determined_element_types, dont_use = parser_to_use._get_element_type(construction_name, zone_surfaces)
                             if dont_use or not determined_element_types:
                                 continue
 
@@ -944,7 +947,10 @@ class AreaParser:
 
                     for construction_name, construction_data in constructions_in_zone.items():
                         try:
-                            determined_element_types, dont_use = parser_to_use._get_element_type(construction_name, surfaces)
+                            # Filter surfaces to only include those from current zone for accurate element type detection
+                            zone_surfaces = {k: v for k, v in surfaces.items() 
+                                           if v.get('zone_name', '').lower() == zone_id.lower()}
+                            determined_element_types, dont_use = parser_to_use._get_element_type(construction_name, zone_surfaces)
                             if dont_use or not determined_element_types:
                                 continue
 
@@ -1108,7 +1114,10 @@ class AreaParser:
 
                     for construction_name, construction_data in constructions_in_zone.items():
                         try:
-                            determined_element_types, dont_use = parser_to_use._get_element_type(construction_name, surfaces)
+                            # Filter surfaces to only include those from current zone for accurate element type detection
+                            zone_surfaces = {k: v for k, v in surfaces.items() 
+                                           if v.get('zone_name', '').lower() == zone_id.lower()}
+                            determined_element_types, dont_use = parser_to_use._get_element_type(construction_name, zone_surfaces)
                             if dont_use or not determined_element_types:
                                 continue
 
@@ -1135,16 +1144,36 @@ class AreaParser:
                                     # Get shading information for this glazing element
                                     shading_info = self._get_shading_for_surface(element_surface_name)
 
-                                    glazing_row = {
-                                        "zone": zone_id,
-                                        "construction": construction_name,
-                                        "element_type": element_specific_type,
-                                        "area": element_area,
-                                        "u_value": element_u_value,
-                                        "shading": shading_info
-                                    }
-
-                                    result_by_area[area_id].append(glazing_row)
+                                    # Create merge key based on construction name, type, u-value, and shading
+                                    merge_key = (construction_name, element_specific_type, element_u_value, shading_info)
+                                    
+                                    # Check if we already have an entry with the same merge criteria
+                                    existing_entry = None
+                                    for glazing_entry in result_by_area[area_id]:
+                                        entry_key = (
+                                            glazing_entry["construction"],
+                                            glazing_entry["element_type"],
+                                            glazing_entry["u_value"],
+                                            glazing_entry["shading"]
+                                        )
+                                        if entry_key == merge_key:
+                                            existing_entry = glazing_entry
+                                            break
+                                    
+                                    if existing_entry:
+                                        # Merge by summing the area
+                                        existing_entry["area"] += element_area
+                                    else:
+                                        # Create new entry
+                                        glazing_row = {
+                                            "zone": zone_id,
+                                            "construction": construction_name,
+                                            "element_type": element_specific_type,
+                                            "area": element_area,
+                                            "u_value": element_u_value,
+                                            "shading": shading_info
+                                        }
+                                        result_by_area[area_id].append(glazing_row)
 
                                 except (TypeError, ValueError, AttributeError, KeyError) as e_elem:
                                     logger.warning(f"Error processing glazing element within construction '{construction_name}', zone '{zone_id}': {e_elem}. Skipping element.", exc_info=True)
