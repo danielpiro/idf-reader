@@ -71,6 +71,14 @@ class MaterialsParser(BaseParser):
             
             construction_cache = self.data_loader.get_constructions()
             
+            # Debug logging for specific constructions - check if they exist in cache
+            debug_constructions = ['_Floor 501_3cm', '_IntFloor1_Reversed_Rev']
+            for debug_const in debug_constructions:
+                if debug_const in construction_cache:
+                    logger.warning(f"DEBUG: Construction '{debug_const}' found in construction_cache")
+                else:
+                    logger.warning(f"DEBUG: Construction '{debug_const}' NOT found in construction_cache")
+            
             filtered_constructions = self._filter_reversed_constructions(construction_cache)
             constructions_processed = 0
             constructions_with_missing_materials = 0
@@ -196,6 +204,13 @@ class MaterialsParser(BaseParser):
             # Note: Reversed constructions are already filtered out during process_idf
             element_types, dont_use = self._get_element_type(construction_id, surfaces, construction_mapping)
             
+            # Debug logging for specific constructions
+            if construction_id in ['_Floor 501_3cm', '_IntFloor1_Reversed_Rev']:
+                logger.warning(f"DEBUG: Processing construction '{construction_id}'")
+                logger.warning(f"  Element types: {element_types}")
+                logger.warning(f"  Dont_use: {dont_use}")
+                logger.warning(f"  Construction exists in constructions dict: {construction_id in self.constructions}")
+            
             logger.info(f"Construction '{construction_id}' has element types: {element_types}, dont_use: {dont_use}")
             
             if dont_use:
@@ -300,6 +315,11 @@ class MaterialsParser(BaseParser):
         
         construction_surfaces = self._find_construction_surfaces(construction_id, surfaces, construction_mapping)
         
+        # Debug logging for specific constructions
+        if construction_id in ['_Floor 501_3cm', '_IntFloor1_Reversed_Rev']:
+            logger.warning(f"DEBUG: _get_element_type for '{construction_id}'")
+            logger.warning(f"  Found {len(construction_surfaces)} surfaces")
+        
         if not construction_surfaces:
             logger.warning(f"No surfaces found for construction '{construction_id}' - element type detection may be incomplete")
             return [], False
@@ -313,40 +333,45 @@ class MaterialsParser(BaseParser):
         for i, surface in enumerate(construction_surfaces):
             surface_name = surface.get('name', 'unnamed')
             
-            # Detailed logging for _IntFloor1 construction
-            if construction_id == '_IntFloor1':
-                logger.warning(f"Processing _IntFloor1 surface {i+1}/{len(construction_surfaces)}: '{surface_name}'")
+            # Detailed logging for specific constructions
+            debug_constructions = ['_IntFloor1', '_Floor 501_3cm', '_IntFloor1_Reversed_Rev']
+            if construction_id in debug_constructions:
+                logger.warning(f"Processing {construction_id} surface {i+1}/{len(construction_surfaces)}: '{surface_name}'")
                 logger.warning(f"  Surface type: {surface.get('surface_type', 'N/A')}")
                 logger.warning(f"  Boundary condition: {surface.get('boundary_condition', 'N/A')}")
                 logger.warning(f"  Is glazing: {surface.get('is_glazing', False)}")
             
             if surface.get('is_glazing', False):
-                if construction_id == '_IntFloor1':
+                if construction_id in debug_constructions:
                     logger.warning(f"  -> Classified as: Glazing")
                 element_types.add("Glazing")
                 continue
             
             surface_has_hvac, is_zone_interior = self._check_surface_hvac_zones(surface, hvac_zones)
             
-            if construction_id == '_IntFloor1':
+            if construction_id in debug_constructions:
                 logger.warning(f"  HVAC check: has_hvac={surface_has_hvac}, is_zone_interior={is_zone_interior}")
             
             if surface_has_hvac:
                 surfaces_with_hvac_zones += 1
             else:
                 surfaces_without_hvac_zones += 1
+                # Skip surfaces without HVAC zones - they shouldn't contribute to element types
+                if construction_id in debug_constructions:
+                    logger.warning(f"  -> Skipping surface without HVAC zones")
+                continue
             
             element_type = self._determine_surface_element_type(surface, is_zone_interior)
             
-            if construction_id == '_IntFloor1':
+            if construction_id in debug_constructions:
                 logger.warning(f"  Element type determined: '{element_type}'")
             
             if element_type:
                 element_types.add(element_type)
-                if construction_id == '_IntFloor1':
+                if construction_id in debug_constructions:
                     logger.warning(f"  -> Added to element types: '{element_type}'")
             else:
-                if construction_id == '_IntFloor1':
+                if construction_id in debug_constructions:
                     logger.warning(f"  -> No element type determined")
                 pass
         
@@ -356,7 +381,8 @@ class MaterialsParser(BaseParser):
         if len(element_types) == 0 or dont_use:
             logger.warning(f"Element type detection issue for '{construction_id}': types={list(element_types)}, dont_use={dont_use}, surfaces_count={len(construction_surfaces)}")
             # Log surface details for problematic constructions to understand the issue
-            if construction_id == '_IntFloor1':
+            debug_constructions = ['_IntFloor1', '_Floor 501_3cm', '_IntFloor1_Reversed_Rev']
+            if construction_id in debug_constructions:
                 for i, surf in enumerate(construction_surfaces[:3]):  # Log first 3 surfaces
                     surf_name = surf.get('name', 'unnamed')
                     surf_type = surf.get('surface_type', 'N/A')
@@ -365,6 +391,14 @@ class MaterialsParser(BaseParser):
         
         if dont_use or not element_types:
             logger.warning(f"Construction '{construction_id}' issue - Surfaces: {len(construction_surfaces)}, HVAC surfaces: {surfaces_with_hvac_zones}, Element types: {list(element_types)}, Dont_use: {dont_use}")
+        
+        # Debug logging for specific constructions - final result
+        if construction_id in ['_Floor 501_3cm', '_IntFloor1_Reversed_Rev']:
+            logger.warning(f"DEBUG: Final result for '{construction_id}':")
+            logger.warning(f"  Element types: {list(element_types)}")
+            logger.warning(f"  Dont_use: {dont_use}")
+            logger.warning(f"  Surfaces with HVAC: {surfaces_with_hvac_zones}")
+            logger.warning(f"  Surfaces without HVAC: {surfaces_without_hvac_zones}")
         
         return list(element_types), dont_use
     
@@ -422,7 +456,8 @@ class MaterialsParser(BaseParser):
             # Log HVAC detection for problematic constructions
             surface_name = surface.get('name', 'unnamed')
             construction_from_surface = surface.get('construction_name', '')
-            if not surface_has_hvac_zones and construction_from_surface == '_IntFloor1':
+            debug_constructions = ['_IntFloor1', '_Floor 501_3cm', '_IntFloor1_Reversed_Rev']
+            if not surface_has_hvac_zones and construction_from_surface in debug_constructions:
                 logger.warning(f"HVAC detection failed for surface '{surface_name}' (construction: {construction_from_surface}): construction_zone='{construction_zone}', outside_zone='{zone_name_candidate}', hvac_zones_count={len(hvac_zones)}")
                 if len(hvac_zones) > 0:
                     logger.warning(f"  Available HVAC zones: {hvac_zones[:5]}")  # Show first 5 HVAC zones
