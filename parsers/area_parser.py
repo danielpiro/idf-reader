@@ -2,12 +2,9 @@
 Extracts and processes area information including floor areas and material properties.
 """
 from typing import Dict, Any, List, Optional
-from utils.logging_config import get_logger
 from parsers.materials_parser import MaterialsParser
 from utils.data_loader import safe_float
 from parsers.eplustbl_reader import read_glazing_data_from_csv
-
-logger = get_logger(__name__)
 
 class AreaParser:
     """
@@ -23,13 +20,13 @@ class AreaParser:
             else:
                 pass
         except FileNotFoundError:
-            logger.warning(f"Glazing CSV file not found at the specified/default path. Proceeding without CSV glazing data.")
+            pass
             self.glazing_data_from_csv = {}
         except (ValueError, RuntimeError) as e:
-            logger.error(f"Error reading or parsing glazing CSV: {e}. Proceeding without CSV glazing data.", exc_info=True)
+            pass
             self.glazing_data_from_csv = {}
         except Exception as e:
-            logger.error(f"Unexpected error during AreaParser initialization: {e}", exc_info=True)
+            pass
             self.glazing_data_from_csv = {}
         self.materials_parser = materials_parser
         self.areas_by_zone = {}
@@ -43,7 +40,7 @@ class AreaParser:
             idf: eppy IDF object (not directly used but passed to materials_parser)
         """
         if not self.data_loader:
-            logger.error("AreaParser.process_idf called without a DataLoader instance.")
+            pass
             raise ValueError("AreaParser requires a DataLoader instance.")
         if self.processed:
             return
@@ -59,13 +56,13 @@ class AreaParser:
 
             self.processed = True
         except ValueError as ve:
-            logger.error(f"ValueError during area information extraction: {ve}", exc_info=True)
+            pass
             raise
         except KeyError as ke:
-            logger.error(f"KeyError during area information extraction, possibly missing data: {ke}", exc_info=True)
+            pass
             raise
         except Exception as e:
-            logger.error(f"Unexpected error during area information extraction: {e}", exc_info=True)
+            pass
             raise
 
     def _process_zones(self) -> None:
@@ -75,13 +72,13 @@ class AreaParser:
         try:
             zones = self.data_loader.get_zones()
             if not zones:
-                logger.warning("No zones found in DataLoader. Area processing for zones will be empty.")
+                pass
                 return
 
             for zone_id, zone_data in zones.items():
                 try:
                     if not zone_id:
-                        logger.warning(f"Encountered a zone with no ID (data: {zone_data}). Skipping.")
+                        pass
                         continue
 
                     # Use enhanced area_id extraction for better grouping
@@ -101,10 +98,10 @@ class AreaParser:
                         "constructions": {}
                     }
                 except (TypeError, ValueError, AttributeError) as e_inner:
-                    logger.error(f"Error processing individual zone '{zone_id}': {e_inner}. Skipping this zone.", exc_info=True)
+                    pass
                     continue
         except Exception as e:
-            logger.error(f"Critical error in _process_zones: {e}", exc_info=True)
+            pass
 
     def _process_surfaces(self) -> None:
         """
@@ -113,7 +110,7 @@ class AreaParser:
         try:
             surfaces = self.data_loader.get_surfaces()
             if not surfaces:
-                logger.warning("No surfaces found in DataLoader. Area processing for surfaces will be empty.")
+                pass
                 return
 
             windows_by_base_surface = {}
@@ -129,7 +126,7 @@ class AreaParser:
                                 "area": safe_float(surface.get("area", 0.0), 0.0),
                             })
                 except (TypeError, AttributeError) as e_win:
-                    logger.warning(f"Error processing window data for surface '{surface_id}': {e_win}. Skipping window linkage.", exc_info=True)
+                    pass
 
             for surface_id, surface in surfaces.items():
                 try:
@@ -151,7 +148,7 @@ class AreaParser:
                             window_areas = sum(w.get("area", 0.0) for w in windows_by_base_surface.get(surface_id, []))
                             area = max(0.0, original_area - window_areas)
                         except Exception as e_sum:
-                            logger.warning(f"Error calculating net area for surface '{surface_id}': {e_sum}. Using original area.", exc_info=True)
+                            pass
                             area = original_area
 
                     u_value = None
@@ -161,7 +158,7 @@ class AreaParser:
 
                     surface_id_upper = surface_id.upper()
                     if not isinstance(surface_id, str):
-                        logger.warning(f"Surface ID '{surface_id}' is not a string. Skipping CSV lookup for this surface.")
+                        pass
                         surface_id_upper = None
 
                     if surface_id_upper and surface_id_upper in self.glazing_data_from_csv:
@@ -169,10 +166,7 @@ class AreaParser:
 
                         csv_construction_name = glazing_details_csv.get('Construction')
                         if csv_construction_name and csv_construction_name.lower() != construction_name.lower():
-                            logger.warning(
-                                f"Mismatch for surface '{surface_id}' (lookup key '{surface_id_upper}'): IDF construction '{construction_name}' vs "
-                                f"CSV construction '{csv_construction_name}'. Using CSV data for U-value/Area if available."
-                            )
+                            pass
 
                         u_value_from_glazing = glazing_details_csv.get('U-Value')
                         area_from_glazing = glazing_details_csv.get('Area')
@@ -180,7 +174,7 @@ class AreaParser:
                         if u_value_from_glazing is not None:
                             u_value = safe_float(u_value_from_glazing)
                         else:
-                            logger.warning(f"U-Value missing for surface '{surface_id}' (lookup key '{surface_id_upper}', construction '{construction_name}') in glazing CSV data. Calculating.")
+                            pass
                             u_value = self._calculate_u_value(construction_name)
 
                         if area_from_glazing is not None:
@@ -231,10 +225,10 @@ class AreaParser:
                     constr_group["total_u_value"] += final_area * u_value
 
                 except (TypeError, ValueError, AttributeError, KeyError) as e_surf:
-                    logger.error(f"Error processing surface '{surface_id}': {e_surf}. Skipping this surface.", exc_info=True)
+                    pass
                     continue
         except Exception as e:
-            logger.error(f"Critical error in _process_surfaces: {e}", exc_info=True)
+            pass
 
     def _get_construction_properties(self, construction_name: str) -> Dict[str, float]:
         """
@@ -247,13 +241,13 @@ class AreaParser:
             materials = self.data_loader.get_materials()
 
             if not construction_name or construction_name not in constructions:
-                logger.warning(f"Construction '{construction_name}' not found in constructions data. Returning default properties.")
+                pass
                 return default_properties
 
             construction_data = constructions[construction_name]
             material_layers = construction_data.get('material_layers', [])
             if not material_layers:
-                logger.warning(f"No material layers found for construction '{construction_name}'. Returning default properties.")
+                pass
                 return default_properties
 
             total_thickness = 0.0
@@ -261,7 +255,7 @@ class AreaParser:
 
             for layer_id in material_layers:
                 if not layer_id or layer_id not in materials:
-                    logger.warning(f"Material layer '{layer_id}' for construction '{construction_name}' not found in materials data. Skipping layer.")
+                    pass
                     continue
 
                 material_data = materials[layer_id]
@@ -278,7 +272,7 @@ class AreaParser:
                     else:
                         pass
                 except (TypeError, ValueError) as e_mat:
-                    logger.warning(f"Error processing material layer '{layer_id}' in construction '{construction_name}': {e_mat}. Skipping layer.", exc_info=True)
+                    pass
                     continue
 
             final_conductivity = total_thickness / total_resistance if total_resistance > 0 else 0.0
@@ -289,10 +283,10 @@ class AreaParser:
                 'r_value': total_resistance
             }
         except (TypeError, ValueError, AttributeError, KeyError) as e:
-            logger.error(f"Error getting properties for construction '{construction_name}': {e}. Returning default properties.", exc_info=True)
+            pass
             return default_properties
         except Exception as e_crit:
-            logger.critical(f"Unexpected critical error in _get_construction_properties for '{construction_name}': {e_crit}", exc_info=True)
+            pass
             return default_properties
 
     def _calculate_u_value(self, construction_name: str) -> float:
@@ -311,7 +305,7 @@ class AreaParser:
             surfaces = self.data_loader.get_surfaces()
 
             if not construction_name or construction_name not in all_constructions:
-                logger.warning(f"Construction '{construction_name}' not found in combined constructions data. Returning U=0.")
+                pass
                 return 0.0
 
             construction_data = all_constructions[construction_name]
@@ -329,17 +323,17 @@ class AreaParser:
                             if u_value_float >= 0:
                                 return u_value_float
                             else:
-                                logger.warning(f"Invalid U-Factor '{u_factor}' for SimpleGlazingSystem '{construction_name}'. Proceeding to calculate.")
+                                pass
                         else:
-                             logger.warning(f"U-Factor is None for SimpleGlazingSystem '{construction_name}'. Proceeding to calculate.")
+                             pass
 
             total_material_resistance = 0.0
             if not material_layers:
-                 logger.warning(f"No material layers found for construction '{construction_name}' when calculating R-value. Material resistance will be 0.")
+                 pass
 
             for layer_id in material_layers:
                 if not layer_id or layer_id not in materials:
-                    logger.warning(f"Material layer '{layer_id}' for '{construction_name}' not found. Skipping layer in R-value calculation.")
+                    pass
                     continue
 
                 material_data = materials[layer_id]
@@ -357,7 +351,7 @@ class AreaParser:
                         pass
                     total_material_resistance += layer_r
                 except (TypeError, ValueError) as e_mat_calc:
-                    logger.warning(f"Error calculating resistance for material layer '{layer_id}' in '{construction_name}': {e_mat_calc}. Skipping layer.", exc_info=True)
+                    pass
                     continue
 
             film_resistance = 0.0
@@ -377,17 +371,17 @@ class AreaParser:
                 else:
                     pass
             except Exception as e_film:
-                logger.warning(f"Error getting film resistance for '{construction_name}' (context type '{element_type_for_film}'): {e_film}. Defaulting film_resistance to 0.", exc_info=True)
+                pass
 
             r_value_with_film = total_material_resistance + film_resistance
             u_value = 1.0 / r_value_with_film if r_value_with_film > 0 else 0.0
             return u_value
 
         except (TypeError, ValueError, AttributeError, KeyError) as e:
-            logger.error(f"Error calculating U-Value for construction '{construction_name}': {e}. Returning U=0.", exc_info=True)
+            pass
             return 0.0
         except Exception as e_crit:
-            logger.critical(f"Unexpected critical error in _calculate_u_value for '{construction_name}': {e_crit}", exc_info=True)
+            pass
             return 0.0
 
     def _merge_reverse_constructions(self, materials_parser: MaterialsParser) -> None:
@@ -461,17 +455,17 @@ class AreaParser:
                                     pass
 
                             except Exception as e_type:
-                                logger.warning(f"Error determining element types during merge check for '{base_name}'/'{reverse_name}' in zone '{zone_id}': {e_type}. Skipping merge for this pair.", exc_info=True)
+                                pass
 
                     for key_to_remove in to_remove:
                         if key_to_remove in constructions:
                             del constructions[key_to_remove]
 
                 except (TypeError, ValueError, AttributeError, KeyError) as e_zone_merge:
-                    logger.error(f"Error during reverse construction merging for zone '{zone_id}': {e_zone_merge}. Skipping zone.", exc_info=True)
+                    pass
                     continue
         except Exception as e:
-            logger.error(f"Critical error in _merge_reverse_constructions: {e}", exc_info=True)
+            pass
 
     def get_areas_by_zone(self) -> Dict[str, Dict[str, Any]]:
         """
@@ -479,12 +473,12 @@ class AreaParser:
         Returns an empty dictionary if not processed or if an error occurs.
         """
         if not self.processed:
-            logger.warning("Area data not processed yet. Call process_idf() first. Returning empty dict.")
+            pass
             return {}
         try:
             return self.areas_by_zone
         except Exception as e:
-            logger.error(f"Error retrieving areas_by_zone: {e}", exc_info=True)
+            pass
             return {}
 
     def get_area_totals(self, area_id: str) -> Dict[str, float]:
@@ -494,10 +488,10 @@ class AreaParser:
         """
         result = {"total_floor_area": 0.0, "wall_area": 0.0, "window_area": 0.0}
         if not area_id:
-            logger.warning("get_area_totals called with no area_id. Returning zeroed totals.")
+            pass
             return result
         if not self.processed:
-            logger.warning(f"Area data not processed. Call process_idf() first. Returning zeroed totals for area '{area_id}'.")
+            pass
             return result
 
         found_area = False
@@ -528,14 +522,14 @@ class AreaParser:
                         elif is_wall_construction:
                             result["wall_area"] += safe_float(construction_data.get("total_area", 0.0), 0.0)
                     except (TypeError, AttributeError) as e_constr:
-                        logger.warning(f"Error processing construction '{construction_name}' in zone '{zone_id}' for area totals: {e_constr}. Skipping construction.", exc_info=True)
+                        pass
                         continue
 
             if not found_area:
                 pass
             return result
         except Exception as e:
-            logger.error(f"Error calculating area totals for area_id '{area_id}': {e}. Returning partially calculated or zeroed totals.", exc_info=True)
+            pass
             return result
 
     def get_area_table_data(self, materials_parser: Optional[MaterialsParser] = None) -> Dict[str, List[Dict[str, Any]]]:
@@ -548,10 +542,10 @@ class AreaParser:
         try:
             parser_to_use = materials_parser if materials_parser else self.materials_parser
             if not parser_to_use:
-                logger.error("MaterialsParser instance is required for get_area_table_data but none provided or set. Returning empty data.")
+                pass
                 return result_by_area
             if not self.processed:
-                logger.warning("Area data not processed. Call process_idf() first. Returning empty data for area table.")
+                pass
                 return result_by_area
 
             surfaces = self.data_loader.get_surfaces()
@@ -636,23 +630,23 @@ class AreaParser:
                                     constr_agg["area_loss"] += element_area * constr_agg["u_value"]
 
                                 except (TypeError, ValueError, AttributeError, KeyError) as e_elem:
-                                    logger.warning(f"Error processing element within construction '{construction_name}', zone '{zone_id}': {e_elem}. Skipping element.", exc_info=True)
+                                    pass
                                     continue
 
                         except (TypeError, ValueError, AttributeError, KeyError) as e_constr_proc:
-                            logger.warning(f"Error processing construction '{construction_name}' in zone '{zone_id}': {e_constr_proc}. Skipping construction.", exc_info=True)
+                            pass
                             continue
 
                     filtered_results = [entry for entry in zone_constructions_aggregated.values() if entry.get("area", 0.0) > 0.0]
                     result_by_area[area_id].extend(filtered_results)
 
                 except (TypeError, ValueError, AttributeError, KeyError) as e_zone_proc:
-                    logger.error(f"Error processing zone '{zone_id}' for area table data: {e_zone_proc}. Skipping zone.", exc_info=True)
+                    pass
                     continue
 
             return result_by_area
         except Exception as e:
-            logger.critical(f"Critical error in get_area_table_data: {e}", exc_info=True)
+            pass
             return result_by_area
 
     def get_area_h_values(self) -> List[Dict[str, Any]]:
@@ -663,15 +657,15 @@ class AreaParser:
         h_values_by_area: List[Dict[str, Any]] = []
         try:
             if not self.processed:
-                logger.error("IDF data must be processed before calculating H-values. Call process_idf() first. Returning empty list.")
+                pass
                 return h_values_by_area
             if not self.materials_parser:
-                logger.error("MaterialsParser instance is required for H-Value calculation. Returning empty list.")
+                pass
                 return h_values_by_area
 
             area_data_for_h_calc = self.get_area_table_data()
             if not area_data_for_h_calc:
-                logger.warning("No data returned from get_area_table_data for H-value calculation. Returning empty list.")
+                pass
                 return h_values_by_area
 
             area_floor_totals = {}
@@ -687,7 +681,7 @@ class AreaParser:
                         int(safe_float(zone_data.get("multiplier", 1), 1))
                     )
                 except (TypeError, ValueError) as e_floor_total:
-                    logger.warning(f"Error calculating floor total for zone '{zone_id}': {e_floor_total}. Skipping zone for floor totals.", exc_info=True)
+                    pass
 
             from collections import defaultdict
             grouped_data = defaultdict(list)
@@ -705,7 +699,7 @@ class AreaParser:
                 try:
                     total_floor_area = area_floor_totals.get(area_id, 0.0)
                     if total_floor_area <= 0:
-                        logger.warning(f"Skipping H-Value calculation for Area '{area_id}': Total floor area is {total_floor_area}.")
+                        pass
                         continue
 
                     external_roof_loss_sum = 0.0
@@ -737,7 +731,7 @@ class AreaParser:
                                 elif any(keyword in element_type for keyword in separation_keywords): sum_separation_ceiling += area
                                 else: sum_intermediate_ceiling += area
                         except (TypeError, ValueError, AttributeError) as e_row:
-                            logger.warning(f"Error processing a row for H-value/location in area '{area_id}': {row}. Error: {e_row}. Skipping row.", exc_info=True)
+                            pass
                             continue
 
                     h_value = (external_roof_loss_sum + 0.5 * separation_loss_sum) / total_floor_area if total_floor_area > 0 else 0.0
@@ -794,12 +788,12 @@ class AreaParser:
                         'total_floor_area': total_floor_area
                     })
                 except (TypeError, ValueError, AttributeError, KeyError, ZeroDivisionError) as e_area_h:
-                    logger.error(f"Error calculating H-value or location for area '{area_id}': {e_area_h}. Skipping this area.", exc_info=True)
+                    pass
                     continue
 
             return h_values_by_area
         except Exception as e:
-            logger.critical(f"Critical error in get_area_h_values: {e}", exc_info=True)
+            pass
             return h_values_by_area
 
     def _extract_base_zone_id(self, zone_id: str) -> str:
@@ -827,7 +821,7 @@ class AreaParser:
             
             return zone_id
         except Exception as e:
-            logger.warning(f"Error extracting base zone ID from '{zone_id}': {e}. Using original zone_id.")
+            pass
             return zone_id
 
     def _extract_area_id_enhanced(self, zone_id: str) -> str:
@@ -860,7 +854,7 @@ class AreaParser:
                 
             return "unknown"
         except Exception as e:
-            logger.warning(f"Error extracting enhanced area_id from '{zone_id}': {e}. Using 'unknown'.")
+            pass
             return "unknown"
 
     def get_area_groupings_by_base_zone(self) -> Dict[str, List[str]]:
@@ -870,7 +864,7 @@ class AreaParser:
         This ensures zones like '25:A338XLIV' and '25:A338XMMD' are grouped together under '25:A338'.
         """
         if not self.processed:
-            logger.warning("Area data not processed yet. Call process_idf() first. Returning empty dict for base zone groupings.")
+            pass
             return {}
         
         try:
@@ -884,30 +878,11 @@ class AreaParser:
                 
                 base_zone_groupings[base_zone_id].append(zone_id)
             
-            # Log the groupings for debugging
-            logger.info(f"Base zone groupings created:")
-            for base_id, zone_list in base_zone_groupings.items():
-                if len(zone_list) > 1:
-                    logger.info(f"  {base_id} -> {zone_list}")
-                elif len(zone_list) == 1:
-                    logger.debug(f"  {base_id} -> {zone_list[0]} (single zone)")
-            
-            # Log some statistics
-            multi_zone_groups = [base_id for base_id, zone_list in base_zone_groupings.items() if len(zone_list) > 1]
-            single_zone_groups = [base_id for base_id, zone_list in base_zone_groupings.items() if len(zone_list) == 1]
-            
-            logger.info(f"Grouping statistics:")
-            logger.info(f"  Total base zones: {len(base_zone_groupings)}")
-            logger.info(f"  Multi-zone groups: {len(multi_zone_groups)}")
-            logger.info(f"  Single-zone groups: {len(single_zone_groups)}")
-            logger.info(f"  Total individual zones: {sum(len(zone_list) for zone_list in base_zone_groupings.values())}")
-            
-            if multi_zone_groups:
-                logger.info(f"  Example multi-zone groups: {multi_zone_groups[:5]}")
+            pass
             
             return base_zone_groupings
         except Exception as e:
-            logger.error(f"Error creating base zone groupings: {e}", exc_info=True)
+            pass
             return {}
 
     def get_area_table_data_by_base_zone(self, materials_parser: Optional[MaterialsParser] = None) -> Dict[str, List[Dict[str, Any]]]:
@@ -919,10 +894,10 @@ class AreaParser:
         try:
             parser_to_use = materials_parser if materials_parser else self.materials_parser
             if not parser_to_use:
-                logger.error("MaterialsParser instance is required for get_area_table_data_by_base_zone but none provided or set. Returning empty data.")
+                pass
                 return result_by_base_zone
             if not self.processed:
-                logger.warning("Area data not processed. Call process_idf() first. Returning empty data for base zone table.")
+                pass
                 return result_by_base_zone
 
             surfaces = self.data_loader.get_surfaces()
@@ -1008,11 +983,11 @@ class AreaParser:
                                     zone_constructions_aggregated[zone_constr_key]["area_loss"] += element_area * reported_u_value
 
                                 except (TypeError, ValueError) as e_element:
-                                    logger.error(f"Error processing element in zone '{zone_id}', construction '{construction_name}': {e_element}. Skipping element.", exc_info=True)
+                                    pass
                                     continue
 
                         except (TypeError, ValueError, AttributeError) as e_constr:
-                            logger.error(f"Error processing construction '{construction_name}' in zone '{zone_id}': {e_constr}. Skipping construction.", exc_info=True)
+                            pass
                             continue
 
                     for zone_constr_key, aggregated_data in zone_constructions_aggregated.items():
@@ -1036,16 +1011,16 @@ class AreaParser:
 
                             result_by_base_zone[base_zone_id].append(final_row)
                         except (TypeError, ValueError) as e_final:
-                            logger.error(f"Error finalizing data for zone_constr_key '{zone_constr_key}' in base zone '{base_zone_id}': {e_final}. Skipping row.", exc_info=True)
+                            pass
                             continue
 
                 except (TypeError, ValueError, AttributeError, KeyError) as e_zone:
-                    logger.error(f"Error processing zone '{zone_id}' for base zone table data: {e_zone}. Skipping zone.", exc_info=True)
+                    pass
                     continue
 
             return result_by_base_zone
         except Exception as e:
-            logger.error(f"Critical error in get_area_table_data_by_base_zone: {e}", exc_info=True)
+            pass
             return result_by_base_zone
 
     def _get_shading_for_surface(self, surface_id: str) -> str:
@@ -1074,7 +1049,7 @@ class AreaParser:
             
             return "-"
         except Exception as e:
-            logger.warning(f"Error determining shading for surface '{surface_id}': {e}")
+            pass
             return "-"
 
     def get_glazing_table_data(self, materials_parser: Optional[MaterialsParser] = None) -> Dict[str, List[Dict[str, Any]]]:
@@ -1089,10 +1064,10 @@ class AreaParser:
         try:
             parser_to_use = materials_parser if materials_parser else self.materials_parser
             if not parser_to_use:
-                logger.error("MaterialsParser instance is required for get_glazing_table_data but none provided or set. Returning empty data.")
+                pass
                 return result_by_area
             if not self.processed:
-                logger.warning("Area data not processed. Call process_idf() first. Returning empty data for glazing table.")
+                pass
                 return result_by_area
 
             surfaces = self.data_loader.get_surfaces()
@@ -1176,18 +1151,18 @@ class AreaParser:
                                         result_by_area[area_id].append(glazing_row)
 
                                 except (TypeError, ValueError, AttributeError, KeyError) as e_elem:
-                                    logger.warning(f"Error processing glazing element within construction '{construction_name}', zone '{zone_id}': {e_elem}. Skipping element.", exc_info=True)
+                                    pass
                                     continue
 
                         except (TypeError, ValueError, AttributeError, KeyError) as e_constr_proc:
-                            logger.warning(f"Error processing construction '{construction_name}' in zone '{zone_id}' for glazing table: {e_constr_proc}. Skipping construction.", exc_info=True)
+                            pass
                             continue
 
                 except (TypeError, ValueError, AttributeError, KeyError) as e_zone_proc:
-                    logger.error(f"Error processing zone '{zone_id}' for glazing table data: {e_zone_proc}. Skipping zone.", exc_info=True)
+                    pass
                     continue
 
             return result_by_area
         except Exception as e:
-            logger.critical(f"Critical error in get_glazing_table_data: {e}", exc_info=True)
+            pass
             return result_by_area

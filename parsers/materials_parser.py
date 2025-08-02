@@ -5,11 +5,8 @@ Uses DataLoader for cached access to IDF data.
 from typing import Dict, Any, Optional, List, Tuple
 from utils.data_loader import DataLoader
 from utils.data_models import MaterialData, ConstructionData
-from utils.logging_config import get_logger
 from .utils import safe_float, filter_hvac_zones
 from .base_parser import BaseParser
-
-logger = get_logger(__name__)
 
 # Surface film resistance configuration
 SURFACE_FILM_RESISTANCE = {
@@ -42,7 +39,7 @@ class MaterialsParser(BaseParser):
         Process materials and constructions using data from DataLoader.
         """
         if not self.data_loader:
-            logger.error("MaterialsParser requires a DataLoader instance")
+            pass
             raise RuntimeError("MaterialsParser requires a DataLoader instance.")
         
         
@@ -71,13 +68,7 @@ class MaterialsParser(BaseParser):
             
             construction_cache = self.data_loader.get_constructions()
             
-            # Debug logging for specific constructions - check if they exist in cache
-            debug_constructions = ['_Floor 501_3cm', '_IntFloor1_Reversed_Rev']
-            for debug_const in debug_constructions:
-                if debug_const in construction_cache:
-                    logger.warning(f"DEBUG: Construction '{debug_const}' found in construction_cache")
-                else:
-                    logger.warning(f"DEBUG: Construction '{debug_const}' NOT found in construction_cache")
+            pass
             
             constructions_processed = 0
             constructions_with_missing_materials = 0
@@ -96,13 +87,13 @@ class MaterialsParser(BaseParser):
                         if material_thickness:
                             total_thickness += material_thickness
                         else:
-                            logger.warning(f"Material '{layer_id}' in construction '{construction_id}' has no thickness")
+                            pass
                     else:
                         missing_materials.append(layer_id)
                 
                 if missing_materials:
                     constructions_with_missing_materials += 1
-                    logger.warning(f"Construction '{construction_id}' references missing materials: {missing_materials}")
+                    pass
                 
                 self.constructions[construction_id] = ConstructionData(
                     id=construction_id,
@@ -114,7 +105,7 @@ class MaterialsParser(BaseParser):
             self._process_element_data(construction_cache)
             
         except Exception as e:
-            logger.error(f"Error processing materials and constructions: {e}", exc_info=True)
+            pass
             raise RuntimeError(f"Error processing materials and constructions: {e}")
 
     def _filter_reversed_constructions(self, construction_cache: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
@@ -183,11 +174,11 @@ class MaterialsParser(BaseParser):
         Process element data for report generation.
         This combines materials and constructions to create report data.
         """
-        logger.info("Starting element data processing")
+        pass
         
         # We only need surfaces for element type detection - get all surfaces once
         surfaces = self.data_loader.get_surfaces()
-        logger.info(f"Processing {len(construction_cache)} filtered constructions")
+        pass
         
         
         # Create mapping for _rev constructions to their base versions
@@ -203,14 +194,9 @@ class MaterialsParser(BaseParser):
             # Note: Reversed constructions are already filtered out during process_idf
             element_types, dont_use = self._get_element_type(construction_id, surfaces, construction_mapping)
             
-            # Debug logging for specific constructions
-            if construction_id in ['_Floor 501_3cm', '_IntFloor1_Reversed_Rev']:
-                logger.warning(f"DEBUG: Processing construction '{construction_id}'")
-                logger.warning(f"  Element types: {element_types}")
-                logger.warning(f"  Dont_use: {dont_use}")
-                logger.warning(f"  Construction exists in constructions dict: {construction_id in self.constructions}")
+            pass
             
-            logger.info(f"Construction '{construction_id}' has element types: {element_types}, dont_use: {dont_use}")
+            pass
             
             if dont_use:
                 skipped_reasons["dont_use"].append(construction_id)
@@ -232,7 +218,7 @@ class MaterialsParser(BaseParser):
                 for layer_id in construction_data.material_layers:
                     material_data = self.materials.get(layer_id)
                     if not material_data:
-                        logger.warning(f"Material '{layer_id}' not found in materials cache for construction '{construction_id}'")
+                        pass
                         continue
                     
                     thermal_resistance = self._calculate_thermal_resistance(material_data)
@@ -260,24 +246,9 @@ class MaterialsParser(BaseParser):
                     element_data_count += 1
                     
         
-        logger.info(f"Element data processing complete: {element_data_count} entries created, {skipped_constructions} constructions skipped")
+        pass
         
-        # Detailed debug logging for skipped constructions
-        if skipped_constructions > 0:
-            logger.info(f"=== CONSTRUCTION SKIP SUMMARY ===")
-            logger.info(f"Total constructions processed: {len(construction_cache)}")
-            logger.info(f"Total constructions skipped: {skipped_constructions}")
-            
-            if skipped_reasons["dont_use"]:
-                logger.info(f"Constructions skipped due to 'dont_use' flag ({len(skipped_reasons['dont_use'])}): {skipped_reasons['dont_use']}")
-            
-            if skipped_reasons["no_element_types"]:
-                logger.info(f"Constructions skipped due to 'no element types' ({len(skipped_reasons['no_element_types'])}): {skipped_reasons['no_element_types']}")
-            
-            if skipped_reasons["no_surfaces"]:
-                logger.info(f"Constructions skipped due to 'no surfaces' ({len(skipped_reasons['no_surfaces'])}): {skipped_reasons['no_surfaces']}")
-            
-            logger.info(f"=== END CONSTRUCTION SKIP SUMMARY ===")
+        pass
         
 
     def _get_surface_type_and_boundary(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]], construction_mapping: Dict[str, str] = None):
@@ -314,13 +285,10 @@ class MaterialsParser(BaseParser):
         
         construction_surfaces = self._find_construction_surfaces(construction_id, surfaces, construction_mapping)
         
-        # Debug logging for specific constructions
-        if construction_id in ['_Floor 501_3cm', '_IntFloor1_Reversed_Rev']:
-            logger.warning(f"DEBUG: _get_element_type for '{construction_id}'")
-            logger.warning(f"  Found {len(construction_surfaces)} surfaces")
+        pass
         
         if not construction_surfaces:
-            logger.warning(f"No surfaces found for construction '{construction_id}' - element type detection may be incomplete")
+            pass
             return [], False
 
         element_types = set()
@@ -332,72 +300,43 @@ class MaterialsParser(BaseParser):
         for i, surface in enumerate(construction_surfaces):
             surface_name = surface.get('name', 'unnamed')
             
-            # Detailed logging for specific constructions
-            debug_constructions = ['_IntFloor1', '_Floor 501_3cm', '_IntFloor1_Reversed_Rev']
-            if construction_id in debug_constructions:
-                logger.warning(f"Processing {construction_id} surface {i+1}/{len(construction_surfaces)}: '{surface_name}'")
-                logger.warning(f"  Surface type: {surface.get('surface_type', 'N/A')}")
-                logger.warning(f"  Boundary condition: {surface.get('boundary_condition', 'N/A')}")
-                logger.warning(f"  Is glazing: {surface.get('is_glazing', False)}")
+            pass
             
             if surface.get('is_glazing', False):
-                if construction_id in debug_constructions:
-                    logger.warning(f"  -> Classified as: Glazing")
+                pass
                 element_types.add("Glazing")
                 continue
             
             surface_has_hvac, is_zone_interior = self._check_surface_hvac_zones(surface, hvac_zones)
             
-            if construction_id in debug_constructions:
-                logger.warning(f"  HVAC check: has_hvac={surface_has_hvac}, is_zone_interior={is_zone_interior}")
+            pass
             
             if surface_has_hvac:
                 surfaces_with_hvac_zones += 1
             else:
                 surfaces_without_hvac_zones += 1
                 # Skip surfaces without HVAC zones - they shouldn't contribute to element types
-                if construction_id in debug_constructions:
-                    logger.warning(f"  -> Skipping surface without HVAC zones")
+                pass
                 continue
             
             element_type = self._determine_surface_element_type(surface, is_zone_interior)
             
-            if construction_id in debug_constructions:
-                logger.warning(f"  Element type determined: '{element_type}'")
+            pass
             
             if element_type:
                 element_types.add(element_type)
-                if construction_id in debug_constructions:
-                    logger.warning(f"  -> Added to element types: '{element_type}'")
+                pass
             else:
-                if construction_id in debug_constructions:
-                    logger.warning(f"  -> No element type determined")
+                pass
                 pass
         
         dont_use = surfaces_with_hvac_zones == 0 and surfaces_without_hvac_zones > 0
         
-        # Log only summary for element type debugging
-        if len(element_types) == 0 or dont_use:
-            logger.warning(f"Element type detection issue for '{construction_id}': types={list(element_types)}, dont_use={dont_use}, surfaces_count={len(construction_surfaces)}")
-            # Log surface details for problematic constructions to understand the issue
-            debug_constructions = ['_IntFloor1', '_Floor 501_3cm', '_IntFloor1_Reversed_Rev']
-            if construction_id in debug_constructions:
-                for i, surf in enumerate(construction_surfaces[:3]):  # Log first 3 surfaces
-                    surf_name = surf.get('name', 'unnamed')
-                    surf_type = surf.get('surface_type', 'N/A')
-                    boundary = surf.get('boundary_condition', 'N/A')
-                    logger.warning(f"  Surface {i+1}: name='{surf_name}', type='{surf_type}', boundary='{boundary}'")
+        pass
         
-        if dont_use or not element_types:
-            logger.warning(f"Construction '{construction_id}' issue - Surfaces: {len(construction_surfaces)}, HVAC surfaces: {surfaces_with_hvac_zones}, Element types: {list(element_types)}, Dont_use: {dont_use}")
+        pass
         
-        # Debug logging for specific constructions - final result
-        if construction_id in ['_Floor 501_3cm', '_IntFloor1_Reversed_Rev']:
-            logger.warning(f"DEBUG: Final result for '{construction_id}':")
-            logger.warning(f"  Element types: {list(element_types)}")
-            logger.warning(f"  Dont_use: {dont_use}")
-            logger.warning(f"  Surfaces with HVAC: {surfaces_with_hvac_zones}")
-            logger.warning(f"  Surfaces without HVAC: {surfaces_without_hvac_zones}")
+        pass
         
         return list(element_types), dont_use
     
@@ -452,14 +391,7 @@ class MaterialsParser(BaseParser):
             surface_has_hvac_zones = is_hvac_inside or is_hvac_outside
             is_zone_interior = is_hvac_inside and is_hvac_outside
             
-            # Log HVAC detection for problematic constructions
-            surface_name = surface.get('name', 'unnamed')
-            construction_from_surface = surface.get('construction_name', '')
-            debug_constructions = ['_IntFloor1', '_Floor 501_3cm', '_IntFloor1_Reversed_Rev']
-            if not surface_has_hvac_zones and construction_from_surface in debug_constructions:
-                logger.warning(f"HVAC detection failed for surface '{surface_name}' (construction: {construction_from_surface}): construction_zone='{construction_zone}', outside_zone='{zone_name_candidate}', hvac_zones_count={len(hvac_zones)}")
-                if len(hvac_zones) > 0:
-                    logger.warning(f"  Available HVAC zones: {hvac_zones[:5]}")  # Show first 5 HVAC zones
+            pass
             
             return surface_has_hvac_zones, is_zone_interior
             
@@ -497,8 +429,7 @@ class MaterialsParser(BaseParser):
             type_config = element_type_map[s_type]
             result = type_config.get(boundary, type_config.get("default", ""))
         else:
-            # Log unrecognized surface types - these might be the incorrect element type issue
-            logger.warning(f"Unrecognized surface type '{s_type}' for surface '{surface_name}' (boundary: '{boundary}')")
+            pass
             result = ""
         
         # Log potentially problematic classifications for debugging
@@ -512,8 +443,7 @@ class MaterialsParser(BaseParser):
             elif s_type == "ceiling" and ("wall" in surface_name.lower() or "floor" in surface_name.lower()):
                 suspicious = True
                 
-            if suspicious:
-                logger.warning(f"Suspicious element type classification: surface '{surface_name}' has type '{s_type}' -> '{result}' (boundary: '{boundary}')")
+            pass
         
         return result
 
@@ -542,7 +472,7 @@ class MaterialsParser(BaseParser):
             Dict[str, MaterialData]: Dictionary of all materials
         """
         if not self.materials:
-            logger.warning("No materials available - materials dictionary is empty")
+            pass
         return self.materials
 
     def get_all_constructions(self) -> Dict[str, ConstructionData]:
@@ -553,7 +483,7 @@ class MaterialsParser(BaseParser):
             Dict[str, ConstructionData]: Dictionary of all constructions
         """
         if not self.constructions:
-            logger.warning("No constructions available - constructions dictionary is empty")
+            pass
         return self.constructions
 
     def calculate_construction_mass_per_area(self, construction_id: str) -> float:
@@ -570,7 +500,7 @@ class MaterialsParser(BaseParser):
         
         construction = self.constructions.get(construction_id)
         if not construction:
-            logger.warning(f"Construction '{construction_id}' not found for mass calculation")
+            pass
             return 0.0
         
         
@@ -590,7 +520,7 @@ class MaterialsParser(BaseParser):
                 
                 total_mass_per_area += layer_mass
             else:
-                logger.warning(f"Material '{layer_id}' not found for construction '{construction_id}'")
+                pass
         
         return total_mass_per_area
 
