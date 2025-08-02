@@ -168,7 +168,7 @@ class AreaParser:
                         glazing_details_csv = self.glazing_data_from_csv[surface_id_upper]
 
                         csv_construction_name = glazing_details_csv.get('Construction')
-                        if csv_construction_name and csv_construction_name != construction_name:
+                        if csv_construction_name and csv_construction_name.lower() != construction_name.lower():
                             logger.warning(
                                 f"Mismatch for surface '{surface_id}' (lookup key '{surface_id_upper}'): IDF construction '{construction_name}' vs "
                                 f"CSV construction '{csv_construction_name}'. Using CSV data for U-value/Area if available."

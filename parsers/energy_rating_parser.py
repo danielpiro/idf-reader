@@ -179,14 +179,6 @@ class EnergyRatingParser:
 
         all_zones_data_from_loader = self.data_loader.get_zones()
         
-        # DEBUG: Log zone data from DataLoader
-        logger.debug(f"DEBUG: DataLoader zone data type: {type(all_zones_data_from_loader)}")
-        if isinstance(all_zones_data_from_loader, dict):
-            logger.debug(f"DEBUG: DataLoader has {len(all_zones_data_from_loader)} zones")
-            for zone_key, zone_data in list(all_zones_data_from_loader.items())[:5]:  # Log first 5 zones
-                logger.debug(f"DEBUG: Zone '{zone_key}': {zone_data}")
-        else:
-            logger.debug(f"DEBUG: DataLoader zones data: {all_zones_data_from_loader}")
         
         # Track processing stats for debugging
         total_headers_with_X = 0
@@ -271,7 +263,6 @@ class EnergyRatingParser:
                         if (zone_area_id == target_area_id and 
                             zone_name_from_header in zone_key):
                             matched_zone_key = zone_key
-                            logger.debug(f"DEBUG: Found matching zone '{zone_key}' for area_id='{target_area_id}', zone_name='{zone_name_from_header}'")
                             break
                 
                 if matched_zone_key:
@@ -291,20 +282,16 @@ class EnergyRatingParser:
                     zone_multiplier = 1
                     individual_zone_floor_area = 0.0
 
-                    # DEBUG: Log zone lookup attempt
-                    logger.debug(f"DEBUG: Using zone key '{full_zone_id_key}' for energy data")
                     
                     # If we found a matching zone, get its data directly
                     if matched_zone_key and isinstance(all_zones_data_from_loader, dict) and matched_zone_key in all_zones_data_from_loader:
                         dl_zone_data = all_zones_data_from_loader[matched_zone_key]
                         zone_multiplier = int(dl_zone_data.get('multiplier', 1))
                         individual_zone_floor_area = safe_float(dl_zone_data.get('floor_area', 0.0), 0.0)
-                        logger.debug(f"DEBUG: Using matched zone '{matched_zone_key}': multiplier={zone_multiplier}, floor_area={individual_zone_floor_area}")
                     else:
                         # No matching zone found, use defaults
                         zone_keys_missing.add(full_zone_id_key)
                         logger.warning(f"EnergyRatingParser: No matching zone found for '{full_zone_id_key}'. Using defaults for multiplier/floor_area.")
-                        logger.debug(f"DEBUG: Using defaults for '{full_zone_id_key}'")
 
                     total_area_for_legacy_grouping = self._get_area_total_for_area_id(area_id_from_header)
                     location_for_grouping = self._determine_location(area_id_from_header)
@@ -320,8 +307,6 @@ class EnergyRatingParser:
                         'total_area_of_legacy_grouping': total_area_for_legacy_grouping
                     }
                     
-                    # DEBUG: Log the created zone data structure
-                    logger.debug(f"DEBUG: Created energy data for zone '{full_zone_id_key}': floor_area={individual_zone_floor_area}, multiplier={zone_multiplier}, total_area_legacy={total_area_for_legacy_grouping}")
 
                 category = None
                 header_lower = header.lower()
@@ -446,13 +431,8 @@ class EnergyRatingParser:
                 logger.warning(f"AreaParser not available or not processed when getting total for area_id '{area_id}'. Returning 0.0.")
                 return 0.0
 
-            # DEBUG: Log area parser call
-            logger.debug(f"DEBUG: Getting area totals from AreaParser for area_id '{area_id}'")
             area_totals = self.area_parser.get_area_totals(area_id)
-            logger.debug(f"DEBUG: AreaParser returned for '{area_id}': {area_totals}")
-            
             result = safe_float(area_totals.get("total_floor_area", 0.0), 0.0)
-            logger.debug(f"DEBUG: Final area total for '{area_id}': {result}")
             return result
         except AttributeError:
             logger.error(f"AttributeError accessing AreaParser for area_id '{area_id}'. Returning 0.0.", exc_info=True)

@@ -21,7 +21,7 @@ def setup_file_logging():
 
     # Configure root logger to write to file only (no console output)
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
             logging.FileHandler(log_filename, encoding='utf-8'),

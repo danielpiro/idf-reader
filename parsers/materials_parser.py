@@ -297,34 +297,74 @@ class MaterialsParser(BaseParser):
         """
         Determine element type based on construction usage - simplified version.
         """
+        
         construction_surfaces = self._find_construction_surfaces(construction_id, surfaces, construction_mapping)
+        
         if not construction_surfaces:
+            logger.warning(f"No surfaces found for construction '{construction_id}' - element type detection may be incomplete")
             return [], False
 
         element_types = set()
         hvac_zones = self.data_loader.get_hvac_zones()
+        
         surfaces_with_hvac_zones = 0
         surfaces_without_hvac_zones = 0
         
-        for surface in construction_surfaces:
+        for i, surface in enumerate(construction_surfaces):
+            surface_name = surface.get('name', 'unnamed')
+            
+            # Detailed logging for _IntFloor1 construction
+            if construction_id == '_IntFloor1':
+                logger.warning(f"Processing _IntFloor1 surface {i+1}/{len(construction_surfaces)}: '{surface_name}'")
+                logger.warning(f"  Surface type: {surface.get('surface_type', 'N/A')}")
+                logger.warning(f"  Boundary condition: {surface.get('boundary_condition', 'N/A')}")
+                logger.warning(f"  Is glazing: {surface.get('is_glazing', False)}")
+            
             if surface.get('is_glazing', False):
+                if construction_id == '_IntFloor1':
+                    logger.warning(f"  -> Classified as: Glazing")
                 element_types.add("Glazing")
                 continue
             
             surface_has_hvac, is_zone_interior = self._check_surface_hvac_zones(surface, hvac_zones)
+            
+            if construction_id == '_IntFloor1':
+                logger.warning(f"  HVAC check: has_hvac={surface_has_hvac}, is_zone_interior={is_zone_interior}")
+            
             if surface_has_hvac:
                 surfaces_with_hvac_zones += 1
             else:
                 surfaces_without_hvac_zones += 1
             
             element_type = self._determine_surface_element_type(surface, is_zone_interior)
+            
+            if construction_id == '_IntFloor1':
+                logger.warning(f"  Element type determined: '{element_type}'")
+            
             if element_type:
                 element_types.add(element_type)
+                if construction_id == '_IntFloor1':
+                    logger.warning(f"  -> Added to element types: '{element_type}'")
+            else:
+                if construction_id == '_IntFloor1':
+                    logger.warning(f"  -> No element type determined")
+                pass
         
         dont_use = surfaces_with_hvac_zones == 0 and surfaces_without_hvac_zones > 0
         
+        # Log only summary for element type debugging
+        if len(element_types) == 0 or dont_use:
+            logger.warning(f"Element type detection issue for '{construction_id}': types={list(element_types)}, dont_use={dont_use}, surfaces_count={len(construction_surfaces)}")
+            # Log surface details for problematic constructions to understand the issue
+            if construction_id == '_IntFloor1':
+                for i, surf in enumerate(construction_surfaces[:3]):  # Log first 3 surfaces
+                    surf_name = surf.get('name', 'unnamed')
+                    surf_type = surf.get('surface_type', 'N/A')
+                    boundary = surf.get('boundary_condition', 'N/A')
+                    logger.warning(f"  Surface {i+1}: name='{surf_name}', type='{surf_type}', boundary='{boundary}'")
+        
         if dont_use or not element_types:
-            self.logger.debug(f"Construction '{construction_id}' issue - Surfaces: {len(construction_surfaces)}, HVAC surfaces: {surfaces_with_hvac_zones}, Element types: {list(element_types)}, Dont_use: {dont_use}")
+            logger.warning(f"Construction '{construction_id}' issue - Surfaces: {len(construction_surfaces)}, HVAC surfaces: {surfaces_with_hvac_zones}, Element types: {list(element_types)}, Dont_use: {dont_use}")
         
         return list(element_types), dont_use
     
@@ -344,8 +384,17 @@ class MaterialsParser(BaseParser):
         """Check if surface connects HVAC zones and if it's zone interior."""
         boundary = surface.get('boundary_condition', '').lower()
         
+        # Convert hvac_zones to lowercase for case-insensitive comparison
+        hvac_zones_lower = [zone.lower() for zone in hvac_zones] if hvac_zones else []
+        
         if boundary != "surface":
-            return True, False  # Non-surface boundaries automatically have HVAC zones
+            raw_object = surface.get('raw_object')
+            if not raw_object:
+                return False, False
+            zone_name = raw_object.Name.split("_")[0].strip().lower()
+            if zone_name in hvac_zones_lower:
+                return True, False
+            return False, False  # Non-surface boundaries automatically have HVAC zones
         
         try:
             raw_object = surface.get('raw_object')
@@ -361,14 +410,22 @@ class MaterialsParser(BaseParser):
             if not isinstance(outside_boundary_obj_name, str) or not outside_boundary_obj_name:
                 return False, False
             
-            zone_name_candidate = outside_boundary_obj_name.split("_")[0].strip()
-            construction_zone = raw_object.Name.split("_")[0].strip()
+            zone_name_candidate = outside_boundary_obj_name.split("_")[0].strip().lower()
+            construction_zone = raw_object.Name.split("_")[0].strip().lower()
             
-            is_hvac_inside = construction_zone in hvac_zones
-            is_hvac_outside = zone_name_candidate in hvac_zones
+            is_hvac_inside = construction_zone in hvac_zones_lower
+            is_hvac_outside = zone_name_candidate in hvac_zones_lower
             
             surface_has_hvac_zones = is_hvac_inside or is_hvac_outside
             is_zone_interior = is_hvac_inside and is_hvac_outside
+            
+            # Log HVAC detection for problematic constructions
+            surface_name = surface.get('name', 'unnamed')
+            construction_from_surface = surface.get('construction_name', '')
+            if not surface_has_hvac_zones and construction_from_surface == '_IntFloor1':
+                logger.warning(f"HVAC detection failed for surface '{surface_name}' (construction: {construction_from_surface}): construction_zone='{construction_zone}', outside_zone='{zone_name_candidate}', hvac_zones_count={len(hvac_zones)}")
+                if len(hvac_zones) > 0:
+                    logger.warning(f"  Available HVAC zones: {hvac_zones[:5]}")  # Show first 5 HVAC zones
             
             return surface_has_hvac_zones, is_zone_interior
             
@@ -379,6 +436,7 @@ class MaterialsParser(BaseParser):
         """Determine element type based on surface type and boundary condition."""
         s_type = surface.get('surface_type', '').lower()
         boundary = surface.get('boundary_condition', '').lower()
+        surface_name = surface.get('name', 'unnamed')
         
         element_type_map = {
             "wall": {
@@ -403,9 +461,27 @@ class MaterialsParser(BaseParser):
         
         if s_type in element_type_map:
             type_config = element_type_map[s_type]
-            return type_config.get(boundary, type_config.get("default", ""))
+            result = type_config.get(boundary, type_config.get("default", ""))
+        else:
+            # Log unrecognized surface types - these might be the incorrect element type issue
+            logger.warning(f"Unrecognized surface type '{s_type}' for surface '{surface_name}' (boundary: '{boundary}')")
+            result = ""
         
-        return ""
+        # Log potentially problematic classifications for debugging
+        if s_type and boundary and result:
+            # Check for suspicious combinations that might indicate incorrect element types
+            suspicious = False
+            if s_type == "wall" and "floor" in surface_name.lower():
+                suspicious = True
+            elif s_type == "floor" and "wall" in surface_name.lower():
+                suspicious = True
+            elif s_type == "ceiling" and ("wall" in surface_name.lower() or "floor" in surface_name.lower()):
+                suspicious = True
+                
+            if suspicious:
+                logger.warning(f"Suspicious element type classification: surface '{surface_name}' has type '{s_type}' -> '{result}' (boundary: '{boundary}')")
+        
+        return result
 
     def _get_surface_film_resistance(self, element_type: str) -> float:
         """
@@ -422,7 +498,6 @@ class MaterialsParser(BaseParser):
         Returns:
             list: List of dictionaries containing element data and calculated properties
         """
-        logger.debug(f"Returning {len(self.element_data)} element data entries")
         return self.element_data
 
     def get_all_materials(self) -> Dict[str, MaterialData]:
@@ -432,7 +507,6 @@ class MaterialsParser(BaseParser):
         Returns:
             Dict[str, MaterialData]: Dictionary of all materials
         """
-        logger.debug(f"Returning {len(self.materials)} processed materials")
         if not self.materials:
             logger.warning("No materials available - materials dictionary is empty")
         return self.materials
@@ -444,7 +518,6 @@ class MaterialsParser(BaseParser):
         Returns:
             Dict[str, ConstructionData]: Dictionary of all constructions
         """
-        logger.debug(f"Returning {len(self.constructions)} processed constructions")
         if not self.constructions:
             logger.warning("No constructions available - constructions dictionary is empty")
         return self.constructions
@@ -460,14 +533,12 @@ class MaterialsParser(BaseParser):
         Returns:
             float: The total mass per square meter (kg/m²).
         """
-        logger.debug(f"Calculating mass per area for construction: {construction_id}")
         
         construction = self.constructions.get(construction_id)
         if not construction:
             logger.warning(f"Construction '{construction_id}' not found for mass calculation")
             return 0.0
         
-        logger.debug(f"Construction '{construction_id}' has material layers: {construction.material_layers}")
         
         total_mass_per_area = 0.0
         found_low_conductivity = False
@@ -475,22 +546,18 @@ class MaterialsParser(BaseParser):
         for layer_id in construction.material_layers:
             material = self.materials.get(layer_id)
             if material:
-                logger.debug(f"Processing layer '{layer_id}' - density: {material.density}, thickness: {material.thickness}, conductivity: {material.conductivity}")
                 
                 # Use helper method but only apply low conductivity reduction to first occurrence
                 if not found_low_conductivity and material.conductivity is not None and material.conductivity < 0.2 and material.conductivity != 0:
                     layer_mass = self._calculate_material_mass_with_low_conductivity_adjustment(material)
                     found_low_conductivity = True
-                    logger.debug(f"Applied low conductivity adjustment to layer '{layer_id}' - adjusted mass: {layer_mass}")
                 else:
                     layer_mass = (material.density or 0.0) * (material.thickness or 0.0)
-                    logger.debug(f"Normal mass calculation for layer '{layer_id}': {layer_mass}")
                 
                 total_mass_per_area += layer_mass
             else:
                 logger.warning(f"Material '{layer_id}' not found for construction '{construction_id}'")
         
-        logger.debug(f"Total mass per area for construction '{construction_id}': {total_mass_per_area}")
         return total_mass_per_area
 
     def calculate_construction_properties(self, construction_id: str) -> Dict[str, float]:
