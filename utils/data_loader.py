@@ -10,6 +10,8 @@ from utils.path_utils import (
     get_data_file_path, contains_non_ascii,
     create_safe_path_for_energyplus
 )
+import os
+import sys
 import re
 from utils.logging_config import get_logger
 import pandas as pd

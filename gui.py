@@ -18,7 +18,6 @@ from utils.path_utils import (
     create_safe_output_dir_for_energyplus, move_simulation_files_back,
     normalize_path_for_energyplus
 )
-from utils.idf_version_handler import ensure_idf_version_compatibility
 from utils.logo_utils import get_gui_logo_path
 
 def fix_hebrew_text_display(text):
@@ -893,19 +892,7 @@ class IDFProcessorGUI(ctk.CTk):
                 self.show_status("EPW file determination failed. Aborting.", "error")
                 self.reset_gui_state(); return
 
-            # 2. Check and ensure IDF version compatibility
-            self.show_status("Checking IDF version compatibility...")
-            try:
-                if not ensure_idf_version_compatibility(user_inputs["input_file"]):
-                    self.show_status("Failed to ensure IDF version compatibility. Aborting.", "error")
-                    self.reset_gui_state(); return
-                self.show_status("IDF version check completed successfully.")
-            except Exception as e:
-                self.show_status(f"Error during IDF version check: {e}", "error")
-                logger.error(f"IDF version check error: {e}", exc_info=True)
-                self.reset_gui_state(); return
-
-            # 3. Run EnergyPlus Simulation
+            # 2. Run EnergyPlus Simulation
             simulation_output_csv = self._run_energyplus_simulation(
                 user_inputs["energyplus_exe"],
                 epw_file,
@@ -916,7 +903,7 @@ class IDFProcessorGUI(ctk.CTk):
                 self.show_status("EnergyPlus simulation failed or produced no output. Report generation may be incomplete.", "warning")
                 # Decide if to proceed or abort. For now, proceed with None CSV.
             
-            # 4. Initialize ProcessingManager
+            # 3. Initialize ProcessingManager
             self.processing_manager = ProcessingManager(
                 status_callback=self.show_status,
                 progress_callback=lambda p: self.reports_progress_bar.set(p),
@@ -926,7 +913,7 @@ class IDFProcessorGUI(ctk.CTk):
             self.processing_manager.city_info = user_inputs["city_info"]
 
 
-            # 5. Process IDF and Generate Reports
+            # 4. Process IDF and Generate Reports
             self.show_status("Starting IDF processing and report generation...")
             self.reports_progress_bar.set(0)  # Reset reports progress bar
             success = self.processing_manager.process_idf(
