@@ -87,7 +87,7 @@ def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> T
         hour_col_width = (available_width - period_col_width) / num_hour_cols
         col_widths = [period_col_width] + [hour_col_width] * num_hour_cols
 
-        header = ["Date Ranges/Hours"] + [str(h + 1) for h in range(num_hour_cols)]
+        header = ["Date Ranges/Hours"] + [str(h) for h in range(num_hour_cols)]
         table_data = [header]
 
         cell_style = getSampleStyleSheet()['Normal']
