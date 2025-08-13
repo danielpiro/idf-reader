@@ -6,7 +6,9 @@ import sys
 import os
 import time
 from colorama import Fore, init
-from gui import IDFProcessorGUI, ProcessingManager
+from processing_manager import ProcessingManager
+import flet as ft
+from modern_gui import ModernIDFProcessorGUI
 
 init(autoreset=True)
 
@@ -144,16 +146,19 @@ def run_cli() -> None:
 
 def run_gui() -> None:
     """
-    Initializes and runs the IDF Processor GUI.
+    Initializes and runs the Modern IDF Processor GUI using Flet.
     """
-    cli_status_update("No CLI arguments detected. Starting GUI mode...")
+    cli_status_update("No CLI arguments detected. Starting Modern GUI mode...")
     try:
-        app = IDFProcessorGUI()
-        app.mainloop()
+        def main(page: ft.Page):
+            app = ModernIDFProcessorGUI()
+            app.build_ui(page)
+        
+        ft.app(target=main, view=ft.AppView.FLET_APP)
     except ImportError as import_err:
         err_msg = str(import_err).lower()
-        if 'tkinter' in err_msg:
-             _handle_cli_error("Error: Tkinter library is required for GUI mode. Please ensure it's installed.")
+        if 'flet' in err_msg:
+             _handle_cli_error("Error: Flet library is required for GUI mode. Install with: pip install flet")
         elif 'reportlab' in err_msg:
              _handle_cli_error("Error: 'reportlab' library is required. Install with: pip install reportlab")
         elif 'eppy' in err_msg:

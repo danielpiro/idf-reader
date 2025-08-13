@@ -11,7 +11,7 @@ The IDF Report Generator is a comprehensive building energy analysis tool that p
 - **Hebrew Language Support**: Full RTL text support for Israeli cities and regulations
 - **ISO Compliance**: Supports multiple ISO types including RESIDENTIAL 2017/2023, HOTEL, EDUCATION, OFFICE, CORE & ENVELOPE
 - **Climate Zone Integration**: Automatic EPW weather file selection based on Israeli climate zones (א, ב, ג, ד)
-- **Dual Interface**: Modern GUI using CustomTkinter and CLI support
+- **Dual Interface**: Modern GUI using Flet (Material Design 3) and CLI support
 
 ## Architecture Overview
 
@@ -27,7 +27,7 @@ The IDF Report Generator is a comprehensive building energy analysis tool that p
 
 ### Core Components
 
-1. **Entry Layer** ([`main.py`](main.py:1), [`gui.py`](gui.py:1))
+1. **Entry Layer** ([`main.py`](main.py:1), [`modern_gui.py`](modern_gui.py:1))
 2. **Processing Layer** ([`processing_manager.py`](processing_manager.py:1))
 3. **Data Layer** ([`utils/`](utils/))
 4. **Parser Layer** ([`parsers/`](parsers/))
@@ -38,7 +38,7 @@ The IDF Report Generator is a comprehensive building energy analysis tool that p
 ```
 idf-reader/
 ├── main.py                     # CLI entry point
-├── gui.py                      # GUI application with CustomTkinter
+├── modern_gui.py               # Modern GUI application using Flet
 ├── processing_manager.py       # Core processing orchestrator
 ├── requirements.txt            # Python dependencies
 ├── settings.json              # User settings persistence

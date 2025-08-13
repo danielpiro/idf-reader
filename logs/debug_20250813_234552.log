@@ -1,0 +1,9 @@
+2025-08-13 23:45:53,535 - flet - INFO - Assets path configured: C:\Users\daniel\Desktop\idf-reader\assets
+2025-08-13 23:45:53,536 - flet - INFO - Starting up TCP server on localhost:56971
+2025-08-13 23:45:53,539 - flet - INFO - Flet app has started...
+2025-08-13 23:45:53,540 - flet - INFO - App URL: tcp://localhost:56971
+2025-08-13 23:45:53,540 - flet_desktop - INFO - Starting Flet View app...
+2025-08-13 23:45:53,541 - flet_desktop - INFO - Looking for Flet executable at: C:\Users\daniel\miniconda3\Lib\site-packages\flet_desktop\app\flet\flet.exe
+2025-08-13 23:45:53,541 - flet_desktop - INFO - Flet View found in: C:\Users\daniel\miniconda3\Lib\site-packages\flet_desktop\app\flet\flet.exe
+2025-08-13 23:45:53,751 - flet - INFO - App session started
+2025-08-13 23:45:53,752 - modern_gui - INFO - Window icon set using: C:\Users\daniel\Desktop\idf-reader\data\logo.ico

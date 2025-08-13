@@ -1,6 +1,6 @@
 reportlab>=3.6.8
 eppy>=0.5.63
-customtkinter>=5.2.0
+flet>=0.24.1
 pyinstaller>=6.3.0
 numpy>=1.24.0
 pandas>=2.0.0
