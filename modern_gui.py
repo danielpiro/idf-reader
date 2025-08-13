@@ -558,7 +558,7 @@ class ModernIDFProcessorGUI:
         ])
         
         self.process_button.disabled = not is_valid or self.is_processing
-        self.process_button.text = "🚀 צור דוחות" if is_valid and not self.is_processing else "🚀 השלם הגדרות"
+        self.process_button.text = "צור דוחות" if is_valid and not self.is_processing else "🚀 השלם הגדרות"
         
         if self.page:
             self.page.update()
@@ -1047,12 +1047,10 @@ class ModernIDFProcessorGUI:
             content=ft.Card(
                 content=ft.Container(
                     content=ft.Column([
-                        ft.Text("🎯 התחלת עיבוד", size=20, weight=ft.FontWeight.BOLD, rtl=True, text_align=ft.TextAlign.CENTER),
                         ft.Container(
                             content=self.process_button,
                             alignment=ft.alignment.center
                         ),
-                        ft.Text("לחץ לתחילת יצירת דוחות ענן האנרגיה", size=12, color=ft.Colors.ON_SURFACE_VARIANT, rtl=True, text_align=ft.TextAlign.CENTER)
                     ], spacing=15, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                     padding=25,
                     height=150
