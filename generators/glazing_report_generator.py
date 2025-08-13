@@ -78,10 +78,10 @@ class GlazingReportGenerator(BaseReportGenerator):
         """Create a table for a single construction with improved spacing."""
         # Table headers - simplified and better spaced for A3 landscape
         headers = [
-            "Component\nType", "Name/ID", "Type", "Thickness\n(m)", 
+            "Type", "Name/ID", "Type", "Thickness\n(m)", 
             "Conductivity\n(W/mK)", "U-Value\n(W/m²K)", "VT\n(Visible Trans.)", 
             "SHGC\n(Solar Heat Gain)", "ST\n(Solar Trans.)", "Transmittance", 
-            "Reflectivity", "Position/Notes"
+            "Reflectivity", "Position"
         ]
         
         table_data = [[wrap_text(h, self.header_style) for h in headers]]
@@ -90,7 +90,7 @@ class GlazingReportGenerator(BaseReportGenerator):
         system_details = data.get('system_details', {})
         if system_details:
             row = [
-                wrap_text("System", self.cell_style),
+                wrap_text("Window", self.cell_style),
                 wrap_text(system_details.get('Name', '-'), self.cell_style),
                 wrap_text(system_details.get('Type', '-'), self.cell_style),
                 wrap_text(self.formatter.format_number(system_details.get('Thickness'), precision=4), self.cell_style),
@@ -101,7 +101,7 @@ class GlazingReportGenerator(BaseReportGenerator):
                 wrap_text("-", self.cell_style),
                 wrap_text("-", self.cell_style),
                 wrap_text("-", self.cell_style),
-                wrap_text("Overall system properties", self.cell_style)
+                wrap_text("-", self.cell_style)
             ]
             table_data.append(row)
         
@@ -109,7 +109,7 @@ class GlazingReportGenerator(BaseReportGenerator):
         glazing_layers = data.get('glazing_layers', [])
         for i, layer in enumerate(glazing_layers):
             row = [
-                wrap_text(f"Glazing Layer {i+1}", self.cell_style),
+                wrap_text(f"Layer {i+1}", self.cell_style),
                 wrap_text(layer.get('Name', '-'), self.cell_style),
                 wrap_text(layer.get('Type', '-'), self.cell_style),
                 wrap_text(self.formatter.format_number(layer.get('Thickness'), precision=4), self.cell_style),
@@ -139,7 +139,7 @@ class GlazingReportGenerator(BaseReportGenerator):
                 wrap_text("-", self.cell_style),
                 wrap_text(self.formatter.format_number(layer.get('Transmittance')), self.cell_style),
                 wrap_text(self.formatter.format_number(layer.get('Reflectivity')), self.cell_style),
-                wrap_text(layer.get('Position', 'Shading element'), self.cell_style)
+                wrap_text(layer.get('Position', '-'), self.cell_style)
             ]
             table_data.append(row)
         
@@ -160,7 +160,7 @@ class GlazingReportGenerator(BaseReportGenerator):
                 wrap_text("-", self.cell_style),
                 wrap_text("-", self.cell_style),
                 wrap_text("-", self.cell_style),
-                wrap_text("Window frame properties", self.cell_style)
+                wrap_text("-", self.cell_style)
             ]
             table_data.append(row)
         
