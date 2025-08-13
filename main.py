@@ -154,6 +154,7 @@ def run_gui() -> None:
             app = ModernIDFProcessorGUI()
             app.build_ui(page)
         
+        # Start Flet app (icon is set in the page configuration within build_ui)
         ft.app(target=main, view=ft.AppView.FLET_APP)
     except ImportError as import_err:
         err_msg = str(import_err).lower()

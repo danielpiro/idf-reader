@@ -61,6 +61,15 @@ class ModernIDFProcessorGUI:
         self.status_text = None
         self.energyplus_progress = None
         self.reports_progress = None
+        
+        # Window settings (will be loaded in load_settings)
+        self.window_settings = {
+            'width': None,
+            'height': None,
+            'maximized': True,
+            'position_x': None,
+            'position_y': None
+        }
 
     def load_cities_from_csv(self):
         """Load city data from CSV file."""
@@ -95,6 +104,15 @@ class ModernIDFProcessorGUI:
                 self.selected_city = settings.get('last_city', '')
                 self.selected_iso = settings.get('last_iso_type', '')
                 
+                # Load window settings
+                self.window_settings = settings.get('window', {
+                    'width': 1400,  # Increased width
+                    'height': 1000,  # Increased height to show all options
+                    'maximized': True,  # Default to fullscreen/maximized
+                    'position_x': None,
+                    'position_y': None
+                })
+                
                 # Update city area info if city is loaded
                 if self.selected_city and self.selected_city in self.city_data:
                     info = self.city_data[self.selected_city]
@@ -103,21 +121,66 @@ class ModernIDFProcessorGUI:
                     
         except Exception as e:
             logger.error(f"Error loading settings: {e}")
+            # Default window settings if loading fails
+            self.window_settings = {
+                'width': 1400,  # Increased width
+                'height': 1000,  # Increased height to show all options
+                'maximized': True,
+                'position_x': None,
+                'position_y': None
+            }
 
     def save_settings(self):
         """Save current settings to JSON file."""
         try:
+            # Get current window state if page is available
+            window_settings = getattr(self, 'window_settings', {})
+            if self.page:
+                try:
+                    window_settings = {
+                        'width': getattr(self.page, 'window_width', 1400),
+                        'height': getattr(self.page, 'window_height', 1000),
+                        'maximized': getattr(self.page, 'window_maximized', True),
+                        'position_x': getattr(self.page, 'window_left', None),
+                        'position_y': getattr(self.page, 'window_top', None)
+                    }
+                    logger.info(f"Saving window settings: {window_settings}")
+                except Exception as e:
+                    logger.warning(f"Could not read window properties: {e}")
+            
             settings = {
                 'last_input': self.input_file,
                 'last_eplus_dir': self.energyplus_dir,
                 'last_output': self.output_dir,
                 'last_city': self.selected_city,
-                'last_iso_type': self.selected_iso
+                'last_iso_type': self.selected_iso,
+                'window': window_settings
             }
             with open(self.settings_file, 'w', encoding='utf-8') as f:
                 json.dump(settings, f, indent=4, ensure_ascii=False)
         except Exception as e:
             logger.error(f"Error saving settings: {e}")
+
+    def on_window_event(self, e):
+        """Handle window events like resize, move, maximize."""
+        try:
+            logger.info(f"Window event: {e.event_type}")
+            if e.event_type == "resized" or e.event_type == "moved" or e.event_type == "maximized":
+                # Save settings when window state changes
+                self.save_settings()
+            elif e.event_type == "close":
+                # Save settings when window is about to close
+                self.save_settings()
+        except Exception as ex:
+            logger.error(f"Error handling window event: {ex}")
+    
+    def on_page_close(self, e):
+        """Handle page close event."""
+        try:
+            logger.info("Page closing, saving settings...")
+            self.save_settings()
+        except Exception as ex:
+            logger.error(f"Error saving settings on close: {ex}")
 
     def show_status(self, message, level="info"):
         """Display status message with appropriate styling."""
@@ -184,19 +247,38 @@ class ModernIDFProcessorGUI:
         """Create a modern file picker field."""
         
         def on_picker_result(e: ft.FilePickerResultEvent):
+            selected_path = None
+            
+            # Handle file selection
             if e.files and len(e.files) > 0:
                 selected_path = e.files[0].path
+            # Handle directory selection  
+            elif e.path:
+                selected_path = e.path
+            
+            if selected_path:
                 text_field.value = selected_path
                 if on_result:
                     on_result(selected_path)
                 if self.page:
                     self.page.update()
+                logger.info(f"Path selected via browse: {selected_path}")
         
         # Create file picker
         file_picker = ft.FilePicker(on_result=on_picker_result)
         self.page.overlay.append(file_picker)
         
-        # Create text field
+        # Create text field with manual input support
+        def on_text_change(e):
+            if on_result and e.control.value:
+                path = e.control.value.strip()
+                # Validate IDF file extension if it's a file type field
+                if file_type == "file" and path and not path.lower().endswith('.idf'):
+                    # Show warning but still save the path (user might be typing)
+                    if len(path) > 4:  # Only warn if it looks like a complete path
+                        self.show_status("רק קבצי IDF מתוכלים (.idf)", "warning")
+                on_result(path)
+        
         text_field = ft.TextField(
             label=label,
             expand=True,
@@ -205,19 +287,28 @@ class ModernIDFProcessorGUI:
             border_color=ft.Colors.OUTLINE_VARIANT,
             focused_border_color=ft.Colors.PRIMARY,
             text_align=ft.TextAlign.RIGHT,  # RTL support
-            rtl=True
+            rtl=True,
+            on_change=on_text_change
         )
         
         # Create browse button
         def on_browse_click(e):
             if file_type == "file":
+                # Only allow IDF files for file selection
                 file_picker.pick_files(
                     dialog_title=f"בחר {label}",
                     file_type=ft.FilePickerFileType.CUSTOM,
-                    allowed_extensions=["idf"] if "IDF" in label else None
+                    allowed_extensions=["idf"]
                 )
-            else:
+            elif file_type == "folder":
                 file_picker.get_directory_path(dialog_title=f"בחר {label}")
+            else:
+                # Default to IDF files only
+                file_picker.pick_files(
+                    dialog_title=f"בחר {label}",
+                    file_type=ft.FilePickerFileType.CUSTOM,
+                    allowed_extensions=["idf"]
+                )
         
         browse_btn = ft.ElevatedButton(
             "עיון",
@@ -658,39 +749,78 @@ class ModernIDFProcessorGUI:
         self.page = page
         page.title = "מחולל דוחות IDF"
         page.theme_mode = ft.ThemeMode.SYSTEM
-        page.window_width = 1200
-        page.window_height = 800
-        page.window_min_width = 800
-        page.window_min_height = 600
-        page.padding = 20
-        page.spacing = 20
         page.rtl = True  # Enable RTL layout for the entire page
         
-        # Set custom icon
+        # Load settings first
+        self.load_settings()
+        
+        # Apply window settings
+        if self.window_settings.get('maximized', True):
+            # Start maximized/fullscreen
+            page.window_maximized = True
+        else:
+            # Use saved dimensions or defaults
+            page.window_width = self.window_settings.get('width', 1400)
+            page.window_height = self.window_settings.get('height', 1000)
+            
+            # Set position if saved
+            if self.window_settings.get('position_x') is not None:
+                page.window_left = self.window_settings.get('position_x')
+            if self.window_settings.get('position_y') is not None:
+                page.window_top = self.window_settings.get('position_y')
+        
+        # Set minimum window size - increased to show all content properly
+        page.window_min_width = 1000
+        page.window_min_height = 800
+        page.padding = 20
+        page.spacing = 20
+        
+        # Add window event handlers
+        page.on_window_event = self.on_window_event
+        page.on_close = self.on_page_close
+        
+        # Set custom application icon
+        icon_set = False
         try:
             from utils.path_utils import get_data_file_path
-            logo_path = get_data_file_path('logo.ico')
-            if logo_path and os.path.exists(logo_path):
-                page.window_icon = logo_path
-                logger.info(f"Window icon set using: {logo_path}")
+            
+            # Try .ico file first (preferred for Windows)
+            ico_path = get_data_file_path('logo.ico')
+            if ico_path and os.path.exists(ico_path):
+                page.window_icon = ico_path
+                logger.info(f"Window icon set using ICO: {ico_path}")
+                icon_set = True
             else:
-                # Fallback to utils.logo_utils if available
-                from utils.logo_utils import get_gui_logo_path
-                logo_path = get_gui_logo_path()
-                if logo_path and os.path.exists(logo_path):
-                    page.window_icon = logo_path
-                    logger.info(f"Window icon set using fallback: {logo_path}")
+                # Try .png file as fallback
+                png_path = get_data_file_path('logo.png')
+                if png_path and os.path.exists(png_path):
+                    page.window_icon = png_path
+                    logger.info(f"Window icon set using PNG: {png_path}")
+                    icon_set = True
+            
+            # Fallback to utils.logo_utils if neither direct method worked
+            if not icon_set:
+                try:
+                    from utils.logo_utils import get_gui_logo_path
+                    logo_path = get_gui_logo_path()
+                    if logo_path and os.path.exists(logo_path):
+                        page.window_icon = logo_path
+                        logger.info(f"Window icon set using logo_utils: {logo_path}")
+                        icon_set = True
+                except ImportError:
+                    logger.warning("logo_utils not available for fallback")
+            
+            if not icon_set:
+                logger.warning("Could not find any suitable icon file for window")
+                
         except Exception as e:
-            logger.warning(f"Could not set window icon: {e}")
+            logger.error(f"Error setting window icon: {e}", exc_info=True)
         
         # Set modern theme
         page.theme = ft.Theme(
             color_scheme_seed=ft.Colors.BLUE,
             use_material3=True
         )
-        
-        # Load settings
-        self.load_settings()
         
         # Create header with logo and better centering
         logo_element = None
@@ -959,6 +1089,9 @@ class ModernIDFProcessorGUI:
         # Initial validation and welcome message
         self.update_form_validation()
         self.show_status("🎉 ברוכים הבאים! הגדירו את כל השדות כדי להתחיל בעיבוד.")
+        
+        # Save initial window state
+        self.save_settings()
 
 def main(page: ft.Page):
     app = ModernIDFProcessorGUI()
