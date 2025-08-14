@@ -558,7 +558,7 @@ class ModernIDFProcessorGUI:
         ])
         
         self.process_button.disabled = not is_valid or self.is_processing
-        self.process_button.text = "צור דוחות" if is_valid and not self.is_processing else "🚀 השלם הגדרות"
+        self.process_button.text = "🚀 צור דוחות" if is_valid and not self.is_processing else "השלם הגדרות"
         
         if self.page:
             self.page.update()
@@ -631,7 +631,7 @@ class ModernIDFProcessorGUI:
             # Run EnergyPlus simulation
             simulation_output_csv = self.run_energyplus_simulation(epw_file, simulation_dir)
             if not simulation_output_csv:
-                self.show_status("סימולציית EnergyPlus נכשלה. יצירת הדוחות עלולה להיות חלקית.", "warning")
+                self.show_status("סימולציית EnergyPlus נכשלה או שקבצי הפלט לא נמצאו. הדוחות יופקו בלי נתוני סימולציה.", "warning")
             
             # Initialize ProcessingManager
             self.processing_manager = ProcessingManager(
@@ -704,30 +704,180 @@ class ModernIDFProcessorGUI:
             self.show_status(f"שגיאה: קובץ מזג אוויר {epw_filename} לא נמצא. {e}", "error")
             return None
 
+    def _ensure_idf_output_variables(self, idf_path):
+        """Ensure required IDF output variables are present."""
+        self.show_status("מוודא משתני פלט נדרשים ב-IDF...")
+        try:
+            from utils.data_loader import DataLoader
+            data_loader = DataLoader()  # Create a temporary loader
+            # No need to load the full IDF here, just use the utility method
+            idd_path = os.path.join(self.energyplus_dir, "Energy+.idd")
+            modified = data_loader.ensure_output_variables(idf_path, idd_path)
+            if modified:
+                self.show_status("משתני פלט IDF הוודאו/עודכנו")
+            else:
+                self.show_status("משתני פלט IDF כבר קיימים או לא בוצעו שינויים")
+            return True  # Assume success if no exception
+        except Exception as e:
+            self.show_status(f"אזהרה: שגיאה בהבטחת משתני פלט IDF: {e}. דירוג אנרגיה עלול להיפגע", "warning")
+            logger.error(f"Error in _ensure_idf_output_variables: {e}", exc_info=True)
+            return False  # Indicate failure
+
     def run_energyplus_simulation(self, epw_file, simulation_dir):
-        """Run EnergyPlus simulation."""
+        """Run EnergyPlus simulation using the same logic as original GUI."""
         self.show_status("מתחיל סימולציית EnergyPlus...")
         
-        # Update progress to indeterminate
+        # Update progress to indeterminate style
         if self.energyplus_progress:
-            # Simulate indeterminate progress
-            for i in range(10):
-                self.energyplus_progress.value = (i + 1) / 10
-                if self.page:
-                    self.page.update()
-        
-        # Simulation logic would go here (simplified for now)
-        # This would be the same logic as in the original GUI
-        output_csv_path = os.path.join(simulation_dir, "eplustbl.csv")
-        
-        # For now, just simulate success
-        self.show_status("סימולציית EnergyPlus הושלמה בהצלחה!")
-        if self.energyplus_progress:
-            self.energyplus_progress.value = 1.0
+            self.energyplus_progress.value = 0.1
             if self.page:
                 self.page.update()
         
-        return output_csv_path if os.path.exists(output_csv_path) else None
+        output_csv_path = os.path.join(simulation_dir, "eplustbl.csv")
+        simulation_successful = False
+        
+        # Variables for cleanup
+        safe_idf_path = self.input_file
+        idf_cleanup = None
+        safe_output_dir = simulation_dir
+        needs_move_back = False
+        
+        try:
+            # Ensure the IDF has necessary output variables before running
+            if not self._ensure_idf_output_variables(self.input_file):
+                self.show_status("מדלג על הסימולציה בשל בעיות במשתני הפלט של IDF", "warning")
+                return None
+            
+            if self.energyplus_progress:
+                self.energyplus_progress.value = 0.2
+                if self.page:
+                    self.page.update()
+
+            # Check if paths contain Hebrew/Unicode characters and create safe copies if needed
+            if contains_non_ascii(self.input_file):
+                self.show_status("נתיב IDF מכיל תווי Unicode/עברית, יוצר עותק ASCII בטוח עבור EnergyPlus...")
+                safe_idf_path, idf_cleanup = create_safe_path_for_energyplus(self.input_file)
+                self.show_status(f"משתמש בנתיב IDF בטוח: {safe_idf_path}")
+            
+            if contains_non_ascii(simulation_dir):
+                self.show_status("תיקיית הפלט מכילה תווי Unicode/עברית, משתמש בתיקייה זמנית ASCII בטוחה...")
+                from utils.path_utils import create_safe_output_dir_for_energyplus
+                safe_output_dir, needs_move_back = create_safe_output_dir_for_energyplus(simulation_dir)
+                self.show_status(f"משתמש בתיקיית פלט בטוחה: {safe_output_dir}")
+                # Update the expected output path
+                temp_output_csv_path = os.path.join(safe_output_dir, "eplustbl.csv")
+            else:
+                temp_output_csv_path = output_csv_path
+
+            if self.energyplus_progress:
+                self.energyplus_progress.value = 0.4
+                if self.page:
+                    self.page.update()
+
+            # Normalize paths for EnergyPlus compatibility
+            from utils.path_utils import normalize_path_for_energyplus
+            normalized_epw = normalize_path_for_energyplus(epw_file)
+            normalized_output_dir = normalize_path_for_energyplus(safe_output_dir)
+            normalized_idf = normalize_path_for_energyplus(safe_idf_path)
+            
+            energyplus_exe = os.path.join(self.energyplus_dir, "energyplus.exe")
+            cmd = [energyplus_exe, "-w", normalized_epw, "-r", "-d", normalized_output_dir, normalized_idf]
+            self.show_status(f"מריץ פקודת E+ עם נתיבים מנורמלים: {' '.join(cmd[:3])}...")
+            
+            if self.energyplus_progress:
+                self.energyplus_progress.value = 0.6
+                if self.page:
+                    self.page.update()
+            
+            import subprocess
+            process = subprocess.run(
+                cmd, 
+                check=True, 
+                capture_output=True, 
+                text=True, 
+                encoding='utf-8', 
+                errors='ignore'
+            )
+            
+            if process.stdout: 
+                logger.info(f"E+ STDOUT:\n{process.stdout}")
+            if process.stderr: 
+                logger.warning(f"E+ STDERR:\n{process.stderr}")  # E+ often uses stderr for info
+
+            if self.energyplus_progress:
+                self.energyplus_progress.value = 0.9
+                if self.page:
+                    self.page.update()
+
+            # Check if simulation produced output in the temporary location
+            if os.path.exists(temp_output_csv_path):
+                # Check if CSV is empty or too small (basic check)
+                if os.path.getsize(temp_output_csv_path) > 100:  # Arbitrary small size
+                    simulation_successful = True
+                    
+                    # If we used a temporary directory, move files back to the original location
+                    if needs_move_back:
+                        self.show_status("מעביר קבצי פלט של סימולציה בחזרה לתיקיית Unicode המקורית...")
+                        from utils.path_utils import move_simulation_files_back
+                        if move_simulation_files_back(safe_output_dir, simulation_dir):
+                            self.show_status("העברת קבצי סימולציה לתיקייה המקורית הושלמה בהצלחה")
+                        else:
+                            self.show_status("אזהרה: חלו בעיות בהעברת קבצי סימולציה", "warning")
+                    
+                    if self.energyplus_progress:
+                        self.energyplus_progress.value = 1.0
+                        if self.page:
+                            self.page.update()
+                    
+                    self.show_status(f"סימולציית EnergyPlus הצליחה. פלט: {output_csv_path}")
+                else:
+                    self.show_status(f"אזהרה: קובץ פלט הסימולציה {temp_output_csv_path} קטן מדי או ריק", "warning")
+            else:
+                self.show_status(f"הסימולציה הסתיימה, אבל קובץ הפלט לא נמצא: {temp_output_csv_path}", "error")
+        
+        except subprocess.CalledProcessError as e:
+            error_detail = e.stderr.strip() if e.stderr else "No stderr output."
+            stdout_detail = e.stdout.strip() if e.stdout else "No stdout output."
+            logger.error(f"E+ CalledProcessError. RC: {e.returncode}. STDOUT:\n{stdout_detail}\nSTDERR:\n{error_detail}", exc_info=True)
+            
+            # Try to find a more specific error message
+            specific_error = "Unknown simulation error."
+            for line in reversed(error_detail.splitlines()):  # Check stderr first
+                if "**FATAL**" in line or "**SEVERE**" in line: 
+                    specific_error = line.strip()
+                    break
+            if specific_error == "Unknown simulation error.":  # Then check stdout
+                for line in reversed(stdout_detail.splitlines()):
+                    if "**FATAL**" in line or "**SEVERE**" in line: 
+                        specific_error = line.strip()
+                        break
+            if specific_error == "Unknown simulation error." and error_detail:  # Fallback
+                specific_error = error_detail.splitlines()[-1].strip() if error_detail.splitlines() else "No specific error in stderr."
+
+            self.show_status(f"סימולציית EnergyPlus נכשלה (RC {e.returncode}). שגיאה: {specific_error}", "error")
+        
+        except FileNotFoundError:
+            self.show_status(f"שגיאה: energyplus.exe לא נמצא ב-'{os.path.join(self.energyplus_dir, 'energyplus.exe')}'", "error")
+            logger.error(f"FileNotFoundError for energyplus.exe at {os.path.join(self.energyplus_dir, 'energyplus.exe')}")
+        except Exception as sim_e:
+            self.show_status(f"שגיאה לא צפויה במהלך הסימולציה: {type(sim_e).__name__} - {str(sim_e)}", "error")
+            logger.error(f"Unexpected error in run_energyplus_simulation: {sim_e}", exc_info=True)
+        finally:
+            # Clean up temporary IDF file
+            if idf_cleanup:
+                idf_cleanup()
+                self.show_status("ניקוי קובץ IDF זמני")
+            
+            # Clean up temporary output directory if something went wrong
+            if needs_move_back and not simulation_successful and os.path.exists(safe_output_dir):
+                try:
+                    import shutil
+                    shutil.rmtree(safe_output_dir)
+                    logger.info(f"Cleaned up temporary output directory: {safe_output_dir}")
+                except OSError as e:
+                    logger.warning(f"Could not remove temporary output directory {safe_output_dir}: {e}")
+        
+        return output_csv_path if simulation_successful else None
 
     def reset_gui_state(self):
         """Reset GUI state after processing."""

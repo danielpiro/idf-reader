@@ -3,8 +3,8 @@ import PyInstaller.__main__
 def build_exe():
     # PyInstaller command-line arguments
     args = [
-        'gui.py',  # Your main script
-        '--name=IDF-Processor',  # Name of the executable
+        'modern_gui.py',  # Your main script
+        '--name=IDF-Processor-Modern',  # Name of the executable
         '--onefile',  # Create a single executable file
         '--noconsole',  # Don't show console window
         '--clean',  # Clean PyInstaller cache
@@ -19,14 +19,16 @@ def build_exe():
 
     # Include main dependencies
     hidden_imports = [
-        'customtkinter',
-        'tkinter',
+        'flet',
+        'asyncio',
         'eppy',
         'reportlab',
         'parsers',
         'generators',
         'utils',
         'utils.path_utils',
+        'utils.logging_config',
+        'utils.data_loader',
         'processing_manager',
         'idf_code_cleaner',
     ]
