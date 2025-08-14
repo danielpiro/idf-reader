@@ -181,20 +181,28 @@ def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_tot
         logger.warning(f"_get_numeric_area_score_for_group: Missing required parameters. group_model_csv_area_desc: {group_model_csv_area_desc}, model_year: {model_year}, model_area_definition: {model_area_definition}")
     
     if numeric_energy_consumption is not None:
-
-        if group_sum_total_area <= 70:
-            adjusted_target_ec = 1.18 * numeric_energy_consumption
-
-            if adjusted_target_ec != 0:
-                calculated_improve_by_value = 100 * (adjusted_target_ec - group_sum_energy_components) / adjusted_target_ec
-            else:
-                logger.warning(f"_get_numeric_area_score_for_group: adjusted_target_ec is 0, cannot calculate improve_by_value for area <= 70")
-
-        else:
+        # Handle office model year differently
+        if str(model_year).lower() == 'office' or (isinstance(model_year, str) and 'office' in model_year.lower()):
+            # For office ISO: skip the 70m² adjustment, always use direct calculation
             if numeric_energy_consumption != 0:
                 calculated_improve_by_value = 100 * (numeric_energy_consumption - group_sum_energy_components) / numeric_energy_consumption
             else:
-                logger.warning(f"_get_numeric_area_score_for_group: numeric_energy_consumption is 0, cannot calculate improve_by_value for area > 70")
+                logger.warning(f"_get_numeric_area_score_for_group: numeric_energy_consumption is 0 for office ISO, cannot calculate improve_by_value")
+        else:
+            # For non-office models: use existing logic with 70m² adjustment
+            if group_sum_total_area <= 70:
+                adjusted_target_ec = 1.18 * numeric_energy_consumption
+
+                if adjusted_target_ec != 0:
+                    calculated_improve_by_value = 100 * (adjusted_target_ec - group_sum_energy_components) / adjusted_target_ec
+                else:
+                    logger.warning(f"_get_numeric_area_score_for_group: adjusted_target_ec is 0, cannot calculate improve_by_value for area <= 70")
+
+            else:
+                if numeric_energy_consumption != 0:
+                    calculated_improve_by_value = 100 * (numeric_energy_consumption - group_sum_energy_components) / numeric_energy_consumption
+                else:
+                    logger.warning(f"_get_numeric_area_score_for_group: numeric_energy_consumption is 0, cannot calculate improve_by_value for area > 70")
     else:
         logger.warning(f"_get_numeric_area_score_for_group: numeric_energy_consumption is None, cannot calculate improve_by_value")
 
@@ -272,14 +280,22 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
 
     grouped_data = {}
     for row in raw_table_data:
-        group_key = (str(row.get('floor_id_report', 'N/A')), str(row.get('area_id_report', 'N/A')))
+        # For office ISO: process each zone individually
+        if str(model_year).lower() == 'office' or (isinstance(model_year, str) and 'office' in model_year.lower()):
+            # Use zone ID as the group key to process each zone separately
+            group_key = str(row.get('zone_id', 'N/A'))
+        else:
+            # For non-office models: group by floor and area as before
+            group_key = (str(row.get('floor_id_report', 'N/A')), str(row.get('area_id_report', 'N/A')))
+            
         if group_key not in grouped_data:
             grouped_data[group_key] = {
                 'sum_energy_components': 0.0,
                 'sum_total_area': 0.0,
                 'model_csv_area_description': row.get('model_csv_area_description'),
                 'area_effective_for_numerator': 0.0,
-                'raw_zone_area_sum_for_denominator': 0.0,                'calculated_score': None
+                'raw_zone_area_sum_for_denominator': 0.0,
+                'calculated_score': None
             }
 
         zone_area = safe_float(row.get('total_area', 0))
@@ -634,11 +650,18 @@ def _create_total_energy_rating_table(total_score, letter_grade):
 def _energy_rating_table(energy_rating_parser, model_year: int, model_area_definition: str, selected_city_name: str):
     """
     Creates the energy rating table as a ReportLab Table object.
-    Returns Table object or None if no data.
+    For office ISO, returns a list of smaller tables to prevent page overflow.
+    Returns Table object, list of Table objects, or None if no data.
     """
-    raw_table_data = energy_rating_parser.get_energy_rating_table_data()
+    raw_table_data = energy_rating_parser.get_energy_rating_table_data(model_year)
+    logger.debug(f"TABLE GEN DEBUG: Retrieved {len(raw_table_data) if raw_table_data else 0} rows of table data")
+    if raw_table_data:
+        logger.debug(f"  - First row sample: {raw_table_data[0] if raw_table_data else 'N/A'}")
+        for i, row in enumerate(raw_table_data[:3]):  # Log first 3 rows
+            logger.debug(f"  - Row {i}: total_area={row.get('total_area')}, lighting={row.get('lighting')}, zone_id={row.get('zone_id')}")
 
     if not raw_table_data:
+        logger.warning("TABLE GEN DEBUG: No table data received from energy_rating_parser")
         return None
 
     def sort_key(item):
@@ -686,7 +709,12 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
                 return default
 
         for row_dict in raw_table_data:
-            item_group_key_for_sum = (str(row_dict.get('floor_id_report','N/A')), str(row_dict.get('area_id_report','N/A')))
+            # For office ISO: process each zone individually
+            if str(model_year).lower() == 'office' or (isinstance(model_year, str) and 'office' in model_year.lower()):
+                item_group_key_for_sum = str(row_dict.get('zone_id', 'N/A'))
+            else:
+                item_group_key_for_sum = (str(row_dict.get('floor_id_report','N/A')), str(row_dict.get('area_id_report','N/A')))
+                
             # For 2023, exclude lighting from energy calculations
             if model_year == 2023:
                 current_row_energy_sum = safe_float(row_dict.get('cooling', 0.0)) + \
@@ -702,7 +730,11 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
     group_start_pdf_row_index_in_table_content = -1
 
     for i, row_dict in enumerate(raw_table_data):
-        item_group_key = (str(row_dict.get('floor_id_report','N/A')), str(row_dict.get('area_id_report','N/A')))
+        # For office ISO: process each zone individually
+        if str(model_year).lower() == 'office' or (isinstance(model_year, str) and 'office' in model_year.lower()):
+            item_group_key = str(row_dict.get('zone_id', 'N/A'))
+        else:
+            item_group_key = (str(row_dict.get('floor_id_report','N/A')), str(row_dict.get('area_id_report','N/A')))
 
         display_sum_for_row = ""
         display_energy_consump = ""
@@ -776,17 +808,26 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
             if numeric_energy_consumption is not None:
                 current_group_total_area_val = group_total_floor_areas.get(current_group_key, 0.0)
 
-                if current_group_total_area_val <= 70:
-                    adjusted_target_ec = 1.18 * numeric_energy_consumption
-                    if adjusted_target_ec != 0:
-                        calculated_improve_by_value = 100 * (adjusted_target_ec - current_group_actual_sum) / adjusted_target_ec
-                    else:
-                        display_improve_by = "N/A (Div0 Adj)"
-                else:
+                # Handle office model year differently
+                if str(model_year).lower() == 'office' or (isinstance(model_year, str) and 'office' in model_year.lower()):
+                    # For office ISO: skip the 70m² adjustment, always use direct calculation
                     if numeric_energy_consumption != 0:
                         calculated_improve_by_value = 100 * (numeric_energy_consumption - current_group_actual_sum) / numeric_energy_consumption
                     else:
                         display_improve_by = "N/A (Div0 EC)"
+                else:
+                    # For non-office models: use existing logic with 70m² adjustment
+                    if current_group_total_area_val <= 70:
+                        adjusted_target_ec = 1.18 * numeric_energy_consumption
+                        if adjusted_target_ec != 0:
+                            calculated_improve_by_value = 100 * (adjusted_target_ec - current_group_actual_sum) / adjusted_target_ec
+                        else:
+                            display_improve_by = "N/A (Div0 Adj)"
+                    else:
+                        if numeric_energy_consumption != 0:
+                            calculated_improve_by_value = 100 * (numeric_energy_consumption - current_group_actual_sum) / numeric_energy_consumption
+                        else:
+                            display_improve_by = "N/A (Div0 EC)"
 
                 if calculated_improve_by_value is not None:
                     display_improve_by = _format_number(calculated_improve_by_value)
@@ -875,12 +916,51 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
                 span_commands.append(('SPAN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row)))
                 span_commands.append(('VALIGN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row), 'MIDDLE'))
 
-    table = Table(table_content)
-    style = _get_table_style()
-    for cmd in span_commands:
-        style.add(*cmd)
-    table.setStyle(style)
-    return table
+    logger.info(f"Creating energy rating table with {len(table_content)} rows for model_year: {model_year}")
+    
+    # For office ISO, split into multiple smaller tables if too many rows
+    if (str(model_year).lower() == 'office' or (isinstance(model_year, str) and 'office' in model_year.lower())) and len(table_content) > 17:  # 2 header rows + 15 data rows
+        logger.info(f"Office ISO with {len(table_content)} rows - splitting into multiple tables")
+        
+        header_rows = table_content[:2]  # First 2 rows are headers
+        data_rows = table_content[2:]    # Rest are data rows
+        
+        max_rows_per_table = 15  # Maximum data rows per table
+        tables = []
+        
+        for i in range(0, len(data_rows), max_rows_per_table):
+            chunk = data_rows[i:i + max_rows_per_table]
+            table_chunk_content = header_rows + chunk
+            
+            table = Table(table_chunk_content)
+            style = _get_table_style()
+            # Add span commands that are relevant to this chunk
+            for cmd in span_commands:
+                # Skip span commands that reference rows beyond this chunk
+                if len(cmd) >= 3 and isinstance(cmd[1], tuple) and len(cmd[1]) >= 2:
+                    start_row = cmd[1][1]
+                    if start_row < len(table_chunk_content):
+                        # Adjust span command for this chunk
+                        if len(cmd) >= 3 and isinstance(cmd[2], tuple) and len(cmd[2]) >= 2:
+                            end_row = min(cmd[2][1], len(table_chunk_content) - 1)
+                            adjusted_cmd = (cmd[0], cmd[1], (cmd[2][0], end_row)) + cmd[3:]
+                            style.add(*adjusted_cmd)
+                        else:
+                            style.add(*cmd)
+            
+            table.setStyle(style)
+            tables.append(table)
+            logger.info(f"Created table chunk {len(tables)} with {len(table_chunk_content)} rows")
+        
+        return tables
+    else:
+        # Normal single table for non-office or small office tables
+        table = Table(table_content)
+        style = _get_table_style()
+        for cmd in span_commands:
+            style.add(*cmd)
+        table.setStyle(style)
+        return table
 
 class EnergyRatingReportGenerator:
     """Generates PDF reports showing energy consumption and rating information."""
@@ -937,14 +1017,23 @@ class EnergyRatingReportGenerator:
             story.append(Paragraph(f"{report_title} Report", title_style))
             story.append(Spacer(1, 0.7*cm))
 
-            energy_table = _energy_rating_table(
+            energy_table_result = _energy_rating_table(
                 self.energy_rating_parser,
                 self.model_year,
                 self.model_area_definition,
                 self.selected_city_name
             )
-            if energy_table:
-                story.append(energy_table)
+            if energy_table_result:
+                # Check if we got a list of tables (office ISO) or a single table
+                if isinstance(energy_table_result, list):
+                    logger.info(f"Got {len(energy_table_result)} tables from _energy_rating_table")
+                    for i, table in enumerate(energy_table_result):
+                        if i > 0:
+                            story.append(Spacer(1, 0.5*cm))
+                        story.append(table)
+                else:
+                    logger.info(f"Got single table from _energy_rating_table")
+                    story.append(energy_table_result)
             else:
                 no_data_style = self.styles['Normal']
                 no_data_style.alignment = TA_CENTER
@@ -958,6 +1047,69 @@ class EnergyRatingReportGenerator:
 
         except Exception as e:
             raise RuntimeError(f"Error generating energy rating report: {e}")
+
+    def _split_large_table(self, table):
+        """
+        Split a large table into smaller chunks for office ISO to prevent page overflow.
+        Returns a list of Table objects.
+        """
+        try:
+            logger.info(f"Attempting to split table with attributes: {dir(table)}")
+            
+            # Try different ways to access table data
+            table_data = None
+            
+            # Method 1: Check _argW
+            if hasattr(table, '_argW') and table._argW:
+                logger.info(f"Table._argW exists with length: {len(table._argW)}")
+                if isinstance(table._argW, (list, tuple)) and len(table._argW) > 0:
+                    table_data = table._argW[0]
+                    logger.info(f"Got table data from _argW[0], type: {type(table_data)}, length: {len(table_data) if isinstance(table_data, (list, tuple)) else 'N/A'}")
+            
+            # Method 2: Check _cellvalues
+            if not table_data and hasattr(table, '_cellvalues') and table._cellvalues:
+                table_data = table._cellvalues
+                logger.info(f"Got table data from _cellvalues, type: {type(table_data)}, length: {len(table_data) if isinstance(table_data, (list, tuple)) else 'N/A'}")
+            
+            if not table_data or not isinstance(table_data, (list, tuple)) or len(table_data) < 3:
+                logger.warning(f"Cannot split table - insufficient data. Data type: {type(table_data)}, length: {len(table_data) if isinstance(table_data, (list, tuple)) else 'N/A'}")
+                return [table]  # Return original table if we can't split it
+            
+            logger.info(f"Table has {len(table_data)} total rows")
+            
+            # Header rows (first 2 rows: main header and column headers)
+            header_rows = table_data[:2]
+            data_rows = table_data[2:]  # Actual data rows
+            
+            logger.info(f"Splitting {len(data_rows)} data rows into chunks")
+            
+            # Split data into chunks (max 15 rows per page to fit landscape layout safely)
+            max_rows_per_page = 15
+            split_tables = []
+            
+            for i in range(0, len(data_rows), max_rows_per_page):
+                chunk = data_rows[i:i + max_rows_per_page]
+                # Create new table with header + chunk
+                new_table_data = header_rows + chunk
+                
+                logger.info(f"Creating table chunk {len(split_tables)+1} with {len(new_table_data)} rows")
+                
+                # Create new table with same style
+                new_table = Table(new_table_data)
+                # Copy the style from the original table
+                if hasattr(table, '_tablestyle') and table._tablestyle:
+                    new_table.setStyle(table._tablestyle)
+                else:
+                    # Fallback: apply default style
+                    new_table.setStyle(_get_table_style())
+                split_tables.append(new_table)
+            
+            logger.info(f"Successfully split large table into {len(split_tables)} smaller tables for office ISO")
+            return split_tables if split_tables else [table]
+            
+        except Exception as e:
+            logger.error(f"Error splitting table: {e}", exc_info=True)
+            return [table]  # Return original table if splitting fails
 
     def generate_total_energy_rating_report(self, output_filename="total-energy-rating.pdf", settings_extractor=None):
         """
@@ -974,7 +1126,7 @@ class EnergyRatingReportGenerator:
             if not self.energy_rating_parser.processed:
                 self.energy_rating_parser.process_output()
 
-            raw_table_data = self.energy_rating_parser.get_energy_rating_table_data()
+            raw_table_data = self.energy_rating_parser.get_energy_rating_table_data(self.model_year)
             total_score, letter_grade = _calculate_total_energy_rating(
                 raw_table_data,
                 self.model_year,
@@ -1026,9 +1178,14 @@ class EnergyRatingReportGenerator:
                 return None
             
             # Group the data (simplified version of the main calculation)
+            # For office ISO: group by zone_id, for others: group by (floor_id, area_id)
             grouped_data = {}
             for row in raw_table_data:
-                group_key = (str(row.get('floor_id_report', 'N/A')), str(row.get('area_id_report', 'N/A')))
+                # Use same grouping logic as main calculation
+                if str(self.model_year).lower() == 'office' or (isinstance(self.model_year, str) and 'office' in self.model_year.lower()):
+                    group_key = str(row.get('zone_id', 'N/A'))
+                else:
+                    group_key = (str(row.get('floor_id_report', 'N/A')), str(row.get('area_id_report', 'N/A')))
                 if group_key not in grouped_data:
                     grouped_data[group_key] = {
                         'sum_energy_components': 0.0,
@@ -1140,7 +1297,7 @@ class EnergyRatingReportGenerator:
         # Format calculation result - need to get the raw_average from the calculation
         if total_score is not None and letter_grade and letter_grade != "N/A":
             # Get the raw_average by recalculating just for display purposes
-            raw_table_data = self.energy_rating_parser.get_energy_rating_table_data()
+            raw_table_data = self.energy_rating_parser.get_energy_rating_table_data(self.model_year)
             raw_average = self._get_raw_average_for_display(raw_table_data)
             if raw_average is not None:
                 calc_result = f"{raw_average:.3f}"

@@ -288,10 +288,15 @@ class EnergyRatingParser:
                         dl_zone_data = all_zones_data_from_loader[matched_zone_key]
                         zone_multiplier = int(dl_zone_data.get('multiplier', 1))
                         individual_zone_floor_area = safe_float(dl_zone_data.get('floor_area', 0.0), 0.0)
+                        logger.info(f"ZONE DATA DEBUG: Found matching zone '{matched_zone_key}' for energy key '{full_zone_id_key}'")
+                        logger.info(f"  - Zone data from DataLoader: {dl_zone_data}")
+                        logger.info(f"  - Extracted floor_area: {individual_zone_floor_area}, multiplier: {zone_multiplier}")
                     else:
                         # No matching zone found, use defaults
                         zone_keys_missing.add(full_zone_id_key)
                         logger.warning(f"EnergyRatingParser: No matching zone found for '{full_zone_id_key}'. Using defaults for multiplier/floor_area.")
+                        logger.debug(f"  - Available zone keys in DataLoader: {list(all_zones_data_from_loader.keys()) if isinstance(all_zones_data_from_loader, dict) else 'Not a dict'}")
+                        logger.debug(f"  - Target area_id: {area_id_from_header if pattern_used != 'space' else area_zone_id}, zone_name: {zone_name_from_header}")
 
                     total_area_for_legacy_grouping = self._get_area_total_for_area_id(area_id_from_header)
                     location_for_grouping = self._determine_location(area_id_from_header)
@@ -520,7 +525,7 @@ class EnergyRatingParser:
             return {}
         return self.energy_data_by_area
 
-    def get_energy_rating_table_data(self) -> List[Dict[str, Any]]:
+    def get_energy_rating_table_data(self, model_year=None) -> List[Dict[str, Any]]:
         """
         Get data for energy rating reports in table format.
         This method iterates over self.energy_data_by_area (keyed by full_zone_id)
@@ -535,63 +540,181 @@ class EnergyRatingParser:
             return table_data
 
         try:
-            floor_area_id_sums: Dict[tuple[str, str], float] = {}
-            for data_for_zone_pre_calc in self.energy_data_by_area.values():
-                floor_id = data_for_zone_pre_calc.get('floor_id_report', 'N/A')
-                area_id = data_for_zone_pre_calc.get('area_id_report', 'N/A')
-                individual_area = safe_float(data_for_zone_pre_calc.get('individual_zone_floor_area', 0.0), 0.0)
-
-                key = (floor_id, area_id)
-                if key not in floor_area_id_sums:
-                    floor_area_id_sums[key] = 0.0
-                floor_area_id_sums[key] += individual_area
-
-            for full_zone_id_key, data_for_zone in self.energy_data_by_area.items():
+            # Check if this is office ISO using model_year parameter or data_loader context
+            is_office_iso = False
+            
+            # Primary detection: use model_year parameter if provided
+            if model_year is not None:
+                is_office_iso = str(model_year).lower() == 'office' or (isinstance(model_year, str) and 'office' in model_year.lower())
+                logger.info(f"ISO TYPE DEBUG: Using model_year parameter '{model_year}' -> is_office_iso={is_office_iso}")
+            else:
+                # Fallback detection: try to detect from data_loader context
                 try:
-                    current_zone_floor_area = safe_float(data_for_zone.get('individual_zone_floor_area', 0.0), 0.0)
-
-                    abs_lighting = safe_float(data_for_zone.get('lighting', 0.0), 0.0)
-                    abs_heating = safe_float(data_for_zone.get('heating', 0.0), 0.0)
-                    abs_cooling = safe_float(data_for_zone.get('cooling', 0.0), 0.0)
-                    safe_float(data_for_zone.get('total', 0.0), 0.0)
-
-                    report_floor_id = data_for_zone.get('floor_id_report', 'N/A')
-                    report_area_id = data_for_zone.get('area_id_report', 'N/A')
-                    group_lookup_key = (report_floor_id, report_area_id)
-                    correct_total_floor_area_for_group = floor_area_id_sums.get(group_lookup_key, 0.0)
-
-                    if correct_total_floor_area_for_group > 0:
-                        val_lighting = abs_lighting / correct_total_floor_area_for_group
-                        val_heating = abs_heating / correct_total_floor_area_for_group
-                        val_cooling = abs_cooling / correct_total_floor_area_for_group
-                        val_total = (abs_lighting + abs_heating + abs_cooling) / correct_total_floor_area_for_group
+                    logger.info(f"ISO TYPE DEBUG: No model_year provided, checking data_loader context...")
+                    logger.info(f"  - data_loader type: {type(self.data_loader)}")
+                    logger.info(f"  - hasattr city_info: {hasattr(self.data_loader, 'city_info')}")
+                    
+                    if hasattr(self.data_loader, 'city_info') and self.data_loader.city_info:
+                        iso_type = self.data_loader.city_info.get('iso_type', '')
+                        is_office_iso = str(iso_type).lower() == 'office' or 'office' in str(iso_type).lower()
+                        logger.info(f"ISO TYPE DEBUG: Found city_info with iso_type='{iso_type}', is_office_iso={is_office_iso}")
+                        logger.info(f"  - Full city_info: {self.data_loader.city_info}")
                     else:
-                        logger.warning(f"Correct total floor area for group ('{report_floor_id}', '{report_area_id}') is {correct_total_floor_area_for_group} for zone '{full_zone_id_key}'. Energy values in report will be absolute (not per m^2).")
-                        val_lighting = abs_lighting
-                        val_heating = abs_heating
-                        val_cooling = abs_cooling
-                        val_total = abs_lighting + abs_heating + abs_cooling
+                        logger.info("ISO TYPE DEBUG: No city_info found in data_loader or city_info is None")
+                        if hasattr(self.data_loader, 'city_info'):
+                            logger.info(f"  - city_info value: {self.data_loader.city_info}")
+                except Exception as e:
+                    logger.info(f"ISO TYPE DEBUG: Exception during fallback detection: {e}")
+                    pass
+                
+            if is_office_iso:
+                logger.info("Office ISO detected - using individual zone calculations")
+                logger.debug(f"Total zones found in energy_data_by_area: {len(self.energy_data_by_area)}")
+                
+                # For office ISO: each zone calculated individually
+                for full_zone_id_key, data_for_zone in self.energy_data_by_area.items():
+                    try:
+                        current_zone_floor_area = safe_float(data_for_zone.get('individual_zone_floor_area', 0.0), 0.0)
+                        report_floor_id = data_for_zone.get('floor_id_report', 'N/A')
+                        report_area_id = data_for_zone.get('area_id_report', 'N/A')
 
-                    row = {
-                        'floor_id_report': report_floor_id,
-                        'area_id_report': report_area_id,
-                        'zone_name_report': data_for_zone.get('zone_name_report', 'N/A'),
-                        'multiplier': data_for_zone.get('multiplier', 1),
-                        'total_area': current_zone_floor_area,
-                        'lighting': val_lighting,
-                        'heating': val_heating,
-                        'cooling': val_cooling,
-                        'total': val_total,
-                        'location': data_for_zone.get('location', 'Unknown'),
-                        'model_csv_area_description': data_for_zone.get('location', 'Unknown'),
-                        'energy_consumption_model': '',
-                        'better_percent': '',
-                        'energy_rating': '',
-                    }
-                    table_data.append(row)
-                except (TypeError, KeyError) as e_row:
-                    logger.error(f"Error creating table row for full_zone_id_key '{full_zone_id_key}': {e_row}. Skipping this zone.", exc_info=True)
-                    continue
+                        abs_lighting = safe_float(data_for_zone.get('lighting', 0.0), 0.0)
+                        abs_heating = safe_float(data_for_zone.get('heating', 0.0), 0.0)
+                        abs_cooling = safe_float(data_for_zone.get('cooling', 0.0), 0.0)
+
+                        # Debug logging for each zone
+                        logger.info(f"OFFICE ZONE DEBUG: {full_zone_id_key}")
+                        logger.info(f"  - Floor ID: {report_floor_id}, Area ID: {report_area_id}")
+                        logger.info(f"  - Individual zone area: {current_zone_floor_area}")
+                        logger.info(f"  - Energy values - Lighting: {abs_lighting}, Heating: {abs_heating}, Cooling: {abs_cooling}")
+                        logger.info(f"  - Zone data keys: {list(data_for_zone.keys())}")
+                        logger.info(f"  - Multiplier: {data_for_zone.get('multiplier', 1)}")
+                        logger.info(f"  - Legacy area total: {data_for_zone.get('total_area_of_legacy_grouping', 'N/A')}")
+
+                        # Use individual zone area for calculations (not group area)
+                        if current_zone_floor_area > 0:
+                            val_lighting = abs_lighting / current_zone_floor_area
+                            val_heating = abs_heating / current_zone_floor_area
+                            val_cooling = abs_cooling / current_zone_floor_area
+                            val_total = (abs_lighting + abs_heating + abs_cooling) / current_zone_floor_area
+                            logger.debug(f"  - Per-area values - Lighting: {val_lighting:.3f}, Heating: {val_heating:.3f}, Cooling: {val_cooling:.3f}, Total: {val_total:.3f}")
+                        else:
+                            logger.warning(f"Individual zone area for '{full_zone_id_key}' is {current_zone_floor_area}. Using absolute values.")
+                            logger.debug(f"  - Zone area is 0, raw energy data: {data_for_zone}")
+                            val_lighting = abs_lighting
+                            val_heating = abs_heating
+                            val_cooling = abs_cooling
+                            val_total = abs_lighting + abs_heating + abs_cooling
+
+                        row = {
+                            'floor_id_report': report_floor_id,
+                            'area_id_report': report_area_id,
+                            'zone_name_report': data_for_zone.get('zone_name_report', 'N/A'),
+                            'zone_id': full_zone_id_key,
+                            'multiplier': data_for_zone.get('multiplier', 1),
+                            'total_area': current_zone_floor_area,
+                            'lighting': val_lighting,
+                            'heating': val_heating,
+                            'cooling': val_cooling,
+                            'total': val_total,
+                            'location': data_for_zone.get('location', 'Unknown'),
+                            'model_csv_area_description': data_for_zone.get('location', 'Unknown'),
+                            'energy_consumption_model': '',
+                            'better_percent': '',
+                            'energy_rating': '',
+                        }
+                        table_data.append(row)
+                        logger.debug(f"  - Final row added to table_data with total_area: {current_zone_floor_area}")
+                    except (TypeError, KeyError) as e_row:
+                        logger.error(f"Error creating table row for full_zone_id_key '{full_zone_id_key}': {e_row}. Skipping this zone.", exc_info=True)
+                        continue
+            else:
+                logger.info("Residential ISO detected - using area-grouped calculations")
+                # For residential ISO: group zones by (floor_id, area_id) and sum their values
+                groups = {}
+                for full_zone_id_key, data_for_zone in self.energy_data_by_area.items():
+                    try:
+                        report_floor_id = data_for_zone.get('floor_id_report', 'N/A')
+                        report_area_id = data_for_zone.get('area_id_report', 'N/A')
+                        group_key = (str(report_floor_id), str(report_area_id))
+                        
+                        if group_key not in groups:
+                            groups[group_key] = {
+                                'floor_id_report': report_floor_id,
+                                'area_id_report': report_area_id,
+                                'zones': [],
+                                'total_area': 0.0,
+                                'lighting': 0.0,
+                                'heating': 0.0,
+                                'cooling': 0.0,
+                                'location': data_for_zone.get('location', 'Unknown'),
+                                'multiplier': 1
+                            }
+                        
+                        # Add this zone to the group
+                        groups[group_key]['zones'].append(full_zone_id_key)
+                        groups[group_key]['total_area'] = safe_float(data_for_zone.get('total_area_of_legacy_grouping', 0.0), 0.0)
+                        groups[group_key]['lighting'] += safe_float(data_for_zone.get('lighting', 0.0), 0.0)
+                        groups[group_key]['heating'] += safe_float(data_for_zone.get('heating', 0.0), 0.0)
+                        groups[group_key]['cooling'] += safe_float(data_for_zone.get('cooling', 0.0), 0.0)
+                        groups[group_key]['multiplier'] = data_for_zone.get('multiplier', 1)
+                        
+                    except Exception as e_group:
+                        logger.error(f"Error grouping zone '{full_zone_id_key}': {e_group}. Skipping.", exc_info=True)
+                        continue
+                
+                # Create table rows from groups
+                for group_key, group_data in groups.items():
+                    try:
+                        total_area = group_data['total_area']
+                        abs_lighting = group_data['lighting']
+                        abs_heating = group_data['heating']
+                        abs_cooling = group_data['cooling']
+                        
+                        # Calculate per-area values
+                        if total_area > 0:
+                            val_lighting = abs_lighting / total_area
+                            val_heating = abs_heating / total_area
+                            val_cooling = abs_cooling / total_area
+                            val_total = (abs_lighting + abs_heating + abs_cooling) / total_area
+                        else:
+                            logger.warning(f"Total area for group {group_key} is {total_area}. Using absolute values.")
+                            val_lighting = abs_lighting
+                            val_heating = abs_heating
+                            val_cooling = abs_cooling
+                            val_total = abs_lighting + abs_heating + abs_cooling
+                        
+                        # Create zone name from all zones in group
+                        zone_names = []
+                        for zone_id in group_data['zones']:
+                            zone_data = self.energy_data_by_area.get(zone_id, {})
+                            zone_name = zone_data.get('zone_name_report', 'N/A')
+                            if zone_name not in zone_names:
+                                zone_names.append(zone_name)
+                        combined_zone_name = ', '.join(zone_names)
+                        
+                        row = {
+                            'floor_id_report': group_data['floor_id_report'],
+                            'area_id_report': group_data['area_id_report'],
+                            'zone_name_report': combined_zone_name,
+                            'zone_id': f"GROUP_{group_key[0]}_{group_key[1]}",
+                            'multiplier': group_data['multiplier'],
+                            'total_area': total_area,
+                            'lighting': val_lighting,
+                            'heating': val_heating,
+                            'cooling': val_cooling,
+                            'total': val_total,
+                            'location': group_data['location'],
+                            'model_csv_area_description': group_data['location'],
+                            'energy_consumption_model': '',
+                            'better_percent': '',
+                            'energy_rating': '',
+                        }
+                        table_data.append(row)
+                    except (TypeError, KeyError) as e_row:
+                        logger.error(f"Error creating table row for group '{group_key}': {e_row}. Skipping this group.", exc_info=True)
+                        continue
+                        
             return table_data
         except Exception as e:
             logger.error(f"Unexpected error generating energy rating table data: {e}", exc_info=True)
