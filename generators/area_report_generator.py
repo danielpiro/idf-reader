@@ -43,7 +43,7 @@ class AreaReportGenerator(BaseReportGenerator):
         
         # Build story
         story = []
-        report_title = f"Area {area_id} - Thermal Properties"
+        report_title = f"Area {area_id}"
         
         # Add standardized header
         header_elements = self.add_standardized_header(doc, report_title)

@@ -317,7 +317,7 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
         run_id=run_id,
         city_name=city_name,
         area_name=area_name,
-        report_title="Zone Loads Summary"
+        report_title="Loads Report"
     )
     story.extend(header_elements)
     story.append(Paragraph("IDF Zone Loads Report", title_style))

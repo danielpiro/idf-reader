@@ -1140,7 +1140,7 @@ class EnergyRatingReportGenerator:
             hebrew_font = get_hebrew_font_name()
 
             # Add standardized header with metadata
-            report_title = "Total Energy Rating Report"
+            report_title = "Final Energy Rating Report"
             header_elements = create_standardized_header(
                 doc=doc,
                 project_name=self.project_name,

@@ -210,7 +210,7 @@ def generate_natural_ventilation_report(ventilation_data: Dict[str, List[Dict[st
                                          textColor=COLORS['dark_gray'], alignment=2)
         
         # Add standardized header with horizontal alignment
-        report_title = "Natural Ventilation Summary"
+        report_title = "Natural Ventilation"
         header_elements = create_standardized_header(
             doc=doc,
             project_name=project_name,

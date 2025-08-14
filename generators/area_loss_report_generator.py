@@ -38,7 +38,7 @@ class AreaLossReportGenerator(BaseReportGenerator):
         
         # Build story
         story = []
-        report_title = "Area Loss - Thermal Performance"
+        report_title = "Area Loss"
         
         # Add standardized header
         header_elements = self.add_standardized_header(doc, report_title)

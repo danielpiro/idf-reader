@@ -52,7 +52,7 @@ class MaterialsReportGenerator(BaseReportGenerator):
         
         # Build story
         story = []
-        report_title = "Building Elements Materials Properties"
+        report_title = "Materials"
         
         # Add standardized header
         header_elements = self.add_standardized_header(doc, report_title)

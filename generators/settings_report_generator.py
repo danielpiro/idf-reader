@@ -207,7 +207,7 @@ def generate_settings_report_pdf(settings_data, output_filename="output/settings
         story = []
 
         # Add standardized header
-        report_title = "Settings Summary"
+        report_title = "Settings"
         header_elements = create_standardized_header(
             doc=doc,
             project_name=project_name,

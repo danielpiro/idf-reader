@@ -124,7 +124,7 @@ class LightingReportGenerator(BaseReportGenerator):
                                     topMargin=top_margin, bottomMargin=bottom_margin)
 
             # Add standardized header
-            report_title = "Daylighting Summary"
+            report_title = "Lighting"
             header_elements = create_standardized_header(
                 doc=doc,
                 project_name=self.project_name,

@@ -40,7 +40,7 @@ class GlazingReportGenerator(BaseReportGenerator):
         
         # Build story
         story = []
-        report_title = "Glazing Constructions"
+        report_title = "Glazing"
         
         # Add standardized header
         header_elements = self.add_standardized_header(doc, report_title)

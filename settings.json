@@ -1,12 +1,12 @@
 {
-    "last_input": "C:\\Users\\daniel\\Desktop\\idf-reader\\tests\\in.idf",
+    "last_input": "C:\\Users\\daniel\\Desktop\\idf-reader\\tests\\lights.idf",
     "last_eplus_dir": "C:\\EnergyPlusV9-4-0",
     "last_output": "C:\\Users\\daniel\\Desktop",
     "last_city": "שדרות",
     "last_iso_type": "משרדים",
     "window": {
-        "width": 1400,
-        "height": 1000,
+        "width": 1600,
+        "height": 1200,
         "maximized": true,
         "position_x": null,
         "position_y": null

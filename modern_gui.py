@@ -106,8 +106,8 @@ class ModernIDFProcessorGUI:
                 
                 # Load window settings
                 self.window_settings = settings.get('window', {
-                    'width': 1400,  # Increased width
-                    'height': 1000,  # Increased height to show all options
+                    'width': 1400,  # Default width
+                    'height': 1000,  # Default height
                     'maximized': True,  # Default to fullscreen/maximized
                     'position_x': None,
                     'position_y': None
@@ -123,8 +123,8 @@ class ModernIDFProcessorGUI:
             logger.error(f"Error loading settings: {e}")
             # Default window settings if loading fails
             self.window_settings = {
-                'width': 1400,  # Increased width
-                'height': 1000,  # Increased height to show all options
+                'width': 1400,  # Default width
+                'height': 1000,  # Default height
                 'maximized': True,
                 'position_x': None,
                 'position_y': None
@@ -558,7 +558,7 @@ class ModernIDFProcessorGUI:
         ])
         
         self.process_button.disabled = not is_valid or self.is_processing
-        self.process_button.text = "🚀 צור דוחות" if is_valid and not self.is_processing else "השלם הגדרות"
+        self.process_button.text = "צור דוחות" if is_valid and not self.is_processing else "השלם הגדרות"
         
         if self.page:
             self.page.update()
@@ -663,9 +663,14 @@ class ModernIDFProcessorGUI:
             
             if success:
                 self.show_status("כל הדוחות נוצרו בהצלחה!", "success")
-                # Try to open output directory
+                # Try to open output directory and bring it to front
                 try:
                     if os.name == 'nt':  # Windows
+                        import subprocess
+                        # Use explorer to open folder and bring it to front
+                        subprocess.Popen(['explorer', reports_dir])
+                    else:
+                        # For non-Windows systems, use default file manager
                         os.startfile(reports_dir)
                 except Exception as e:
                     logger.warning(f"Could not open output directory: {e}")
@@ -905,7 +910,7 @@ class ModernIDFProcessorGUI:
         self.load_settings()
         
         # Apply window settings
-        if self.window_settings.get('maximized', True):
+        if self.window_settings.get('maximized', False):
             # Start maximized/fullscreen
             page.window_maximized = True
         else:
@@ -919,7 +924,7 @@ class ModernIDFProcessorGUI:
             if self.window_settings.get('position_y') is not None:
                 page.window_top = self.window_settings.get('position_y')
         
-        # Set minimum window size - increased to show all content properly
+        # Set minimum window size
         page.window_min_width = 1000
         page.window_min_height = 800
         page.padding = 20

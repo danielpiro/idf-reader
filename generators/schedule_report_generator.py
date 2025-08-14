@@ -189,7 +189,7 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
         header_info_style = ParagraphStyle(
             'HeaderInfo', parent=styles['Normal'], fontSize=9, fontName=hebrew_font, textColor=COLORS['dark_gray'], alignment=2        )
         now = datetime.datetime.now()
-        report_title = "Unique Schedule Definitions"
+        report_title = "Schedule"
 
         
         header_text = safe_format_header_text(
