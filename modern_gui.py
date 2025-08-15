@@ -1774,28 +1774,23 @@ if __name__ == "__main__":
     import sys
     import tempfile
     
-    # Single instance protection
+    # Windows-only program check
+    if sys.platform != "win32":
+        print("This program is designed for Windows only.")
+        sys.exit(1)
+    
+    # Single instance protection for Windows
     lock_file = os.path.join(tempfile.gettempdir(), "idf_reader.lock")
     
     try:
         # Try to acquire lock
         lock = open(lock_file, 'w')
-        if sys.platform == "win32":
-            # Windows version
-            import msvcrt
-            try:
-                msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
-            except IOError:
-                print("Another instance is already running")
-                sys.exit(1)
-        else:
-            # Unix version
-            import fcntl
-            try:
-                fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except IOError:
-                print("Another instance is already running")
-                sys.exit(1)
+        import msvcrt
+        try:
+            msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+        except IOError:
+            print("Another instance is already running")
+            sys.exit(1)
         
         # Start the app
         ft.app(target=main, view=ft.AppView.FLET_APP_HIDDEN, assets_dir="data")
