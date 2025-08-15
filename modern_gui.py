@@ -1224,8 +1224,8 @@ class ModernIDFProcessorGUI:
                     expand=True),
                     ft.Column([
                         ft.Row([
-                            self.create_license_button(),
-                            self.create_update_menu_button(),
+                            (logger.info("Creating license button..."), self.create_license_button())[1],
+                            (logger.info("Creating update button..."), self.create_update_menu_button())[1],
                         ], spacing=10, alignment=ft.MainAxisAlignment.CENTER),
                         ft.Text(f"v{self.current_version}", size=10, color=ft.Colors.ON_SURFACE_VARIANT)
                     ], spacing=2, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
@@ -1605,12 +1605,21 @@ class ModernIDFProcessorGUI:
             color = ft.Colors.GREY_600
             tooltip = "ניהול רישיון"
         
-        return ft.IconButton(
+        def license_button_clicked(e):
+            logger.info(f"=== LICENSE BUTTON CLICKED ===")
+            logger.info(f"Event: {e}")
+            logger.info(f"Page: {self.page}")
+            logger.info(f"Button: {e.control if hasattr(e, 'control') else 'No control'}")
+            self.show_license_dialog()
+        
+        button = ft.IconButton(
             icon=icon,
             icon_color=color,
             tooltip=tooltip,
-            on_click=lambda _: (logger.info("License button clicked"), self.show_license_dialog())
+            on_click=license_button_clicked
         )
+        logger.info(f"License button created: {button}")
+        return button
 
     def create_update_menu_button(self):
         """Create update menu button for header."""
@@ -1681,12 +1690,20 @@ class ModernIDFProcessorGUI:
                 if hasattr(self, 'show_status'):
                     self.show_status(f"שגיאה בהצגת תפריט עדכונים: {e}")
         
-        return ft.IconButton(
+        def update_button_clicked(e):
+            logger.info(f"=== UPDATE BUTTON CLICKED ===")
+            logger.info(f"Event: {e}")
+            logger.info(f"Page: {self.page}")
+            show_update_menu(e)
+        
+        button = ft.IconButton(
             icon=ft.Icons.SYSTEM_UPDATE,
             tooltip="הגדרות עדכונים",
-            on_click=show_update_menu,
+            on_click=update_button_clicked,
             icon_color=ft.Colors.PRIMARY
         )
+        logger.info(f"Update button created: {button}")
+        return button
     
     def show_github_config_dialog(self):
         """Show GitHub token configuration dialog."""
@@ -1796,14 +1813,21 @@ class ModernIDFProcessorGUI:
         self.page.update()
 
 def main(page: ft.Page):
+    logger.info("=== MAIN FUNCTION STARTED ===")
+    logger.info(f"Page object: {page}")
+    
     app = ModernIDFProcessorGUI()
+    logger.info("ModernIDFProcessorGUI instance created")
     
     def on_license_checked():
         """Called after license check is complete."""
+        logger.info("on_license_checked callback called - building UI")
         app.build_ui(page)
     
     # Check license on startup
+    logger.info("About to call show_startup_license_check")
     show_startup_license_check(page, on_license_checked)
+    logger.info("show_startup_license_check call completed")
 
 if __name__ == "__main__":
     import sys

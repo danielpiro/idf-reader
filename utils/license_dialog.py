@@ -27,23 +27,38 @@ class LicenseDialog:
         
     def show_license_dialog(self, show_activation: bool = True):
         """Show the license management dialog."""
+        logger.info(f"=== SHOW LICENSE DIALOG CALLED (show_activation={show_activation}) ===")
+        logger.info(f"Page object: {self.page}")
+        
         try:
+            logger.info("Creating dialog content...")
+            dialog_content = self._create_dialog_content(show_activation)
+            logger.info(f"Dialog content created: {type(dialog_content)}")
+            
+            logger.info("Creating AlertDialog...")
             self.dialog = ft.AlertDialog(
                 modal=True,
                 title=ft.Text("ניהול רישיון", size=24, weight=ft.FontWeight.BOLD),
-                content=self._create_dialog_content(show_activation),
+                content=dialog_content,
                 actions=[
                     ft.TextButton("סגור", on_click=self._close_dialog),
                 ],
                 actions_alignment=ft.MainAxisAlignment.END,
             )
+            logger.info(f"AlertDialog created: {self.dialog}")
             
+            logger.info("Setting page.dialog...")
             self.page.dialog = self.dialog
+            logger.info("Opening dialog...")
             self.dialog.open = True
+            logger.info("Updating page...")
             self.page.update()
+            logger.info("Dialog should now be visible!")
             
             # Update status
+            logger.info("Updating license status...")
             self._update_license_status()
+            logger.info("License status updated")
             
         except Exception as e:
             logger.error(f"Error showing license dialog: {e}")
@@ -485,29 +500,52 @@ def show_trial_expired_dialog(page: ft.Page, on_license_activated: Optional[Call
 
 def show_startup_license_check(page: ft.Page, on_continue: Optional[Callable] = None):
     """Show license check dialog on startup if needed."""
+    logger.info("=== STARTUP LICENSE CHECK FUNCTION CALLED ===")
+    logger.info(f"Page object: {page}")
+    logger.info(f"on_continue callback: {on_continue}")
+    
     try:
+        logger.info("Getting license status...")
         status = license_manager.get_license_status()
+        logger.info(f"License status received: {status}")
         
         # If everything is fine, continue without dialog
         if status["status"] == LicenseManager.STATUS_VALID:
+            logger.info("License is valid - continuing without dialog")
             if on_continue:
                 on_continue()
             return
         
         # Show appropriate dialog based on status
         if status["status"] == LicenseManager.STATUS_EXPIRED:
+            logger.info("License expired - showing trial expired dialog")
             show_trial_expired_dialog(page, on_continue)
         elif status["status"] in ["unlicensed", "error", "invalid"]:
+            logger.info(f"License status '{status['status']}' - showing license dialog")
             # No license or error - show license dialog for activation
             dialog = LicenseDialog(page, on_continue)
+            logger.info("LicenseDialog created, calling show_license_dialog...")
             dialog.show_license_dialog(show_activation=True)
+            logger.info("show_license_dialog call completed")
         else:
+            logger.warning(f"Unknown license status '{status['status']}' - showing license dialog")
             # Unknown status - show license dialog
             dialog = LicenseDialog(page, on_continue)
             dialog.show_license_dialog(show_activation=True)
                 
     except Exception as e:
         logger.error(f"Startup license check error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         # On error, show license dialog for activation
-        dialog = LicenseDialog(page, on_continue)
-        dialog.show_license_dialog(show_activation=True)
+        try:
+            logger.info("Exception occurred - showing license dialog as fallback")
+            dialog = LicenseDialog(page, on_continue)
+            dialog.show_license_dialog(show_activation=True)
+        except Exception as e2:
+            logger.error(f"Failed to show fallback license dialog: {e2}")
+            logger.error(traceback.format_exc())
+            # Last resort - just continue
+            if on_continue:
+                logger.info("Last resort - calling on_continue directly")
+                on_continue()

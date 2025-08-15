@@ -318,13 +318,19 @@ class LicenseManager:
     
     def get_license_status(self) -> Dict[str, Any]:
         """Get current license status."""
+        logger.info(f"=== GET LICENSE STATUS CALLED ===")
+        logger.info(f"License file path: {self.license_file}")
+        logger.info(f"License file exists: {self.license_file.exists()}")
+        
         try:
             if not self.license_file.exists():
-                return {
+                status_result = {
                     "status": "unlicensed",
                     "type": self.LICENSE_FREE,
                     "message": "No license found"
                 }
+                logger.info(f"No license file - returning: {status_result}")
+                return status_result
             
             # Read license data
             encrypted_data = self.license_file.read_bytes()

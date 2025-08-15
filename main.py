@@ -151,8 +151,24 @@ def run_gui() -> None:
     cli_status_update("No CLI arguments detected. Starting Modern GUI mode...")
     try:
         def main(page: ft.Page):
+            # Import here to avoid circular imports
+            from utils.license_dialog import show_startup_license_check
+            
+            logger.info("=== GUI MAIN FUNCTION STARTED ===")
+            logger.info(f"Page object: {page}")
+            
             app = ModernIDFProcessorGUI()
-            app.build_ui(page)
+            logger.info("ModernIDFProcessorGUI instance created")
+            
+            def on_license_checked():
+                """Called after license check is complete."""
+                logger.info("on_license_checked callback called - building UI")
+                app.build_ui(page)
+            
+            # Check license on startup
+            logger.info("About to call show_startup_license_check")
+            show_startup_license_check(page, on_license_checked)
+            logger.info("show_startup_license_check call completed")
         
         # Start Flet app (window size is set in page configuration within build_ui)
         ft.app(target=main, view=ft.AppView.FLET_APP, assets_dir="data")
