@@ -1,21 +1,15 @@
 // Global variables
-let latestVersion = '1.0.3';
-let downloadCount = 1234;
 
 // DOM Content Loaded
 document.addEventListener('DOMContentLoaded', function() {
     initializeWebsite();
     setupEventListeners();
-    fetchLatestRelease();
     animateCounters();
     initializeAccessibility();
 });
 
 // Initialize website
 function initializeWebsite() {
-    // Update version displays
-    updateVersionDisplays();
-    
     // Setup smooth scrolling for navigation links
     setupSmoothScrolling();
     
@@ -85,89 +79,9 @@ function setupEventListeners() {
     });
 }
 
-// Update version displays
-function updateVersionDisplays() {
-    const elements = [
-        'currentVersion',
-        'downloadVersion'
-    ];
-    
-    elements.forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.textContent = latestVersion;
-        }
-    });
-    
-    // Update last update date
-    const lastUpdateElement = document.getElementById('lastUpdate');
-    if (lastUpdateElement) {
-        const today = new Date();
-        const options = { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-        };
-        lastUpdateElement.textContent = today.toLocaleDateString('he-IL', options);
-    }
-}
 
-// Fetch latest release from GitHub
-async function fetchLatestRelease() {
-    try {
-        const response = await fetch('https://api.github.com/repos/danielpiro/idf-reader/releases/latest');
-        const release = await response.json();
-        
-        if (release.tag_name) {
-            latestVersion = release.tag_name.replace('v', '');
-            updateVersionDisplays();
-            
-            // Update download button with real download URL
-            const downloadButton = document.getElementById('downloadButton');
-            if (downloadButton && release.assets && release.assets.length > 0) {
-                const asset = release.assets.find(asset => 
-                    asset.name.includes('.exe') || asset.name.includes('windows')
-                ) || release.assets[0];
-                
-                downloadButton.href = asset.browser_download_url;
-                downloadButton.onclick = null; // Remove the default onclick
-            }
-            
-            // Update download count from GitHub API
-            if (release.assets && release.assets[0]) {
-                downloadCount = release.assets[0].download_count || downloadCount;
-                updateDownloadCount();
-            }
-        }
-    } catch (error) {
-        console.log('Could not fetch latest release:', error);
-        // Fallback to default download
-        setupFallbackDownload();
-    }
-}
 
-// Setup fallback download
-function setupFallbackDownload() {
-    const downloadButton = document.getElementById('downloadButton');
-    if (downloadButton) {
-        downloadButton.href = 'https://github.com/danielpiro/idf-reader/releases/latest';
-        downloadButton.onclick = null;
-    }
-}
 
-// Update download count display
-function updateDownloadCount() {
-    const downloadCountElement = document.getElementById('downloadCount');
-    const totalDownloadsElement = document.getElementById('totalDownloads');
-    
-    if (downloadCountElement) {
-        downloadCountElement.textContent = formatNumber(downloadCount) + '+';
-    }
-    
-    if (totalDownloadsElement) {
-        totalDownloadsElement.textContent = formatNumber(downloadCount);
-    }
-}
 
 // Format number with commas
 function formatNumber(num) {
@@ -180,13 +94,9 @@ function downloadLatest() {
     if (typeof gtag !== 'undefined') {
         gtag('event', 'download', {
             event_category: 'software',
-            event_label: `v${latestVersion}`
+            event_label: 'idf-reader'
         });
     }
-    
-    // Increment download count for demo
-    downloadCount++;
-    updateDownloadCount();
     
     // Show thank you message
     showNotification('תודה על ההורדה! הקובץ יתחיל להיות מורד בקרוב.', 'success');
@@ -356,17 +266,6 @@ function closeDemo() {
     }
 }
 
-// Open changelog
-function openChangelog() {
-    window.open('https://github.com/danielpiro/idf-reader/releases', '_blank');
-    
-    // Track changelog view
-    if (typeof gtag !== 'undefined') {
-        gtag('event', 'changelog_view', {
-            event_category: 'engagement'
-        });
-    }
-}
 
 // Contact form submission with validation
 function submitContactForm(event) {
@@ -668,7 +567,6 @@ function initializeAccessibility() {
 // Export functions for global access
 window.openDemo = openDemo;
 window.closeDemo = closeDemo;
-window.openChangelog = openChangelog;
 window.downloadLatest = downloadLatest;
 window.submitContactForm = submitContactForm;
 window.announceToScreenReader = announceToScreenReader;
