@@ -185,6 +185,9 @@ jobs:
           New-Item -ItemType Directory -Force -Path data
         }
         
+        # Install flet-desktop specifically for PyInstaller
+        pip install flet-desktop
+        
         # Build with PyInstaller
         python -m PyInstaller `
           --onefile `
@@ -200,6 +203,8 @@ jobs:
           --add-data "tools;tools" `
           --hidden-import flet `
           --hidden-import flet.flet `
+          --hidden-import flet_desktop `
+          --hidden-import flet_desktop.version `
           --hidden-import reportlab `
           --hidden-import eppy `
           --hidden-import openpyxl `
@@ -209,6 +214,7 @@ jobs:
           --hidden-import cryptography `
           --hidden-import pathlib `
           --collect-all flet `
+          --collect-all flet_desktop `
           --collect-all reportlab `
           $entryPoint
         
