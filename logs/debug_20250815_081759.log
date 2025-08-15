@@ -1,0 +1,14 @@
+2025-08-15 08:17:59,872 - flet - INFO - Assets path configured: C:\Users\daniel\Desktop\idf-reader\data
+2025-08-15 08:17:59,874 - flet - INFO - Starting up TCP server on localhost:56087
+2025-08-15 08:17:59,876 - flet - INFO - Flet app has started...
+2025-08-15 08:17:59,877 - flet - INFO - App URL: tcp://localhost:56087
+2025-08-15 08:17:59,877 - flet_desktop - INFO - Starting Flet View app...
+2025-08-15 08:17:59,878 - flet_desktop - INFO - Looking for Flet executable at: C:\Users\daniel\Desktop\idf-reader\venv\Lib\site-packages\flet_desktop\app\flet\flet.exe
+2025-08-15 08:17:59,878 - flet_desktop - INFO - Flet View found in: C:\Users\daniel\Desktop\idf-reader\venv\Lib\site-packages\flet_desktop\app\flet\flet.exe
+2025-08-15 08:18:00,092 - flet - INFO - App session started
+2025-08-15 08:18:00,116 - modern_gui - INFO - Applying window settings: {'width': 1280.0, 'height': 720.0, 'maximized': False, 'position_x': 9.6, 'position_y': 9.6}
+2025-08-15 08:18:00,116 - modern_gui - INFO - Set window size: 1280.0x720.0
+2025-08-15 08:18:00,116 - modern_gui - INFO - Set window maximized: False
+2025-08-15 08:18:00,116 - modern_gui - INFO - Window icon set using assets: logo.ico
+2025-08-15 08:18:00,121 - modern_gui - INFO - GUI: 🎉 ברוכים הבאים! הגדירו את כל השדות כדי להתחיל בעיבוד.
+2025-08-15 08:18:00,121 - modern_gui - INFO - Saving window settings: {'width': 1280.0, 'height': 720.0, 'maximized': False, 'position_x': 9.6, 'position_y': 9.6}

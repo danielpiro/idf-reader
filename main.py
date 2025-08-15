@@ -155,7 +155,7 @@ def run_gui() -> None:
             app.build_ui(page)
         
         # Start Flet app (window size is set in page configuration within build_ui)
-        ft.app(target=main, view=ft.AppView.FLET_APP)
+        ft.app(target=main, view=ft.AppView.FLET_APP, assets_dir="data")
     except ImportError as import_err:
         err_msg = str(import_err).lower()
         if 'flet' in err_msg:

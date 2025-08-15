@@ -66,10 +66,13 @@ class ModernIDFProcessorGUI:
         self.window_settings = {
             'width': None,
             'height': None,
-            'maximized': True,
+            'maximized': False,
             'position_x': None,
             'position_y': None
         }
+        
+        # Debouncing for window settings saves
+        self._save_timer = None
 
     def load_cities_from_csv(self):
         """Load city data from CSV file."""
@@ -108,7 +111,7 @@ class ModernIDFProcessorGUI:
                 self.window_settings = settings.get('window', {
                     'width': 1400,  # Default width
                     'height': 1000,  # Default height
-                    'maximized': True,  # Default to fullscreen/maximized
+                    'maximized': False,  # Default to normal window
                     'position_x': None,
                     'position_y': None
                 })
@@ -125,7 +128,7 @@ class ModernIDFProcessorGUI:
             self.window_settings = {
                 'width': 1400,  # Default width
                 'height': 1000,  # Default height
-                'maximized': True,
+                'maximized': False,
                 'position_x': None,
                 'position_y': None
             }
@@ -138,11 +141,11 @@ class ModernIDFProcessorGUI:
             if self.page:
                 try:
                     window_settings = {
-                        'width': getattr(self.page, 'window_width', 1400),
-                        'height': getattr(self.page, 'window_height', 1000),
-                        'maximized': getattr(self.page, 'window_maximized', True),
-                        'position_x': getattr(self.page, 'window_left', None),
-                        'position_y': getattr(self.page, 'window_top', None)
+                        'width': getattr(self.page.window, 'width', 1400),
+                        'height': getattr(self.page.window, 'height', 1000),
+                        'maximized': getattr(self.page.window, 'maximized', False),
+                        'position_x': getattr(self.page.window, 'left', None),
+                        'position_y': getattr(self.page.window, 'top', None)
                     }
                     logger.info(f"Saving window settings: {window_settings}")
                 except Exception as e:
@@ -160,16 +163,26 @@ class ModernIDFProcessorGUI:
                 json.dump(settings, f, indent=4, ensure_ascii=False)
         except Exception as e:
             logger.error(f"Error saving settings: {e}")
+    
+    def _debounced_save_settings(self):
+        """Save settings with debouncing to avoid excessive saves."""
+        # Cancel any existing timer
+        if self._save_timer:
+            self._save_timer.cancel()
+        
+        # Start a new timer for 1 second delay
+        self._save_timer = threading.Timer(1.0, self.save_settings)
+        self._save_timer.start()
 
     def on_window_event(self, e):
         """Handle window events like resize, move, maximize."""
         try:
-            logger.info(f"Window event: {e.event_type}")
+            logger.debug(f"Window event: {e.event_type}")  # Changed to debug level
             if e.event_type == "resized" or e.event_type == "moved" or e.event_type == "maximized":
-                # Save settings when window state changes
-                self.save_settings()
+                # Use debounced save for frequent events
+                self._debounced_save_settings()
             elif e.event_type == "close":
-                # Save settings when window is about to close
+                # Save immediately when window is closing
                 self.save_settings()
         except Exception as ex:
             logger.error(f"Error handling window event: {ex}")
@@ -379,7 +392,7 @@ class ModernIDFProcessorGUI:
         # Show autocomplete suggestions
         self.update_city_suggestions(search_text)
         
-        self.save_settings()
+        self._debounced_save_settings()
         self.update_form_validation()
     
     def on_city_focus(self, e):
@@ -494,7 +507,7 @@ class ModernIDFProcessorGUI:
         # Hide suggestions
         self.suggestions_container.visible = False
         
-        self.save_settings()
+        self._debounced_save_settings()
         self.update_form_validation()
         
         if self.page:
@@ -512,7 +525,7 @@ class ModernIDFProcessorGUI:
                 self.show_status(f"'{selected}' עדיין לא זמין. אנא בחר סוג ISO זמין.", "warning")
             else:
                 self.selected_iso = selected
-                self.save_settings()
+                self._debounced_save_settings()
             
             self.update_form_validation()
             if self.page:
@@ -910,23 +923,27 @@ class ModernIDFProcessorGUI:
         self.load_settings()
         
         # Apply window settings
-        if self.window_settings.get('maximized', False):
-            # Start maximized/fullscreen
-            page.window_maximized = True
-        else:
-            # Use saved dimensions or defaults
-            page.window_width = self.window_settings.get('width', 1400)
-            page.window_height = self.window_settings.get('height', 1000)
-            
-            # Set position if saved
-            if self.window_settings.get('position_x') is not None:
-                page.window_left = self.window_settings.get('position_x')
-            if self.window_settings.get('position_y') is not None:
-                page.window_top = self.window_settings.get('position_y')
+        logger.info(f"Applying window settings: {self.window_settings}")
+        
+        # Always set size and position first
+        page.window.width = self.window_settings.get('width', 1400)
+        page.window.height = self.window_settings.get('height', 1000)
+        logger.info(f"Set window size: {page.window.width}x{page.window.height}")
+        
+        # Set position if saved
+        if self.window_settings.get('position_x') is not None:
+            page.window.left = self.window_settings.get('position_x')
+        if self.window_settings.get('position_y') is not None:
+            page.window.top = self.window_settings.get('position_y')
+        
+        # Set maximized state (explicitly set to False to ensure normal window)
+        maximized_setting = self.window_settings.get('maximized', False)
+        page.window.maximized = maximized_setting
+        logger.info(f"Set window maximized: {maximized_setting}")
         
         # Set minimum window size
-        page.window_min_width = 1000
-        page.window_min_height = 800
+        page.window.min_width = 1000
+        page.window.min_height = 800
         page.padding = 20
         page.spacing = 20
         
@@ -935,41 +952,22 @@ class ModernIDFProcessorGUI:
         page.on_close = self.on_page_close
         
         # Set custom application icon
-        icon_set = False
         try:
-            from utils.path_utils import get_data_file_path
-            
-            # Try .ico file first (preferred for Windows)
-            ico_path = get_data_file_path('logo.ico')
-            if ico_path and os.path.exists(ico_path):
-                page.window_icon = ico_path
-                logger.info(f"Window icon set using ICO: {ico_path}")
-                icon_set = True
-            else:
-                # Try .png file as fallback
-                png_path = get_data_file_path('logo.png')
-                if png_path and os.path.exists(png_path):
-                    page.window_icon = png_path
-                    logger.info(f"Window icon set using PNG: {png_path}")
-                    icon_set = True
-            
-            # Fallback to utils.logo_utils if neither direct method worked
-            if not icon_set:
-                try:
-                    from utils.logo_utils import get_gui_logo_path
-                    logo_path = get_gui_logo_path()
-                    if logo_path and os.path.exists(logo_path):
-                        page.window_icon = logo_path
-                        logger.info(f"Window icon set using logo_utils: {logo_path}")
-                        icon_set = True
-                except ImportError:
-                    logger.warning("logo_utils not available for fallback")
-            
-            if not icon_set:
-                logger.warning("Could not find any suitable icon file for window")
-                
+            # Try to set icon using assets directory (works better with Flet)
+            page.window.icon = "logo.ico"
+            logger.info("Window icon set using assets: logo.ico")
         except Exception as e:
-            logger.error(f"Error setting window icon: {e}", exc_info=True)
+            # Fallback to absolute path
+            try:
+                from utils.path_utils import get_data_file_path
+                ico_path = get_data_file_path('logo.ico')
+                if ico_path and os.path.exists(ico_path):
+                    page.window.icon = ico_path
+                    logger.info(f"Window icon set using absolute path: {ico_path}")
+                else:
+                    logger.warning("Could not find logo.ico file")
+            except Exception as fallback_e:
+                logger.error(f"Error setting window icon: {e}, fallback error: {fallback_e}")
         
         # Set modern theme
         page.theme = ft.Theme(
@@ -1057,19 +1055,19 @@ class ModernIDFProcessorGUI:
         input_row, self.input_file_field = self.create_file_picker_field(
             "📄 קובץ IDF קלט", 
             "file",
-            lambda path: setattr(self, 'input_file', path) or self.save_settings() or self.update_form_validation()
+            lambda path: setattr(self, 'input_file', path) or self._debounced_save_settings() or self.update_form_validation()
         )
         
         eplus_row, self.energyplus_dir_field = self.create_file_picker_field(
             "⚡ תיקיית EnergyPlus",
             "folder", 
-            lambda path: setattr(self, 'energyplus_dir', path) or self.save_settings() or self.update_form_validation()
+            lambda path: setattr(self, 'energyplus_dir', path) or self._debounced_save_settings() or self.update_form_validation()
         )
         
         output_row, self.output_dir_field = self.create_file_picker_field(
             "📂 תיקיית פלט",
             "folder",
-            lambda path: setattr(self, 'output_dir', path) or self.save_settings() or self.update_form_validation()
+            lambda path: setattr(self, 'output_dir', path) or self._debounced_save_settings() or self.update_form_validation()
         )
         
         # Set initial values
@@ -1251,4 +1249,4 @@ def main(page: ft.Page):
     app.build_ui(page)
 
 if __name__ == "__main__":
-    ft.app(target=main, view=ft.AppView.FLET_APP)
+    ft.app(target=main, view=ft.AppView.FLET_APP, assets_dir="data")

@@ -320,7 +320,7 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
         report_title="Loads Report"
     )
     story.extend(header_elements)
-    story.append(Paragraph("IDF Zone Loads Report", title_style))
+    story.append(Paragraph("Loads Report", title_style))
     story.append(Spacer(1, LAYOUT['spacing']['standard']))
     if not zone_data:
         story.append(Paragraph("No zones found or processed.", styles['Normal']))
