@@ -156,16 +156,11 @@ class UpdateManager:
         try:
             from urllib.request import Request
             
-            # Create request with authentication for private repos
+            # Create request headers (no authentication needed for public repos)
             headers = {
                 'User-Agent': 'IDF-Reader-Auto-Updater/1.0',
                 'Accept': 'application/vnd.github.v3+json'
             }
-            
-            # Add GitHub token for private repos if available
-            github_token = self._get_github_token()
-            if github_token:
-                headers['Authorization'] = f'token {github_token}'
             
             request = Request(GITHUB_RELEASES_URL, headers=headers)
             

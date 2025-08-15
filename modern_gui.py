@@ -1432,12 +1432,6 @@ class ModernIDFProcessorGUI:
                         on_click=lambda e: (toggle_auto_updates(e), close_menu(e)),
                         width=200
                     ),
-                    ft.ElevatedButton(
-                        "הגדר GitHub Token",
-                        icon=ft.Icons.KEY,
-                        on_click=lambda e: (configure_github(e), close_menu(e)),
-                        width=200
-                    ),
                     ft.Text(f"גרסה נוכחית: {self.current_version}", 
                            text_align=ft.TextAlign.RIGHT, rtl=True, size=12)
                 ], spacing=10, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
