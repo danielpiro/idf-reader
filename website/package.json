@@ -1,0 +1,29 @@
+{
+  "name": "idf-reader-website",
+  "version": "1.0.0",
+  "description": "Official website for IDF Reader - Professional IDF analysis software",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Static site - no build needed'",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [
+    "idf",
+    "energyplus",
+    "energy-analysis",
+    "building-simulation",
+    "israel",
+    "iso-standards"
+  ],
+  "author": "Daniel Piro",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/danielpiro/idf-reader"
+  },
+  "homepage": "https://idf-reader.vercel.app",
+  "devDependencies": {
+    "vercel": "^32.0.0"
+  }
+}
