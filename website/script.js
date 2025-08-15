@@ -75,7 +75,7 @@ function formatNumber(num) {
 }
 
 // Download latest version
-function downloadLatest() {
+async function downloadLatest() {
     // Track download
     if (typeof gtag !== 'undefined') {
         gtag('event', 'download', {
@@ -84,8 +84,45 @@ function downloadLatest() {
         });
     }
     
-    // Show thank you message
-    showNotification('תודה על ההורדה! הקובץ יתחיל להיות מורד בקרוב.', 'success');
+    try {
+        // Show loading message
+        showNotification('מחפש את הגרסה האחרונה...', 'info');
+        
+        // Fetch latest release from GitHub API
+        const response = await fetch('https://api.github.com/repos/danielpiro/idf-reader/releases/latest');
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch release info');
+        }
+        
+        const releaseData = await response.json();
+        
+        // Find the executable file in assets
+        const exeAsset = releaseData.assets.find(asset => 
+            asset.name.endsWith('.exe') && asset.name.includes('idf-reader')
+        );
+        
+        if (exeAsset) {
+            // Create download link
+            const link = document.createElement('a');
+            link.href = exeAsset.browser_download_url;
+            link.download = exeAsset.name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showNotification(`מוריד ${exeAsset.name} (${(exeAsset.size / 1024 / 1024).toFixed(1)} MB)`, 'success');
+        } else {
+            throw new Error('No executable found in latest release');
+        }
+        
+    } catch (error) {
+        console.error('Download error:', error);
+        
+        // Fallback: direct link to releases page
+        showNotification('מפנה לעמוד ההורדות...', 'info');
+        window.open('https://github.com/danielpiro/idf-reader/releases/latest', '_blank');
+    }
 }
 
 // Setup smooth scrolling
