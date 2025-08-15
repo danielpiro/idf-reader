@@ -1773,7 +1773,6 @@ def main(page: ft.Page):
 if __name__ == "__main__":
     import sys
     import tempfile
-    import fcntl
     
     # Single instance protection
     lock_file = os.path.join(tempfile.gettempdir(), "idf_reader.lock")
@@ -1791,6 +1790,7 @@ if __name__ == "__main__":
                 sys.exit(1)
         else:
             # Unix version
+            import fcntl
             try:
                 fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             except IOError:
