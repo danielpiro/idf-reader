@@ -26,8 +26,8 @@
     <meta property="twitter:image" content="https://idf-reader.vercel.app/images/preview.png">
 
     <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/x-icon" href="logo.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="logo.png">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -55,7 +55,7 @@
     <nav class="navbar" id="navigation" role="navigation" aria-label="תפריט ניווט ראשי">
         <div class="container">
             <div class="nav-brand">
-                <img src="images/logo.png" alt="לוגו IDF Reader - מחולל דוחות אנרגיה" class="logo">
+                <img src="logo.png" alt="לוגו IDF Reader - מחולל דוחות אנרגיה" class="logo">
                 <span class="brand-text">IDF Reader</span>
             </div>
             <div class="nav-menu" id="navMenu" role="menubar" aria-label="תפריט ניווט">
@@ -80,9 +80,14 @@
     <!-- Hero Section -->
     <section id="home" class="hero" role="banner" aria-labelledby="hero-title">
         <div class="container">
-            <div class="hero-content">
+            <div class="hero-content-centered">
+                <div class="hero-logo-container">
+                    <img src="logo.png" 
+                         alt="לוגו IDF Reader" 
+                         class="hero-logo">
+                </div>
                 <div class="hero-text">
-                    <h1 id="hero-title" class="hero-title">
+                    <h1 id="hero-title" class="hero-title centered-title">
                         מחולל דוחות <span class="highlight">IDF</span> מקצועי
                     </h1>
                     <p class="hero-subtitle">
@@ -101,20 +106,6 @@
                             גלה תכונות
                         </a>
                         <span id="features-description" class="sr-only">עבור לסקירת תכונות התוכנה</span>
-                    </div>
-                </div>
-                <div class="hero-image">
-                    <img src="images/app-screenshot.png" 
-                         alt="צילום מסך של תוכנת IDF Reader המציג ממשק המשתמש הראשי עם תפריטי ניווט, אזור העלאת קבצים וטבלת תוצאות" 
-                         class="screenshot">
-                    <div class="screenshot-overlay">
-                        <button class="play-button" 
-                                onclick="openDemo()" 
-                                aria-label="פתח הדגמה של התוכנה"
-                                type="button">
-                            <span aria-hidden="true">▶</span>
-                            <span class="sr-only">הפעל הדגמה</span>
-                        </button>
                     </div>
                 </div>
             </div>
@@ -428,7 +419,7 @@
             <div class="footer-content">
                 <div class="footer-section">
                     <div class="footer-brand">
-                        <img src="images/logo.png" alt="IDF Reader" class="footer-logo">
+                        <img src="logo.png" alt="IDF Reader" class="footer-logo">
                         <span class="brand-text">IDF Reader</span>
                     </div>
                     <p class="footer-description">
@@ -479,15 +470,5 @@
     <!-- Scripts -->
     <script src="script.js"></script>
     
-    <!-- Demo Modal -->
-    <div id="demoModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeDemo()">&times;</span>
-            <h3>הדמיית IDF Reader</h3>
-            <div class="demo-video">
-                <p>כאן יהיה סרטון הדגמה או צילומי מסך מהתוכנה</p>
-            </div>
-        </div>
-    </div>
 </body>
 </html>

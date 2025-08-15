@@ -63,20 +63,6 @@ function setupEventListeners() {
         });
     });
     
-    // Close modal when clicking outside
-    window.addEventListener('click', (event) => {
-        const modal = document.getElementById('demoModal');
-        if (event.target === modal) {
-            closeDemo();
-        }
-    });
-    
-    // Handle escape key for modal
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') {
-            closeDemo();
-        }
-    });
 }
 
 
@@ -242,29 +228,6 @@ function animateCounters() {
     });
 }
 
-// Demo modal functions
-function openDemo() {
-    const modal = document.getElementById('demoModal');
-    if (modal) {
-        modal.style.display = 'block';
-        document.body.style.overflow = 'hidden';
-    }
-    
-    // Track demo view
-    if (typeof gtag !== 'undefined') {
-        gtag('event', 'demo_view', {
-            event_category: 'engagement'
-        });
-    }
-}
-
-function closeDemo() {
-    const modal = document.getElementById('demoModal');
-    if (modal) {
-        modal.style.display = 'none';
-        document.body.style.overflow = 'auto';
-    }
-}
 
 
 // Contact form submission with validation
@@ -501,14 +464,6 @@ function showFieldError(field, message) {
 
 // Keyboard navigation helpers
 function setupKeyboardNavigation() {
-    // Trap focus in modal
-    document.addEventListener('keydown', (e) => {
-        const modal = document.getElementById('demoModal');
-        if (modal && modal.style.display === 'block') {
-            trapFocusInModal(e, modal);
-        }
-    });
-    
     // Add keyboard navigation to pricing cards
     const pricingCards = document.querySelectorAll('.pricing-card');
     pricingCards.forEach(card => {
@@ -524,27 +479,6 @@ function setupKeyboardNavigation() {
     });
 }
 
-function trapFocusInModal(e, modal) {
-    const focusableElements = modal.querySelectorAll(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    const firstElement = focusableElements[0];
-    const lastElement = focusableElements[focusableElements.length - 1];
-    
-    if (e.key === 'Tab') {
-        if (e.shiftKey) {
-            if (document.activeElement === firstElement) {
-                lastElement.focus();
-                e.preventDefault();
-            }
-        } else {
-            if (document.activeElement === lastElement) {
-                firstElement.focus();
-                e.preventDefault();
-            }
-        }
-    }
-}
 
 // Initialize accessibility features
 function initializeAccessibility() {
@@ -565,8 +499,6 @@ function initializeAccessibility() {
 }
 
 // Export functions for global access
-window.openDemo = openDemo;
-window.closeDemo = closeDemo;
 window.downloadLatest = downloadLatest;
 window.submitContactForm = submitContactForm;
 window.announceToScreenReader = announceToScreenReader;

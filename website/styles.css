@@ -331,11 +331,29 @@ h1, h2, h3, h4, h5, h6 {
     z-index: 2;
 }
 
+.hero-content-centered {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+    gap: 2rem;
+}
+
+.hero-logo-container {
+    margin-bottom: 1rem;
+}
+
 .hero-title {
     font-size: 3.5rem;
     font-weight: 800;
     margin-bottom: 1rem;
     line-height: 1.1;
+}
+
+.centered-title {
+    text-align: center;
 }
 
 .highlight {
@@ -381,6 +399,15 @@ h1, h2, h3, h4, h5, h6 {
 
 .hero-image {
     position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.hero-logo {
+    width: 300px;
+    height: 300px;
+    object-fit: contain;
 }
 
 .screenshot {
@@ -956,6 +983,11 @@ input:checked + .slider:before {
         text-align: center;
         gap: 2rem;
     }
+    
+    .hero-logo {
+        width: 200px;
+        height: 200px;
+    }
 
     .hero-title {
         font-size: 2.5rem;
@@ -1013,6 +1045,11 @@ input:checked + .slider:before {
 
     .hero-title {
         font-size: 2rem;
+    }
+    
+    .hero-logo {
+        width: 150px;
+        height: 150px;
     }
 
     .pricing-toggle {
