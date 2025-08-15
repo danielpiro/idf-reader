@@ -6,10 +6,18 @@ on:
       - 'v*'  # Trigger on version tags like v1.0.0
   workflow_dispatch:  # Allow manual trigger
     inputs:
-      version:
-        description: 'Version to release (e.g., 1.0.1)'
+      increment_type:
+        description: 'Version increment type'
         required: true
-        default: '1.0.1'
+        default: 'patch'
+        type: choice
+        options:
+        - patch
+        - minor
+        - major
+      custom_version:
+        description: 'Custom version (optional, overrides increment_type)'
+        required: false
 
 permissions:
   contents: write
@@ -37,9 +45,28 @@ jobs:
       id: get_version
       run: |
         if ("${{ github.event_name }}" -eq "push") {
+          # Triggered by tag push
           $version = "${{ github.ref_name }}".TrimStart("v")
         } else {
-          $version = "${{ github.event.inputs.version }}"
+          # Triggered by manual workflow_dispatch
+          if ("${{ github.event.inputs.custom_version }}" -ne "") {
+            $version = "${{ github.event.inputs.custom_version }}"
+          } else {
+            # Auto-increment version
+            $currentVersion = (Get-Content version.py | Select-String '__version__ = "(.*)"').Matches[0].Groups[1].Value
+            $parts = $currentVersion -split '\.'
+            $major = [int]$parts[0]
+            $minor = [int]$parts[1]
+            $patch = [int]$parts[2]
+            
+            switch ("${{ github.event.inputs.increment_type }}") {
+              "major" { $major++; $minor = 0; $patch = 0 }
+              "minor" { $minor++; $patch = 0 }
+              "patch" { $patch++ }
+            }
+            
+            $version = "$major.$minor.$patch"
+          }
         }
         echo "VERSION=$version" >> $env:GITHUB_OUTPUT
         echo "Building version: $version"
@@ -56,6 +83,18 @@ jobs:
         Set-Content version.py $content
         
         echo "Updated version to $version"
+        
+        # Commit version update back to repository (only for manual triggers)
+        if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add version.py
+          git commit -m "Bump version to $version [skip ci]"
+          git tag "v$version"
+          git push origin main
+          git push origin "v$version"
+          echo "Version committed and tagged"
+        }
     
     - name: Create build info
       run: |
