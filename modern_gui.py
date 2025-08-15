@@ -15,6 +15,8 @@ from utils.path_utils import (
 )
 from processing_manager import ProcessingManager
 from utils.data_loader import DataLoader
+from utils.update_manager import UpdateManager
+from version import get_version
 
 logger = get_logger(__name__)
 
@@ -33,6 +35,11 @@ class ModernIDFProcessorGUI:
         self.selected_iso = ""
         self.city_area_name = ""
         self.city_area_code = ""
+        
+        # Update manager
+        self.update_manager = UpdateManager(status_callback=self.show_status)
+        self.update_dialog = None
+        self.current_version = get_version()
         
         # Load city data
         self.city_data = self.load_cities_from_csv()
@@ -1026,7 +1033,11 @@ class ModernIDFProcessorGUI:
                     ], 
                     spacing=5,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                    expand=True)
+                    expand=True),
+                    ft.Column([
+                        self.create_update_menu_button(),
+                        ft.Text(f"v{self.current_version}", size=10, color=ft.Colors.ON_SURFACE_VARIANT)
+                    ], spacing=2, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
                 ], 
                 alignment=ft.MainAxisAlignment.CENTER,
                 spacing=20
@@ -1239,10 +1250,320 @@ class ModernIDFProcessorGUI:
         
         # Initial validation and welcome message
         self.update_form_validation()
-        self.show_status("🎉 ברוכים הבאים! הגדירו את כל השדות כדי להתחיל בעיבוד.")
+        self.show_status(f"🎉 ברוכים הבאים! גרסה {self.current_version} - הגדירו את כל השדות כדי להתחיל בעיבוד.")
+        
+        # Check for updates automatically if enabled
+        if self.update_manager.should_check_for_updates():
+            self.check_for_updates_background()
         
         # Save initial window state
         self.save_settings()
+
+    def check_for_updates_background(self):
+        """Check for updates in background."""
+        def check_worker():
+            try:
+                update_info = self.update_manager.check_for_updates()
+                if update_info:
+                    # Update available - show notification dialog
+                    self.show_update_dialog(update_info)
+            except Exception as e:
+                logger.error(f"Error checking for updates: {e}")
+        
+        threading.Thread(target=check_worker, daemon=True).start()
+    
+    def check_for_updates_manual(self):
+        """Manually check for updates (force check)."""
+        def check_worker():
+            try:
+                self.show_status("בודק עדכונים...")
+                update_info = self.update_manager.check_for_updates(force=True)
+                if update_info:
+                    self.show_update_dialog(update_info)
+                else:
+                    self.show_status("האפליקציה מעודכנת לגרסה האחרונה", "success")
+            except Exception as e:
+                logger.error(f"Error checking for updates: {e}")
+                self.show_status(f"שגיאה בבדיקת עדכונים: {e}", "error")
+        
+        threading.Thread(target=check_worker, daemon=True).start()
+    
+    def show_update_dialog(self, update_info):
+        """Show update available dialog."""
+        if not self.page:
+            return
+        
+        new_version = update_info.get("version", "")
+        release_notes = update_info.get("release_notes", "אין מידע זמין")
+        
+        # Create update dialog content
+        def close_dialog(e):
+            if self.update_dialog:
+                self.update_dialog.open = False
+                self.page.update()
+        
+        def install_update(e):
+            close_dialog(e)
+            self.install_update(update_info)
+        
+        def remind_later(e):
+            close_dialog(e)
+            self.show_status("הזכרו לי מאוחר יותר על העדכון", "info")
+        
+        # Truncate release notes if too long
+        if len(release_notes) > 300:
+            release_notes = release_notes[:300] + "..."
+        
+        self.update_dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(f"עדכון זמין - גרסה {new_version}", text_align=ft.TextAlign.RIGHT, rtl=True),
+            content=ft.Container(
+                content=ft.Column([
+                    ft.Text(
+                        f"גרסה נוכחית: {self.current_version}",
+                        text_align=ft.TextAlign.RIGHT,
+                        rtl=True,
+                        weight=ft.FontWeight.BOLD
+                    ),
+                    ft.Text(
+                        f"גרסה חדשה: {new_version}",
+                        text_align=ft.TextAlign.RIGHT,
+                        rtl=True,
+                        weight=ft.FontWeight.BOLD,
+                        color=ft.Colors.GREEN
+                    ),
+                    ft.Divider(),
+                    ft.Text("מה חדש:", weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.RIGHT, rtl=True),
+                    ft.Container(
+                        content=ft.Text(
+                            release_notes if release_notes.strip() else "אין מידע זמין על השינויים",
+                            text_align=ft.TextAlign.RIGHT,
+                            rtl=True,
+                            size=12
+                        ),
+                        bgcolor=ft.Colors.SURFACE_VARIANT,
+                        padding=10,
+                        border_radius=8,
+                        height=100,
+                        width=400
+                    )
+                ], spacing=10, tight=True),
+                width=450,
+                height=250
+            ),
+            actions=[
+                ft.Row([
+                    ft.TextButton("התקן עכשיו", on_click=install_update, style=ft.ButtonStyle(color=ft.Colors.GREEN)),
+                    ft.TextButton("הזכר מאוחר יותר", on_click=remind_later),
+                    ft.TextButton("סגור", on_click=close_dialog)
+                ], alignment=ft.MainAxisAlignment.END, rtl=True)
+            ],
+            actions_alignment=ft.MainAxisAlignment.END
+        )
+        
+        self.page.dialog = self.update_dialog
+        self.update_dialog.open = True
+        self.page.update()
+    
+    def install_update(self, update_info):
+        """Install the available update."""
+        def install_worker():
+            try:
+                self.show_status("מתחיל התקנת עדכון...", "info")
+                
+                def restart_app():
+                    """Callback for when restart is needed."""
+                    self.show_status("העדכון הושלם! מאתחל את האפליקציה...", "success")
+                    # Give user time to see the message
+                    threading.Timer(3.0, lambda: self.update_manager._restart_application()).start()
+                
+                success = self.update_manager.download_and_install_update(
+                    update_info, 
+                    restart_callback=restart_app
+                )
+                
+                if not success:
+                    self.show_status("התקנת העדכון נכשלה", "error")
+            
+            except Exception as e:
+                logger.error(f"Error installing update: {e}")
+                self.show_status(f"שגיאה בהתקנת עדכון: {e}", "error")
+        
+        threading.Thread(target=install_worker, daemon=True).start()
+    
+    def create_update_menu_button(self):
+        """Create update menu button for header."""
+        def show_update_menu(e):
+            # Create popup menu for update options
+            def check_updates(e):
+                self.check_for_updates_manual()
+            
+            def toggle_auto_updates(e):
+                settings = self.update_manager.get_update_settings()
+                settings["auto_check"] = not settings["auto_check"]
+                self.update_manager.update_settings(settings)
+                status = "מופעל" if settings["auto_check"] else "מבוטל"
+                self.show_status(f"בדיקת עדכונים אוטומטית {status}")
+            
+            def configure_github(e):
+                self.show_github_config_dialog()
+            
+            # Show simple dialog with update options
+            def close_menu(e):
+                menu_dialog.open = False
+                self.page.update()
+            
+            settings = self.update_manager.get_update_settings()
+            auto_check_text = "בטל בדיקה אוטומטית" if settings["auto_check"] else "הפעל בדיקה אוטומטית"
+            
+            menu_dialog = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("הגדרות עדכונים", text_align=ft.TextAlign.RIGHT, rtl=True),
+                content=ft.Column([
+                    ft.ElevatedButton(
+                        "בדוק עדכונים עכשיו",
+                        icon=ft.Icons.REFRESH,
+                        on_click=lambda e: (check_updates(e), close_menu(e)),
+                        width=200
+                    ),
+                    ft.ElevatedButton(
+                        auto_check_text,
+                        icon=ft.Icons.SETTINGS,
+                        on_click=lambda e: (toggle_auto_updates(e), close_menu(e)),
+                        width=200
+                    ),
+                    ft.ElevatedButton(
+                        "הגדר GitHub Token",
+                        icon=ft.Icons.KEY,
+                        on_click=lambda e: (configure_github(e), close_menu(e)),
+                        width=200
+                    ),
+                    ft.Text(f"גרסה נוכחית: {self.current_version}", 
+                           text_align=ft.TextAlign.RIGHT, rtl=True, size=12)
+                ], spacing=10, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                actions=[
+                    ft.TextButton("סגור", on_click=close_menu)
+                ],
+                actions_alignment=ft.MainAxisAlignment.END
+            )
+            
+            self.page.dialog = menu_dialog
+            menu_dialog.open = True
+            self.page.update()
+        
+        return ft.IconButton(
+            icon=ft.Icons.SYSTEM_UPDATE,
+            tooltip="הגדרות עדכונים",
+            on_click=show_update_menu,
+            icon_color=ft.Colors.PRIMARY
+        )
+    
+    def show_github_config_dialog(self):
+        """Show GitHub token configuration dialog."""
+        if not self.page:
+            return
+        
+        # Get current token status (but don't show the actual token)
+        current_token = self.update_manager._get_github_token()
+        has_token = bool(current_token)
+        
+        token_field = ft.TextField(
+            label="GitHub Personal Access Token",
+            password=True,
+            hint_text="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            expand=True,
+            border_radius=8
+        )
+        
+        def save_token(e):
+            token = token_field.value.strip()
+            if token:
+                self.update_manager.set_github_token(token)
+                self.show_status("GitHub token saved successfully", "success")
+            else:
+                self.show_status("Please enter a valid token", "warning")
+            config_dialog.open = False
+            self.page.update()
+        
+        def remove_token(e):
+            self.update_manager.set_github_token(None)
+            self.show_status("GitHub token removed", "info")
+            config_dialog.open = False
+            self.page.update()
+        
+        def close_config(e):
+            config_dialog.open = False
+            self.page.update()
+        
+        def open_github_help(e):
+            import webbrowser
+            webbrowser.open("https://github.com/settings/tokens/new")
+        
+        config_dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("הגדר GitHub Token לגישה לרפוזיטורי פרטי", text_align=ft.TextAlign.RIGHT, rtl=True),
+            content=ft.Container(
+                content=ft.Column([
+                    ft.Text(
+                        f"סטטוס נוכחי: {'מוגדר' if has_token else 'לא מוגדר'}",
+                        weight=ft.FontWeight.BOLD,
+                        color=ft.Colors.GREEN if has_token else ft.Colors.RED,
+                        text_align=ft.TextAlign.RIGHT,
+                        rtl=True
+                    ),
+                    ft.Divider(),
+                    ft.Text(
+                        "כדי לגשת לרפוזיטורי פרטי, יש צורך ב-GitHub Personal Access Token:",
+                        text_align=ft.TextAlign.RIGHT,
+                        rtl=True,
+                        size=12
+                    ),
+                    ft.Text(
+                        "1. לך ל-GitHub Settings > Developer settings > Personal access tokens",
+                        text_align=ft.TextAlign.RIGHT,
+                        rtl=True,
+                        size=11
+                    ),
+                    ft.Text(
+                        "2. צור Token חדש עם הרשאת 'repo' (לרפוזיטורי פרטי)",
+                        text_align=ft.TextAlign.RIGHT,
+                        rtl=True,
+                        size=11
+                    ),
+                    ft.Text(
+                        "3. העתק את ה-Token והכנס אותו כאן:",
+                        text_align=ft.TextAlign.RIGHT,
+                        rtl=True,
+                        size=11
+                    ),
+                    token_field,
+                    ft.Row([
+                        ft.TextButton(
+                            "פתח GitHub Settings",
+                            icon=ft.Icons.OPEN_IN_NEW,
+                            on_click=open_github_help
+                        )
+                    ], alignment=ft.MainAxisAlignment.CENTER)
+                ], spacing=10, tight=True),
+                width=500,
+                height=350
+            ),
+            actions=[
+                ft.Row([
+                    ft.ElevatedButton("שמור Token", on_click=save_token, icon=ft.Icons.SAVE),
+                    ft.TextButton("הסר Token", on_click=remove_token, style=ft.ButtonStyle(color=ft.Colors.RED)) if has_token else None,
+                    ft.TextButton("סגור", on_click=close_config)
+                ], alignment=ft.MainAxisAlignment.END, rtl=True)
+            ],
+            actions_alignment=ft.MainAxisAlignment.END
+        )
+        
+        # Filter out None values from actions
+        config_dialog.actions[0].controls = [btn for btn in config_dialog.actions[0].controls if btn is not None]
+        
+        self.page.dialog = config_dialog
+        config_dialog.open = True
+        self.page.update()
 
 def main(page: ft.Page):
     app = ModernIDFProcessorGUI()
