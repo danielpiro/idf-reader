@@ -20,7 +20,7 @@ jobs:
       uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     
@@ -28,7 +28,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pyinstaller
+        echo "Dependencies installed successfully"
     
     - name: Get version from tag or input
       id: get_version
@@ -74,12 +74,25 @@ jobs:
     - name: Build executable
       run: |
         $version = "${{ steps.get_version.outputs.VERSION }}"
+        echo "Building version: $version"
         
-        pyinstaller `
+        # Check if main.py exists
+        if (-not (Test-Path "main.py")) {
+          echo "Error: main.py not found"
+          exit 1
+        }
+        
+        # Check if data directory exists
+        if (-not (Test-Path "data")) {
+          echo "Warning: data directory not found, creating empty one"
+          New-Item -ItemType Directory -Force -Path data
+        }
+        
+        # Run PyInstaller (removed icon for now to avoid path issues)
+        python -m PyInstaller `
           --onefile `
           --windowed `
           --name "idf-reader-$version" `
-          --icon=data/logo.ico `
           --add-data "data;data" `
           --add-data "version.py;." `
           --add-data "build_info.json;." `
@@ -89,9 +102,19 @@ jobs:
           --hidden-import openpyxl `
           --hidden-import numpy `
           --hidden-import pandas `
+          --collect-all flet `
           main.py
         
         echo "Build completed"
+        
+        # Check if executable was created
+        if (Test-Path "dist\idf-reader-$version.exe") {
+          $fileSize = (Get-Item "dist\idf-reader-$version.exe").Length
+          echo "Executable created successfully: $fileSize bytes"
+        } else {
+          echo "Error: Executable was not created"
+          exit 1
+        }
     
     - name: Create release package
       run: |
