@@ -1,6 +1,0 @@
-2025-08-15 13:33:22,620 - database.mongo_license_db - INFO - Connected to MongoDB: idf_reader_licenses
-2025-08-15 13:33:26,100 - database.mongo_license_db - INFO - Database collections and indexes set up successfully
-2025-08-15 13:33:26,100 - utils.license_manager - INFO - Connected to license database
-2025-08-15 13:33:26,570 - database.mongo_license_db - INFO - Created activation for machine 7F57E263004D2CE0
-2025-08-15 13:33:27,034 - utils.license_manager - INFO - License validated successfully: 3311-68C5-2F99-B1A7
-2025-08-15 13:33:27,035 - utils.license_manager - INFO - License cached successfully

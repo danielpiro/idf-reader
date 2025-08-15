@@ -30,20 +30,67 @@ function setupEventListeners() {
     const navMenu = document.getElementById('navMenu');
     
     if (navToggle && navMenu) {
-        navToggle.addEventListener('click', () => {
+        // Toggle menu function
+        const toggleMenu = () => {
             const isExpanded = navToggle.getAttribute('aria-expanded') === 'true';
             navToggle.setAttribute('aria-expanded', !isExpanded);
             navMenu.classList.toggle('active');
             
+            // Prevent body scroll when menu is open
+            document.body.style.overflow = isExpanded ? '' : 'hidden';
+            
             // Announce to screen readers
             announceToScreenReader(isExpanded ? 'תפריט הניווט נסגר' : 'תפריט הניווט נפתח');
+        };
+        
+        // Click handler
+        navToggle.addEventListener('click', toggleMenu);
+        
+        // Touch events for better mobile interaction
+        let touchStartY = 0;
+        navToggle.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+        
+        navToggle.addEventListener('touchend', (e) => {
+            const touchEndY = e.changedTouches[0].clientY;
+            const touchDiff = Math.abs(touchEndY - touchStartY);
+            
+            // Only trigger if it's a tap (not a scroll)
+            if (touchDiff < 10) {
+                e.preventDefault();
+                toggleMenu();
+            }
         });
         
         // Keyboard navigation for mobile menu
         navToggle.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                navToggle.click();
+                toggleMenu();
+            }
+            if (e.key === 'Escape') {
+                navMenu.classList.remove('active');
+                navToggle.setAttribute('aria-expanded', 'false');
+                document.body.style.overflow = '';
+            }
+        });
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!navToggle.contains(e.target) && !navMenu.contains(e.target)) {
+                navMenu.classList.remove('active');
+                navToggle.setAttribute('aria-expanded', 'false');
+                document.body.style.overflow = '';
+            }
+        });
+        
+        // Close menu on window resize to desktop
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                navMenu.classList.remove('active');
+                navToggle.setAttribute('aria-expanded', 'false');
+                document.body.style.overflow = '';
             }
         });
     }
@@ -54,12 +101,38 @@ function setupEventListeners() {
         link.addEventListener('click', () => {
             navMenu?.classList.remove('active');
             navToggle?.setAttribute('aria-expanded', 'false');
+            document.body.style.overflow = '';
         });
         
         // Update aria-current for navigation
         link.addEventListener('click', (e) => {
             navLinks.forEach(l => l.removeAttribute('aria-current'));
             e.target.setAttribute('aria-current', 'page');
+        });
+        
+        // Add touch feedback
+        link.addEventListener('touchstart', () => {
+            link.style.transform = 'scale(0.98)';
+        }, { passive: true });
+        
+        link.addEventListener('touchend', () => {
+            link.style.transform = '';
+        });
+    });
+    
+    // Add touch feedback to buttons
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(button => {
+        button.addEventListener('touchstart', () => {
+            button.style.transform = 'scale(0.98)';
+        }, { passive: true });
+        
+        button.addEventListener('touchend', () => {
+            button.style.transform = '';
+        });
+        
+        button.addEventListener('touchcancel', () => {
+            button.style.transform = '';
         });
     });
     

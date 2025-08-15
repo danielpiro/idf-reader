@@ -56,7 +56,7 @@ class LicenseDialog:
         self.status_text = ft.Text(
             "בודק סטטוס רישיון...",
             size=16,
-            color=ft.colors.BLUE_600
+            color=ft.Colors.BLUE
         )
         
         status_card = ft.Card(
@@ -107,21 +107,21 @@ class LicenseDialog:
         
         self.activate_button = ft.ElevatedButton(
             text="הפעל רישיון",
-            icon=ft.icons.VPN_KEY,
+            icon=ft.Icons.KEY,
             on_click=self._activate_license,
             style=ft.ButtonStyle(
-                bgcolor=ft.colors.GREEN_600,
-                color=ft.colors.WHITE
+                bgcolor=ft.Colors.GREEN_500,
+                color=ft.Colors.WHITE
             )
         )
         
         self.deactivate_button = ft.ElevatedButton(
             text="בטל רישיון",
-            icon=ft.icons.CANCEL,
+            icon=ft.Icons.CANCEL,
             on_click=self._deactivate_license,
             style=ft.ButtonStyle(
-                bgcolor=ft.colors.RED_600,
-                color=ft.colors.WHITE
+                bgcolor=ft.Colors.RED_500,
+                color=ft.Colors.WHITE
             )
         )
         
@@ -132,7 +132,7 @@ class LicenseDialog:
                     ft.Text(
                         "הזן מפתח רישיון לקבלת גישה מלאה לכל התכונות",
                         size=14,
-                        color=ft.colors.GREY_600
+                        color=ft.Colors.GREY
                     ),
                     self.serial_key_field,
                     ft.Row([
@@ -157,21 +157,21 @@ class LicenseDialog:
                     ft.Text(
                         "מזהה זה נדרש להפעלת הרישיון",
                         size=14,
-                        color=ft.colors.GREY_600
+                        color=ft.Colors.GREY
                     ),
                     ft.TextField(
                         value=machine_id,
                         read_only=True,
                         text_align=ft.TextAlign.CENTER,
-                        border_color=ft.colors.GREY_400
+                        border_color=ft.Colors.GREY_400
                     ),
                     ft.ElevatedButton(
                         text="העתק למשטח",
-                        icon=ft.icons.COPY,
+                        icon=ft.Icons.CONTENT_COPY,
                         on_click=lambda _: self._copy_to_clipboard(machine_id),
                         style=ft.ButtonStyle(
-                            bgcolor=ft.colors.BLUE_600,
-                            color=ft.colors.WHITE
+                            bgcolor=ft.Colors.BLUE_500,
+                            color=ft.Colors.WHITE
                         )
                     )
                 ]),
@@ -191,7 +191,7 @@ class LicenseDialog:
         return ft.Container(
             content=self.feature_list,
             height=150,
-            border=ft.border.all(1, ft.colors.GREY_300),
+            border=ft.border.all(1, ft.Colors.GREY_300),
             border_radius=8,
             padding=10
         )
@@ -306,15 +306,15 @@ class LicenseDialog:
                     status_text = f"רישיון פעיל: {license_type}"
                 
                 self.status_text.value = status_text
-                self.status_text.color = ft.colors.GREEN_600
+                self.status_text.color = ft.Colors.GREEN_500
                 
             elif status["status"] == LicenseManager.STATUS_EXPIRED:
                 self.status_text.value = "רישיון פג תוקף - מצב מוגבל"
-                self.status_text.color = ft.colors.ORANGE_600
+                self.status_text.color = ft.Colors.ORANGE_500
                 
             else:
                 self.status_text.value = "אין רישיון - מצב חינמי מוגבל"
-                self.status_text.color = ft.colors.BLUE_600
+                self.status_text.color = ft.Colors.BLUE_500
             
             # Update feature list
             self._update_feature_list(status)
@@ -329,7 +329,7 @@ class LicenseDialog:
         except Exception as e:
             logger.error(f"Error updating license status: {e}")
             self.status_text.value = "שגיאה בבדיקת סטטוס הרישיון"
-            self.status_text.color = ft.colors.RED_600
+            self.status_text.color = ft.Colors.RED_500
             self.page.update()
     
     def _update_feature_list(self, status):
@@ -371,7 +371,7 @@ class LicenseDialog:
                 ]
             
             for icon, feature in features:
-                color = ft.colors.GREEN_600 if icon == "✅" else ft.colors.GREY_400
+                color = ft.Colors.GREEN_500 if icon == "✅" else ft.Colors.GREY_400
                 self.feature_list.controls.append(
                     ft.Text(f"{icon} {feature}", size=14, color=color)
                 )
@@ -392,8 +392,8 @@ class LicenseDialog:
         """Show success message."""
         try:
             snack = ft.SnackBar(
-                content=ft.Text(message, color=ft.colors.WHITE),
-                bgcolor=ft.colors.GREEN_600
+                content=ft.Text(message, color=ft.Colors.WHITE),
+                bgcolor=ft.Colors.GREEN_500
             )
             self.page.snack_bar = snack
             snack.open = True
@@ -405,8 +405,8 @@ class LicenseDialog:
         """Show error message."""
         try:
             snack = ft.SnackBar(
-                content=ft.Text(message, color=ft.colors.WHITE),
-                bgcolor=ft.colors.RED_600
+                content=ft.Text(message, color=ft.Colors.WHITE),
+                bgcolor=ft.Colors.RED_500
             )
             self.page.snack_bar = snack
             snack.open = True
@@ -448,7 +448,7 @@ def show_trial_expired_dialog(page: ft.Page, on_license_activated: Optional[Call
                 ft.Text(
                     "תוכל להמשיך להשתמש בתכונות הבסיסיות בחינם או לרכוש רישיון לגישה מלאה.",
                     size=14,
-                    color=ft.colors.GREY_600
+                    color=ft.Colors.GREY_600
                 ),
                 ft.Divider(),
                 ft.Text("תכונות זמינות במצב חינמי:", size=14, weight=ft.FontWeight.BOLD),
@@ -463,11 +463,11 @@ def show_trial_expired_dialog(page: ft.Page, on_license_activated: Optional[Call
             ft.TextButton("המשך במצב חינמי", on_click=continue_free),
             ft.ElevatedButton(
                 "הפעל רישיון",
-                icon=ft.icons.VPN_KEY,
+                icon=ft.Icons.KEY,
                 on_click=activate_license,
                 style=ft.ButtonStyle(
-                    bgcolor=ft.colors.GREEN_600,
-                    color=ft.colors.WHITE
+                    bgcolor=ft.Colors.GREEN_500,
+                    color=ft.Colors.WHITE
                 )
             ),
         ],
