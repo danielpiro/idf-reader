@@ -7,3 +7,5 @@ pandas>=2.0.0
 openpyxl>=3.1.0
 colorama>=0.4.6
 tabulate>=0.8.10
+cryptography>=41.0.0
+pymongo>=4.5.0

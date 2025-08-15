@@ -2,7 +2,7 @@ import flet as ft
 import json
 import os
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import asyncio
 
@@ -16,6 +16,8 @@ from utils.path_utils import (
 from processing_manager import ProcessingManager
 from utils.data_loader import DataLoader
 from utils.update_manager import UpdateManager
+from utils.license_manager import license_manager, check_license_on_startup
+from utils.license_dialog import LicenseDialog, show_startup_license_check
 from version import get_version
 
 logger = get_logger(__name__)
@@ -40,6 +42,11 @@ class ModernIDFProcessorGUI:
         self.update_manager = UpdateManager(status_callback=self.show_status)
         self.update_dialog = None
         self.current_version = get_version()
+        
+        # License management
+        self.license_dialog = None
+        self.license_status = None
+        self.daily_usage_count = 0
         
         # Load city data
         self.city_data = self.load_cities_from_csv()
@@ -614,9 +621,170 @@ class ModernIDFProcessorGUI:
         
         return True
 
+    def check_license_and_usage(self) -> bool:
+        """Check license status and usage limits before processing."""
+        try:
+            # Check current license status
+            status = license_manager.get_license_status()
+            self.license_status = status
+            
+            # If valid professional/enterprise license, allow unlimited usage
+            if (status["status"] == license_manager.STATUS_VALID and 
+                status.get("type") in [license_manager.LICENSE_PROFESSIONAL, license_manager.LICENSE_ENTERPRISE]):
+                return True
+            
+            # For free tier or expired licenses, check daily limits
+            return self.check_daily_usage_limit()
+            
+        except Exception as e:
+            logger.error(f"License check error: {e}")
+            self.show_status(f"שגיאה בבדיקת רישיון: {e}")
+            return False
+    
+    def check_daily_usage_limit(self) -> bool:
+        """Check if user has exceeded daily usage limit for free tier."""
+        try:
+            # Load usage data
+            usage_file = Path(license_manager.app_data_dir) / "daily_usage.json"
+            today = datetime.now().strftime("%Y-%m-%d")
+            
+            usage_data = {}
+            if usage_file.exists():
+                with open(usage_file, 'r', encoding='utf-8') as f:
+                    usage_data = json.load(f)
+            
+            # Get today's usage
+            daily_usage = usage_data.get(today, 0)
+            
+            # Free tier limit: 3 files per day
+            free_tier_limit = 3
+            
+            if daily_usage >= free_tier_limit:
+                self.show_license_limit_dialog()
+                return False
+            
+            # Update usage count
+            usage_data[today] = daily_usage + 1
+            self.daily_usage_count = usage_data[today]
+            
+            # Clean old usage data (keep last 30 days)
+            cutoff_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+            usage_data = {k: v for k, v in usage_data.items() if k >= cutoff_date}
+            
+            # Save updated usage
+            with open(usage_file, 'w', encoding='utf-8') as f:
+                json.dump(usage_data, f, indent=2)
+            
+            # Show remaining usage
+            remaining = free_tier_limit - self.daily_usage_count
+            if remaining > 0:
+                self.show_status(f"נותרו {remaining} עיבודים היום במצב חינמי")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Usage limit check error: {e}")
+            return True  # Allow processing if check fails
+    
+    def show_license_limit_dialog(self):
+        """Show dialog when daily limit is reached."""
+        def upgrade_license(e):
+            dialog.open = False
+            self.page.update()
+            self.show_license_dialog()
+        
+        def close_dialog(e):
+            dialog.open = False
+            self.page.update()
+        
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("הגעת למגבלה היומית", size=20, weight=ft.FontWeight.BOLD),
+            content=ft.Container(
+                content=ft.Column([
+                    ft.Text(
+                        "הגעת למגבלה של 3 קבצים ביום במצב החינמי.",
+                        size=16
+                    ),
+                    ft.Text(
+                        "שדרג לרישיון מקצועי לעיבוד ללא הגבלה ותכונות מתקדמות.",
+                        size=14,
+                        color=ft.colors.GREY_600
+                    ),
+                    ft.Divider(),
+                    ft.Text("היתרונות של הרישיון המקצועי:", size=14, weight=ft.FontWeight.BOLD),
+                    ft.Text("• עיבוד ללא הגבלה", size=12),
+                    ft.Text("• כל סוגי הדוחות", size=12),
+                    ft.Text("• ייצוא Excel ו-PDF", size=12),
+                    ft.Text("• תמיכה טכנית מועדפת", size=12),
+                ]),
+                width=400,
+                height=250
+            ),
+            actions=[
+                ft.TextButton("סגור", on_click=close_dialog),
+                ft.ElevatedButton(
+                    "שדרג לרישיון מקצועי",
+                    icon=ft.icons.UPGRADE,
+                    on_click=upgrade_license,
+                    style=ft.ButtonStyle(
+                        bgcolor=ft.colors.GREEN_600,
+                        color=ft.colors.WHITE
+                    )
+                ),
+            ],
+            actions_alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+        )
+        
+        self.page.dialog = dialog
+        dialog.open = True
+        self.page.update()
+    
+    def show_license_dialog(self):
+        """Show license management dialog."""
+        try:
+            self.license_dialog = LicenseDialog(self.page, self.on_license_changed)
+            self.license_dialog.show_license_dialog()
+        except Exception as e:
+            logger.error(f"Error showing license dialog: {e}")
+            self.show_status(f"שגיאה בהצגת חלון הרישיון: {e}")
+    
+    def on_license_changed(self):
+        """Called when license status changes."""
+        try:
+            # Refresh license status
+            self.license_status = license_manager.get_license_status()
+            
+            # Update UI elements based on new license
+            self.update_ui_for_license()
+            
+            self.show_status("סטטוס הרישיון עודכן")
+            
+        except Exception as e:
+            logger.error(f"License change handling error: {e}")
+    
+    def update_ui_for_license(self):
+        """Update UI elements based on current license status."""
+        try:
+            if not hasattr(self, 'license_status') or not self.license_status:
+                return
+            
+            license_type = self.license_status.get("type", license_manager.LICENSE_FREE)
+            is_valid = self.license_status.get("status") == license_manager.STATUS_VALID
+            
+            # Update status text or badges if needed
+            # This can be expanded based on your UI needs
+            
+        except Exception as e:
+            logger.error(f"UI update error: {e}")
+
     def on_start_processing(self, e):
         """Start the processing workflow."""
         if not self.validate_inputs():
+            return
+        
+        # Check license and usage limits
+        if not self.check_license_and_usage():
             return
         
         self.is_processing = True
@@ -1035,7 +1203,10 @@ class ModernIDFProcessorGUI:
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     expand=True),
                     ft.Column([
-                        self.create_update_menu_button(),
+                        ft.Row([
+                            self.create_license_button(),
+                            self.create_update_menu_button(),
+                        ], spacing=10, alignment=ft.MainAxisAlignment.CENTER),
                         ft.Text(f"v{self.current_version}", size=10, color=ft.Colors.ON_SURFACE_VARIANT)
                     ], spacing=2, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
                 ], 
@@ -1391,6 +1562,36 @@ class ModernIDFProcessorGUI:
         
         threading.Thread(target=install_worker, daemon=True).start()
     
+    def create_license_button(self):
+        """Create license button for header."""
+        # Get current license status for button styling
+        try:
+            status = license_manager.get_license_status()
+            license_type = status.get("type", license_manager.LICENSE_FREE)
+            is_valid = status.get("status") == license_manager.STATUS_VALID
+            
+            if is_valid and license_type != license_manager.LICENSE_FREE:
+                # Valid paid license
+                icon = ft.Icons.VPN_KEY
+                color = ft.Colors.GREEN_600
+                tooltip = f"רישיון {license_type} פעיל"
+            else:
+                # Free tier or expired
+                icon = ft.Icons.VPN_KEY_OFF
+                color = ft.Colors.ORANGE_600
+                tooltip = "מצב חינמי - לחץ לשדרוג"
+        except:
+            icon = ft.Icons.VPN_KEY_OFF
+            color = ft.Colors.GREY_600
+            tooltip = "ניהול רישיון"
+        
+        return ft.IconButton(
+            icon=icon,
+            icon_color=color,
+            tooltip=tooltip,
+            on_click=lambda _: self.show_license_dialog()
+        )
+
     def create_update_menu_button(self):
         """Create update menu button for header."""
         def show_update_menu(e):
@@ -1561,7 +1762,13 @@ class ModernIDFProcessorGUI:
 
 def main(page: ft.Page):
     app = ModernIDFProcessorGUI()
-    app.build_ui(page)
+    
+    def on_license_checked():
+        """Called after license check is complete."""
+        app.build_ui(page)
+    
+    # Check license on startup
+    show_startup_license_check(page, on_license_checked)
 
 if __name__ == "__main__":
     ft.app(target=main, view=ft.AppView.FLET_APP, assets_dir="data")
