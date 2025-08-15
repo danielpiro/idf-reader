@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
     fetchLatestRelease();
     animateCounters();
+    initializeAccessibility();
 });
 
 // Initialize website
@@ -30,13 +31,26 @@ function initializeWebsite() {
 
 // Setup event listeners
 function setupEventListeners() {
-    // Navigation toggle
+    // Navigation toggle with accessibility
     const navToggle = document.getElementById('navToggle');
     const navMenu = document.getElementById('navMenu');
     
     if (navToggle && navMenu) {
         navToggle.addEventListener('click', () => {
+            const isExpanded = navToggle.getAttribute('aria-expanded') === 'true';
+            navToggle.setAttribute('aria-expanded', !isExpanded);
             navMenu.classList.toggle('active');
+            
+            // Announce to screen readers
+            announceToScreenReader(isExpanded ? 'תפריט הניווט נסגר' : 'תפריט הניווט נפתח');
+        });
+        
+        // Keyboard navigation for mobile menu
+        navToggle.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                navToggle.click();
+            }
         });
     }
     
@@ -45,6 +59,13 @@ function setupEventListeners() {
     navLinks.forEach(link => {
         link.addEventListener('click', () => {
             navMenu?.classList.remove('active');
+            navToggle?.setAttribute('aria-expanded', 'false');
+        });
+        
+        // Update aria-current for navigation
+        link.addEventListener('click', (e) => {
+            navLinks.forEach(l => l.removeAttribute('aria-current'));
+            e.target.setAttribute('aria-current', 'page');
         });
     });
     
@@ -347,19 +368,27 @@ function openChangelog() {
     }
 }
 
-// Contact form submission
+// Contact form submission with validation
 function submitContactForm(event) {
     event.preventDefault();
     
     const form = event.target;
+    
+    // Validate form before submission
+    if (!validateForm(form)) {
+        announceToScreenReader('יש שגיאות בטופס. אנא תקן את השדות המסומנים.');
+        return;
+    }
+    
     const formData = new FormData(form);
     const data = Object.fromEntries(formData);
     
     // Add loading state
     const submitButton = form.querySelector('button[type="submit"]');
     const originalText = submitButton.innerHTML;
-    submitButton.innerHTML = '<span class="btn-icon">⏳</span> שולח...';
+    submitButton.innerHTML = '<span class="btn-icon" aria-hidden="true">⏳</span> שולח...';
     submitButton.disabled = true;
+    submitButton.setAttribute('aria-busy', 'true');
     
     // Simulate form submission (replace with real endpoint)
     setTimeout(() => {
@@ -504,9 +533,142 @@ document.addEventListener('visibilitychange', function() {
     }
 });
 
+// Accessibility helper functions
+function announceToScreenReader(message) {
+    const announcement = document.getElementById('sr-announcements');
+    if (announcement) {
+        announcement.textContent = message;
+        // Clear after 3 seconds
+        setTimeout(() => {
+            announcement.textContent = '';
+        }, 3000);
+    }
+}
+
+function validateForm(form) {
+    let isValid = true;
+    
+    // Clear previous errors
+    const errorMessages = form.querySelectorAll('.error-message');
+    errorMessages.forEach(error => {
+        error.classList.remove('show');
+        error.textContent = '';
+    });
+    
+    const inputs = form.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        input.classList.remove('error');
+    });
+    
+    // Validate required fields
+    const requiredFields = form.querySelectorAll('[required]');
+    requiredFields.forEach(field => {
+        if (!field.value.trim()) {
+            showFieldError(field, 'שדה זה הוא חובה');
+            isValid = false;
+        }
+    });
+    
+    // Validate email
+    const emailField = form.querySelector('input[type="email"]');
+    if (emailField && emailField.value.trim()) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(emailField.value.trim())) {
+            showFieldError(emailField, 'כתובת אימייל לא תקינה');
+            isValid = false;
+        }
+    }
+    
+    // Focus on first error field
+    if (!isValid) {
+        const firstError = form.querySelector('.error');
+        if (firstError) {
+            firstError.focus();
+        }
+    }
+    
+    return isValid;
+}
+
+function showFieldError(field, message) {
+    field.classList.add('error');
+    const errorId = field.getAttribute('aria-describedby').split(' ').find(id => id.includes('error'));
+    const errorElement = document.getElementById(errorId);
+    if (errorElement) {
+        errorElement.textContent = message;
+        errorElement.classList.add('show');
+    }
+}
+
+// Keyboard navigation helpers
+function setupKeyboardNavigation() {
+    // Trap focus in modal
+    document.addEventListener('keydown', (e) => {
+        const modal = document.getElementById('demoModal');
+        if (modal && modal.style.display === 'block') {
+            trapFocusInModal(e, modal);
+        }
+    });
+    
+    // Add keyboard navigation to pricing cards
+    const pricingCards = document.querySelectorAll('.pricing-card');
+    pricingCards.forEach(card => {
+        card.setAttribute('tabindex', '0');
+        card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                const button = card.querySelector('.btn');
+                if (button) {
+                    button.click();
+                }
+            }
+        });
+    });
+}
+
+function trapFocusInModal(e, modal) {
+    const focusableElements = modal.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+    
+    if (e.key === 'Tab') {
+        if (e.shiftKey) {
+            if (document.activeElement === firstElement) {
+                lastElement.focus();
+                e.preventDefault();
+            }
+        } else {
+            if (document.activeElement === lastElement) {
+                firstElement.focus();
+                e.preventDefault();
+            }
+        }
+    }
+}
+
+// Initialize accessibility features
+function initializeAccessibility() {
+    setupKeyboardNavigation();
+    
+    // Add live region for dynamic content updates
+    const liveRegion = document.createElement('div');
+    liveRegion.setAttribute('aria-live', 'polite');
+    liveRegion.setAttribute('aria-atomic', 'true');
+    liveRegion.className = 'sr-only';
+    liveRegion.id = 'live-region';
+    document.body.appendChild(liveRegion);
+    
+    // Announce page load
+    setTimeout(() => {
+        announceToScreenReader('עמוד IDF Reader נטען בהצלחה');
+    }, 1000);
+}
+
 // Export functions for global access
 window.openDemo = openDemo;
 window.closeDemo = closeDemo;
 window.openChangelog = openChangelog;
 window.downloadLatest = downloadLatest;
 window.submitContactForm = submitContactForm;
+window.announceToScreenReader = announceToScreenReader;

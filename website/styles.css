@@ -5,6 +5,121 @@
     box-sizing: border-box;
 }
 
+/* Accessibility Styles */
+.sr-only {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+.skip-links {
+    position: absolute;
+    top: -100px;
+    left: 0;
+    z-index: 10000;
+    width: 100%;
+}
+
+.skip-link {
+    position: absolute;
+    background: #667eea;
+    color: white;
+    padding: 0.5rem 1rem;
+    text-decoration: none;
+    font-weight: 500;
+    border-radius: 0 0 4px 4px;
+    transition: top 0.3s ease;
+}
+
+.skip-link:focus {
+    top: 100px;
+    outline: 3px solid #f093fb;
+    outline-offset: 2px;
+}
+
+/* Focus indicators */
+*:focus {
+    outline: 2px solid #667eea;
+    outline-offset: 2px;
+}
+
+/* High contrast focus for better visibility */
+.btn:focus,
+.nav-link:focus,
+input:focus,
+select:focus,
+textarea:focus,
+button:focus {
+    outline: 3px solid #f093fb;
+    outline-offset: 3px;
+}
+
+/* Form validation styles */
+.error-message {
+    color: #dc2626;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: none;
+}
+
+.error-message.show {
+    display: block;
+}
+
+.form-help {
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.required {
+    color: #dc2626;
+    font-weight: bold;
+}
+
+/* Input error states */
+.form-group input.error,
+.form-group select.error,
+.form-group textarea.error {
+    border-color: #dc2626;
+    background-color: #fef2f2;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .btn-primary {
+        background: #000;
+        border: 2px solid #fff;
+    }
+    
+    .feature-card,
+    .pricing-card {
+        border: 2px solid #000;
+    }
+    
+    .hero {
+        background: #000;
+    }
+}
+
 html {
     scroll-behavior: smooth;
 }
