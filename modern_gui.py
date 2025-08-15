@@ -262,6 +262,16 @@ class ModernIDFProcessorGUI:
             logger.warning(f"GUI: {message}")
         else:
             logger.info(f"GUI: {message}")
+    
+    def show_status_safe(self, message, level="info"):
+        """Thread-safe version of show_status for background threads."""
+        try:
+            # For Flet, we can safely call UI updates from any thread
+            # as long as we handle exceptions gracefully
+            self.show_status(message, level)
+        except Exception as e:
+            # Log errors but don't crash the background thread
+            logger.error(f"Error updating UI status: {e}")
 
     def update_progress(self, value):
         """Update reports progress bar."""
@@ -742,11 +752,21 @@ class ModernIDFProcessorGUI:
     
     def show_license_dialog(self):
         """Show license management dialog."""
+        logger.info("License button clicked - attempting to show dialog")
         try:
+            if not self.page:
+                logger.error("Page is None - cannot show license dialog")
+                return
+            
+            logger.info("Creating LicenseDialog instance")
             self.license_dialog = LicenseDialog(self.page, self.on_license_changed)
+            logger.info("Calling show_license_dialog method")
             self.license_dialog.show_license_dialog()
+            logger.info("License dialog should now be visible")
         except Exception as e:
             logger.error(f"Error showing license dialog: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             self.show_status(f"שגיאה בהצגת חלון הרישיון: {e}")
     
     def on_license_changed(self):
@@ -1589,62 +1609,77 @@ class ModernIDFProcessorGUI:
             icon=icon,
             icon_color=color,
             tooltip=tooltip,
-            on_click=lambda _: self.show_license_dialog()
+            on_click=lambda _: (logger.info("License button clicked"), self.show_license_dialog())
         )
 
     def create_update_menu_button(self):
         """Create update menu button for header."""
         def show_update_menu(e):
-            # Create popup menu for update options
-            def check_updates(e):
-                self.check_for_updates_manual()
-            
-            def toggle_auto_updates(e):
+            logger.info("Update button clicked - attempting to show menu")
+            try:
+                if not self.page:
+                    logger.error("Page is None - cannot show update menu")
+                    return
+                
+                # Create popup menu for update options
+                def check_updates(e):
+                    logger.info("Check updates clicked")
+                    self.check_for_updates_manual()
+                
+                def toggle_auto_updates(e):
+                    settings = self.update_manager.get_update_settings()
+                    settings["auto_check"] = not settings["auto_check"]
+                    self.update_manager.update_settings(settings)
+                    status = "מופעל" if settings["auto_check"] else "מבוטל"
+                    self.show_status(f"בדיקת עדכונים אוטומטית {status}")
+                
+                def configure_github(e):
+                    self.show_github_config_dialog()
+                
+                # Show simple dialog with update options
+                def close_menu(e):
+                    menu_dialog.open = False
+                    self.page.update()
+                
                 settings = self.update_manager.get_update_settings()
-                settings["auto_check"] = not settings["auto_check"]
-                self.update_manager.update_settings(settings)
-                status = "מופעל" if settings["auto_check"] else "מבוטל"
-                self.show_status(f"בדיקת עדכונים אוטומטית {status}")
-            
-            def configure_github(e):
-                self.show_github_config_dialog()
-            
-            # Show simple dialog with update options
-            def close_menu(e):
-                menu_dialog.open = False
+                auto_check_text = "בטל בדיקה אוטומטית" if settings["auto_check"] else "הפעל בדיקה אוטומטית"
+                
+                menu_dialog = ft.AlertDialog(
+                    modal=True,
+                    title=ft.Text("הגדרות עדכונים", text_align=ft.TextAlign.RIGHT, rtl=True),
+                    content=ft.Column([
+                        ft.ElevatedButton(
+                            "בדוק עדכונים עכשיו",
+                            icon=ft.Icons.REFRESH,
+                            on_click=lambda e: (check_updates(e), close_menu(e)),
+                            width=200
+                        ),
+                        ft.ElevatedButton(
+                            auto_check_text,
+                            icon=ft.Icons.SETTINGS,
+                            on_click=lambda e: (toggle_auto_updates(e), close_menu(e)),
+                            width=200
+                        ),
+                        ft.Text(f"גרסה נוכחית: {self.current_version}", 
+                               text_align=ft.TextAlign.RIGHT, rtl=True, size=12)
+                    ], spacing=10, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                    actions=[
+                        ft.TextButton("סגור", on_click=close_menu)
+                    ],
+                    actions_alignment=ft.MainAxisAlignment.END
+                )
+                
+                self.page.dialog = menu_dialog
+                menu_dialog.open = True
                 self.page.update()
+                logger.info("Update menu dialog should now be visible")
             
-            settings = self.update_manager.get_update_settings()
-            auto_check_text = "בטל בדיקה אוטומטית" if settings["auto_check"] else "הפעל בדיקה אוטומטית"
-            
-            menu_dialog = ft.AlertDialog(
-                modal=True,
-                title=ft.Text("הגדרות עדכונים", text_align=ft.TextAlign.RIGHT, rtl=True),
-                content=ft.Column([
-                    ft.ElevatedButton(
-                        "בדוק עדכונים עכשיו",
-                        icon=ft.Icons.REFRESH,
-                        on_click=lambda e: (check_updates(e), close_menu(e)),
-                        width=200
-                    ),
-                    ft.ElevatedButton(
-                        auto_check_text,
-                        icon=ft.Icons.SETTINGS,
-                        on_click=lambda e: (toggle_auto_updates(e), close_menu(e)),
-                        width=200
-                    ),
-                    ft.Text(f"גרסה נוכחית: {self.current_version}", 
-                           text_align=ft.TextAlign.RIGHT, rtl=True, size=12)
-                ], spacing=10, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                actions=[
-                    ft.TextButton("סגור", on_click=close_menu)
-                ],
-                actions_alignment=ft.MainAxisAlignment.END
-            )
-            
-            self.page.dialog = menu_dialog
-            menu_dialog.open = True
-            self.page.update()
+            except Exception as e:
+                logger.error(f"Error showing update menu: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                if hasattr(self, 'show_status'):
+                    self.show_status(f"שגיאה בהצגת תפריט עדכונים: {e}")
         
         return ft.IconButton(
             icon=ft.Icons.SYSTEM_UPDATE,

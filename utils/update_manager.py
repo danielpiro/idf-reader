@@ -127,15 +127,17 @@ class UpdateManager:
             self._save_update_settings()
             
             # Try GitHub releases first (more reliable)
+            self.status_callback("בודק GitHub לעדכונים...")
             update_info = self._check_github_releases()
             
             if not update_info:
                 # Fallback to custom update server
+                self.status_callback("בודק שרת עדכונים מותאם אישית...")
                 update_info = self._check_custom_server()
             
             if update_info:
                 new_version = update_info.get("version")
-                if compare_versions(self.current_version, new_version) < 0:
+                if new_version and compare_versions(self.current_version, new_version) < 0:
                     self.status_callback(f"עדכון זמין: גרסה {new_version}")
                     logger.info(f"Update available: {self.current_version} -> {new_version}")
                     return update_info
@@ -143,7 +145,7 @@ class UpdateManager:
                     self.status_callback("האפליקציה מעודכנת לגרסה האחרונה")
                     logger.info("Application is up to date")
             else:
-                self.status_callback("לא ניתן לבדוק עדכונים")
+                self.status_callback("לא נמצאו עדכונים זמינים או שגיאה בחיבור לשרת")
         
         except Exception as e:
             logger.error(f"Error checking for updates: {e}")
@@ -156,6 +158,9 @@ class UpdateManager:
         try:
             from urllib.request import Request
             
+            # Create SSL context that works on Windows
+            ssl_context = ssl.create_default_context()
+            
             # Create request headers (no authentication needed for public repos)
             headers = {
                 'User-Agent': 'IDF-Reader-Auto-Updater/1.0',
@@ -164,7 +169,7 @@ class UpdateManager:
             
             request = Request(GITHUB_RELEASES_URL, headers=headers)
             
-            with urlopen(request, timeout=10) as response:
+            with urlopen(request, timeout=15, context=ssl_context) as response:
                 data = json.loads(response.read().decode('utf-8'))
                 
                 if data.get("tag_name"):
@@ -190,7 +195,8 @@ class UpdateManager:
                     }
         
         except (URLError, HTTPError, json.JSONDecodeError, KeyError) as e:
-            logger.debug(f"GitHub releases check failed: {e}")
+            logger.error(f"GitHub releases check failed: {e}")
+            self.status_callback(f"שגיאה בבדיקת GitHub: {e}")
         
         return None
     

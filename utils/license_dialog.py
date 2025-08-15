@@ -419,6 +419,10 @@ class LicenseDialog:
         if self.dialog:
             self.dialog.open = False
             self.page.update()
+            
+        # Call the continue callback so the app can start
+        if self.on_license_changed:
+            self.on_license_changed()
 
 
 def show_trial_expired_dialog(page: ft.Page, on_license_activated: Optional[Callable] = None):
@@ -493,12 +497,17 @@ def show_startup_license_check(page: ft.Page, on_continue: Optional[Callable] = 
         # Show appropriate dialog based on status
         if status["status"] == LicenseManager.STATUS_EXPIRED:
             show_trial_expired_dialog(page, on_continue)
+        elif status["status"] in ["unlicensed", "error", "invalid"]:
+            # No license or error - show license dialog for activation
+            dialog = LicenseDialog(page, on_continue)
+            dialog.show_license_dialog(show_activation=True)
         else:
-            # No license or error - continue to main app
-            if on_continue:
-                on_continue()
+            # Unknown status - show license dialog
+            dialog = LicenseDialog(page, on_continue)
+            dialog.show_license_dialog(show_activation=True)
                 
     except Exception as e:
         logger.error(f"Startup license check error: {e}")
-        if on_continue:
-            on_continue()
+        # On error, show license dialog for activation
+        dialog = LicenseDialog(page, on_continue)
+        dialog.show_license_dialog(show_activation=True)
