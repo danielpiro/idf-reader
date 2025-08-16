@@ -2,8 +2,8 @@
 Version management for IDF Reader application.
 """
 
-__version__ = "1.0.4"
-__version_info__ = (1, 0, 4)
+__version__ = "1.1.0"
+__version_info__ = (1, 1, 0)
 
 # Update server configuration
 UPDATE_SERVER_URL = "http://localhost:8000/api"  # Local development server

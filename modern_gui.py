@@ -611,6 +611,19 @@ class ModernIDFProcessorGUI:
         """Update form validation and button state."""
         if not self.process_button:
             return
+        
+        # Check license status first
+        license_status = license_manager.get_license_status()
+        is_licensed = license_status["status"] == license_manager.STATUS_VALID
+        
+        if not is_licensed:
+            # No valid license - show activation message
+            self.process_button.disabled = False  # Keep button clickable
+            self.process_button.text = "🔐 הפעל רישיון - לחץ על מקש הנעילה"
+            self.process_button.icon = ft.Icons.LOCK
+            if self.page:
+                self.page.update()
+            return
             
         # Check if all required fields are filled and valid
         is_valid = all([
@@ -623,6 +636,7 @@ class ModernIDFProcessorGUI:
         
         self.process_button.disabled = not is_valid or self.is_processing
         self.process_button.text = "צור דוחות" if is_valid and not self.is_processing else "השלם הגדרות"
+        self.process_button.icon = ft.Icons.ROCKET_LAUNCH if is_valid else ft.Icons.SETTINGS
         
         if self.page:
             self.page.update()
@@ -832,6 +846,10 @@ class ModernIDFProcessorGUI:
             logger.info("Updating UI elements for new license status")
             self.update_ui_for_license()
             
+            # Update button state after license change
+            logger.info("Updating form validation after license change")
+            self.update_form_validation()
+            
             # Refresh license button if it exists
             logger.info("Refreshing license-dependent UI elements")
             if hasattr(self, 'license_button') and self.license_button:
@@ -885,6 +903,15 @@ class ModernIDFProcessorGUI:
 
     def on_start_processing(self, e):
         """Start the processing workflow."""
+        # Check license status first
+        license_status = license_manager.get_license_status()
+        is_licensed = license_status["status"] == license_manager.STATUS_VALID
+        
+        if not is_licensed:
+            # No valid license - show license dialog
+            self.show_license_dialog()
+            return
+        
         if not self.validate_inputs():
             return
         
@@ -2103,10 +2130,9 @@ def main(page: ft.Page):
         logger.info("on_license_checked callback called - building UI")
         app.build_ui(page)
     
-    # Check license on startup
-    logger.info("About to call show_startup_license_check")
-    show_startup_license_check(page, on_license_checked)
-    logger.info("show_startup_license_check call completed")
+    # Load UI directly - license check will be handled by UI elements
+    logger.info("Loading UI directly - license check handled by UI")
+    on_license_checked()
 
 if __name__ == "__main__":
     import sys

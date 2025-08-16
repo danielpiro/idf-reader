@@ -376,8 +376,8 @@ class LicenseManager:
             if not self.license_file.exists():
                 status_result = {
                     "status": "unlicensed",
-                    "type": self.LICENSE_FREE,
-                    "message": "No license found"
+                    "type": "unlicensed",
+                    "message": "License required - please activate your license"
                 }
                 logger.info(f"No license file - returning: {status_result}")
                 return status_result
@@ -413,8 +413,8 @@ class LicenseManager:
         except Exception as e:
             logger.error(f"License status error: {e}")
             return {
-                "status": "error",
-                "type": self.LICENSE_FREE,
+                "status": "error", 
+                "type": "unlicensed",
                 "message": f"License check failed: {e}"
             }
     
@@ -462,11 +462,10 @@ class LicenseManager:
         status = self.get_license_status()
         
         if status["status"] != self.STATUS_VALID:
-            # Free tier features
-            free_features = ["basic_reports", "limited_files"]
-            return feature in free_features
+            # No license - no features enabled
+            return False
         
-        license_type = status.get("type", self.LICENSE_FREE)
+        license_type = status.get("type", "")
         features = status.get("features", {})
         
         # Check specific feature enablement
@@ -482,8 +481,8 @@ class LicenseManager:
         elif license_type == self.LICENSE_ENTERPRISE:
             return True  # All features enabled
         
-        # Free tier
-        return feature in ["basic_reports", "limited_files"]
+        # No valid license
+        return False
     
     def check_daily_usage_limit(self) -> Tuple[bool, int, int]:
         """
@@ -495,17 +494,17 @@ class LicenseManager:
         status = self.get_license_status()
         
         if status["status"] != self.STATUS_VALID:
-            # Free tier: 3 files per day
-            return True, 0, 3  # For now, don't track usage for free tier
+            # No license - cannot use
+            return False, 0, 0
         
-        license_type = status.get("type", self.LICENSE_FREE)
+        license_type = status.get("type", "")
         
         if license_type in [self.LICENSE_PROFESSIONAL, self.LICENSE_ENTERPRISE]:
-            # Unlimited usage
+            # Unlimited usage for licensed users
             return True, 0, -1
         
-        # Free tier default
-        return True, 0, 3
+        # No valid license
+        return False, 0, 0
 
 
 # Global license manager instance
@@ -522,23 +521,13 @@ def check_license_on_startup() -> Tuple[bool, Dict[str, Any]]:
     try:
         status = license_manager.get_license_status()
         
-        if status["status"] == "unlicensed":
-            # No license - allow free tier
-            return True, status
-        elif status["status"] == license_manager.STATUS_VALID:
-            # Valid license
-            return True, status
-        elif status["status"] == license_manager.STATUS_EXPIRED:
-            # Expired license - revert to free tier
-            return True, status
-        else:
-            # Invalid license - allow free tier but show warning
-            return True, status
+        # Always allow UI to load - license check is handled by UI elements
+        return True, status
             
     except Exception as e:
         logger.error(f"Startup license check failed: {e}")
         return True, {
             "status": "error",
-            "type": license_manager.LICENSE_FREE,
+            "type": "unlicensed", 
             "message": f"License check failed: {e}"
         }

@@ -1070,7 +1070,7 @@ def show_startup_license_check(page: ft.Page, on_continue: Optional[Callable] = 
         status = license_manager.get_license_status()
         logger.info(f"License status received: {status}")
         
-        # If everything is fine, continue without dialog
+        # If license is valid, continue without dialog
         if status["status"] == LicenseManager.STATUS_VALID:
             logger.info("=" * 50)
             logger.info("LICENSE IS VALID - BUILDING UI DIRECTLY")
@@ -1083,48 +1083,36 @@ def show_startup_license_check(page: ft.Page, on_continue: Optional[Callable] = 
                 logger.warning("No on_continue callback provided!")
             return
         
-        # Show appropriate dialog based on status
-        if status["status"] == LicenseManager.STATUS_EXPIRED:
-            logger.info("=" * 50)
-            logger.info("LICENSE EXPIRED - SHOWING TRIAL EXPIRED DIALOG")
-            logger.info("=" * 50)
-            show_trial_expired_dialog(page, on_continue)
-        elif status["status"] in ["unlicensed", "error", "invalid"]:
-            logger.info("=" * 50)
-            logger.info(f"LICENSE STATUS '{status['status']}' - SHOWING LICENSE DIALOG")
-            logger.info("=" * 50)
-            # No license or error - show license dialog for activation
-            # Create a wrapper callback that always ensures the main UI is built
-            def ensure_ui_callback():
-                logger.info("=" * 40)
-                logger.info("ENSURE UI CALLBACK CALLED FROM STARTUP")
-                logger.info("License dialog closed - ensuring main UI is built")
-                logger.info(f"Original on_continue callback: {on_continue}")
-                
+        # No valid license - show license dialog for activation (mandatory)
+        logger.info("=" * 50)
+        logger.info(f"LICENSE STATUS '{status['status']}' - SHOWING MANDATORY LICENSE DIALOG")
+        logger.info("=" * 50)
+        
+        # Create a wrapper callback that only continues after successful activation
+        def license_activation_callback():
+            logger.info("=" * 40)
+            logger.info("LICENSE ACTIVATION CALLBACK CALLED")
+            logger.info("Checking license status after activation...")
+            
+            # Re-check license status
+            new_status = license_manager.get_license_status()
+            if new_status["status"] == LicenseManager.STATUS_VALID:
+                logger.info("License is now valid - building main UI")
                 if on_continue:
-                    logger.info("Calling original on_continue callback...")
                     on_continue()
-                    logger.info("Original on_continue callback completed")
                 else:
-                    logger.warning("No original on_continue callback provided!")
-                logger.info("=" * 40)
-            
-            dialog = LicenseDialog(page, ensure_ui_callback)
-            logger.info("LicenseDialog created with ensure_ui_callback")
-            logger.info("Calling show_license_dialog...")
-            dialog.show_license_dialog(show_activation=True)
-            logger.info("show_license_dialog call completed")
-        else:
-            logger.warning(f"Unknown license status '{status['status']}' - showing license dialog")
-            # Unknown status - show license dialog
-            # Create a wrapper callback that always ensures the main UI is built
-            def ensure_ui_callback():
-                logger.info("License dialog closed - ensuring main UI is built")
-                if on_continue:
-                    on_continue()
-            
-            dialog = LicenseDialog(page, ensure_ui_callback)
-            dialog.show_license_dialog(show_activation=True)
+                    logger.warning("No on_continue callback provided!")
+            else:
+                logger.warning("License still not valid after activation dialog")
+                # Keep showing dialog until valid license
+                show_startup_license_check(page, on_continue)
+            logger.info("=" * 40)
+        
+        dialog = LicenseDialog(page, license_activation_callback)
+        logger.info("LicenseDialog created for mandatory activation")
+        logger.info("Calling show_license_dialog...")
+        dialog.show_license_dialog(show_activation=True)
+        logger.info("show_license_dialog call completed")
                 
     except Exception as e:
         logger.error(f"Startup license check error: {e}")
