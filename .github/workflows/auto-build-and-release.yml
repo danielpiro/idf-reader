@@ -71,9 +71,10 @@ jobs:
           $commitMessages = git log --oneline -10 --pretty=format:"%s"
           if ($commitMessages -match "BREAKING CHANGE|major:") {
             $incrementType = "major"
-          } elseif ($commitMessages -match "feat:|feature:|minor:") {
+          } elseif ($commitMessages -match "minor:|MINOR:") {
             $incrementType = "minor"
           }
+          # Default to patch for feat:, fix:, and most changes
         }
         
         # Increment version
