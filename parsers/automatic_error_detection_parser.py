@@ -1,6 +1,13 @@
 """
 Extracts and processes automatic error detection data.
 Uses validation tables for settings, loads, and HVAC.
+
+CHANGELOG:
+- Updated schedule hour range from 1-24 format to 0-23 format
+  - Occupancy schedule: shifted last hour value to position 7 (hour 7)
+  - Lighting schedule: shifted last hour value to position 16 (hour 16) 
+  - Equipment schedules: shifted patterns accordingly
+  - Natural ventilation: adjusted hourly patterns for proper 0-23 mapping
 """
 from typing import Dict, Any, Optional, List
 from utils.data_loader import DataLoader
@@ -126,15 +133,15 @@ class AutomaticErrorDetectionParser:
                 'Occupancy': {
                     'people_per_area': {'recommended': '0.04', 'details': 'Not supported value'},
                     'activity_schedule_per_person': {'recommended': '125', 'details': 'Not supported value'},
-                    'schedule_rule': {'recommended': '0.64 0.64 0.64 0.64 0.64 0.64 0.64 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 0.64', 'details': 'Not supported value'}
+                    'schedule_rule': {'recommended': '0.64 0.64 0.64 0.64 0.64 0.64 0.64 0.64 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1', 'details': 'Not supported value'}
                 },
                 'Lighting': {
                     'power_density_w_m2': {'recommended': '5', 'details': 'Not supported value'},
-                    'schedule_rule': {'recommended': '0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 0', 'details': 'Not supported value'}
+                    'schedule_rule': {'recommended': '0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1', 'details': 'Not supported value'}
                 },
                 'Non Fixed Equipment (area <= 150)': {
                     'power_density_w_m2': {'recommended': '8', 'details': 'Not supported value'},
-                    'schedule_rule': {'recommended': '0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 0', 'details': 'Not supported value'}
+                    'schedule_rule': {'recommended': '0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1', 'details': 'Not supported value'}
                 },
                 'Fixed Equipment (area <= 150)': {
                     'power_density_w_m2': {'recommended': '1', 'details': 'Not supported value'},
@@ -142,7 +149,7 @@ class AutomaticErrorDetectionParser:
                 },
                 'Non Fixed Equipment (area > 150)': {
                     'power_density_w_m2': {'recommended': '6', 'details': 'Not supported value'},
-                    'schedule_rule': {'recommended': '0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 0', 'details': 'Not supported value'}
+                    'schedule_rule': {'recommended': '0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1', 'details': 'Not supported value'}
                 },
                 'Fixed Equipment (area > 150)': {
                     'power_density_w_m2': {'recommended': '0.74', 'details': 'Not supported value'},
@@ -150,11 +157,11 @@ class AutomaticErrorDetectionParser:
                 },
                 'Combined Equipment (area <= 150, edge case)': {
                     'power_density_w_m2': {'recommended': '9', 'details': 'Not supported value'},
-                    'schedule_rule': {'recommended': '0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 1 1 1 1 1 1 1 0.11', 'details': 'Not supported value'}
+                    'schedule_rule': {'recommended': '0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 0.11 1 1 1 1 1 1 1', 'details': 'Not supported value'}
                 },
                 'Combined Equipment (area > 150, edge case)': {
                     'power_density_w_m2': {'recommended': '7', 'details': 'Not supported value'},
-                    'schedule_rule': {'recommended': '0.14 0.14 0.14 0.14 0.14 0.14 0.14 0.14 0.14 0.14 0.14 0.14 0.14 0.14 0.14 0.14 1 1 1 1 1 1 1 0.14', 'details': 'Not supported value'}
+                    'schedule_rule': {'recommended': '0.14 0.14 0.14 0.14 0.14 0.14 0.14 0.14 0.14 0.14 0.14 0.14 0.14 0.14 0.14 0.14 0.14 1 1 1 1 1 1 1', 'details': 'Not supported value'}
                 }
             },
             '2023': {
@@ -198,7 +205,7 @@ class AutomaticErrorDetectionParser:
                     },
                     'Natural Ventilation': {
                         'rate_ach': {'recommended': '2', 'details': 'Not supported value'},
-                        'schedule_rule': {'recommended': '01/01 -> 31/03: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0; 31/03 -> 30/11: 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1; 30/11 -> 31/12: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0', 'details': 'Not supported value'},
+                        'schedule_rule': {'recommended': '01/01 -> 31/03: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0; 31/03 -> 30/11: 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1; 30/11 -> 31/12: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0', 'details': 'Not supported value'},
                         'windows_directions_required': {'recommended': '2', 'details': 'Missing at least 2 windows directions'}
                     }
                 },
@@ -220,7 +227,7 @@ class AutomaticErrorDetectionParser:
                     },
                     'Natural Ventilation': {
                         'rate_ach': {'recommended': '2', 'details': 'Not supported value'},
-                        'schedule_rule': {'recommended': '01/01 -> 31/03: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0; 31/03 -> 30/11: 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1; 30/11 -> 31/12: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0', 'details': 'Not supported value'},
+                        'schedule_rule': {'recommended': '01/01 -> 31/03: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0; 31/03 -> 30/11: 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1; 30/11 -> 31/12: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0', 'details': 'Not supported value'},
                         'windows_directions_required': {'recommended': '2', 'details': 'Missing at least 2 windows directions'}
                     }
                 },
@@ -494,6 +501,7 @@ class AutomaticErrorDetectionParser:
         except Exception:
             pass
     
+
     def _validate_2017_loads(self, people_data, lights_data_from_loads, equipment_data, schedule_data, zones, areas_parser):
         """Validate loads according to 2017 ISO standards with area-based criteria."""
         # Filter for HVAC zones only, excluding CORE zones
@@ -643,6 +651,7 @@ class AutomaticErrorDetectionParser:
                     if current_schedule and current_schedule in schedule_data:
                         current_schedule_rule = self._extract_schedule_rule_as_hourly(schedule_data[current_schedule])
                         recommended_schedule_rule = self.loads_table['2017']['Lighting']['schedule_rule']['recommended']
+                        
                         if not self._compare_schedule_rules(current_schedule_rule, recommended_schedule_rule):
                             self.error_detection_data.append({
                                 'zone_name': zone_id,
