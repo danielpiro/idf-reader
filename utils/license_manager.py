@@ -184,7 +184,12 @@ class LicenseManager:
             
             # Last resort: try local validation for test keys
             logger.info("Trying local validation for test key...")
-            return self._validate_local_key(formatted_key)
+            local_result = self._validate_local_key(formatted_key)
+            if local_result[0]:
+                # Cache the local validation result too
+                self._cache_license(formatted_key, local_result[1])
+                logger.info("Local key validation cached successfully")
+            return local_result
             
         except Exception as e:
             logger.error(f"License validation error: {e}")
@@ -456,6 +461,23 @@ class LicenseManager:
     def get_machine_id(self) -> str:
         """Get machine ID for licensing."""
         return self.machine_id
+    
+    def get_machine_info(self) -> Dict[str, str]:
+        """Get detailed machine information for licensing."""
+        try:
+            machine_info = {
+                "machine_id": self.machine_id,
+                "machine": platform.machine(),
+                "processor": platform.processor(),
+                "system": platform.system(),
+                "hostname": socket.gethostname(),
+                "mac_address": str(uuid.getnode()),
+                "full_string": f"{platform.machine()}|{platform.processor()}|{platform.system()}|{socket.gethostname()}|{uuid.getnode()}"
+            }
+            return machine_info
+        except Exception as e:
+            logger.error(f"Error getting machine info: {e}")
+            return {"machine_id": self.machine_id, "error": str(e)}
     
     def is_feature_enabled(self, feature: str) -> bool:
         """Check if a specific feature is enabled by license."""

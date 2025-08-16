@@ -1,0 +1,280 @@
+2025-08-16 16:11:11,014 - flet - INFO - Assets path configured: C:\Users\daniel\Desktop\idf-reader\data
+2025-08-16 16:11:11,016 - flet - INFO - Starting up TCP server on localhost:54240
+2025-08-16 16:11:11,019 - flet - INFO - Flet app has started...
+2025-08-16 16:11:11,020 - flet - INFO - App URL: tcp://localhost:54240
+2025-08-16 16:11:11,020 - flet_desktop - INFO - Starting Flet View app...
+2025-08-16 16:11:11,020 - flet_desktop - INFO - Looking for Flet executable at: C:\Users\daniel\Desktop\idf-reader\venv\Lib\site-packages\flet_desktop\app\flet\flet.exe
+2025-08-16 16:11:11,021 - flet_desktop - INFO - Flet View found in: C:\Users\daniel\Desktop\idf-reader\venv\Lib\site-packages\flet_desktop\app\flet\flet.exe
+2025-08-16 16:11:11,243 - flet - INFO - App session started
+2025-08-16 16:11:11,243 - __main__ - INFO - === GUI MAIN FUNCTION STARTED ===
+2025-08-16 16:11:11,243 - __main__ - INFO - Page object: page {'id': 'page', 'route': '/', 'pwa': 'false', 'web': 'false', 'debug': 'false', 'platform': 'windows', 'platformbrightness': 'dark', 'media': '{"padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_insets":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0}}', 'width': '1265.6', 'height': '682.4', 'windowwidth': '1280.0', 'windowheight': '720.0', 'windowtop': '9.6', 'windowleft': '9.6', 'clientip': '', 'clientuseragent': ''}
+2025-08-16 16:11:11,245 - __main__ - INFO - ModernIDFProcessorGUI instance created
+2025-08-16 16:11:11,245 - __main__ - INFO - Building main UI directly
+2025-08-16 16:11:11,245 - __main__ - INFO - ======================================================================
+2025-08-16 16:11:11,245 - __main__ - INFO - === ON_LICENSE_CHECKED CALLBACK CALLED ===
+2025-08-16 16:11:11,245 - __main__ - INFO - Building main UI...
+2025-08-16 16:11:11,245 - __main__ - INFO - Page controls count before build_ui: 0
+2025-08-16 16:11:11,245 - __main__ - INFO - Page overlay count before build_ui: 0
+2025-08-16 16:11:11,245 - __main__ - INFO - Clearing page controls and overlay...
+2025-08-16 16:11:11,245 - __main__ - INFO - Page cleared
+2025-08-16 16:11:11,245 - __main__ - INFO - Calling app.build_ui(page)...
+2025-08-16 16:11:11,245 - modern_gui - INFO - Applying window settings: {'width': 1715.2, 'height': 1118.4, 'maximized': False, 'position_x': 295.2, 'position_y': 0}
+2025-08-16 16:11:11,245 - modern_gui - INFO - Set window size: 1715.2x1118.4
+2025-08-16 16:11:11,245 - modern_gui - INFO - Set window maximized: False
+2025-08-16 16:11:11,245 - modern_gui - INFO - Window icon set using assets: logo.ico
+2025-08-16 16:11:11,246 - modern_gui - INFO - Creating license button...
+2025-08-16 16:11:11,246 - utils.license_manager - INFO - === GET LICENSE STATUS CALLED ===
+2025-08-16 16:11:11,246 - utils.license_manager - INFO - License file path: C:\Users\daniel\AppData\Roaming\IDF Reader\license.dat
+2025-08-16 16:11:11,246 - utils.license_manager - INFO - License file exists: False
+2025-08-16 16:11:11,246 - utils.license_manager - INFO - No license file - returning: {'status': 'unlicensed', 'type': 'unlicensed', 'message': 'License required - please activate your license'}
+2025-08-16 16:11:11,246 - modern_gui - INFO - License button created: iconbutton {'icon': 'vpn_key_off', 'iconcolor': 'orange600'}
+2025-08-16 16:11:11,246 - modern_gui - INFO - Creating update button...
+2025-08-16 16:11:11,246 - modern_gui - INFO - Update button created: iconbutton {'icon': 'system_update', 'iconcolor': 'primary'}
+2025-08-16 16:11:11,249 - utils.license_manager - INFO - === GET LICENSE STATUS CALLED ===
+2025-08-16 16:11:11,249 - utils.license_manager - INFO - License file path: C:\Users\daniel\AppData\Roaming\IDF Reader\license.dat
+2025-08-16 16:11:11,249 - utils.license_manager - INFO - License file exists: False
+2025-08-16 16:11:11,250 - utils.license_manager - INFO - No license file - returning: {'status': 'unlicensed', 'type': 'unlicensed', 'message': 'License required - please activate your license'}
+2025-08-16 16:11:11,252 - modern_gui - INFO - GUI: 🎉 ברוכים הבאים! גרסה 1.1.0 - הגדירו את כל השדות כדי להתחיל בעיבוד.
+2025-08-16 16:11:11,253 - modern_gui - INFO - Saving window settings: {'width': 1715.2, 'height': 1118.4, 'maximized': False, 'position_x': 295.2, 'position_y': 0}
+2025-08-16 16:11:11,253 - __main__ - INFO - app.build_ui(page) completed
+2025-08-16 16:11:11,253 - __main__ - INFO - Page controls count after build_ui: 3
+2025-08-16 16:11:11,253 - __main__ - INFO - Page overlay count after build_ui: 3
+2025-08-16 16:11:11,253 - __main__ - INFO - === PAGE CONTROLS DETAILS ===
+2025-08-16 16:11:11,253 - __main__ - INFO - Control 0: Container - True
+2025-08-16 16:11:11,253 - __main__ - INFO - Control 1: Row - True
+2025-08-16 16:11:11,253 - __main__ - INFO -   -> Has 2 child controls
+2025-08-16 16:11:11,253 - __main__ - INFO - Control 2: Container - True
+2025-08-16 16:11:11,253 - __main__ - INFO - Forcing page update...
+2025-08-16 16:11:11,254 - __main__ - INFO - Page update completed
+2025-08-16 16:11:11,255 - __main__ - INFO - === FINAL PAGE STATE CHECK ===
+2025-08-16 16:11:11,255 - __main__ - INFO - Page.visible: True
+2025-08-16 16:11:11,255 - __main__ - INFO - Control 0 visible: True
+2025-08-16 16:11:11,255 - __main__ - INFO - Control 1 visible: True
+2025-08-16 16:11:11,255 - __main__ - INFO - Control 2 visible: True
+2025-08-16 16:11:11,255 - __main__ - INFO - Forcing second page update...
+2025-08-16 16:11:11,256 - __main__ - INFO - Second page update completed
+2025-08-16 16:11:11,256 - __main__ - INFO - === MAIN UI BUILDING COMPLETED ===
+2025-08-16 16:11:11,256 - __main__ - INFO - ======================================================================
+2025-08-16 16:11:11,256 - __main__ - INFO - Main UI build completed
+2025-08-16 16:11:12,953 - utils.license_manager - INFO - === GET LICENSE STATUS CALLED ===
+2025-08-16 16:11:12,953 - utils.license_manager - INFO - License file path: C:\Users\daniel\AppData\Roaming\IDF Reader\license.dat
+2025-08-16 16:11:12,953 - utils.license_manager - INFO - License file exists: False
+2025-08-16 16:11:12,953 - utils.license_manager - INFO - No license file - returning: {'status': 'unlicensed', 'type': 'unlicensed', 'message': 'License required - please activate your license'}
+2025-08-16 16:11:12,953 - modern_gui - INFO - ================================================================================
+2025-08-16 16:11:12,953 - modern_gui - INFO - === SHOW_LICENSE_DIALOG CALLED FROM MAIN UI ===
+2025-08-16 16:11:12,953 - modern_gui - INFO - Page controls before dialog: 3
+2025-08-16 16:11:12,953 - modern_gui - INFO - Page overlay before dialog: 3
+2025-08-16 16:11:12,953 - modern_gui - INFO -   Control 0: Container visible=True
+2025-08-16 16:11:12,953 - modern_gui - INFO -   Control 1: Row visible=True
+2025-08-16 16:11:12,953 - modern_gui - INFO -   Control 2: Container visible=True
+2025-08-16 16:11:12,953 - modern_gui - INFO - Creating LicenseDialog instance
+2025-08-16 16:11:12,953 - modern_gui - INFO - Using safe callback for license UI updates
+2025-08-16 16:11:12,953 - modern_gui - INFO - Calling show_license_dialog method
+2025-08-16 16:11:12,953 - utils.license_dialog - INFO - === SHOW LICENSE DIALOG CALLED (show_activation=True) ===
+2025-08-16 16:11:12,953 - utils.license_dialog - INFO - Page object: page {'id': 'page', 'route': '/', 'pwa': 'false', 'web': 'false', 'debug': 'false', 'platform': 'windows', 'platformbrightness': 'dark', 'media': '{"padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_insets":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0}}', 'width': '1700.8', 'height': '1080.8', 'windowwidth': '1715.2', 'windowheight': '1118.4', 'windowtop': '0.0', 'windowleft': '295.2', 'clientip': '', 'clientuseragent': '', 'title': 'מחולל דוחות IDF', 'thememode': 'system', 'rtl': True, 'windowmaximized': 'false', 'windowminwidth': 1000, 'windowminheight': 800, 'windowicon': 'logo.ico', 'theme': '{"color_scheme_seed":"blue","use_material3":true,"page_transitions":{},"system_overlay_style":{}}', 'windowminimized': 'false', 'windowfocused': 'true', 'windowfullscreen': 'false'}
+2025-08-16 16:11:12,953 - utils.license_dialog - INFO - Creating dialog content...
+2025-08-16 16:11:12,954 - utils.license_dialog - INFO - Dialog content created: <class 'flet.core.container.Container'>
+2025-08-16 16:11:12,954 - utils.license_dialog - INFO - Creating AlertDialog...
+2025-08-16 16:11:12,954 - utils.license_dialog - INFO - AlertDialog created: alertdialog {'open': False, 'modal': True, 'actionsalignment': 'center'}
+2025-08-16 16:11:12,954 - utils.license_dialog - INFO - Closing any existing dialogs...
+2025-08-16 16:11:12,954 - utils.license_dialog - INFO - Adding dialog to overlay...
+2025-08-16 16:11:12,954 - utils.license_dialog - INFO - Opening dialog...
+2025-08-16 16:11:12,954 - utils.license_dialog - INFO - Dialog open status: True
+2025-08-16 16:11:12,954 - utils.license_dialog - INFO - Updating page...
+2025-08-16 16:11:12,957 - utils.license_dialog - INFO - Page updated successfully
+2025-08-16 16:11:12,957 - utils.license_dialog - INFO - Dialog in overlay: True
+2025-08-16 16:11:12,957 - utils.license_dialog - INFO - Final dialog.open: True
+2025-08-16 16:11:12,957 - utils.license_dialog - INFO - Dialog should now be visible!
+2025-08-16 16:11:12,957 - utils.license_dialog - INFO - Updating license status...
+2025-08-16 16:11:12,957 - utils.license_manager - INFO - === GET LICENSE STATUS CALLED ===
+2025-08-16 16:11:12,957 - utils.license_manager - INFO - License file path: C:\Users\daniel\AppData\Roaming\IDF Reader\license.dat
+2025-08-16 16:11:12,957 - utils.license_manager - INFO - License file exists: False
+2025-08-16 16:11:12,957 - utils.license_manager - INFO - No license file - returning: {'status': 'unlicensed', 'type': 'unlicensed', 'message': 'License required - please activate your license'}
+2025-08-16 16:11:12,961 - utils.license_dialog - INFO - License status updated
+2025-08-16 16:11:12,961 - modern_gui - INFO - License dialog creation completed
+2025-08-16 16:11:12,962 - modern_gui - INFO - Page controls after dialog creation: 3
+2025-08-16 16:11:12,962 - modern_gui - INFO - Page overlay after dialog creation: 4
+2025-08-16 16:11:12,962 - modern_gui - INFO - ================================================================================
+2025-08-16 16:11:15,673 - utils.license_dialog - INFO - === DIALOG CLOSE BUTTON CLICKED ===
+2025-08-16 16:11:15,673 - utils.license_dialog - INFO - Closing dialog using simple approach...
+2025-08-16 16:11:15,677 - utils.license_dialog - INFO - Dialog closed successfully
+2025-08-16 16:11:22,207 - utils.license_manager - INFO - === GET LICENSE STATUS CALLED ===
+2025-08-16 16:11:22,207 - utils.license_manager - INFO - License file path: C:\Users\daniel\AppData\Roaming\IDF Reader\license.dat
+2025-08-16 16:11:22,207 - utils.license_manager - INFO - License file exists: False
+2025-08-16 16:11:22,207 - utils.license_manager - INFO - No license file - returning: {'status': 'unlicensed', 'type': 'unlicensed', 'message': 'License required - please activate your license'}
+2025-08-16 16:11:22,207 - modern_gui - INFO - ================================================================================
+2025-08-16 16:11:22,207 - modern_gui - INFO - === SHOW_LICENSE_DIALOG CALLED FROM MAIN UI ===
+2025-08-16 16:11:22,208 - modern_gui - INFO - Page controls before dialog: 3
+2025-08-16 16:11:22,208 - modern_gui - INFO - Page overlay before dialog: 4
+2025-08-16 16:11:22,208 - modern_gui - INFO -   Control 0: Container visible=True
+2025-08-16 16:11:22,208 - modern_gui - INFO -   Control 1: Row visible=True
+2025-08-16 16:11:22,208 - modern_gui - INFO -   Control 2: Container visible=True
+2025-08-16 16:11:22,208 - modern_gui - INFO - Creating LicenseDialog instance
+2025-08-16 16:11:22,208 - modern_gui - INFO - Using safe callback for license UI updates
+2025-08-16 16:11:22,208 - modern_gui - INFO - Calling show_license_dialog method
+2025-08-16 16:11:22,208 - utils.license_dialog - INFO - === SHOW LICENSE DIALOG CALLED (show_activation=True) ===
+2025-08-16 16:11:22,208 - utils.license_dialog - INFO - Page object: page {'id': 'page', 'route': '/', 'pwa': 'false', 'web': 'false', 'debug': 'false', 'platform': 'windows', 'platformbrightness': 'dark', 'media': '{"padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_insets":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0}}', 'width': '1700.8', 'height': '1080.8', 'windowwidth': '1715.2', 'windowheight': '1118.4', 'windowtop': '0.0', 'windowleft': '295.2', 'clientip': '', 'clientuseragent': '', 'title': 'מחולל דוחות IDF', 'thememode': 'system', 'rtl': True, 'windowmaximized': 'false', 'windowminwidth': 1000, 'windowminheight': 800, 'windowicon': 'logo.ico', 'theme': '{"color_scheme_seed":"blue","use_material3":true,"page_transitions":{},"system_overlay_style":{}}', 'windowminimized': 'false', 'windowfocused': 'true', 'windowfullscreen': 'false'}
+2025-08-16 16:11:22,208 - utils.license_dialog - INFO - Creating dialog content...
+2025-08-16 16:11:22,209 - utils.license_dialog - INFO - Dialog content created: <class 'flet.core.container.Container'>
+2025-08-16 16:11:22,209 - utils.license_dialog - INFO - Creating AlertDialog...
+2025-08-16 16:11:22,209 - utils.license_dialog - INFO - AlertDialog created: alertdialog {'open': False, 'modal': True, 'actionsalignment': 'center'}
+2025-08-16 16:11:22,209 - utils.license_dialog - INFO - Closing any existing dialogs...
+2025-08-16 16:11:22,209 - utils.license_dialog - INFO - Adding dialog to overlay...
+2025-08-16 16:11:22,209 - utils.license_dialog - INFO - Opening dialog...
+2025-08-16 16:11:22,209 - utils.license_dialog - INFO - Dialog open status: True
+2025-08-16 16:11:22,209 - utils.license_dialog - INFO - Updating page...
+2025-08-16 16:11:22,212 - utils.license_dialog - INFO - Page updated successfully
+2025-08-16 16:11:22,212 - utils.license_dialog - INFO - Dialog in overlay: True
+2025-08-16 16:11:22,212 - utils.license_dialog - INFO - Final dialog.open: True
+2025-08-16 16:11:22,212 - utils.license_dialog - INFO - Dialog should now be visible!
+2025-08-16 16:11:22,212 - utils.license_dialog - INFO - Updating license status...
+2025-08-16 16:11:22,212 - utils.license_manager - INFO - === GET LICENSE STATUS CALLED ===
+2025-08-16 16:11:22,212 - utils.license_manager - INFO - License file path: C:\Users\daniel\AppData\Roaming\IDF Reader\license.dat
+2025-08-16 16:11:22,212 - utils.license_manager - INFO - License file exists: False
+2025-08-16 16:11:22,212 - utils.license_manager - INFO - No license file - returning: {'status': 'unlicensed', 'type': 'unlicensed', 'message': 'License required - please activate your license'}
+2025-08-16 16:11:22,215 - utils.license_dialog - INFO - License status updated
+2025-08-16 16:11:22,215 - modern_gui - INFO - License dialog creation completed
+2025-08-16 16:11:22,215 - modern_gui - INFO - Page controls after dialog creation: 3
+2025-08-16 16:11:22,215 - modern_gui - INFO - Page overlay after dialog creation: 4
+2025-08-16 16:11:22,216 - modern_gui - INFO - ================================================================================
+2025-08-16 16:11:31,271 - utils.license_dialog - INFO - === LICENSE ACTIVATION STARTED ===
+2025-08-16 16:11:31,272 - utils.license_dialog - INFO - Attempting to activate license: 7F57-E26...
+2025-08-16 16:11:31,277 - utils.license_dialog - INFO - Calling license_manager.activate_license...
+2025-08-16 16:11:41,365 - database.mongo_license_db - INFO - Connected to MongoDB: idf_reader_licenses
+2025-08-16 16:11:44,867 - database.mongo_license_db - INFO - Database collections and indexes set up successfully
+2025-08-16 16:11:44,867 - utils.license_manager - INFO - Connected to license database
+2025-08-16 16:11:45,021 - utils.license_manager - WARNING - License validation failed: Invalid license key
+2025-08-16 16:11:45,021 - utils.license_manager - WARNING - Database validation failed, trying cache...
+2025-08-16 16:11:45,021 - utils.license_manager - INFO - Trying local validation for test key...
+2025-08-16 16:11:45,021 - utils.license_manager - INFO - Validating local key: 7F57-E263-004D-2CE0
+2025-08-16 16:11:45,021 - utils.license_manager - INFO - Local key validation successful: 7F57-E263-004D-2CE0
+2025-08-16 16:11:45,021 - utils.license_dialog - INFO - License activation result: success=True, message=License activated successfully!
+2025-08-16 16:11:45,021 - utils.license_dialog - INFO - ==================================================
+2025-08-16 16:11:45,022 - utils.license_dialog - INFO - LICENSE ACTIVATION SUCCESSFUL!
+2025-08-16 16:11:45,022 - utils.license_dialog - INFO - ==================================================
+2025-08-16 16:11:45,025 - utils.license_dialog - INFO - Updating license status display...
+2025-08-16 16:11:45,025 - utils.license_manager - INFO - === GET LICENSE STATUS CALLED ===
+2025-08-16 16:11:45,025 - utils.license_manager - INFO - License file path: C:\Users\daniel\AppData\Roaming\IDF Reader\license.dat
+2025-08-16 16:11:45,025 - utils.license_manager - INFO - License file exists: False
+2025-08-16 16:11:45,025 - utils.license_manager - INFO - No license file - returning: {'status': 'unlicensed', 'type': 'unlicensed', 'message': 'License required - please activate your license'}
+2025-08-16 16:11:45,028 - utils.license_dialog - INFO - Clearing input field...
+2025-08-16 16:11:45,031 - utils.license_dialog - INFO - License activation UI updates completed
+2025-08-16 16:11:45,031 - utils.license_dialog - INFO - === SHOWING ACTIVATION SUCCESS DIALOG ===
+2025-08-16 16:11:45,034 - utils.license_dialog - INFO - Activation success dialog displayed
+2025-08-16 16:11:45,034 - utils.license_dialog - INFO - Activation success dialog shown
+2025-08-16 16:11:45,035 - utils.license_dialog - INFO - Resetting activation button
+2025-08-16 16:11:45,037 - utils.license_dialog - INFO - === LICENSE ACTIVATION COMPLETED ===
+2025-08-16 16:11:47,924 - utils.license_dialog - INFO - User chose to refresh UI
+2025-08-16 16:11:47,927 - utils.license_dialog - INFO - === REFRESHING MAIN UI FOR NEW LICENSE ===
+2025-08-16 16:11:47,928 - utils.license_dialog - INFO - Triggering page update to refresh license-dependent UI elements
+2025-08-16 16:11:47,930 - utils.license_dialog - INFO - Main UI refresh completed
+2025-08-16 16:11:47,930 - utils.license_dialog - INFO - Calling on_license_changed callback for UI refresh
+2025-08-16 16:11:47,931 - modern_gui - INFO - ============================================================
+2025-08-16 16:11:47,931 - modern_gui - INFO - === MODERN_GUI ON_LICENSE_CHANGED CALLED ===
+2025-08-16 16:11:47,931 - modern_gui - INFO - Page controls count BEFORE: 3
+2025-08-16 16:11:47,931 - modern_gui - INFO - Page overlay count BEFORE: 5
+2025-08-16 16:11:47,931 - modern_gui - INFO - Had controls before: True
+2025-08-16 16:11:47,931 - modern_gui - INFO - Refreshing license status...
+2025-08-16 16:11:47,931 - utils.license_manager - INFO - === GET LICENSE STATUS CALLED ===
+2025-08-16 16:11:47,931 - utils.license_manager - INFO - License file path: C:\Users\daniel\AppData\Roaming\IDF Reader\license.dat
+2025-08-16 16:11:47,931 - utils.license_manager - INFO - License file exists: False
+2025-08-16 16:11:47,931 - utils.license_manager - INFO - No license file - returning: {'status': 'unlicensed', 'type': 'unlicensed', 'message': 'License required - please activate your license'}
+2025-08-16 16:11:47,931 - modern_gui - INFO - New license status: {'status': 'unlicensed', 'type': 'unlicensed', 'message': 'License required - please activate your license'}
+2025-08-16 16:11:47,931 - modern_gui - INFO - Updating UI elements for new license status
+2025-08-16 16:11:47,931 - modern_gui - INFO - Updating form validation after license change
+2025-08-16 16:11:47,931 - utils.license_manager - INFO - === GET LICENSE STATUS CALLED ===
+2025-08-16 16:11:47,931 - utils.license_manager - INFO - License file path: C:\Users\daniel\AppData\Roaming\IDF Reader\license.dat
+2025-08-16 16:11:47,931 - utils.license_manager - INFO - License file exists: False
+2025-08-16 16:11:47,931 - utils.license_manager - INFO - No license file - returning: {'status': 'unlicensed', 'type': 'unlicensed', 'message': 'License required - please activate your license'}
+2025-08-16 16:11:47,934 - modern_gui - INFO - Refreshing license-dependent UI elements
+2025-08-16 16:11:47,934 - modern_gui - INFO - Page appears stable - showing status update
+2025-08-16 16:11:47,937 - modern_gui - INFO - GUI: סטטוס הרישיון עודכן
+2025-08-16 16:11:47,937 - modern_gui - INFO - Page controls count AFTER: 3
+2025-08-16 16:11:47,937 - modern_gui - INFO - Page overlay count AFTER: 5
+2025-08-16 16:11:47,937 - modern_gui - INFO - Page integrity maintained
+2025-08-16 16:11:47,937 - modern_gui - INFO - === MODERN_GUI ON_LICENSE_CHANGED COMPLETED ===
+2025-08-16 16:11:47,937 - modern_gui - INFO - ============================================================
+2025-08-16 16:11:49,680 - utils.license_manager - INFO - === GET LICENSE STATUS CALLED ===
+2025-08-16 16:11:49,681 - utils.license_manager - INFO - License file path: C:\Users\daniel\AppData\Roaming\IDF Reader\license.dat
+2025-08-16 16:11:49,681 - utils.license_manager - INFO - License file exists: False
+2025-08-16 16:11:49,681 - utils.license_manager - INFO - No license file - returning: {'status': 'unlicensed', 'type': 'unlicensed', 'message': 'License required - please activate your license'}
+2025-08-16 16:11:49,681 - modern_gui - INFO - ================================================================================
+2025-08-16 16:11:49,681 - modern_gui - INFO - === SHOW_LICENSE_DIALOG CALLED FROM MAIN UI ===
+2025-08-16 16:11:49,681 - modern_gui - INFO - Page controls before dialog: 3
+2025-08-16 16:11:49,681 - modern_gui - INFO - Page overlay before dialog: 5
+2025-08-16 16:11:49,681 - modern_gui - INFO -   Control 0: Container visible=True
+2025-08-16 16:11:49,681 - modern_gui - INFO -   Control 1: Row visible=True
+2025-08-16 16:11:49,681 - modern_gui - INFO -   Control 2: Container visible=True
+2025-08-16 16:11:49,681 - modern_gui - INFO - Creating LicenseDialog instance
+2025-08-16 16:11:49,681 - modern_gui - INFO - Using safe callback for license UI updates
+2025-08-16 16:11:49,681 - modern_gui - INFO - Calling show_license_dialog method
+2025-08-16 16:11:49,681 - utils.license_dialog - INFO - === SHOW LICENSE DIALOG CALLED (show_activation=True) ===
+2025-08-16 16:11:49,681 - utils.license_dialog - INFO - Page object: page {'id': 'page', 'route': '/', 'pwa': 'false', 'web': 'false', 'debug': 'false', 'platform': 'windows', 'platformbrightness': 'dark', 'media': '{"padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_insets":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0}}', 'width': '1700.8', 'height': '1080.8', 'windowwidth': '1715.2', 'windowheight': '1118.4', 'windowtop': '0.0', 'windowleft': '295.2', 'clientip': '', 'clientuseragent': '', 'title': 'מחולל דוחות IDF', 'thememode': 'system', 'rtl': True, 'windowmaximized': 'false', 'windowminwidth': 1000, 'windowminheight': 800, 'windowicon': 'logo.ico', 'theme': '{"color_scheme_seed":"blue","use_material3":true,"page_transitions":{},"system_overlay_style":{}}', 'windowminimized': 'false', 'windowfocused': 'true', 'windowfullscreen': 'false'}
+2025-08-16 16:11:49,681 - utils.license_dialog - INFO - Creating dialog content...
+2025-08-16 16:11:49,682 - utils.license_dialog - INFO - Dialog content created: <class 'flet.core.container.Container'>
+2025-08-16 16:11:49,682 - utils.license_dialog - INFO - Creating AlertDialog...
+2025-08-16 16:11:49,682 - utils.license_dialog - INFO - AlertDialog created: alertdialog {'open': False, 'modal': True, 'actionsalignment': 'center'}
+2025-08-16 16:11:49,682 - utils.license_dialog - INFO - Closing any existing dialogs...
+2025-08-16 16:11:49,683 - utils.license_dialog - INFO - Adding dialog to overlay...
+2025-08-16 16:11:49,683 - utils.license_dialog - INFO - Opening dialog...
+2025-08-16 16:11:49,683 - utils.license_dialog - INFO - Dialog open status: True
+2025-08-16 16:11:49,683 - utils.license_dialog - INFO - Updating page...
+2025-08-16 16:11:49,685 - utils.license_dialog - INFO - Page updated successfully
+2025-08-16 16:11:49,685 - utils.license_dialog - INFO - Dialog in overlay: True
+2025-08-16 16:11:49,685 - utils.license_dialog - INFO - Final dialog.open: True
+2025-08-16 16:11:49,685 - utils.license_dialog - INFO - Dialog should now be visible!
+2025-08-16 16:11:49,685 - utils.license_dialog - INFO - Updating license status...
+2025-08-16 16:11:49,685 - utils.license_manager - INFO - === GET LICENSE STATUS CALLED ===
+2025-08-16 16:11:49,685 - utils.license_manager - INFO - License file path: C:\Users\daniel\AppData\Roaming\IDF Reader\license.dat
+2025-08-16 16:11:49,685 - utils.license_manager - INFO - License file exists: False
+2025-08-16 16:11:49,685 - utils.license_manager - INFO - No license file - returning: {'status': 'unlicensed', 'type': 'unlicensed', 'message': 'License required - please activate your license'}
+2025-08-16 16:11:49,689 - utils.license_dialog - INFO - License status updated
+2025-08-16 16:11:49,689 - modern_gui - INFO - License dialog creation completed
+2025-08-16 16:11:49,689 - modern_gui - INFO - Page controls after dialog creation: 3
+2025-08-16 16:11:49,689 - modern_gui - INFO - Page overlay after dialog creation: 4
+2025-08-16 16:11:49,689 - modern_gui - INFO - ================================================================================
+2025-08-16 16:11:50,682 - utils.license_dialog - INFO - === DIALOG CLOSE BUTTON CLICKED ===
+2025-08-16 16:11:50,682 - utils.license_dialog - INFO - Closing dialog using simple approach...
+2025-08-16 16:11:50,685 - utils.license_dialog - INFO - Dialog closed successfully
+2025-08-16 16:11:51,154 - utils.license_manager - INFO - === GET LICENSE STATUS CALLED ===
+2025-08-16 16:11:51,154 - utils.license_manager - INFO - License file path: C:\Users\daniel\AppData\Roaming\IDF Reader\license.dat
+2025-08-16 16:11:51,154 - utils.license_manager - INFO - License file exists: False
+2025-08-16 16:11:51,154 - utils.license_manager - INFO - No license file - returning: {'status': 'unlicensed', 'type': 'unlicensed', 'message': 'License required - please activate your license'}
+2025-08-16 16:11:51,154 - modern_gui - INFO - ================================================================================
+2025-08-16 16:11:51,154 - modern_gui - INFO - === SHOW_LICENSE_DIALOG CALLED FROM MAIN UI ===
+2025-08-16 16:11:51,154 - modern_gui - INFO - Page controls before dialog: 3
+2025-08-16 16:11:51,154 - modern_gui - INFO - Page overlay before dialog: 4
+2025-08-16 16:11:51,154 - modern_gui - INFO -   Control 0: Container visible=True
+2025-08-16 16:11:51,154 - modern_gui - INFO -   Control 1: Row visible=True
+2025-08-16 16:11:51,154 - modern_gui - INFO -   Control 2: Container visible=True
+2025-08-16 16:11:51,154 - modern_gui - INFO - Creating LicenseDialog instance
+2025-08-16 16:11:51,154 - modern_gui - INFO - Using safe callback for license UI updates
+2025-08-16 16:11:51,154 - modern_gui - INFO - Calling show_license_dialog method
+2025-08-16 16:11:51,154 - utils.license_dialog - INFO - === SHOW LICENSE DIALOG CALLED (show_activation=True) ===
+2025-08-16 16:11:51,154 - utils.license_dialog - INFO - Page object: page {'id': 'page', 'route': '/', 'pwa': 'false', 'web': 'false', 'debug': 'false', 'platform': 'windows', 'platformbrightness': 'dark', 'media': '{"padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_insets":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0}}', 'width': '1700.8', 'height': '1080.8', 'windowwidth': '1715.2', 'windowheight': '1118.4', 'windowtop': '0.0', 'windowleft': '295.2', 'clientip': '', 'clientuseragent': '', 'title': 'מחולל דוחות IDF', 'thememode': 'system', 'rtl': True, 'windowmaximized': 'false', 'windowminwidth': 1000, 'windowminheight': 800, 'windowicon': 'logo.ico', 'theme': '{"color_scheme_seed":"blue","use_material3":true,"page_transitions":{},"system_overlay_style":{}}', 'windowminimized': 'false', 'windowfocused': 'true', 'windowfullscreen': 'false'}
+2025-08-16 16:11:51,155 - utils.license_dialog - INFO - Creating dialog content...
+2025-08-16 16:11:51,156 - utils.license_dialog - INFO - Dialog content created: <class 'flet.core.container.Container'>
+2025-08-16 16:11:51,156 - utils.license_dialog - INFO - Creating AlertDialog...
+2025-08-16 16:11:51,156 - utils.license_dialog - INFO - AlertDialog created: alertdialog {'open': False, 'modal': True, 'actionsalignment': 'center'}
+2025-08-16 16:11:51,156 - utils.license_dialog - INFO - Closing any existing dialogs...
+2025-08-16 16:11:51,156 - utils.license_dialog - INFO - Adding dialog to overlay...
+2025-08-16 16:11:51,156 - utils.license_dialog - INFO - Opening dialog...
+2025-08-16 16:11:51,156 - utils.license_dialog - INFO - Dialog open status: True
+2025-08-16 16:11:51,156 - utils.license_dialog - INFO - Updating page...
+2025-08-16 16:11:51,159 - utils.license_dialog - INFO - Page updated successfully
+2025-08-16 16:11:51,159 - utils.license_dialog - INFO - Dialog in overlay: True
+2025-08-16 16:11:51,159 - utils.license_dialog - INFO - Final dialog.open: True
+2025-08-16 16:11:51,159 - utils.license_dialog - INFO - Dialog should now be visible!
+2025-08-16 16:11:51,159 - utils.license_dialog - INFO - Updating license status...
+2025-08-16 16:11:51,159 - utils.license_manager - INFO - === GET LICENSE STATUS CALLED ===
+2025-08-16 16:11:51,159 - utils.license_manager - INFO - License file path: C:\Users\daniel\AppData\Roaming\IDF Reader\license.dat
+2025-08-16 16:11:51,159 - utils.license_manager - INFO - License file exists: False
+2025-08-16 16:11:51,159 - utils.license_manager - INFO - No license file - returning: {'status': 'unlicensed', 'type': 'unlicensed', 'message': 'License required - please activate your license'}
+2025-08-16 16:11:51,163 - utils.license_dialog - INFO - License status updated
+2025-08-16 16:11:51,163 - modern_gui - INFO - License dialog creation completed
+2025-08-16 16:11:51,163 - modern_gui - INFO - Page controls after dialog creation: 3
+2025-08-16 16:11:51,163 - modern_gui - INFO - Page overlay after dialog creation: 4
+2025-08-16 16:11:51,163 - modern_gui - INFO - ================================================================================
+2025-08-16 16:11:51,718 - utils.license_dialog - INFO - === DIALOG CLOSE BUTTON CLICKED ===
+2025-08-16 16:11:51,718 - utils.license_dialog - INFO - Closing dialog using simple approach...
+2025-08-16 16:11:51,722 - utils.license_dialog - INFO - Dialog closed successfully

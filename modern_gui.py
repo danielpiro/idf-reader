@@ -616,8 +616,12 @@ class ModernIDFProcessorGUI:
         license_status = license_manager.get_license_status()
         is_licensed = license_status["status"] == license_manager.STATUS_VALID
         
+        logger.info(f"UPDATE_FORM_VALIDATION: License status = {license_status}")
+        logger.info(f"UPDATE_FORM_VALIDATION: Is licensed = {is_licensed}")
+        
         if not is_licensed:
             # No valid license - show activation message
+            logger.info("UPDATE_FORM_VALIDATION: Setting button to activation mode")
             self.process_button.disabled = False  # Keep button clickable
             self.process_button.text = "🔐 הפעל רישיון - לחץ על מקש הנעילה"
             self.process_button.icon = ft.Icons.LOCK
@@ -634,9 +638,12 @@ class ModernIDFProcessorGUI:
             self.selected_iso and self.selected_iso not in self.disabled_iso_types
         ])
         
+        logger.info(f"UPDATE_FORM_VALIDATION: Licensed user - form valid = {is_valid}")
         self.process_button.disabled = not is_valid or self.is_processing
         self.process_button.text = "צור דוחות" if is_valid and not self.is_processing else "השלם הגדרות"
         self.process_button.icon = ft.Icons.ROCKET_LAUNCH if is_valid else ft.Icons.SETTINGS
+        
+        logger.info(f"UPDATE_FORM_VALIDATION: Button text set to: {self.process_button.text}")
         
         if self.page:
             self.page.update()
@@ -839,8 +846,31 @@ class ModernIDFProcessorGUI:
             
             # Refresh license status (read-only operation)
             logger.info("Refreshing license status...")
+            
+            # Force a completely fresh check - clear any cache if needed
+            if hasattr(license_manager, '_cached_status'):
+                delattr(license_manager, '_cached_status')
+            
+            # Wait a moment to ensure license file is written
+            import time
+            time.sleep(0.1)
+            
+            # Force re-read of license file
+            old_status = self.license_status
             self.license_status = license_manager.get_license_status()
+            logger.info(f"Old license status: {old_status}")
             logger.info(f"New license status: {self.license_status}")
+            
+            # Also store it in instance for debugging
+            self._last_license_check = self.license_status
+            logger.info(f"Stored license status in instance: {self._last_license_check}")
+            
+            # Verify license file exists
+            license_file_exists = license_manager.license_file.exists()
+            logger.info(f"License file exists: {license_file_exists}")
+            if license_file_exists:
+                logger.info(f"License file path: {license_manager.license_file}")
+                logger.info(f"License file size: {license_manager.license_file.stat().st_size} bytes")
             
             # Update UI elements for new license status
             logger.info("Updating UI elements for new license status")
@@ -849,6 +879,34 @@ class ModernIDFProcessorGUI:
             # Update button state after license change
             logger.info("Updating form validation after license change")
             self.update_form_validation()
+            
+            # Force UI update
+            logger.info("Forcing page update after license change")
+            if self.page:
+                self.page.update()
+            
+            # Directly update button as final step
+            logger.info("Final button update check...")
+            if self.process_button:
+                final_status = license_manager.get_license_status()
+                final_licensed = final_status["status"] == license_manager.STATUS_VALID
+                logger.info(f"Final button update - licensed: {final_licensed}")
+                logger.info(f"Final button update - status: {final_status}")
+                
+                if final_licensed:
+                    # Force button to normal state
+                    self.process_button.text = "השלם הגדרות"
+                    self.process_button.icon = ft.Icons.SETTINGS
+                    logger.info("Button forced to licensed state")
+                else:
+                    # Keep in activation state
+                    self.process_button.text = "🔐 הפעל רישיון - לחץ על מקש הנעילה"
+                    self.process_button.icon = ft.Icons.LOCK
+                    logger.info("Button kept in activation state")
+                
+                if self.page:
+                    self.page.update()
+                    logger.info("Final page update completed")
             
             # Refresh license button if it exists
             logger.info("Refreshing license-dependent UI elements")

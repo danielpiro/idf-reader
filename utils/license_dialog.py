@@ -419,9 +419,9 @@ class LicenseDialog:
                 self.page.update()
                 logger.info("License activation UI updates completed")
                 
-                # Show success dialog with restart/refresh options
-                self._show_activation_success_dialog()
-                logger.info("Activation success dialog shown")
+                # Automatically refresh UI without asking user
+                self._auto_refresh_after_activation()
+                logger.info("Auto-refresh after activation completed")
             else:
                 logger.warning(f"License activation failed: {message}")
                 self._show_error(f"❌ {message}")
@@ -882,6 +882,35 @@ class LicenseDialog:
             logger.error(f"Error showing activation success dialog: {ex}")
             import traceback
             logger.error(traceback.format_exc())
+    
+    def _auto_refresh_after_activation(self):
+        """Automatically refresh UI after license activation without user interaction."""
+        try:
+            logger.info("=== AUTO-REFRESHING UI AFTER ACTIVATION ===")
+            
+            # Close license dialog
+            self.dialog.open = False
+            self.page.update()
+            
+            # Refresh the main UI to reflect new license status
+            self._refresh_main_ui()
+            
+            # Also trigger a callback if one was provided (to update main UI)
+            if self.on_license_changed:
+                logger.info("Calling on_license_changed callback for UI refresh")
+                self.on_license_changed()
+            
+            # Show success message
+            self._show_success("הרישיון הופעל בהצלחה! הממשק עודכן אוטומטית.")
+            
+            logger.info("Auto-refresh completed successfully")
+            
+        except Exception as e:
+            logger.error(f"Error in auto-refresh after activation: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            # Fallback to simple success message
+            self._show_success("הרישיון הופעל בהצלחה!")
     
     def _refresh_main_ui(self):
         """Refresh the main UI to reflect new license status."""
