@@ -181,20 +181,28 @@ def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_tot
         logger.warning(f"_get_numeric_area_score_for_group: Missing required parameters. group_model_csv_area_desc: {group_model_csv_area_desc}, model_year: {model_year}, model_area_definition: {model_area_definition}")
     
     if numeric_energy_consumption is not None:
-
-        if group_sum_total_area <= 70:
-            adjusted_target_ec = 1.18 * numeric_energy_consumption
-
-            if adjusted_target_ec != 0:
-                calculated_improve_by_value = 100 * (adjusted_target_ec - group_sum_energy_components) / adjusted_target_ec
-            else:
-                logger.warning(f"_get_numeric_area_score_for_group: adjusted_target_ec is 0, cannot calculate improve_by_value for area <= 70")
-
-        else:
+        # Handle office ISO differently - no 70m² check and no 1.18 multiplier
+        if isinstance(model_year, str) and 'office' in model_year.lower():
+            # Office ISO: direct calculation without area adjustments
             if numeric_energy_consumption != 0:
                 calculated_improve_by_value = 100 * (numeric_energy_consumption - group_sum_energy_components) / numeric_energy_consumption
             else:
-                logger.warning(f"_get_numeric_area_score_for_group: numeric_energy_consumption is 0, cannot calculate improve_by_value for area > 70")
+                logger.warning(f"_get_numeric_area_score_for_group: numeric_energy_consumption is 0 for office ISO, cannot calculate improve_by_value")
+        else:
+            # Non-office models: use existing logic with 70m² adjustment
+            if group_sum_total_area <= 70:
+                adjusted_target_ec = 1.18 * numeric_energy_consumption
+
+                if adjusted_target_ec != 0:
+                    calculated_improve_by_value = 100 * (adjusted_target_ec - group_sum_energy_components) / adjusted_target_ec
+                else:
+                    logger.warning(f"_get_numeric_area_score_for_group: adjusted_target_ec is 0, cannot calculate improve_by_value for area <= 70")
+
+            else:
+                if numeric_energy_consumption != 0:
+                    calculated_improve_by_value = 100 * (numeric_energy_consumption - group_sum_energy_components) / numeric_energy_consumption
+                else:
+                    logger.warning(f"_get_numeric_area_score_for_group: numeric_energy_consumption is 0, cannot calculate improve_by_value for area > 70")
     else:
         logger.warning(f"_get_numeric_area_score_for_group: numeric_energy_consumption is None, cannot calculate improve_by_value")
 
@@ -218,7 +226,7 @@ def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_tot
             for min_ip, _, rating_score_val in thresholds:
                 if calculated_improve_by_value >= min_ip:
                     return int(rating_score_val)
-        elif str(model_year).lower() == 'office' or (isinstance(model_year, str) and 'office' in model_year.lower()):
+        elif isinstance(model_year, str) and 'office' in model_year.lower():
             climate_zone_lookup_key = CLIMATE_ZONE_MAP.get(model_area_definition)
 
             if climate_zone_lookup_key and climate_zone_lookup_key in ENERGY_RATING_DATA_OFFICE:
@@ -271,8 +279,16 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
             return default
 
     grouped_data = {}
+    # Check if this is office ISO
+    is_office_iso = isinstance(model_year, str) and 'office' in model_year.lower()
+    
     for row in raw_table_data:
-        group_key = (str(row.get('floor_id_report', 'N/A')), str(row.get('area_id_report', 'N/A')))
+        # For office ISO: group by zone_id, for others: group by floor/area
+        if is_office_iso:
+            group_key = str(row.get('zone_id', 'N/A'))
+        else:
+            group_key = (str(row.get('floor_id_report', 'N/A')), str(row.get('area_id_report', 'N/A')))
+            
         if group_key not in grouped_data:
             grouped_data[group_key] = {
                 'sum_energy_components': 0.0,
@@ -636,7 +652,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
     Creates the energy rating table as a ReportLab Table object.
     Returns Table object or None if no data.
     """
-    raw_table_data = energy_rating_parser.get_energy_rating_table_data()
+    raw_table_data = energy_rating_parser.get_energy_rating_table_data(model_year)
 
     if not raw_table_data:
         return None
@@ -685,8 +701,15 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
             except (ValueError, TypeError):
                 return default
 
+        # Check if this is office ISO
+        is_office_iso = isinstance(model_year, str) and 'office' in model_year.lower()
+        
         for row_dict in raw_table_data:
-            item_group_key_for_sum = (str(row_dict.get('floor_id_report','N/A')), str(row_dict.get('area_id_report','N/A')))
+            # For office ISO: group by zone_id, for others: group by floor/area
+            if is_office_iso:
+                item_group_key_for_sum = str(row_dict.get('zone_id', 'N/A'))
+            else:
+                item_group_key_for_sum = (str(row_dict.get('floor_id_report','N/A')), str(row_dict.get('area_id_report','N/A')))
             # For 2023, exclude lighting from energy calculations
             if model_year == 2023:
                 current_row_energy_sum = safe_float(row_dict.get('cooling', 0.0)) + \
@@ -702,7 +725,11 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
     group_start_pdf_row_index_in_table_content = -1
 
     for i, row_dict in enumerate(raw_table_data):
-        item_group_key = (str(row_dict.get('floor_id_report','N/A')), str(row_dict.get('area_id_report','N/A')))
+        # For office ISO: group by zone_id, for others: group by floor/area
+        if is_office_iso:
+            item_group_key = str(row_dict.get('zone_id', 'N/A'))
+        else:
+            item_group_key = (str(row_dict.get('floor_id_report','N/A')), str(row_dict.get('area_id_report','N/A')))
 
         display_sum_for_row = ""
         display_energy_consump = ""
@@ -776,17 +803,26 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
             if numeric_energy_consumption is not None:
                 current_group_total_area_val = group_total_floor_areas.get(current_group_key, 0.0)
 
-                if current_group_total_area_val <= 70:
-                    adjusted_target_ec = 1.18 * numeric_energy_consumption
-                    if adjusted_target_ec != 0:
-                        calculated_improve_by_value = 100 * (adjusted_target_ec - current_group_actual_sum) / adjusted_target_ec
-                    else:
-                        display_improve_by = "N/A (Div0 Adj)"
-                else:
+                # Handle office ISO differently - no 70m² check and no 1.18 multiplier
+                if is_office_iso:
+                    # Office ISO: direct calculation without area adjustments
                     if numeric_energy_consumption != 0:
                         calculated_improve_by_value = 100 * (numeric_energy_consumption - current_group_actual_sum) / numeric_energy_consumption
                     else:
                         display_improve_by = "N/A (Div0 EC)"
+                else:
+                    # Non-office models: use existing logic with 70m² adjustment
+                    if current_group_total_area_val <= 70:
+                        adjusted_target_ec = 1.18 * numeric_energy_consumption
+                        if adjusted_target_ec != 0:
+                            calculated_improve_by_value = 100 * (adjusted_target_ec - current_group_actual_sum) / adjusted_target_ec
+                        else:
+                            display_improve_by = "N/A (Div0 Adj)"
+                    else:
+                        if numeric_energy_consumption != 0:
+                            calculated_improve_by_value = 100 * (numeric_energy_consumption - current_group_actual_sum) / numeric_energy_consumption
+                        else:
+                            display_improve_by = "N/A (Div0 EC)"
 
                 if calculated_improve_by_value is not None:
                     display_improve_by = _format_number(calculated_improve_by_value)
@@ -817,7 +853,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
                             current_display_energy_rating = rating_letter
                             current_display_area_score = str(rating_score_val)
                             break
-                elif str(model_year).lower() == 'office' or (isinstance(model_year, str) and 'office' in model_year.lower()):
+                elif isinstance(model_year, str) and 'office' in model_year.lower():
                     climate_zone_lookup_key = CLIMATE_ZONE_MAP.get(model_area_definition)
 
                     if climate_zone_lookup_key and climate_zone_lookup_key in ENERGY_RATING_DATA_OFFICE:
@@ -974,7 +1010,7 @@ class EnergyRatingReportGenerator:
             if not self.energy_rating_parser.processed:
                 self.energy_rating_parser.process_output()
 
-            raw_table_data = self.energy_rating_parser.get_energy_rating_table_data()
+            raw_table_data = self.energy_rating_parser.get_energy_rating_table_data(self.model_year)
             total_score, letter_grade = _calculate_total_energy_rating(
                 raw_table_data,
                 self.model_year,
@@ -1026,9 +1062,16 @@ class EnergyRatingReportGenerator:
                 return None
             
             # Group the data (simplified version of the main calculation)
+            # Check if this is office ISO
+            is_office_iso = isinstance(self.model_year, str) and 'office' in self.model_year.lower()
+            
             grouped_data = {}
             for row in raw_table_data:
-                group_key = (str(row.get('floor_id_report', 'N/A')), str(row.get('area_id_report', 'N/A')))
+                # For office ISO: group by zone_id, for others: group by floor/area
+                if is_office_iso:
+                    group_key = str(row.get('zone_id', 'N/A'))
+                else:
+                    group_key = (str(row.get('floor_id_report', 'N/A')), str(row.get('area_id_report', 'N/A')))
                 if group_key not in grouped_data:
                     grouped_data[group_key] = {
                         'sum_energy_components': 0.0,
@@ -1140,7 +1183,7 @@ class EnergyRatingReportGenerator:
         # Format calculation result - need to get the raw_average from the calculation
         if total_score is not None and letter_grade and letter_grade != "N/A":
             # Get the raw_average by recalculating just for display purposes
-            raw_table_data = self.energy_rating_parser.get_energy_rating_table_data()
+            raw_table_data = self.energy_rating_parser.get_energy_rating_table_data(self.model_year)
             raw_average = self._get_raw_average_for_display(raw_table_data)
             if raw_average is not None:
                 calc_result = f"{raw_average:.3f}"

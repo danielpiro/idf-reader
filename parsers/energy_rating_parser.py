@@ -520,7 +520,7 @@ class EnergyRatingParser:
             return {}
         return self.energy_data_by_area
 
-    def get_energy_rating_table_data(self) -> List[Dict[str, Any]]:
+    def get_energy_rating_table_data(self, model_year=None) -> List[Dict[str, Any]]:
         """
         Get data for energy rating reports in table format.
         This method iterates over self.energy_data_by_area (keyed by full_zone_id)
@@ -535,16 +535,25 @@ class EnergyRatingParser:
             return table_data
 
         try:
-            floor_area_id_sums: Dict[tuple[str, str], float] = {}
-            for data_for_zone_pre_calc in self.energy_data_by_area.values():
-                floor_id = data_for_zone_pre_calc.get('floor_id_report', 'N/A')
-                area_id = data_for_zone_pre_calc.get('area_id_report', 'N/A')
-                individual_area = safe_float(data_for_zone_pre_calc.get('individual_zone_floor_area', 0.0), 0.0)
+            # Check if this is office ISO
+            is_office_iso = isinstance(model_year, str) and 'office' in model_year.lower()
+            
+            # For office ISO: each zone is individual, for others: group by floor/area
+            if is_office_iso:
+                # Office ISO: no grouping needed, each zone is individual
+                logger.info("Office ISO detected - using individual zone calculations")
+            else:
+                # Non-office: group by floor/area as before
+                floor_area_id_sums: Dict[tuple[str, str], float] = {}
+                for data_for_zone_pre_calc in self.energy_data_by_area.values():
+                    floor_id = data_for_zone_pre_calc.get('floor_id_report', 'N/A')
+                    area_id = data_for_zone_pre_calc.get('area_id_report', 'N/A')
+                    individual_area = safe_float(data_for_zone_pre_calc.get('individual_zone_floor_area', 0.0), 0.0)
 
-                key = (floor_id, area_id)
-                if key not in floor_area_id_sums:
-                    floor_area_id_sums[key] = 0.0
-                floor_area_id_sums[key] += individual_area
+                    key = (floor_id, area_id)
+                    if key not in floor_area_id_sums:
+                        floor_area_id_sums[key] = 0.0
+                    floor_area_id_sums[key] += individual_area
 
             for full_zone_id_key, data_for_zone in self.energy_data_by_area.items():
                 try:
@@ -557,24 +566,41 @@ class EnergyRatingParser:
 
                     report_floor_id = data_for_zone.get('floor_id_report', 'N/A')
                     report_area_id = data_for_zone.get('area_id_report', 'N/A')
-                    group_lookup_key = (report_floor_id, report_area_id)
-                    correct_total_floor_area_for_group = floor_area_id_sums.get(group_lookup_key, 0.0)
-
-                    if correct_total_floor_area_for_group > 0:
-                        val_lighting = abs_lighting / correct_total_floor_area_for_group
-                        val_heating = abs_heating / correct_total_floor_area_for_group
-                        val_cooling = abs_cooling / correct_total_floor_area_for_group
-                        val_total = (abs_lighting + abs_heating + abs_cooling) / correct_total_floor_area_for_group
+                    
+                    if is_office_iso:
+                        # Office ISO: use individual zone area for calculations
+                        if current_zone_floor_area > 0:
+                            val_lighting = abs_lighting / current_zone_floor_area
+                            val_heating = abs_heating / current_zone_floor_area
+                            val_cooling = abs_cooling / current_zone_floor_area
+                            val_total = (abs_lighting + abs_heating + abs_cooling) / current_zone_floor_area
+                        else:
+                            logger.warning(f"Office ISO: Individual zone area is 0 for zone '{full_zone_id_key}'. Energy values will be absolute.")
+                            val_lighting = abs_lighting
+                            val_heating = abs_heating
+                            val_cooling = abs_cooling
+                            val_total = abs_lighting + abs_heating + abs_cooling
                     else:
-                        logger.warning(f"Correct total floor area for group ('{report_floor_id}', '{report_area_id}') is {correct_total_floor_area_for_group} for zone '{full_zone_id_key}'. Energy values in report will be absolute (not per m^2).")
-                        val_lighting = abs_lighting
-                        val_heating = abs_heating
-                        val_cooling = abs_cooling
-                        val_total = abs_lighting + abs_heating + abs_cooling
+                        # Non-office: use grouped area calculations as before
+                        group_lookup_key = (report_floor_id, report_area_id)
+                        correct_total_floor_area_for_group = floor_area_id_sums.get(group_lookup_key, 0.0)
+
+                        if correct_total_floor_area_for_group > 0:
+                            val_lighting = abs_lighting / correct_total_floor_area_for_group
+                            val_heating = abs_heating / correct_total_floor_area_for_group
+                            val_cooling = abs_cooling / correct_total_floor_area_for_group
+                            val_total = (abs_lighting + abs_heating + abs_cooling) / correct_total_floor_area_for_group
+                        else:
+                            logger.warning(f"Correct total floor area for group ('{report_floor_id}', '{report_area_id}') is {correct_total_floor_area_for_group} for zone '{full_zone_id_key}'. Energy values in report will be absolute (not per m^2).")
+                            val_lighting = abs_lighting
+                            val_heating = abs_heating
+                            val_cooling = abs_cooling
+                            val_total = abs_lighting + abs_heating + abs_cooling
 
                     row = {
                         'floor_id_report': report_floor_id,
                         'area_id_report': report_area_id,
+                        'zone_id': full_zone_id_key,  # Add zone_id for office ISO grouping
                         'zone_name_report': data_for_zone.get('zone_name_report', 'N/A'),
                         'multiplier': data_for_zone.get('multiplier', 1),
                         'total_area': current_zone_floor_area,
