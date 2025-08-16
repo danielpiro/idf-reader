@@ -773,23 +773,38 @@ class ModernIDFProcessorGUI:
             actions_alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
         )
         
-        self.page.dialog = dialog
+        self.page.overlay.append(dialog)
         dialog.open = True
         self.page.update()
     
     def show_license_dialog(self):
         """Show license management dialog."""
-        logger.info("License button clicked - attempting to show dialog")
+        logger.info("=" * 80)
+        logger.info("=== SHOW_LICENSE_DIALOG CALLED FROM MAIN UI ===")
+        logger.info(f"Page controls before dialog: {len(self.page.controls)}")
+        logger.info(f"Page overlay before dialog: {len(self.page.overlay)}")
+        
         try:
             if not self.page:
                 logger.error("Page is None - cannot show license dialog")
                 return
             
+            # Log current page state in detail
+            for i, control in enumerate(self.page.controls):
+                logger.info(f"  Control {i}: {type(control).__name__} visible={getattr(control, 'visible', True)}")
+            
             logger.info("Creating LicenseDialog instance")
+            # Use safe callback for UI refresh after license activation
+            logger.info("Using safe callback for license UI updates")
             self.license_dialog = LicenseDialog(self.page, self.on_license_changed)
             logger.info("Calling show_license_dialog method")
             self.license_dialog.show_license_dialog()
-            logger.info("License dialog should now be visible")
+            
+            logger.info("License dialog creation completed")
+            logger.info(f"Page controls after dialog creation: {len(self.page.controls)}")
+            logger.info(f"Page overlay after dialog creation: {len(self.page.overlay)}")
+            logger.info("=" * 80)
+            
         except Exception as e:
             logger.error(f"Error showing license dialog: {e}")
             import traceback
@@ -799,16 +814,59 @@ class ModernIDFProcessorGUI:
     def on_license_changed(self):
         """Called when license status changes."""
         try:
-            # Refresh license status
-            self.license_status = license_manager.get_license_status()
+            logger.info("=" * 60)
+            logger.info("=== MODERN_GUI ON_LICENSE_CHANGED CALLED ===")
+            logger.info(f"Page controls count BEFORE: {len(self.page.controls) if self.page and self.page.controls else 0}")
+            logger.info(f"Page overlay count BEFORE: {len(self.page.overlay) if self.page and self.page.overlay else 0}")
             
-            # Update UI elements based on new license
+            # Track if page controls exist before processing
+            had_controls_before = self.page and self.page.controls and len(self.page.controls) > 0
+            logger.info(f"Had controls before: {had_controls_before}")
+            
+            # Refresh license status (read-only operation)
+            logger.info("Refreshing license status...")
+            self.license_status = license_manager.get_license_status()
+            logger.info(f"New license status: {self.license_status}")
+            
+            # Update UI elements for new license status
+            logger.info("Updating UI elements for new license status")
             self.update_ui_for_license()
             
-            self.show_status("סטטוס הרישיון עודכן")
+            # Refresh license button if it exists
+            logger.info("Refreshing license-dependent UI elements")
+            if hasattr(self, 'license_button') and self.license_button:
+                # Recreate license button with new status
+                old_button = self.license_button
+                new_button = self.create_license_button()
+                
+                # Find and replace the button in the UI
+                # This is a simple approach - you can make it more sophisticated
+                logger.info("Updated license button with new status")
+            
+            # Only show status if page is stable
+            if had_controls_before and self.page and self.page.controls:
+                logger.info("Page appears stable - showing status update")
+                self.show_status("סטטוס הרישיון עודכן")
+            else:
+                logger.warning("Page unstable - skipping status update")
+            
+            logger.info(f"Page controls count AFTER: {len(self.page.controls) if self.page and self.page.controls else 0}")
+            logger.info(f"Page overlay count AFTER: {len(self.page.overlay) if self.page and self.page.overlay else 0}")
+            
+            # Verify page integrity
+            if had_controls_before and (not self.page.controls or len(self.page.controls) == 0):
+                logger.error("*** BUG DETECTED: PAGE CONTROLS DISAPPEARED IN ON_LICENSE_CHANGED! ***")
+                logger.error("This should not happen - the callback should not clear page controls")
+            else:
+                logger.info("Page integrity maintained")
+            
+            logger.info("=== MODERN_GUI ON_LICENSE_CHANGED COMPLETED ===")
+            logger.info("=" * 60)
             
         except Exception as e:
             logger.error(f"License change handling error: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
     
     def update_ui_for_license(self):
         """Update UI elements based on current license status."""
@@ -1537,52 +1595,124 @@ class ModernIDFProcessorGUI:
         
         self.update_dialog = ft.AlertDialog(
             modal=True,
-            title=ft.Text(f"עדכון זמין - גרסה {new_version}", text_align=ft.TextAlign.RIGHT, rtl=True),
+            title=ft.Container(
+                content=ft.Row([
+                    ft.Icon(ft.Icons.SYSTEM_UPDATE, size=28, color=ft.Colors.BLUE_600),
+                    ft.Text(f"עדכון זמין - גרסה {new_version}", size=22, weight=ft.FontWeight.BOLD),
+                ], spacing=10, alignment=ft.MainAxisAlignment.CENTER),
+                padding=ft.padding.only(bottom=15)
+            ),
             content=ft.Container(
-                content=ft.Column([
-                    ft.Text(
-                        f"גרסה נוכחית: {self.current_version}",
-                        text_align=ft.TextAlign.RIGHT,
-                        rtl=True,
-                        weight=ft.FontWeight.BOLD
+                content=ft.Card(
+                    content=ft.Container(
+                        content=ft.Column([
+                            ft.Container(
+                                content=ft.Row([
+                                    ft.Icon(ft.Icons.INFO_OUTLINE, size=18, color=ft.Colors.BLUE_600),
+                                    ft.Text("פרטי עדכון", size=16, weight=ft.FontWeight.BOLD),
+                                ], spacing=8),
+                                margin=ft.margin.only(bottom=10)
+                            ),
+                            ft.Container(
+                                content=ft.Column([
+                                    ft.Text(
+                                        f"גרסה נוכחית: {self.current_version}",
+                                        text_align=ft.TextAlign.RIGHT,
+                                        rtl=True,
+                                        size=14,
+                                        color=ft.Colors.GREY_700
+                                    ),
+                                    ft.Text(
+                                        f"גרסה חדשה: {new_version}",
+                                        text_align=ft.TextAlign.RIGHT,
+                                        rtl=True,
+                                        weight=ft.FontWeight.BOLD,
+                                        size=14,
+                                        color=ft.Colors.GREEN_600
+                                    ),
+                                ], spacing=5),
+                                margin=ft.margin.only(bottom=15)
+                            ),
+                            ft.Container(
+                                content=ft.Text("מה חדש:", weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.RIGHT, rtl=True, size=14),
+                                margin=ft.margin.only(bottom=8)
+                            ),
+                            ft.Container(
+                                content=ft.Text(
+                                    release_notes if release_notes.strip() else "אין מידע זמין על השינויים",
+                                    text_align=ft.TextAlign.RIGHT,
+                                    rtl=True,
+                                    size=12,
+                                    color=ft.Colors.GREY_700
+                                ),
+                                bgcolor=ft.Colors.GREY_50,
+                                padding=12,
+                                border_radius=8,
+                                height=90,
+                                border=ft.border.all(1, ft.Colors.GREY_200)
+                            )
+                        ], spacing=5),
+                        padding=20,
+                        border_radius=12
                     ),
-                    ft.Text(
-                        f"גרסה חדשה: {new_version}",
-                        text_align=ft.TextAlign.RIGHT,
-                        rtl=True,
-                        weight=ft.FontWeight.BOLD,
-                        color=ft.Colors.GREEN
-                    ),
-                    ft.Divider(),
-                    ft.Text("מה חדש:", weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.RIGHT, rtl=True),
-                    ft.Container(
-                        content=ft.Text(
-                            release_notes if release_notes.strip() else "אין מידע זמין על השינויים",
-                            text_align=ft.TextAlign.RIGHT,
-                            rtl=True,
-                            size=12
-                        ),
-                        bgcolor=ft.Colors.SURFACE_VARIANT,
-                        padding=10,
-                        border_radius=8,
-                        height=100,
-                        width=400
-                    )
-                ], spacing=10, tight=True),
-                width=450,
+                    elevation=3,
+                    surface_tint_color=ft.Colors.BLUE_50
+                ),
+                width=500,
                 height=250
             ),
             actions=[
-                ft.Row([
-                    ft.TextButton("התקן עכשיו", on_click=install_update, style=ft.ButtonStyle(color=ft.Colors.GREEN)),
-                    ft.TextButton("הזכר מאוחר יותר", on_click=remind_later),
-                    ft.TextButton("סגור", on_click=close_dialog)
-                ], alignment=ft.MainAxisAlignment.END, rtl=True)
+                ft.Container(
+                    content=ft.Row([
+                        ft.ElevatedButton(
+                            "התקן עכשיו",
+                            icon=ft.Icons.DOWNLOAD,
+                            on_click=install_update,
+                            style=ft.ButtonStyle(
+                                bgcolor=ft.Colors.GREEN_600,
+                                color=ft.Colors.WHITE,
+                                elevation=2,
+                                padding=ft.padding.symmetric(horizontal=20, vertical=10),
+                                shape=ft.RoundedRectangleBorder(radius=8)
+                            ),
+                            height=40
+                        ),
+                        ft.ElevatedButton(
+                            "הזכר מאוחר יותר",
+                            icon=ft.Icons.SCHEDULE,
+                            on_click=remind_later,
+                            style=ft.ButtonStyle(
+                                bgcolor=ft.Colors.ORANGE_600,
+                                color=ft.Colors.WHITE,
+                                elevation=2,
+                                padding=ft.padding.symmetric(horizontal=20, vertical=10),
+                                shape=ft.RoundedRectangleBorder(radius=8)
+                            ),
+                            height=40
+                        ),
+                        ft.ElevatedButton(
+                            "סגור",
+                            icon=ft.Icons.CLOSE,
+                            on_click=close_dialog,
+                            style=ft.ButtonStyle(
+                                bgcolor=ft.Colors.GREY_600,
+                                color=ft.Colors.WHITE,
+                                elevation=2,
+                                padding=ft.padding.symmetric(horizontal=20, vertical=10),
+                                shape=ft.RoundedRectangleBorder(radius=8)
+                            ),
+                            height=40
+                        )
+                    ], alignment=ft.MainAxisAlignment.SPACE_EVENLY),
+                    padding=ft.padding.all(10)
+                )
             ],
-            actions_alignment=ft.MainAxisAlignment.END
+            actions_alignment=ft.MainAxisAlignment.CENTER,
+            content_padding=ft.padding.all(20),
+            title_padding=ft.padding.all(20),
         )
         
-        self.page.dialog = self.update_dialog
+        self.page.overlay.append(self.update_dialog)
         self.update_dialog.open = True
         self.page.update()
     
@@ -1636,20 +1766,29 @@ class ModernIDFProcessorGUI:
             tooltip = "ניהול רישיון"
         
         def license_button_clicked(e):
-            logger.info(f"=== LICENSE BUTTON CLICKED ===")
+            logger.info("=" * 80)
+            logger.info("=== LICENSE BUTTON CLICKED FROM MAIN UI ===")
             logger.info(f"Event: {e}")
             logger.info(f"Page: {self.page}")
+            logger.info(f"Page controls count: {len(self.page.controls) if self.page and self.page.controls else 0}")
+            logger.info(f"Page overlay count: {len(self.page.overlay) if self.page and self.page.overlay else 0}")
             logger.info(f"Button: {e.control if hasattr(e, 'control') else 'No control'}")
+            logger.info("=" * 80)
             
             # Show immediate feedback
             self.show_status("פותח חלון ניהול רישיונות...", "info")
             
             try:
+                # Show the license dialog
+                logger.info("Calling show_license_dialog from main UI...")
                 self.show_license_dialog()
+                logger.info("show_license_dialog from main UI completed")
                 self.show_status("חלון רישיונות נפתח", "success")
                 self.show_snackbar("📋 חלון ניהול רישיונות נפתח")
             except Exception as ex:
                 logger.error(f"Error opening license dialog: {ex}")
+                import traceback
+                logger.error(traceback.format_exc())
                 self.show_status(f"שגיאה בפתיחת חלון רישיונות: {ex}", "error")
                 self.show_snackbar(f"❌ שגיאה בפתיחת חלון רישיונות")
         
@@ -1707,30 +1846,105 @@ class ModernIDFProcessorGUI:
                 
                 menu_dialog = ft.AlertDialog(
                     modal=True,
-                    title=ft.Text("הגדרות עדכונים", text_align=ft.TextAlign.RIGHT, rtl=True),
-                    content=ft.Column([
-                        ft.ElevatedButton(
-                            "בדוק עדכונים עכשיו",
-                            icon=ft.Icons.REFRESH,
-                            on_click=lambda e: (check_updates(e), close_menu(e)),
-                            width=200
+                    title=ft.Container(
+                        content=ft.Row([
+                            ft.Icon(ft.Icons.SETTINGS, size=28, color=ft.Colors.BLUE_600),
+                            ft.Text("הגדרות עדכונים", size=22, weight=ft.FontWeight.BOLD),
+                        ], spacing=10, alignment=ft.MainAxisAlignment.CENTER),
+                        padding=ft.padding.only(bottom=15)
+                    ),
+                    content=ft.Container(
+                        content=ft.Card(
+                            content=ft.Container(
+                                content=ft.Column([
+                                    ft.Container(
+                                        content=ft.ElevatedButton(
+                                            "בדוק עדכונים עכשיו",
+                                            icon=ft.Icons.REFRESH,
+                                            on_click=lambda e: (check_updates(e), close_menu(e)),
+                                            style=ft.ButtonStyle(
+                                                bgcolor=ft.Colors.BLUE_600,
+                                                color=ft.Colors.WHITE,
+                                                elevation=2,
+                                                padding=ft.padding.symmetric(horizontal=20, vertical=12),
+                                                shape=ft.RoundedRectangleBorder(radius=8)
+                                            ),
+                                            height=45
+                                        ),
+                                        width=220,
+                                        alignment=ft.alignment.center
+                                    ),
+                                    ft.Container(
+                                        content=ft.ElevatedButton(
+                                            auto_check_text,
+                                            icon=ft.Icons.AUTORENEW if settings["auto_check"] else ft.Icons.PAUSE_CIRCLE,
+                                            on_click=lambda e: (toggle_auto_updates(e), close_menu(e)),
+                                            style=ft.ButtonStyle(
+                                                bgcolor=ft.Colors.GREEN_600 if settings["auto_check"] else ft.Colors.ORANGE_600,
+                                                color=ft.Colors.WHITE,
+                                                elevation=2,
+                                                padding=ft.padding.symmetric(horizontal=20, vertical=12),
+                                                shape=ft.RoundedRectangleBorder(radius=8)
+                                            ),
+                                            height=45
+                                        ),
+                                        width=220,
+                                        alignment=ft.alignment.center
+                                    ),
+                                    ft.Container(
+                                        content=ft.Text(
+                                            f"גרסה נוכחית: {self.current_version}", 
+                                            text_align=ft.TextAlign.CENTER,
+                                            size=13,
+                                            color=ft.Colors.GREY_700,
+                                            weight=ft.FontWeight.W_500
+                                        ),
+                                        padding=ft.padding.all(10),
+                                        bgcolor=ft.Colors.GREY_50,
+                                        border_radius=8,
+                                        margin=ft.margin.only(top=10)
+                                    )
+                                ], spacing=15, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                                padding=20,
+                                border_radius=12
+                            ),
+                            elevation=3,
+                            surface_tint_color=ft.Colors.BLUE_50
                         ),
-                        ft.ElevatedButton(
-                            auto_check_text,
-                            icon=ft.Icons.SETTINGS,
-                            on_click=lambda e: (toggle_auto_updates(e), close_menu(e)),
-                            width=200
-                        ),
-                        ft.Text(f"גרסה נוכחית: {self.current_version}", 
-                               text_align=ft.TextAlign.RIGHT, rtl=True, size=12)
-                    ], spacing=10, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                        width=280,
+                        height=200
+                    ),
                     actions=[
-                        ft.TextButton("סגור", on_click=close_menu)
+                        ft.Container(
+                            content=ft.ElevatedButton(
+                                "סגור",
+                                icon=ft.Icons.CLOSE,
+                                on_click=close_menu,
+                                style=ft.ButtonStyle(
+                                    bgcolor=ft.Colors.GREY_600,
+                                    color=ft.Colors.WHITE,
+                                    elevation=2,
+                                    padding=ft.padding.symmetric(horizontal=20, vertical=10),
+                                    shape=ft.RoundedRectangleBorder(radius=8)
+                                ),
+                                height=40
+                            ),
+                            padding=ft.padding.all(10)
+                        )
                     ],
-                    actions_alignment=ft.MainAxisAlignment.END
+                    actions_alignment=ft.MainAxisAlignment.CENTER,
+                    content_padding=ft.padding.all(20),
+                    title_padding=ft.padding.all(20),
                 )
                 
-                self.page.dialog = menu_dialog
+                # Close any existing dialog first using overlay
+                for control in self.page.overlay[:]:
+                    if isinstance(control, ft.AlertDialog):
+                        control.open = False
+                        self.page.overlay.remove(control)
+                
+                # Add dialog to overlay
+                self.page.overlay.append(menu_dialog)
                 menu_dialog.open = True
                 self.page.update()
                 logger.info("Update menu dialog should now be visible")
@@ -1758,6 +1972,17 @@ class ModernIDFProcessorGUI:
         )
         logger.info(f"Update button created: {button}")
         return button
+    
+    def _close_test_dialog(self):
+        """Close test dialog."""
+        if self.page:
+            # Close any AlertDialog in overlay
+            for control in self.page.overlay[:]:
+                if isinstance(control, ft.AlertDialog):
+                    control.open = False
+                    self.page.overlay.remove(control)
+            self.page.update()
+            logger.info("Test dialog closed")
     
     def show_github_config_dialog(self):
         """Show GitHub token configuration dialog."""
@@ -1862,7 +2087,7 @@ class ModernIDFProcessorGUI:
         # Filter out None values from actions
         config_dialog.actions[0].controls = [btn for btn in config_dialog.actions[0].controls if btn is not None]
         
-        self.page.dialog = config_dialog
+        self.page.overlay.append(config_dialog)
         config_dialog.open = True
         self.page.update()
 

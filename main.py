@@ -162,13 +162,55 @@ def run_gui() -> None:
             
             def on_license_checked():
                 """Called after license check is complete."""
-                logger.info("on_license_checked callback called - building UI")
+                logger.info("=" * 70)
+                logger.info("=== ON_LICENSE_CHECKED CALLBACK CALLED ===")
+                logger.info("Building main UI...")
+                logger.info(f"Page controls count before build_ui: {len(page.controls) if page.controls else 0}")
+                logger.info(f"Page overlay count before build_ui: {len(page.overlay) if page.overlay else 0}")
+                # Clear page completely before building UI
+                logger.info("Clearing page controls and overlay...")
+                page.controls.clear()
+                page.overlay.clear()
+                page.update()
+                logger.info("Page cleared")
+                
+                logger.info("Calling app.build_ui(page)...")
                 app.build_ui(page)
+                logger.info("app.build_ui(page) completed")
+                logger.info(f"Page controls count after build_ui: {len(page.controls) if page.controls else 0}")
+                logger.info(f"Page overlay count after build_ui: {len(page.overlay) if page.overlay else 0}")
+                
+                # Log detailed information about page controls
+                if page.controls:
+                    logger.info("=== PAGE CONTROLS DETAILS ===")
+                    for i, control in enumerate(page.controls):
+                        logger.info(f"Control {i}: {type(control).__name__} - {getattr(control, 'visible', 'no visible attr')}")
+                        if hasattr(control, 'controls') and control.controls:
+                            logger.info(f"  -> Has {len(control.controls)} child controls")
+                
+                # Force page update to ensure visibility
+                logger.info("Forcing page update...")
+                page.update()
+                logger.info("Page update completed")
+                
+                # Additional debugging - check if controls are actually visible
+                logger.info("=== FINAL PAGE STATE CHECK ===")
+                logger.info(f"Page.visible: {getattr(page, 'visible', 'no visible attr')}")
+                for i, control in enumerate(page.controls):
+                    logger.info(f"Control {i} visible: {getattr(control, 'visible', True)}")
+                
+                # Try to force a second update in case the first one didn't work
+                logger.info("Forcing second page update...")
+                page.update()
+                logger.info("Second page update completed")
+                
+                logger.info("=== MAIN UI BUILDING COMPLETED ===")
+                logger.info("=" * 70)
             
-            # Check license on startup
-            logger.info("About to call show_startup_license_check")
-            show_startup_license_check(page, on_license_checked)
-            logger.info("show_startup_license_check call completed")
+            # Build UI directly - license can be managed through the license button
+            logger.info("Building main UI directly")
+            on_license_checked()
+            logger.info("Main UI build completed")
         
         # Start Flet app (window size is set in page configuration within build_ui)
         ft.app(target=main, view=ft.AppView.FLET_APP, assets_dir="data")
