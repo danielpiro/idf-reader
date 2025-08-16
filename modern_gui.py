@@ -272,6 +272,33 @@ class ModernIDFProcessorGUI:
         except Exception as e:
             # Log errors but don't crash the background thread
             logger.error(f"Error updating UI status: {e}")
+    
+    def show_snackbar(self, message, bgcolor=None):
+        """Show a snackbar notification."""
+        try:
+            if not self.page:
+                return
+            
+            # Default colors based on message content
+            if bgcolor is None:
+                if any(word in message for word in ["error", "שגיאה", "❌", "נכשל"]):
+                    bgcolor = ft.Colors.RED_500
+                elif any(word in message for word in ["success", "הצלחה", "✅", "הושלם"]):
+                    bgcolor = ft.Colors.GREEN_500
+                elif any(word in message for word in ["warning", "אזהרה", "⚠️"]):
+                    bgcolor = ft.Colors.ORANGE_500
+                else:
+                    bgcolor = ft.Colors.BLUE_500
+            
+            snack = ft.SnackBar(
+                content=ft.Text(message, color=ft.Colors.WHITE),
+                bgcolor=bgcolor
+            )
+            self.page.snack_bar = snack
+            snack.open = True
+            self.page.update()
+        except Exception as e:
+            logger.error(f"Error showing snackbar: {e}")
 
     def update_progress(self, value):
         """Update reports progress bar."""
@@ -1467,15 +1494,18 @@ class ModernIDFProcessorGUI:
         """Manually check for updates (force check)."""
         def check_worker():
             try:
-                self.show_status("בודק עדכונים...")
+                self.show_status("🔍 מתחבר לשרת עדכונים...", "info")
                 update_info = self.update_manager.check_for_updates(force=True)
+                
                 if update_info:
+                    new_version = update_info.get("version", "")
+                    self.show_status(f"✨ נמצא עדכון זמין לגרסה {new_version}!", "success")
                     self.show_update_dialog(update_info)
                 else:
-                    self.show_status("האפליקציה מעודכנת לגרסה האחרונה", "success")
+                    self.show_status("✅ האפליקציה מעודכנת לגרסה האחרונה", "success")
             except Exception as e:
                 logger.error(f"Error checking for updates: {e}")
-                self.show_status(f"שגיאה בבדיקת עדכונים: {e}", "error")
+                self.show_status(f"❌ שגיאה בבדיקת עדכונים: {e}", "error")
         
         threading.Thread(target=check_worker, daemon=True).start()
     
@@ -1610,7 +1640,18 @@ class ModernIDFProcessorGUI:
             logger.info(f"Event: {e}")
             logger.info(f"Page: {self.page}")
             logger.info(f"Button: {e.control if hasattr(e, 'control') else 'No control'}")
-            self.show_license_dialog()
+            
+            # Show immediate feedback
+            self.show_status("פותח חלון ניהול רישיונות...", "info")
+            
+            try:
+                self.show_license_dialog()
+                self.show_status("חלון רישיונות נפתח", "success")
+                self.show_snackbar("📋 חלון ניהול רישיונות נפתח")
+            except Exception as ex:
+                logger.error(f"Error opening license dialog: {ex}")
+                self.show_status(f"שגיאה בפתיחת חלון רישיונות: {ex}", "error")
+                self.show_snackbar(f"❌ שגיאה בפתיחת חלון רישיונות")
         
         button = ft.IconButton(
             icon=icon,
@@ -1625,14 +1666,25 @@ class ModernIDFProcessorGUI:
         """Create update menu button for header."""
         def show_update_menu(e):
             logger.info("Update button clicked - attempting to show menu")
+            
+            # Show immediate feedback
+            self.show_status("פותח תפריט עדכונים...", "info")
+            
             try:
                 if not self.page:
                     logger.error("Page is None - cannot show update menu")
+                    self.show_status("שגיאה: לא ניתן לפתוח תפריט עדכונים", "error")
                     return
                 
                 # Create popup menu for update options
                 def check_updates(e):
                     logger.info("Check updates clicked")
+                    self.show_status("מתחיל בדיקת עדכונים...", "info")
+                    
+                    # Close the menu dialog first
+                    menu_dialog.open = False
+                    self.page.update()
+                    
                     self.check_for_updates_manual()
                 
                 def toggle_auto_updates(e):
@@ -1682,6 +1734,8 @@ class ModernIDFProcessorGUI:
                 menu_dialog.open = True
                 self.page.update()
                 logger.info("Update menu dialog should now be visible")
+                self.show_status("תפריט עדכונים נפתח", "success")
+                self.show_snackbar("🔄 תפריט עדכונים נפתח")
             
             except Exception as e:
                 logger.error(f"Error showing update menu: {e}")

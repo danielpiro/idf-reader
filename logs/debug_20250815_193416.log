@@ -1,0 +1,69 @@
+2025-08-15 19:34:16,748 - flet - INFO - Assets path configured: C:\Users\daniel\Desktop\idf-reader\data
+2025-08-15 19:34:16,749 - flet - INFO - Starting up TCP server on localhost:64549
+2025-08-15 19:34:16,752 - flet - INFO - Flet app has started...
+2025-08-15 19:34:16,753 - flet - INFO - App URL: tcp://localhost:64549
+2025-08-15 19:34:16,753 - flet_desktop - INFO - Starting Flet View app...
+2025-08-15 19:34:16,754 - flet_desktop - INFO - Looking for Flet executable at: C:\Users\daniel\Desktop\idf-reader\venv\Lib\site-packages\flet_desktop\app\flet\flet.exe
+2025-08-15 19:34:16,754 - flet_desktop - INFO - Flet View found in: C:\Users\daniel\Desktop\idf-reader\venv\Lib\site-packages\flet_desktop\app\flet\flet.exe
+2025-08-15 19:34:16,961 - flet - INFO - App session started
+2025-08-15 19:34:16,962 - __main__ - INFO - === GUI MAIN FUNCTION STARTED ===
+2025-08-15 19:34:16,962 - __main__ - INFO - Page object: page {'id': 'page', 'route': '/', 'pwa': 'false', 'web': 'false', 'debug': 'false', 'platform': 'windows', 'platformbrightness': 'dark', 'media': '{"padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_insets":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0}}', 'width': '1265.6', 'height': '682.4', 'windowwidth': '1280.0', 'windowheight': '720.0', 'windowtop': '9.6', 'windowleft': '9.6', 'clientip': '', 'clientuseragent': ''}
+2025-08-15 19:34:16,963 - __main__ - INFO - ModernIDFProcessorGUI instance created
+2025-08-15 19:34:16,963 - __main__ - INFO - About to call show_startup_license_check
+2025-08-15 19:34:16,963 - utils.license_dialog - INFO - === STARTUP LICENSE CHECK FUNCTION CALLED ===
+2025-08-15 19:34:16,963 - utils.license_dialog - INFO - Page object: page {'id': 'page', 'route': '/', 'pwa': 'false', 'web': 'false', 'debug': 'false', 'platform': 'windows', 'platformbrightness': 'dark', 'media': '{"padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_insets":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0}}', 'width': '1265.6', 'height': '682.4', 'windowwidth': '1280.0', 'windowheight': '720.0', 'windowtop': '9.6', 'windowleft': '9.6', 'clientip': '', 'clientuseragent': ''}
+2025-08-15 19:34:16,963 - utils.license_dialog - INFO - on_continue callback: <function run_gui.<locals>.main.<locals>.on_license_checked at 0x0000018667B78A40>
+2025-08-15 19:34:16,963 - utils.license_dialog - INFO - Getting license status...
+2025-08-15 19:34:16,963 - utils.license_manager - INFO - === GET LICENSE STATUS CALLED ===
+2025-08-15 19:34:16,963 - utils.license_manager - INFO - License file path: C:\Users\daniel\AppData\Roaming\IDF Reader\license.dat
+2025-08-15 19:34:16,963 - utils.license_manager - INFO - License file exists: True
+2025-08-15 19:34:16,964 - utils.license_dialog - INFO - License status received: {'status': 'valid', 'type': 'professional', 'expires': '2025-09-14T10:33:03.580000', 'features': {'unlimited_files': True, 'all_reports': True, 'export_excel': True, 'energy_rating': True, 'advanced_analysis': True, 'priority_support': True}, 'last_check': '2025-08-15T13:33:27.034674', 'max_activations': 3, 'current_activations': 0, 'message': 'License active'}
+2025-08-15 19:34:16,964 - utils.license_dialog - INFO - License is valid - continuing without dialog
+2025-08-15 19:34:16,964 - __main__ - INFO - on_license_checked callback called - building UI
+2025-08-15 19:34:16,964 - modern_gui - INFO - Applying window settings: {'width': 1715.2, 'height': 1118.4, 'maximized': False, 'position_x': 295.2, 'position_y': 0}
+2025-08-15 19:34:16,964 - modern_gui - INFO - Set window size: 1715.2x1118.4
+2025-08-15 19:34:16,964 - modern_gui - INFO - Set window maximized: False
+2025-08-15 19:34:16,964 - modern_gui - INFO - Window icon set using assets: logo.ico
+2025-08-15 19:34:16,965 - modern_gui - INFO - Creating license button...
+2025-08-15 19:34:16,965 - utils.license_manager - INFO - === GET LICENSE STATUS CALLED ===
+2025-08-15 19:34:16,965 - utils.license_manager - INFO - License file path: C:\Users\daniel\AppData\Roaming\IDF Reader\license.dat
+2025-08-15 19:34:16,965 - utils.license_manager - INFO - License file exists: True
+2025-08-15 19:34:16,965 - modern_gui - INFO - License button created: iconbutton {'icon': 'vpn_key', 'iconcolor': 'green600'}
+2025-08-15 19:34:16,965 - modern_gui - INFO - Creating update button...
+2025-08-15 19:34:16,965 - modern_gui - INFO - Update button created: iconbutton {'icon': 'system_update', 'iconcolor': 'primary'}
+2025-08-15 19:34:16,971 - modern_gui - INFO - GUI: 🎉 ברוכים הבאים! גרסה 1.0.4 - הגדירו את כל השדות כדי להתחיל בעיבוד.
+2025-08-15 19:34:16,971 - modern_gui - INFO - Saving window settings: {'width': 1715.2, 'height': 1118.4, 'maximized': False, 'position_x': 295.2, 'position_y': 0}
+2025-08-15 19:34:16,971 - __main__ - INFO - show_startup_license_check call completed
+2025-08-15 19:34:18,808 - modern_gui - INFO - === UPDATE BUTTON CLICKED ===
+2025-08-15 19:34:18,808 - modern_gui - INFO - Event: ControlEvent(name='click', data=None)
+2025-08-15 19:34:18,808 - modern_gui - INFO - Page: page {'id': 'page', 'route': '/', 'pwa': 'false', 'web': 'false', 'debug': 'false', 'platform': 'windows', 'platformbrightness': 'dark', 'media': '{"padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_insets":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0}}', 'width': '1700.8', 'height': '1080.8', 'windowwidth': '1715.2', 'windowheight': '1118.4', 'windowtop': '0.0', 'windowleft': '295.2', 'clientip': '', 'clientuseragent': '', 'title': 'מחולל דוחות IDF', 'thememode': 'system', 'rtl': True, 'windowmaximized': 'false', 'windowminwidth': 1000, 'windowminheight': 800, 'windowicon': 'logo.ico', 'theme': '{"color_scheme_seed":"blue","use_material3":true,"page_transitions":{},"system_overlay_style":{}}', 'windowminimized': 'false', 'windowfocused': 'true', 'windowfullscreen': 'false'}
+2025-08-15 19:34:18,808 - modern_gui - INFO - Update button clicked - attempting to show menu
+2025-08-15 19:34:18,810 - modern_gui - INFO - Update menu dialog should now be visible
+2025-08-15 19:34:20,774 - modern_gui - INFO - === LICENSE BUTTON CLICKED ===
+2025-08-15 19:34:20,774 - modern_gui - INFO - Event: ControlEvent(name='click', data=None)
+2025-08-15 19:34:20,774 - modern_gui - INFO - Page: page {'id': 'page', 'route': '/', 'pwa': 'false', 'web': 'false', 'debug': 'false', 'platform': 'windows', 'platformbrightness': 'dark', 'media': '{"padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_insets":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0}}', 'width': '1700.8', 'height': '1080.8', 'windowwidth': '1715.2', 'windowheight': '1118.4', 'windowtop': '0.0', 'windowleft': '295.2', 'clientip': '', 'clientuseragent': '', 'title': 'מחולל דוחות IDF', 'thememode': 'system', 'rtl': True, 'windowmaximized': 'false', 'windowminwidth': 1000, 'windowminheight': 800, 'windowicon': 'logo.ico', 'theme': '{"color_scheme_seed":"blue","use_material3":true,"page_transitions":{},"system_overlay_style":{}}', 'windowminimized': 'false', 'windowfocused': 'true', 'windowfullscreen': 'false'}
+2025-08-15 19:34:20,774 - modern_gui - INFO - Button: iconbutton {'icon': 'vpn_key', 'iconcolor': 'green600', 'tooltip': '"\\u05e8\\u05d9\\u05e9\\u05d9\\u05d5\\u05df professional \\u05e4\\u05e2\\u05d9\\u05dc"'}
+2025-08-15 19:34:20,774 - modern_gui - INFO - License button clicked - attempting to show dialog
+2025-08-15 19:34:20,774 - modern_gui - INFO - Creating LicenseDialog instance
+2025-08-15 19:34:20,774 - modern_gui - INFO - Calling show_license_dialog method
+2025-08-15 19:34:20,774 - utils.license_dialog - INFO - === SHOW LICENSE DIALOG CALLED (show_activation=True) ===
+2025-08-15 19:34:20,774 - utils.license_dialog - INFO - Page object: page {'id': 'page', 'route': '/', 'pwa': 'false', 'web': 'false', 'debug': 'false', 'platform': 'windows', 'platformbrightness': 'dark', 'media': '{"padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_insets":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0}}', 'width': '1700.8', 'height': '1080.8', 'windowwidth': '1715.2', 'windowheight': '1118.4', 'windowtop': '0.0', 'windowleft': '295.2', 'clientip': '', 'clientuseragent': '', 'title': 'מחולל דוחות IDF', 'thememode': 'system', 'rtl': True, 'windowmaximized': 'false', 'windowminwidth': 1000, 'windowminheight': 800, 'windowicon': 'logo.ico', 'theme': '{"color_scheme_seed":"blue","use_material3":true,"page_transitions":{},"system_overlay_style":{}}', 'windowminimized': 'false', 'windowfocused': 'true', 'windowfullscreen': 'false'}
+2025-08-15 19:34:20,775 - utils.license_dialog - INFO - Creating dialog content...
+2025-08-15 19:34:20,775 - utils.license_dialog - INFO - Dialog content created: <class 'flet.core.container.Container'>
+2025-08-15 19:34:20,775 - utils.license_dialog - INFO - Creating AlertDialog...
+2025-08-15 19:34:20,776 - utils.license_dialog - INFO - AlertDialog created: alertdialog {'open': False, 'modal': True, 'actionsalignment': 'end'}
+2025-08-15 19:34:20,776 - utils.license_dialog - INFO - Setting page.dialog...
+2025-08-15 19:34:20,776 - utils.license_dialog - INFO - Opening dialog...
+2025-08-15 19:34:20,776 - utils.license_dialog - INFO - Updating page...
+2025-08-15 19:34:20,778 - utils.license_dialog - INFO - Dialog should now be visible!
+2025-08-15 19:34:20,778 - utils.license_dialog - INFO - Updating license status...
+2025-08-15 19:34:20,778 - utils.license_manager - INFO - === GET LICENSE STATUS CALLED ===
+2025-08-15 19:34:20,778 - utils.license_manager - INFO - License file path: C:\Users\daniel\AppData\Roaming\IDF Reader\license.dat
+2025-08-15 19:34:20,778 - utils.license_manager - INFO - License file exists: True
+2025-08-15 19:34:20,780 - utils.license_dialog - INFO - License status updated
+2025-08-15 19:34:20,780 - modern_gui - INFO - License dialog should now be visible
+2025-08-15 19:34:21,500 - modern_gui - INFO - === UPDATE BUTTON CLICKED ===
+2025-08-15 19:34:21,500 - modern_gui - INFO - Event: ControlEvent(name='click', data=None)
+2025-08-15 19:34:21,500 - modern_gui - INFO - Page: page {'id': 'page', 'route': '/', 'pwa': 'false', 'web': 'false', 'debug': 'false', 'platform': 'windows', 'platformbrightness': 'dark', 'media': '{"padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_padding":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0},"view_insets":{"top":0.0,"right":0.0,"bottom":0.0,"left":0.0}}', 'width': '1700.8', 'height': '1080.8', 'windowwidth': '1715.2', 'windowheight': '1118.4', 'windowtop': '0.0', 'windowleft': '295.2', 'clientip': '', 'clientuseragent': '', 'title': 'מחולל דוחות IDF', 'thememode': 'system', 'rtl': True, 'windowmaximized': 'false', 'windowminwidth': 1000, 'windowminheight': 800, 'windowicon': 'logo.ico', 'theme': '{"color_scheme_seed":"blue","use_material3":true,"page_transitions":{},"system_overlay_style":{}}', 'windowminimized': 'false', 'windowfocused': 'true', 'windowfullscreen': 'false'}
+2025-08-15 19:34:21,500 - modern_gui - INFO - Update button clicked - attempting to show menu
+2025-08-15 19:34:21,502 - modern_gui - INFO - Update menu dialog should now be visible

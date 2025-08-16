@@ -243,21 +243,24 @@ class LicenseDialog:
             
             serial_key = self.serial_key_field.value.strip()
             
-            # Show loading
-            self.activate_button.text = "מפעיל..."
+            # Show loading with detailed feedback
+            self.activate_button.text = "🔄 מפעיל..."
             self.activate_button.disabled = True
             self.page.update()
+            
+            # Show status message
+            self._show_info("🔍 מתחבר לשרת רישיונות...")
             
             # Activate license
             success, message = license_manager.activate_license(serial_key)
             
             if success:
-                self._show_success(message)
+                self._show_success(f"✅ {message}")
                 self._update_license_status()
                 if self.on_license_changed:
                     self.on_license_changed()
             else:
-                self._show_error(message)
+                self._show_error(f"❌ {message}")
             
         except Exception as ex:
             logger.error(f"License activation error: {ex}")
@@ -415,6 +418,19 @@ class LicenseDialog:
             self.page.update()
         except Exception as e:
             logger.error(f"Error showing success message: {e}")
+    
+    def _show_info(self, message: str):
+        """Show info message."""
+        try:
+            snack = ft.SnackBar(
+                content=ft.Text(message, color=ft.Colors.WHITE),
+                bgcolor=ft.Colors.BLUE_500
+            )
+            self.page.snack_bar = snack
+            snack.open = True
+            self.page.update()
+        except Exception as e:
+            logger.error(f"Error showing info message: {e}")
     
     def _show_error(self, message: str):
         """Show error message."""
