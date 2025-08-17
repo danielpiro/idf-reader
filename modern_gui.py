@@ -7,6 +7,7 @@ from pathlib import Path
 import asyncio
 
 from utils.logging_config import get_logger
+from utils.sentry_config import capture_exception_with_context, add_breadcrumb, set_user_context
 from utils.path_utils import (
     get_data_file_path, get_data_directory, list_data_files,
     contains_non_ascii, create_safe_path_for_energyplus,
@@ -1065,6 +1066,9 @@ class ModernIDFProcessorGUI:
         except Exception as e:
             self.show_status(f"שגיאה קריטית בעיבוד: {e}", "error")
             logger.error(f"Critical error in processing: {e}", exc_info=True)
+            capture_exception_with_context(e, error_type="gui_processing", 
+                                         input_file=self.input_file, 
+                                         output_dir=self.output_dir)
         finally:
             self.reset_gui_state()
 

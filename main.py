@@ -1,4 +1,5 @@
 from utils.logging_config import get_logger
+from utils.sentry_config import initialize_sentry, capture_exception_with_context, add_breadcrumb
 
 logger = get_logger(__name__)
 import argparse
@@ -229,7 +230,20 @@ def run_gui() -> None:
         _handle_cli_error(f"An unexpected error occurred while starting GUI: {e}")
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        run_cli()
-    else:
-        run_gui()
+    # Initialize Sentry for error monitoring
+    sentry_initialized = initialize_sentry()
+    if sentry_initialized:
+        add_breadcrumb("Application started", category="app", level="info")
+    
+    try:
+        if len(sys.argv) > 1:
+            add_breadcrumb("Starting CLI mode", category="app", level="info")
+            run_cli()
+        else:
+            add_breadcrumb("Starting GUI mode", category="app", level="info")
+            run_gui()
+    except Exception as e:
+        logger.error(f"Unhandled exception in main: {e}", exc_info=True)
+        if sentry_initialized:
+            capture_exception_with_context(e, mode="main_app", args=str(sys.argv))
+        raise

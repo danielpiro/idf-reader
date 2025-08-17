@@ -1,5 +1,6 @@
 import os
 from utils.logging_config import get_logger
+from utils.sentry_config import capture_exception_with_context, add_breadcrumb, start_transaction
 from pathlib import Path
 from datetime import datetime
 from utils.data_loader import DataLoader
@@ -70,6 +71,7 @@ class ProcessingManager:
                 error_message = f"שגיאה: לא ניתן ליצור תיקייה '{directory}'. סיבה: {e.strerror}"
                 self.update_status(error_message)
                 logger.error(f"OSError creating directory {directory}: {e}", exc_info=True)
+                capture_exception_with_context(e, error_type="directory_creation", directory=directory)
                 raise
         elif directory and os.path.exists(directory) and not os.path.isdir(directory):
             error_message = f"שגיאה: נתיב '{directory}' קיים אך אינו תיקייה."
@@ -293,6 +295,8 @@ class ProcessingManager:
             error_message = f"Error generating {report_name} report: {type(e).__name__} - {str(e)}"
             self.update_status(error_message)
             logger.error(f"Exception in _generate_report_item for {report_name}: {e}", exc_info=True)
+            capture_exception_with_context(e, error_type="report_generation", report_name=report_name, 
+                                         output_path=output_path)
             return False
 
     def _generate_all_reports(self, extracted_data: dict, report_paths: dict,
@@ -484,10 +488,16 @@ class ProcessingManager:
             output_dir: Base output directory
             run_id: Optional pre-generated run ID. If None, will generate one.
         """
+        # Start Sentry transaction for performance monitoring
+        transaction = start_transaction(name="process_idf", op="idf_processing")
+        
         try:
             project_name = Path(input_file).stem
             if run_id is None:
                 run_id = datetime.now().strftime('%d-%m-%Y-%H-%M-%S')
+
+            add_breadcrumb(f"Starting IDF processing for {project_name}", category="processing", level="info", 
+                         data={"input_file": input_file, "run_id": run_id})
 
             self.update_progress(0.0)
             self.update_status("מאתחל...")
@@ -556,25 +566,34 @@ class ProcessingManager:
                 return False
 
             self.update_status("העיבוד הושלם בהצלחה!")
+            add_breadcrumb("IDF processing completed successfully", category="processing", level="info")
+            transaction.set_status("ok")
             return True
         except FileNotFoundError as fnf_err:
             user_message = f"Error: A required file was not found. Path: {fnf_err.filename}. Details: {fnf_err.strerror}"
             self.update_status(user_message)
             logger.error(user_message, exc_info=True)
-            # raise # Re-raising might crash the GUI thread, consider returning False
+            capture_exception_with_context(fnf_err, error_type="file_not_found", input_file=input_file)
+            transaction.set_status("not_found")
             return False
         except (IOError, OSError) as os_io_err:
             user_message = f"Error: File or system operation failed. Path: {getattr(os_io_err, 'filename', 'N/A')}. Details: {os_io_err.strerror}"
             self.update_status(user_message)
             logger.error(user_message, exc_info=True)
-            # raise
+            capture_exception_with_context(os_io_err, error_type="io_error", input_file=input_file)
+            transaction.set_status("internal_error")
             return False
         except Exception as e:
             user_message = f"An unexpected error occurred during IDF processing: {type(e).__name__} - {str(e)}"
             self.update_status(user_message)
             logger.error(f"Unexpected error in process_idf: {e}", exc_info=True)
-            # raise
+            capture_exception_with_context(e, error_type="unexpected_error", input_file=input_file, 
+                                         project_name=locals().get('project_name', 'unknown'))
+            transaction.set_status("unknown_error")
             return False
+        finally:
+            # Always finish the transaction
+            transaction.finish()
 
     def cancel(self):
         """Signals that the current processing should be cancelled."""
