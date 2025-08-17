@@ -535,10 +535,10 @@ REM Self-destruct (delete this batch file)
             # Store in settings (encrypted in production)
             self.settings['github_token'] = token
             self._save_update_settings()
-            self.status_callback("GitHub token configured successfully")
+            self.status_callback("אימות GitHub הוגדר בהצלחה")
         else:
             # Remove token
             if 'github_token' in self.settings:
                 del self.settings['github_token']
                 self._save_update_settings()
-            self.status_callback("GitHub token removed")
+            self.status_callback("אימות GitHub הוסר")

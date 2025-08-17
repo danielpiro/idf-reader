@@ -65,14 +65,14 @@ class ProcessingManager:
         if directory and not os.path.exists(directory):
             try:
                 os.makedirs(directory)
-                self.update_status(f"Successfully created directory: {directory}")
+                self.update_status(f"תיקייה נוצרה בהצלחה: {directory}")
             except OSError as e:
-                error_message = f"Error: Could not create directory '{directory}'. Reason: {e.strerror}"
+                error_message = f"שגיאה: לא ניתן ליצור תיקייה '{directory}'. סיבה: {e.strerror}"
                 self.update_status(error_message)
                 logger.error(f"OSError creating directory {directory}: {e}", exc_info=True)
                 raise
         elif directory and os.path.exists(directory) and not os.path.isdir(directory):
-            error_message = f"Error: Path '{directory}' exists but is not a directory."
+            error_message = f"שגיאה: נתיב '{directory}' קיים אך אינו תיקייה."
             self.update_status(error_message)
             logger.error(error_message)
             raise OSError(error_message)
@@ -125,7 +125,7 @@ class ProcessingManager:
         Returns:
             Tuple: (DataLoader instance, EppyHandler instance, IDF object)
         """
-        self.update_status("Loading IDF file...")
+        self.update_status("טוען קובץ IDF...")
         data_loader = DataLoader()
         data_loader.load_file(input_file, idd_path=idd_path)
         eppy_handler = EppyHandler(idd_path=idd_path)
@@ -165,7 +165,7 @@ class ProcessingManager:
         Returns:
             A dictionary of initialized parser instances.
         """
-        self.update_status("Initializing parsers...")
+        self.update_status("מאתחל מנתחים...")
         parsers = {
             "settings": SettingsExtractor(data_loader),
             "schedule": ScheduleExtractor(data_loader),
@@ -194,16 +194,16 @@ class ProcessingManager:
         """
         Processes data using the initialized parsers.
         """
-        self.update_status("Processing settings...")
+        self.update_status("מעבד הגדרות...")
         parsers["settings"].process_idf()
         if self.is_cancelled: return
 
-        self.update_status("Processing schedules...")
+        self.update_status("מעבד לוחות זמנים...")
         for schedule_obj in eppy_handler.get_schedule_objects(idf):
             parsers["schedule"].process_eppy_schedule(schedule_obj)
         if self.is_cancelled: return
 
-        self.update_status("Processing other data (loads, materials, area)...")
+        self.update_status("מעבד נתונים נוספים (עומסים, חומרים, אזורים)...")
         parsers["load"].process_idf(idf)
         parsers["materials"].process_idf(idf)
         parsers["area"].process_idf(idf)
@@ -212,16 +212,16 @@ class ProcessingManager:
 
         if self.is_cancelled: return
 
-        self.update_status("Processing energy rating data...")
+        self.update_status("מעבד נתוני דירוג אנרגיה...")
         energy_rating_parser = parsers["energy_rating"]
         if simulation_output_csv:
             energy_rating_parser.process_output(simulation_output_csv)
         else:
             # This case might be problematic if simulation_output_csv is essential
-            self.update_status("Warning: No simulation output CSV provided for EnergyRatingParser. Results may be incomplete.")
+            self.update_status("אזהרה: לא סופק קובץ CSV של תוצאות סימולציה לדירוג אנרגיה. התוצאות עלולות להיות חלקיות.")
             energy_rating_parser.process_output() # Or handle this case differently
 
-        self.update_status("Processing automatic validation data...")
+        self.update_status("מעבד נתוני בדיקה אוטומטית...")
         try:
             # Get ISO type from city_info for validation
             raw_iso_type = self.city_info.get('iso_type', 'Office') if hasattr(self, 'city_info') and self.city_info else 'Office'
@@ -234,7 +234,7 @@ class ProcessingManager:
                 current_iso_type = "Office"
             logger.info(f"Automatic validation: Raw ISO type '{raw_iso_type}' -> Mapped to '{current_iso_type}'")
             parsers["automatic_error_detection"].process_idf(idf, current_iso_type)
-            self.update_status("Automatic validation data processed successfully")
+            self.update_status("נתוני בדיקה אוטומטית עובדו בהצלחה")
         except Exception as e:
             error_message = f"Failed processing automatic validation data: {type(e).__name__} - {str(e)}"
             self.update_status(error_message)
@@ -245,7 +245,7 @@ class ProcessingManager:
         """
         Extracts processed data from parsers.
         """
-        self.update_status("Extracting processed data...")
+        self.update_status("מחלץ נתונים מעובדים...")
         return {
             "settings": parsers["settings"].get_settings(),
             "schedules": parsers["schedule"].get_parsed_unique_schedules(),
@@ -264,7 +264,7 @@ class ProcessingManager:
         """
         Helper to generate a single report item.
         """
-        self.update_status(f"Generating {report_name} report...")
+        self.update_status(f"יוצר דוח {report_name}...")
         success = False
         try:
             if is_generator_class:
@@ -276,7 +276,7 @@ class ProcessingManager:
                 # elif 'output_filename' in kwargs and hasattr(generator_instance, 'generate_report'):
                 #      success = generator_instance.generate_report(output_filename=kwargs['output_filename'])
                 else:
-                    self.update_status(f"Generator class {report_name} does not have a generate_report method.")
+                    self.update_status(f"מחלקת יוצר {report_name} אינה כוללת מתוד generate_report.")
                     return False
             else:
                 result = generation_function(data, output_path, project_name=project_name, run_id=run_id,
@@ -285,9 +285,9 @@ class ProcessingManager:
                 success = result if isinstance(result, bool) else True
 
             if success:
-                self.update_status(f"{report_name} report generated successfully at {output_path}")
+                self.update_status(f"דוח {report_name} נוצר בהצלחה ב-{output_path}")
             else:
-                self.update_status(f"{report_name} report generation failed or returned False (check console).")
+                self.update_status(f"יצירת דוח {report_name} נכשלה (בדוק את הקונסול).")
             return success
         except Exception as e:
             error_message = f"Error generating {report_name} report: {type(e).__name__} - {str(e)}"
@@ -307,7 +307,7 @@ class ProcessingManager:
         """
         Generates all PDF reports.
         """
-        self.update_status("Generating reports...")
+        self.update_status("יוצר דוחות...")
         progress_step = 0.7 # Initial progress after parsing
         num_reports = 10 # Updated number of main report generation steps (added automatic error detection)
         progress_increment = (1.0 - progress_step) / num_reports
@@ -354,11 +354,11 @@ class ProcessingManager:
         if self.is_cancelled: return
 
         # Area (Zones) - Use base zone grouping to ensure related zones are in same file
-        self.update_status("Generating Area (Zones) reports with base zone grouping...")
+        self.update_status("יוצר דוחות אזורים (איזורים) עם קיבוץ אזור בסיס...")
         try:
             from generators.area_report_generator import generate_area_reports_by_base_zone
             generate_area_reports_by_base_zone(area_parser_instance, output_dir=report_paths["zones_dir"], project_name=project_name, run_id=run_id, city_name=city_name_hebrew, area_name=area_name_for_reports)
-            self.update_status("Area (Zones) reports with base zone grouping generation attempted.")
+            self.update_status("ניסה ליצור דוחות אזורים עם קיבוץ אזור בסיס.")
         except Exception as e:
             error_message = f"Error generating Area (Zones) reports with base zone grouping: {type(e).__name__} - {str(e)}"
             self.update_status(error_message)
@@ -394,7 +394,7 @@ class ProcessingManager:
         if self.is_cancelled: return
 
         # Energy Rating
-        self.update_status("Generating Energy Rating report (PDF)...")
+        self.update_status("יוצר דוח דירוג אנרגיה (PDF)...")
         try:
             derived_model_year = None
             derived_model_area_definition = None
@@ -411,17 +411,17 @@ class ProcessingManager:
                 # For 2023 models, use the numeric area code directly
                 area_code = self.city_info.get('area_code', '') if hasattr(self, 'city_info') and self.city_info else ''
                 derived_model_area_definition = area_code
-                self.update_status(f"Energy Rating: Using numeric area code '{area_code}' for 2023 model")
+                self.update_status(f"דירוג אנרגיה: משתמש בקוד אזור מספרי '{area_code}' למודל 2023")
             else:
                 # For 2017 and office models, map Hebrew area name to Latin letter (for model calculations only)
                 area_name_map_to_letter = {"א": "A", "ב": "B", "ג": "C", "ד": "D"}
                 derived_model_area_definition = area_name_map_to_letter.get(city_area_name_selection)
-                self.update_status(f"Energy Rating: Using Latin area letter '{derived_model_area_definition}' for {derived_model_year} model")
+                self.update_status(f"דירוג אנרגיה: משתמש באות אזור לטינית '{derived_model_area_definition}' למודל {derived_model_year}")
 
             if derived_model_year and derived_model_area_definition:
                 actual_selected_city_name = self.city_info.get('city', None) # This is the Hebrew city name from GUI
 
-                self.update_status(f"Energy Rating Report: Using City='{actual_selected_city_name}', Year={derived_model_year}, AreaDef='{derived_model_area_definition}'")
+                self.update_status(f"דוח דירוג אנרגיה: משתמש בעיר='{actual_selected_city_name}', שנה={derived_model_year}, הגדרת אזור='{derived_model_area_definition}'")
                 
                 energy_rating_gen = EnergyRatingReportGenerator(
                     energy_rating_parser=energy_rating_parser_instance,
@@ -436,17 +436,17 @@ class ProcessingManager:
                 # The output_filename is relative to output_dir in the generator
                 success_er = energy_rating_gen.generate_report(output_filename=os.path.basename(report_paths["energy_rating"]))
                 if success_er:
-                    self.update_status(f"Energy Rating report generated successfully at {report_paths['energy_rating']}")
+                    self.update_status(f"דוח דירוג אנרגיה נוצר בהצלחה ב-{report_paths['energy_rating']}")
                 else:
-                    self.update_status("Energy Rating report generation failed (check console for details).")
+                    self.update_status("יצירת דוח דירוג אנרגיה נכשלה (בדוק את הקונסול לפרטים).")
 
                 # Generate total energy rating report
                 try:
                     total_rating_path = energy_rating_gen.generate_total_energy_rating_report(output_filename="total-energy-rating.pdf")
                     if total_rating_path:
-                        self.update_status(f"Total Energy Rating report generated successfully at {total_rating_path}")
+                        self.update_status(f"דוח דירוג אנרגיה כולל נוצר בהצלחה ב-{total_rating_path}")
                     else:
-                        self.update_status("Total Energy Rating report generation failed (check console for details).")
+                        self.update_status("יצירת דוח דירוג אנרגיה כולל נכשלה (בדוק את הקונסול לפרטים).")
                 except Exception as e_total:
                     error_message = f"Error generating Total Energy Rating PDF report: {type(e_total).__name__} - {str(e_total)}"
                     self.update_status(error_message)
@@ -490,7 +490,7 @@ class ProcessingManager:
                 run_id = datetime.now().strftime('%d-%m-%Y-%H-%M-%S')
 
             self.update_progress(0.0)
-            self.update_status("Initializing...")
+            self.update_status("מאתחל...")
 
             report_paths = self._setup_output_paths(output_dir, run_id)
             base_reports_dir = os.path.join(output_dir, f"reports-{run_id}") # Used by EnergyRatingGenerator
@@ -508,7 +508,7 @@ class ProcessingManager:
             city_area_name_for_loss = "א" # Default
             if self.city_info and 'area_name' in self.city_info:
                 city_area_name_for_loss = self.city_info.get('area_name', "א")
-                self.update_status(f"Using city area '{city_area_name_for_loss}' for thermal loss calculations.")
+                self.update_status(f"משתמש באזור עיר '{city_area_name_for_loss}' לחישובי אובדני חום.")
             
             # Initialize parsers that depend on each other or simulation output
             temp_materials_parser = MaterialsParser(data_loader) # Needed by AreaParser
@@ -552,10 +552,10 @@ class ProcessingManager:
             )
 
             if self.is_cancelled:
-                self.update_status("Processing cancelled during report generation.")
+                self.update_status("העיבוד בוטל במהלך יצירת הדוחות.")
                 return False
 
-            self.update_status("Processing completed successfully!")
+            self.update_status("העיבוד הושלם בהצלחה!")
             return True
         except FileNotFoundError as fnf_err:
             user_message = f"Error: A required file was not found. Path: {fnf_err.filename}. Details: {fnf_err.strerror}"
@@ -579,4 +579,4 @@ class ProcessingManager:
     def cancel(self):
         """Signals that the current processing should be cancelled."""
         self.is_cancelled = True
-        self.update_status("Cancellation request received.")
+        self.update_status("בקשה לביטול התקבלה.")

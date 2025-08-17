@@ -402,7 +402,7 @@ class EnergyRatingParser:
                     data_for_zone['cooling_per_area'] = cooling / total_area_group
                     data_for_zone['total_per_area'] = data_for_zone['total'] / total_area_group
                 else:
-                    logger.warning(f"Total area for grouping related to '{full_zone_id_key}' is {total_area_group}. Per-area values will be set to absolute energy values (or 0 if energy is 0).")
+                    logger.debug(f"Total area for grouping related to '{full_zone_id_key}' is {total_area_group}. Per-area values will be set to absolute energy values (or 0 if energy is 0).")
                     data_for_zone['lighting_per_area'] = lighting
                     data_for_zone['heating_per_area'] = heating
                     data_for_zone['cooling_per_area'] = cooling
@@ -575,7 +575,7 @@ class EnergyRatingParser:
                             val_cooling = abs_cooling / current_zone_floor_area
                             val_total = (abs_lighting + abs_heating + abs_cooling) / current_zone_floor_area
                         else:
-                            logger.warning(f"Office ISO: Individual zone area is 0 for zone '{full_zone_id_key}'. Energy values will be absolute.")
+                            logger.debug(f"Office ISO: Individual zone area is 0 for zone '{full_zone_id_key}'. Energy values will be absolute.")
                             val_lighting = abs_lighting
                             val_heating = abs_heating
                             val_cooling = abs_cooling
