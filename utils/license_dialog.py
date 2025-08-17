@@ -21,7 +21,6 @@ class LicenseDialog:
         # UI Components
         self.serial_key_field = None
         self.status_text = None
-        self.feature_list = None
         self.activate_button = None
         self.deactivate_button = None
         
@@ -40,8 +39,8 @@ class LicenseDialog:
                 modal=True,
                 title=ft.Container(
                     content=ft.Row([
-                        ft.Text("ניהול רישיונות", size=24, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.RIGHT, rtl=True),
                         ft.Icon(ft.Icons.SECURITY, size=28, color=ft.Colors.BLUE_600),
+                        ft.Text("ניהול רישיונות", size=24, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.RIGHT, rtl=True),
                     ], spacing=10, alignment=ft.MainAxisAlignment.CENTER, rtl=True),
                     padding=ft.padding.only(bottom=15)
                 ),
@@ -53,19 +52,21 @@ class LicenseDialog:
                 ),
                 actions=[
                     ft.Container(
-                        content=ft.ElevatedButton(
-                            "סגור",
-                            icon=ft.Icons.CLOSE,
-                            on_click=self._close_dialog,
-                            style=ft.ButtonStyle(
-                                bgcolor=ft.Colors.GREY_600,
-                                color=ft.Colors.WHITE,
-                                elevation=2,
-                                padding=ft.padding.symmetric(horizontal=20, vertical=10),
-                                shape=ft.RoundedRectangleBorder(radius=8)
-                            ),
-                            height=40
-                        ),
+                        content=ft.Row([
+                            ft.ElevatedButton(
+                                "סגור",
+                                icon=ft.Icons.CLOSE,
+                                on_click=self._close_dialog,
+                                style=ft.ButtonStyle(
+                                    bgcolor=ft.Colors.GREY_600,
+                                    color=ft.Colors.WHITE,
+                                    elevation=2,
+                                    padding=ft.padding.symmetric(horizontal=20, vertical=10),
+                                    shape=ft.RoundedRectangleBorder(radius=8)
+                                ),
+                                height=40
+                            )
+                        ], alignment=ft.MainAxisAlignment.CENTER, rtl=True),
                         padding=ft.padding.all(10)
                     ),
                 ],
@@ -122,24 +123,18 @@ class LicenseDialog:
                         content=ft.Row([
                             ft.Icon(ft.Icons.INFO_OUTLINE, size=20, color=ft.Colors.BLUE_600),
                             ft.Text("סטטוס רישיון נוכחי", size=18, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.RIGHT, rtl=True),
-                        ], spacing=8, alignment=ft.MainAxisAlignment.CENTER, rtl=True),
+                        ], spacing=8, alignment=ft.alignment.center, rtl=True),
                         margin=ft.margin.only(bottom=10)
                     ),
                     ft.Container(
                         content=self.status_text,
                         padding=ft.padding.symmetric(vertical=8, horizontal=12),
                         bgcolor=ft.Colors.BLUE_50,
+                        alignment=ft.alignment.center,
+                        rtl=True,
                         border_radius=8,
                         margin=ft.margin.only(bottom=15)
-                    ),
-                    ft.Container(
-                        content=ft.Row([
-                            ft.Icon(ft.Icons.STAR_OUTLINE, size=18, color=ft.Colors.ORANGE_600),
-                            ft.Text("תכונות זמינות:", size=16, weight=ft.FontWeight.W_600, text_align=ft.TextAlign.RIGHT, rtl=True),
-                        ], spacing=6, alignment=ft.MainAxisAlignment.CENTER, rtl=True),
-                        margin=ft.margin.only(bottom=10)
-                    ),
-                    self._create_feature_list()
+                    )
                 ], spacing=5),
                 padding=20,
                 border_radius=12
@@ -230,18 +225,8 @@ class LicenseDialog:
                         content=ft.Row([
                             ft.Icon(ft.Icons.SETTINGS, size=20, color=ft.Colors.GREEN_600),
                             ft.Text("הפעלת רישיון", size=18, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.RIGHT, rtl=True),
-                        ], spacing=8, alignment=ft.MainAxisAlignment.CENTER, rtl=True),
+                        ], spacing=8, alignment=ft.alignment.center, rtl=True),
                         margin=ft.margin.only(bottom=8)
-                    ),
-                    ft.Container(
-                        content=ft.Text(
-                            "הזן מפתח רישיון לקבלת גישה מלאה לכל התכונות",
-                            size=14,
-                            color=ft.Colors.GREY_700,
-                            text_align=ft.TextAlign.RIGHT,
-                            rtl=True
-                        ),
-                        margin=ft.margin.only(bottom=15)
                     ),
                     ft.Container(
                         content=ft.Column([
@@ -256,9 +241,9 @@ class LicenseDialog:
                     ),
                     ft.Container(
                         content=ft.Row([
-                            self.deactivate_button,
-                            self.activate_button
-                        ], alignment=ft.MainAxisAlignment.SPACE_EVENLY, rtl=True),
+                            self.activate_button,
+                            self.deactivate_button
+                        ], alignment=ft.MainAxisAlignment.SPACE_EVENLY),
                         margin=ft.margin.only(top=10)
                     ),
                 ], spacing=5),
@@ -447,9 +432,9 @@ class LicenseDialog:
                 modal=True,
                 title=ft.Container(
                     content=ft.Row([
-                        ft.Icon(ft.Icons.WARNING, size=28, color=ft.Colors.RED_600),
                         ft.Text("אישור ביטול רישיון", size=20, weight=ft.FontWeight.BOLD, rtl=True),
-                    ], spacing=10, alignment=ft.MainAxisAlignment.CENTER, rtl=True),
+                        ft.Icon(ft.Icons.WARNING, size=28, color=ft.Colors.RED_600),
+                    ], spacing=10, alignment=ft.alignment.center, rtl=True),
                     padding=ft.padding.only(bottom=15)
                 ),
                 content=ft.Container(
@@ -484,19 +469,6 @@ class LicenseDialog:
                     ft.Container(
                         content=ft.Row([
                             ft.ElevatedButton(
-                                "אשר ביטול",
-                                icon=ft.Icons.DELETE_FOREVER,
-                                on_click=confirm_deactivate,
-                                style=ft.ButtonStyle(
-                                    bgcolor=ft.Colors.RED_600,
-                                    color=ft.Colors.WHITE,
-                                    elevation=2,
-                                    padding=ft.padding.symmetric(horizontal=20, vertical=10),
-                                    shape=ft.RoundedRectangleBorder(radius=8)
-                                ),
-                                height=40
-                            ),
-                            ft.ElevatedButton(
                                 "בטל",
                                 icon=ft.Icons.CANCEL,
                                 on_click=lambda _: setattr(confirm_dialog, 'open', False) or self.page.update(),
@@ -509,11 +481,24 @@ class LicenseDialog:
                                 ),
                                 height=40
                             ),
-                        ], alignment=ft.MainAxisAlignment.SPACE_EVENLY, rtl=True),
+                            ft.ElevatedButton(
+                                "אשר ביטול",
+                                icon=ft.Icons.DELETE_FOREVER,
+                                on_click=confirm_deactivate,
+                                style=ft.ButtonStyle(
+                                    bgcolor=ft.Colors.RED_600,
+                                    color=ft.Colors.WHITE,
+                                    elevation=2,
+                                    padding=ft.padding.symmetric(horizontal=20, vertical=10),
+                                    shape=ft.RoundedRectangleBorder(radius=8)
+                                ),
+                                height=40
+                            ),
+                        ], alignment=ft.MainAxisAlignment.SPACE_EVENLY),
                         padding=ft.padding.all(10)
                     )
                 ],
-                actions_alignment=ft.MainAxisAlignment.CENTER,
+                actions_alignment=ft.alignment.center,
                 content_padding=ft.padding.all(20),
                 title_padding=ft.padding.all(20),
             )
@@ -533,7 +518,16 @@ class LicenseDialog:
             
             # Update status text
             if status["status"] == LicenseManager.STATUS_VALID:
-                license_type = status.get("type", "לא ידוע")
+                license_type_en = status.get("type", "לא ידוע")
+                
+                # Translate license type to Hebrew
+                license_type_map = {
+                    "professional": "מקצועי",
+                    "enterprise": "ארגוני",
+                    "free": "חינמי"
+                }
+                license_type = license_type_map.get(license_type_en, license_type_en)
+                
                 expires = status.get("expires")
                 
                 if expires:
@@ -555,8 +549,6 @@ class LicenseDialog:
                 self.status_text.value = "אין רישיון - מצב חינמי מוגבל"
                 self.status_text.color = ft.Colors.BLUE_500
             
-            # Update feature list
-            self._update_feature_list(status)
             
             # Update buttons
             if hasattr(self, 'deactivate_button') and self.deactivate_button:
@@ -760,9 +752,9 @@ class LicenseDialog:
                 modal=True,
                 title=ft.Container(
                     content=ft.Row([
-                        ft.Icon(ft.Icons.CHECK_CIRCLE, size=32, color=ft.Colors.GREEN_600),
                         ft.Text("רישיון הופעל בהצלחה!", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_600, rtl=True),
-                    ], spacing=12, alignment=ft.MainAxisAlignment.CENTER, rtl=True),
+                        ft.Icon(ft.Icons.CHECK_CIRCLE, size=32, color=ft.Colors.GREEN_600),
+                    ], spacing=12, alignment=ft.alignment.center, rtl=True),
                     padding=ft.padding.only(bottom=20)
                 ),
                 content=ft.Container(
@@ -826,11 +818,11 @@ class LicenseDialog:
                     ft.Container(
                         content=ft.Row([
                             ft.ElevatedButton(
-                                "רענן ממשק",
-                                icon=ft.Icons.REFRESH,
-                                on_click=refresh_ui,
+                                "אתחל מחדש",
+                                icon=ft.Icons.RESTART_ALT,
+                                on_click=restart_app,
                                 style=ft.ButtonStyle(
-                                    bgcolor=ft.Colors.BLUE_600,
+                                    bgcolor=ft.Colors.ORANGE_600,
                                     color=ft.Colors.WHITE,
                                     elevation=2,
                                     padding=ft.padding.symmetric(horizontal=24, vertical=12),
@@ -839,11 +831,11 @@ class LicenseDialog:
                                 height=45
                             ),
                             ft.ElevatedButton(
-                                "אתחל מחדש",
-                                icon=ft.Icons.RESTART_ALT,
-                                on_click=restart_app,
+                                "רענן ממשק",
+                                icon=ft.Icons.REFRESH,
+                                on_click=refresh_ui,
                                 style=ft.ButtonStyle(
-                                    bgcolor=ft.Colors.ORANGE_600,
+                                    bgcolor=ft.Colors.BLUE_600,
                                     color=ft.Colors.WHITE,
                                     elevation=2,
                                     padding=ft.padding.symmetric(horizontal=24, vertical=12),
@@ -950,8 +942,8 @@ def show_trial_expired_dialog(page: ft.Page, on_license_activated: Optional[Call
         modal=True,
         title=ft.Container(
             content=ft.Row([
-                ft.Icon(ft.Icons.WARNING_AMBER, size=28, color=ft.Colors.ORANGE_600),
                 ft.Text("תקופת הניסיון הסתיימה", size=24, weight=ft.FontWeight.BOLD, rtl=True),
+                ft.Icon(ft.Icons.WARNING_AMBER, size=28, color=ft.Colors.ORANGE_600),
             ], spacing=10, alignment=ft.MainAxisAlignment.CENTER, rtl=True),
             padding=ft.padding.only(bottom=15)
         ),
@@ -978,46 +970,6 @@ def show_trial_expired_dialog(page: ft.Page, on_license_activated: Optional[Call
                                 rtl=True
                             ),
                             margin=ft.margin.only(bottom=20)
-                        ),
-                        ft.Container(
-                            content=ft.Column([
-                                ft.Container(
-                                    content=ft.Row([
-                                        ft.Icon(ft.Icons.STAR_OUTLINE, size=18, color=ft.Colors.ORANGE_600),
-                                        ft.Text("תכונות זמינות במצב חינמי:", size=16, weight=ft.FontWeight.BOLD, rtl=True),
-                                    ], spacing=8, rtl=True),
-                                    margin=ft.margin.only(bottom=10)
-                                ),
-                                ft.Container(
-                                    content=ft.Column([
-                                        ft.Container(
-                                            content=ft.Row([
-                                                ft.Text("●", size=12, color=ft.Colors.GREEN_600),
-                                                ft.Text("עד 3 קבצי IDF ביום", size=13, color=ft.Colors.GREY_700, rtl=True)
-                                            ], spacing=8, rtl=True),
-                                            padding=ft.padding.symmetric(vertical=3)
-                                        ),
-                                        ft.Container(
-                                            content=ft.Row([
-                                                ft.Text("●", size=12, color=ft.Colors.GREEN_600),
-                                                ft.Text("דוחות בסיסיים", size=13, color=ft.Colors.GREY_700, rtl=True)
-                                            ], spacing=8, rtl=True),
-                                            padding=ft.padding.symmetric(vertical=3)
-                                        ),
-                                        ft.Container(
-                                            content=ft.Row([
-                                                ft.Text("●", size=12, color=ft.Colors.GREEN_600),
-                                                ft.Text("נתוני מזג אוויר ישראליים", size=13, color=ft.Colors.GREY_700, rtl=True)
-                                            ], spacing=8, rtl=True),
-                                            padding=ft.padding.symmetric(vertical=3)
-                                        ),
-                                    ], spacing=2),
-                                    bgcolor=ft.Colors.GREY_50,
-                                    border_radius=8,
-                                    padding=ft.padding.all(12),
-                                    border=ft.border.all(1, ft.Colors.GREY_200)
-                                )
-                            ], spacing=5)
                         )
                     ], spacing=5),
                     padding=20,
@@ -1058,7 +1010,7 @@ def show_trial_expired_dialog(page: ft.Page, on_license_activated: Optional[Call
                         ),
                         height=40
                     ),
-                ], alignment=ft.MainAxisAlignment.SPACE_EVENLY, rtl=True),
+                ], alignment=ft.MainAxisAlignment.SPACE_EVENLY),
                 padding=ft.padding.all(10)
             )
         ],

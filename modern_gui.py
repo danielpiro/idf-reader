@@ -39,6 +39,20 @@ class ModernIDFProcessorGUI:
         self.city_area_name = ""
         self.city_area_code = ""
         
+        # Consultant data
+        self.consultant_company = ""
+        self.consultant_engineer = ""
+        self.consultant_phone = ""
+        self.consultant_email = ""
+        self.tester_company = ""
+        self.tester_engineer = ""
+        self.tester_phone = ""
+        self.tester_email = ""
+        
+        # Optional project fields
+        self.project_gush = ""
+        self.project_helka = ""
+        
         # Update manager
         self.update_manager = UpdateManager(status_callback=self.show_status)
         self.update_dialog = None
@@ -110,17 +124,97 @@ class ModernIDFProcessorGUI:
             logger.error(f"Error loading city data: {e}")
         return cities_data
 
+    def _get_default_input_file(self):
+        """Get default input file path."""
+        # Try to find a test file in the project
+        test_file = os.path.join('tests', 'in.idf')
+        if os.path.exists(test_file):
+            return os.path.abspath(test_file)
+        return ''
+
+    def _get_default_energyplus_dir(self):
+        """Get default EnergyPlus directory."""
+        # Common EnergyPlus installation paths
+        common_paths = [
+            'C:/EnergyPlusV9-4-0',
+            'C:/EnergyPlusV22-2-0',
+            'C:/EnergyPlusV23-1-0',
+            'C:/EnergyPlusV24-1-0',
+            'C:/Program Files/EnergyPlusV9-4-0',
+            'C:/Program Files/EnergyPlusV22-2-0',
+            'C:/Program Files/EnergyPlusV23-1-0',
+            'C:/Program Files/EnergyPlusV24-1-0'
+        ]
+        
+        for path in common_paths:
+            if os.path.exists(path):
+                return path
+        return ''
+
+    def _get_default_output_dir(self):
+        """Get default output directory."""
+        # Use user's Documents folder or Desktop as default
+        try:
+            # Try Documents folder first
+            documents = os.path.expanduser('~/Documents')
+            if os.path.exists(documents):
+                return documents
+            
+            # Fall back to Desktop
+            desktop = os.path.expanduser('~/Desktop')
+            if os.path.exists(desktop):
+                return desktop
+                
+            # Last resort - current directory
+            return os.getcwd()
+        except Exception:
+            return os.getcwd()
+
     def load_settings(self):
         """Load saved settings from JSON file."""
         try:
+            # Set default values first
+            self.input_file = self._get_default_input_file()
+            self.energyplus_dir = self._get_default_energyplus_dir()
+            self.output_dir = self._get_default_output_dir()
+            self.selected_city = ''
+            self.selected_iso = ''
+            
             if os.path.exists(self.settings_file):
                 with open(self.settings_file, 'r', encoding='utf-8') as f:
                     settings = json.load(f)
-                self.input_file = settings.get('last_input', '')
-                self.energyplus_dir = settings.get('last_eplus_dir', '')
-                self.output_dir = settings.get('last_output', '')
+                
+                # Load paths, but validate they exist
+                input_path = settings.get('last_input', '')
+                if input_path and os.path.exists(input_path):
+                    self.input_file = input_path
+                
+                eplus_path = settings.get('last_eplus_dir', '')
+                if eplus_path and os.path.exists(eplus_path):
+                    self.energyplus_dir = eplus_path
+                
+                output_path = settings.get('last_output', '')
+                if output_path and os.path.exists(output_path):
+                    self.output_dir = output_path
+                
                 self.selected_city = settings.get('last_city', '')
                 self.selected_iso = settings.get('last_iso_type', '')
+                
+                # Load consultant data
+                consultant_data = settings.get('consultant_data', {})
+                self.consultant_company = consultant_data.get('consultant_company', '')
+                self.consultant_engineer = consultant_data.get('consultant_engineer', '')
+                self.consultant_phone = consultant_data.get('consultant_phone', '')
+                self.consultant_email = consultant_data.get('consultant_email', '')
+                self.tester_company = consultant_data.get('tester_company', '')
+                self.tester_engineer = consultant_data.get('tester_engineer', '')
+                self.tester_phone = consultant_data.get('tester_phone', '')
+                self.tester_email = consultant_data.get('tester_email', '')
+                
+                # Load optional project fields
+                project_data = settings.get('project_data', {})
+                self.project_gush = project_data.get('project_gush', '')
+                self.project_helka = project_data.get('project_helka', '')
                 
                 # Load window settings
                 self.window_settings = settings.get('window', {
@@ -172,6 +266,20 @@ class ModernIDFProcessorGUI:
                 'last_output': self.output_dir,
                 'last_city': self.selected_city,
                 'last_iso_type': self.selected_iso,
+                'consultant_data': {
+                    'consultant_company': self.consultant_company,
+                    'consultant_engineer': self.consultant_engineer,
+                    'consultant_phone': self.consultant_phone,
+                    'consultant_email': self.consultant_email,
+                    'tester_company': self.tester_company,
+                    'tester_engineer': self.tester_engineer,
+                    'tester_phone': self.tester_phone,
+                    'tester_email': self.tester_email
+                },
+                'project_data': {
+                    'project_gush': self.project_gush,
+                    'project_helka': self.project_helka
+                },
                 'window': window_settings
             }
             with open(self.settings_file, 'w', encoding='utf-8') as f:
@@ -566,6 +674,185 @@ class ModernIDFProcessorGUI:
         
         if self.page:
             self.page.update()
+
+    def create_consultant_section(self):
+        """Create consultant data input section."""
+        
+        def on_consultant_field_change(field_name):
+            def handler(e):
+                setattr(self, field_name, e.control.value)
+                self._debounced_save_settings()
+            return handler
+        
+        # Thermal Consultant fields
+        consultant_company_field = ft.TextField(
+            label="חברה",
+            value=self.consultant_company,
+            on_change=on_consultant_field_change('consultant_company'),
+            text_align=ft.TextAlign.RIGHT,
+            rtl=True,
+            border_radius=8,
+            filled=True,
+            expand=True
+        )
+        
+        consultant_engineer_field = ft.TextField(
+            label="מהנדס אחראי",
+            value=self.consultant_engineer,
+            on_change=on_consultant_field_change('consultant_engineer'),
+            text_align=ft.TextAlign.RIGHT,
+            rtl=True,
+            border_radius=8,
+            filled=True,
+            expand=True
+        )
+        
+        consultant_phone_field = ft.TextField(
+            label="טלפון",
+            value=self.consultant_phone,
+            on_change=on_consultant_field_change('consultant_phone'),
+            text_align=ft.TextAlign.LEFT,
+            rtl=False,
+            border_radius=8,
+            filled=True,
+            expand=True
+        )
+        
+        consultant_email_field = ft.TextField(
+            label="דוא\"ל",
+            value=self.consultant_email,
+            on_change=on_consultant_field_change('consultant_email'),
+            text_align=ft.TextAlign.LEFT,
+            rtl=False,
+            border_radius=8,
+            filled=True,
+            expand=True
+        )
+        
+        # Thermal Tester fields
+        tester_company_field = ft.TextField(
+            label="חברה",
+            value=self.tester_company,
+            on_change=on_consultant_field_change('tester_company'),
+            text_align=ft.TextAlign.RIGHT,
+            rtl=True,
+            border_radius=8,
+            filled=True,
+            expand=True
+        )
+        
+        tester_engineer_field = ft.TextField(
+            label="בודק מוסמך",
+            value=self.tester_engineer,
+            on_change=on_consultant_field_change('tester_engineer'),
+            text_align=ft.TextAlign.RIGHT,
+            rtl=True,
+            border_radius=8,
+            filled=True,
+            expand=True
+        )
+        
+        tester_phone_field = ft.TextField(
+            label="טלפון",
+            value=self.tester_phone,
+            on_change=on_consultant_field_change('tester_phone'),
+            text_align=ft.TextAlign.LEFT,
+            rtl=False,
+            border_radius=8,
+            filled=True,
+            expand=True
+        )
+        
+        tester_email_field = ft.TextField(
+            label="דוא\"ל",
+            value=self.tester_email,
+            on_change=on_consultant_field_change('tester_email'),
+            text_align=ft.TextAlign.LEFT,
+            rtl=False,
+            border_radius=8,
+            filled=True,
+            expand=True
+        )
+        
+        # Create expandable sections
+        consultant_section_content = ft.ExpansionTile(
+            title=ft.Text("יועץ תרמי מוסמך", weight=ft.FontWeight.BOLD, rtl=True),
+            subtitle=ft.Text("פרטי היועץ יוצגו בדוח (אופציונלי)", size=12, color=ft.Colors.GREY_600, rtl=True),
+            initially_expanded=False,
+            controls=[
+                ft.Container(
+                    content=ft.Column([
+                        ft.Row([consultant_company_field, consultant_engineer_field], spacing=10),
+                        ft.Row([consultant_phone_field, consultant_email_field], spacing=10)
+                    ], spacing=10),
+                    padding=ft.padding.all(10)
+                )
+            ]
+        )
+        
+        tester_section_content = ft.ExpansionTile(
+            title=ft.Text("בודק תרמי מוסמך", weight=ft.FontWeight.BOLD, rtl=True),
+            subtitle=ft.Text("פרטי הבודק יוצגו בדוח (אופציונלי)", size=12, color=ft.Colors.GREY_600, rtl=True),
+            initially_expanded=False,
+            controls=[
+                ft.Container(
+                    content=ft.Column([
+                        ft.Row([tester_company_field, tester_engineer_field], spacing=10),
+                        ft.Row([tester_phone_field, tester_email_field], spacing=10)
+                    ], spacing=10),
+                    padding=ft.padding.all(10)
+                )
+            ]
+        )
+        
+        # Optional project fields
+        project_gush_field = ft.TextField(
+            label="גוש (אופציונלי)",
+            value=self.project_gush,
+            on_change=on_consultant_field_change('project_gush'),
+            text_align=ft.TextAlign.RIGHT,
+            rtl=True,
+            border_radius=8,
+            filled=True,
+            expand=True
+        )
+        
+        project_helka_field = ft.TextField(
+            label="חלקה (אופציונלי)",
+            value=self.project_helka,
+            on_change=on_consultant_field_change('project_helka'),
+            text_align=ft.TextAlign.RIGHT,
+            rtl=True,
+            border_radius=8,
+            filled=True,
+            expand=True
+        )
+        
+        # Create project section
+        project_section_content = ft.ExpansionTile(
+            title=ft.Text("פרטי פרויקט נוספים", weight=ft.FontWeight.BOLD, rtl=True),
+            subtitle=ft.Text("פרטים נוספים לדוח (אופציונלי)", size=12, color=ft.Colors.GREY_600, rtl=True),
+            initially_expanded=False,
+            controls=[
+                ft.Container(
+                    content=ft.Row([project_gush_field, project_helka_field], spacing=10),
+                    padding=ft.padding.all(10)
+                )
+            ]
+        )
+        
+        return ft.Card(
+            content=ft.Container(
+                content=ft.Column([
+                    ft.Text("נתוני הצוות המקצועי", size=18, weight=ft.FontWeight.BOLD, rtl=True, text_align=ft.TextAlign.RIGHT),
+                    consultant_section_content,
+                    tester_section_content,
+                    project_section_content
+                ], spacing=8, scroll=ft.ScrollMode.AUTO, tight=True),
+                padding=15
+            ),
+            elevation=2
+        )
 
     def create_iso_dropdown(self):
         """Create modern ISO type dropdown with disabled options."""
@@ -1031,6 +1318,20 @@ class ModernIDFProcessorGUI:
                 'city': self.selected_city,
                 'area_name': self.city_area_name,
                 'area_code': self.city_area_code,
+            }
+            
+            # Set consultant data
+            self.processing_manager.consultant_data = {
+                'consultant_company': self.consultant_company,
+                'consultant_engineer': self.consultant_engineer,
+                'consultant_phone': self.consultant_phone,
+                'consultant_email': self.consultant_email,
+                'tester_company': self.tester_company,
+                'tester_engineer': self.tester_engineer,
+                'tester_phone': self.tester_phone,
+                'tester_email': self.tester_email,
+                'project_gush': self.project_gush,
+                'project_helka': self.project_helka,
                 'iso_type': self.selected_iso
             }
             
@@ -1470,7 +1771,7 @@ class ModernIDFProcessorGUI:
                     output_row
                 ], spacing=15),
                 padding=20,
-                height=300  # Fixed height for consistency
+                height=260  # Consistent section height
             ),
             elevation=2
         )
@@ -1492,10 +1793,10 @@ class ModernIDFProcessorGUI:
                     ft.Text("הגדרת ניתוח", size=20, weight=ft.FontWeight.BOLD, rtl=True, text_align=ft.TextAlign.RIGHT),
                     city_autocomplete_container,
                     self.iso_dropdown,
-                    ft.Container(height=30)  # Spacer to match file section height
+                    ft.Container(height=50)  # Better spacing
                 ], spacing=15),
                 padding=20,
-                height=300  # Fixed height for consistency
+                height=260  # Consistent section height
             ),
             elevation=2
         )
@@ -1527,10 +1828,10 @@ class ModernIDFProcessorGUI:
                         ft.Text("עיבוד IDF ודוחות", size=14, weight=ft.FontWeight.W_500, rtl=True, text_align=ft.TextAlign.RIGHT),
                         self.reports_progress
                     ], spacing=5),
-                    ft.Container(height=80)  # Larger spacer for consistent height
+                    ft.Container(height=80)  # Better spacing
                 ], spacing=15),
                 padding=20,
-                height=300  # Same height as other cards
+                height=280  # Slightly taller for balance
             ),
             elevation=2
         )
@@ -1551,11 +1852,11 @@ class ModernIDFProcessorGUI:
                         border=ft.border.all(1, ft.Colors.OUTLINE_VARIANT),
                         border_radius=8,
                         padding=10,
-                        height=230  # Adjusted for 300px total card height
+                        height=520  # Taller status area
                     )
                 ], spacing=15),
                 padding=20,
-                height=300  # Same height as other cards
+                height=580  # Tall for logs
             ),
             elevation=2
         )
@@ -1597,26 +1898,40 @@ class ModernIDFProcessorGUI:
             margin=ft.margin.symmetric(vertical=10)
         )
         
-        # Layout
+        # Create consultant data section
+        consultant_section = self.create_consultant_section()
+        
+        # Clean 3-column layout for better organization
         left_column = ft.Column([
             file_section,
             config_section
-        ], spacing=20, expand=True)
+        ], spacing=20, scroll=ft.ScrollMode.AUTO, expand=True)
+        
+        middle_column = ft.Column([
+            consultant_section,
+            progress_section
+        ], spacing=20, scroll=ft.ScrollMode.AUTO, expand=True)
         
         right_column = ft.Column([
-            progress_section,
             status_section
-        ], spacing=20, expand=True)
+        ], spacing=20, scroll=ft.ScrollMode.AUTO, expand=True)
         
-        main_content = ft.Row([
-            left_column,
-            right_column
-        ], spacing=20, expand=True)
+        main_content = ft.Container(
+            content=ft.Row([
+                left_column,
+                middle_column,
+                right_column
+            ], spacing=15, expand=True),
+            expand=True
+        )
         
-        # Add everything to page
+        # Add everything to page with scrollable main area
         page.add(
             header,
-            main_content,
+            ft.Container(
+                content=main_content,
+                expand=True
+            ),
             button_section
         )
         
@@ -1848,9 +2163,17 @@ class ModernIDFProcessorGUI:
             
             if is_valid and license_type != license_manager.LICENSE_FREE:
                 # Valid paid license
+                # Translate license type to Hebrew
+                license_type_map = {
+                    "professional": "מקצועי",
+                    "enterprise": "ארגוני",
+                    "free": "חינמי"
+                }
+                license_type_hebrew = license_type_map.get(license_type, license_type)
+                
                 icon = ft.Icons.VPN_KEY
                 color = ft.Colors.GREEN_600
-                tooltip = f"רישיון {license_type} פעיל"
+                tooltip = f"רישיון {license_type_hebrew} פעיל"
             else:
                 # Free tier or expired
                 icon = ft.Icons.VPN_KEY_OFF

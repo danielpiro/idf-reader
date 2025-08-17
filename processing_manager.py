@@ -49,6 +49,7 @@ class ProcessingManager:
         self.is_cancelled = False
         self.simulation_output_csv = simulation_output_csv
         self.city_info = {}
+        self.consultant_data = {}
 
     def update_status(self, message: str) -> None:
         """Sends a status update message via the callback."""
@@ -435,7 +436,8 @@ class ProcessingManager:
                     selected_city_name=actual_selected_city_name,
                     project_name=project_name,
                     run_id=run_id,
-                    area_name=area_name_for_reports
+                    area_name=area_name_for_reports,
+                    consultant_data=self.consultant_data
                 )
                 # The output_filename is relative to output_dir in the generator
                 success_er = energy_rating_gen.generate_report(output_filename=os.path.basename(report_paths["energy_rating"]))

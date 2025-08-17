@@ -1,14 +1,28 @@
 {
     "last_input": "C:\\Users\\daniel\\Desktop\\idf-reader\\tests\\in.idf",
-    "last_eplus_dir": "C:\\EnergyPlusV9-4-0",
-    "last_output": "C:\\Users\\daniel\\Desktop",
+    "last_eplus_dir": "C:/EnergyPlusV9-4-0",
+    "last_output": "C:\\Users\\daniel/Documents",
     "last_city": "בת ים",
     "last_iso_type": "מגורים 2017",
+    "consultant_data": {
+        "consultant_company": "חברה",
+        "consultant_engineer": "אמיר המלשין",
+        "consultant_phone": "111",
+        "consultant_email": "dd@gmail.com",
+        "tester_company": "שדג",
+        "tester_engineer": "שדג",
+        "tester_phone": "גגג",
+        "tester_email": "גגג"
+    },
+    "project_data": {
+        "project_gush": "דג",
+        "project_helka": "22"
+    },
     "window": {
-        "width": 1715.2,
-        "height": 1118.4,
-        "maximized": false,
-        "position_x": 295.2,
-        "position_y": 0.0
+        "width": 2062.4,
+        "height": 1126.4,
+        "maximized": true,
+        "position_x": -7.2,
+        "position_y": -7.2
     }
 }

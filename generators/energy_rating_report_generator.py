@@ -924,7 +924,7 @@ class EnergyRatingReportGenerator:
     def __init__(self, energy_rating_parser, output_dir="output/reports",
                  model_year: int = None, model_area_definition: str = None,
                  selected_city_name: str = None, project_name: str = "N/A", 
-                 run_id: str = "N/A", area_name: str = "N/A"):
+                 run_id: str = "N/A", area_name: str = "N/A", consultant_data: dict = None):
         self.energy_rating_parser = energy_rating_parser
         self.output_dir = output_dir
         self.model_year = model_year
@@ -933,6 +933,7 @@ class EnergyRatingReportGenerator:
         self.project_name = project_name
         self.run_id = run_id
         self.area_name = area_name
+        self.consultant_data = consultant_data or {}
         self.styles = getSampleStyleSheet()
         self.margin = 1 * cm
         if self.selected_city_name:
@@ -1201,9 +1202,9 @@ class EnergyRatingReportGenerator:
             [encode_hebrew_text(self.selected_city_name or "לא זמין"), encode_hebrew_text("עיר:"),
              iso_value, encode_hebrew_text("תקן להסמכה:")],  # Moved ISO to right section
             [encode_hebrew_text(area_value), encode_hebrew_text("אזור אקלים:"),
-             encode_hebrew_text(""), encode_hebrew_text("גוש:")],  # Area info and גוש
+             encode_hebrew_text(self.consultant_data.get('project_gush', '')), encode_hebrew_text("גוש:")],  # Area info and גוש
             [encode_hebrew_text(calc_result), encode_hebrew_text("תוצאת חישוב:"),
-             encode_hebrew_text(""), encode_hebrew_text("חלקה:")]  # Calculation result and חלקה
+             encode_hebrew_text(self.consultant_data.get('project_helka', '')), encode_hebrew_text("חלקה:")]  # Calculation result and חלקה
         ]
         
         info_table = Table(project_info, colWidths=[4.5*cm, 3*cm, 4.5*cm, 3*cm])
@@ -1295,15 +1296,15 @@ class EnergyRatingReportGenerator:
         )
         elements.append(Paragraph(encode_hebrew_text("פרטי הצוות המקצועי"), section_title_style))
         
-        # TABLE 1: Thermal Consultant
+        # TABLE 1: Thermal Consultant - use dynamic data or defaults
         consultant_data = [
             # Header
             [encode_hebrew_text("יועץ תרמי מוסמך"), ""],
             # Data rows - switched order for Hebrew RTL (value:field)
-            [encode_hebrew_text("חברת ייעוץ תרמי בע\"מ"), encode_hebrew_text("חברה:")],
-            [encode_hebrew_text("אבי כהן, מהנדס מכונות"), encode_hebrew_text("מהנדס אחראי:")],
-            ["03-1234567", encode_hebrew_text("טלפון:")],
-            ["avi.cohen@thermal.co.il", encode_hebrew_text("דוא\"ל:")]
+            [encode_hebrew_text(self.consultant_data.get('consultant_company', 'חברת ייעוץ תרמי בע"מ')), encode_hebrew_text("חברה:")],
+            [encode_hebrew_text(self.consultant_data.get('consultant_engineer', 'אבי כהן, מהנדס מכונות')), encode_hebrew_text("מהנדס אחראי:")],
+            [self.consultant_data.get('consultant_phone', '03-1234567'), encode_hebrew_text("טלפון:")],
+            [self.consultant_data.get('consultant_email', 'avi.cohen@thermal.co.il'), encode_hebrew_text("דוא\"ל:")]
         ]
         
         consultant_table = Table(consultant_data, colWidths=[8*cm, 4*cm])
@@ -1338,15 +1339,15 @@ class EnergyRatingReportGenerator:
         # Add spacing between tables
         elements.append(Spacer(1, 0.3*cm))
         
-        # TABLE 2: Thermal Tester
+        # TABLE 2: Thermal Tester - use dynamic data or defaults
         tester_data = [
             # Header
             [encode_hebrew_text("בודק תרמי מוסמך"), ""],
             # Data rows - switched order for Hebrew RTL (value:field)
-            [encode_hebrew_text("מעבדת בדיקות תרמיות בע\"מ"), encode_hebrew_text("חברה:")],
-            [encode_hebrew_text("שרה לוי, מהנדסת אזרחית"), encode_hebrew_text("בודק מוסמך:")],
-            ["02-9876543", encode_hebrew_text("טלפון:")],
-            ["sara.levy@thermal-lab.co.il", encode_hebrew_text("דוא\"ל:")]
+            [encode_hebrew_text(self.consultant_data.get('tester_company', 'מעבדת בדיקות תרמיות בע"מ')), encode_hebrew_text("חברה:")],
+            [encode_hebrew_text(self.consultant_data.get('tester_engineer', 'שרה לוי, מהנדסת אזרחית')), encode_hebrew_text("בודק מוסמך:")],
+            [self.consultant_data.get('tester_phone', '02-9876543'), encode_hebrew_text("טלפון:")],
+            [self.consultant_data.get('tester_email', 'sara.levy@thermal-lab.co.il'), encode_hebrew_text("דוא\"ל:")]
         ]
         
         tester_table = Table(tester_data, colWidths=[8*cm, 4*cm])
