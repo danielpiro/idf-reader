@@ -37,7 +37,7 @@ def main():
     expiration_date = datetime.now() + timedelta(days=args.days)
     
     print("\n" + "="*60)
-    print("🔑 IDF Reader License Key Generated")
+    print("IDF Reader License Key Generated")
     print("="*60)
     print(f"Serial Key:     {serial_key}")
     print(f"License Type:   {args.type}")
@@ -48,13 +48,13 @@ def main():
     print("="*60)
     
     # Show instructions
-    print("\n📋 Customer Instructions:")
+    print("\nCustomer Instructions:")
     print("1. Download and install IDF Reader")
     print("2. Launch the application")
     print("3. Click the license key icon in the header")
     print("4. Enter the serial key above")
     print("5. Click 'Activate License'")
-    print("\n💡 The customer will need to provide their Machine ID")
+    print("\nThe customer will need to provide their Machine ID")
     print("   for activation if you implement machine binding.")
     
 if __name__ == "__main__":

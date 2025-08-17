@@ -300,8 +300,8 @@ def main():
     """
     try:
         filename = create_nda_pdf()
-        print(f"\n✅ Success! Your complete NDA has been created as: {filename}")
-        print("\n📋 Complete Legal Structure Includes:")
+        print(f"\nSuccess! Your complete NDA has been created as: {filename}")
+        print("\nComplete Legal Structure Includes:")
         print("   • Comprehensive confidentiality definitions")
         print("   • Term and termination provisions")
         print("   • Protection obligations and restrictions")
@@ -317,22 +317,22 @@ def main():
         print("   • Attorney's fees provision")
         print("   • Counterparts clause")
         print("   • Comprehensive signature section")
-        print("\n📝 Pre-configured for:")
+        print("\nPre-configured for:")
         print("   • Investment evaluation purposes")
         print("   • 2-year term with 1-year survival")
         print("   • Israeli jurisdiction")
         print("   • 30-day termination notice")
-        print("\n⚖️  This is now a comprehensive, legally complete NDA")
+        print("\nThis is now a comprehensive, legally complete NDA")
         print("   ready for professional business use.")
         
     except ImportError:
-        print("❌ Error: ReportLab library not found!")
+        print("Error: ReportLab library not found!")
         print("\nTo install ReportLab, run:")
         print("   pip install reportlab")
         print("\nThen run this script again.")
         
     except Exception as e:
-        print(f"❌ Error creating PDF: {str(e)}")
+        print(f"Error creating PDF: {str(e)}")
         print("Please check that you have write permissions in the current directory.")
 
 if __name__ == "__main__":

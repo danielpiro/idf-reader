@@ -275,7 +275,7 @@ class EnergyRatingParser:
                         zone_name_from_header = "LIV"
                     else:
                         full_zone_id_key = f"ENERGY_{floor}_{area_id_from_header}_{zone_name_from_header}"
-                    logger.warning(f"⚠️ No matching zone found for area_id='{area_id_from_header if pattern_used != 'space' else area_zone_id}', zone_name='{zone_name_from_header}'. Using fallback key '{full_zone_id_key}'")
+                    logger.warning(f"No matching zone found for area_id='{area_id_from_header if pattern_used != 'space' else area_zone_id}', zone_name='{zone_name_from_header}'. Using fallback key '{full_zone_id_key}'")
                 zone_keys_found.add(full_zone_id_key)
 
                 if full_zone_id_key not in self.energy_data_by_area:

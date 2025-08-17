@@ -23,14 +23,16 @@ from version import get_version, compare_versions, UPDATE_SERVER_URL, GITHUB_REL
 logger = get_logger(__name__)
 
 class UpdateManager:
-    def __init__(self, status_callback=None):
+    def __init__(self, status_callback=None, update_available_callback=None):
         """
         Initialize the update manager.
         
         Args:
             status_callback: Function to call for status updates
+            update_available_callback: Function to call when update is available
         """
         self.status_callback = status_callback or self._default_status
+        self.update_available_callback = update_available_callback
         self.current_version = get_version()
         self.app_directory = Path(sys.executable).parent if getattr(sys, 'frozen', False) else Path(__file__).parent.parent
         self.update_in_progress = False
@@ -85,7 +87,7 @@ class UpdateManager:
     def check_for_updates_async(self, force=False):
         """Check for updates in background thread."""
         if self.update_in_progress:
-            self.status_callback("בדיקת עדכונים כבר בתהליך...")
+            logger.info("Update check already in progress, skipping")
             return
         
         if not force and not self.should_check_for_updates():
@@ -94,10 +96,15 @@ class UpdateManager:
         
         def check_worker():
             try:
-                self.check_for_updates(force=force)
+                update_info = self.check_for_updates(force=force)
+                if update_info:
+                    logger.info(f"Update found in background check: {update_info.get('version')}")
+                    # Trigger update notification in UI if callback is available
+                    if hasattr(self, 'update_available_callback') and callable(self.update_available_callback):
+                        self.update_available_callback(update_info)
             except Exception as e:
                 logger.error(f"Error in background update check: {e}")
-                self.status_callback(f"שגיאה בבדיקת עדכונים: {e}")
+                # Don't show error status for background checks to avoid disturbing user
         
         thread = threading.Thread(target=check_worker, daemon=True)
         thread.start()
@@ -299,10 +306,18 @@ class UpdateManager:
     def _download_file(self, url, destination):
         """Download a file with progress tracking."""
         try:
+            last_reported_percent = -1  # Track last reported percentage
+            
             def progress_hook(block_num, block_size, total_size):
+                nonlocal last_reported_percent
                 if total_size > 0:
                     percent = min(100, (block_num * block_size * 100) // total_size)
-                    self.status_callback(f"מוריד... {percent}%")
+                    
+                    # Only report progress every 10% to avoid spamming the UI
+                    # Report 100% only once when reached for the first time
+                    if percent >= last_reported_percent + 10 or (percent == 100 and last_reported_percent < 100):
+                        last_reported_percent = percent
+                        self.status_callback(f"מוריד... {percent}%")
             
             urlretrieve(url, destination, reporthook=progress_hook)
             self.status_callback("ההורדה הושלמה")
@@ -311,7 +326,7 @@ class UpdateManager:
             raise Exception(f"כשל בהורדת הקובץ: {e}")
     
     def _install_update(self, update_executable, restart_callback=None):
-        """Install the downloaded update."""
+        """Install the downloaded update using a safe method."""
         try:
             self.status_callback("מתקין עדכון...")
             
@@ -321,22 +336,8 @@ class UpdateManager:
                 current_exe = Path(sys.executable)
                 backup_exe = current_exe.with_suffix('.bak')
                 
-                # Create backup of current executable
-                shutil.copy2(current_exe, backup_exe)
-                self.status_callback("נוצר גיבוי של הגרסה הנוכחית")
-                
-                # Replace current executable
-                shutil.copy2(update_executable, current_exe)
-                self.status_callback("הקובץ החדש הותקן בהצלחה")
-                
-                # Schedule restart
-                if restart_callback:
-                    self.status_callback("העדכון הושלם. נדרש אתחול האפליקציה...")
-                    restart_callback()
-                else:
-                    self._restart_application()
-                
-                return True
+                # Use a safer update method that works with locked files
+                return self._install_executable_update(current_exe, backup_exe, update_executable, restart_callback)
             
             else:
                 # Running as Python script - update source files
@@ -350,6 +351,118 @@ class UpdateManager:
         except Exception as e:
             logger.error(f"Error installing update: {e}")
             self.status_callback(f"שגיאה בהתקנת עדכון: {e}")
+            return False
+    
+    def _install_executable_update(self, current_exe, backup_exe, update_executable, restart_callback):
+        """Install executable update using batch script method to handle file locking."""
+        try:
+            # Create a batch script that will:
+            # 1. Wait for current process to exit
+            # 2. Backup current executable
+            # 3. Replace with new executable  
+            # 4. Start new executable
+            # 5. Clean up batch script
+            
+            batch_script = current_exe.parent / "update_installer.bat"
+            new_exe_temp = current_exe.parent / f"new_{current_exe.name}"
+            
+            # Copy new executable to temporary location
+            shutil.copy2(update_executable, new_exe_temp)
+            self.status_callback("הועתק קובץ עדכון זמני")
+            
+            # Create batch script content
+            batch_content = f'''@echo off
+title IDF Reader Update Installer
+echo Installing IDF Reader update...
+
+REM Wait for main process to exit (PID: {os.getpid()})
+:wait_for_exit
+tasklist /FI "PID eq {os.getpid()}" 2>NUL | find /I /N "{os.getpid()}" >NUL
+if "%ERRORLEVEL%" == "0" (
+    timeout /t 1 /nobreak >NUL
+    goto wait_for_exit
+)
+
+echo Main process exited, proceeding with update...
+
+REM Create backup of current executable
+if exist "{current_exe}" (
+    echo Creating backup...
+    copy "{current_exe}" "{backup_exe}" >NUL
+    if errorlevel 1 (
+        echo ERROR: Failed to create backup
+        pause
+        exit /b 1
+    )
+    echo Backup created successfully
+)
+
+REM Replace executable with new version
+echo Installing new version...
+move "{new_exe_temp}" "{current_exe}" >NUL
+if errorlevel 1 (
+    echo ERROR: Failed to install new version
+    echo Restoring backup...
+    if exist "{backup_exe}" (
+        copy "{backup_exe}" "{current_exe}" >NUL
+    )
+    pause
+    exit /b 1
+)
+
+echo Update installed successfully!
+
+REM Start new version
+echo Starting updated application...
+start "" "{current_exe}"
+
+REM Clean up
+timeout /t 2 /nobreak >NUL
+if exist "{backup_exe}" del "{backup_exe}" >NUL
+
+REM Self-destruct (delete this batch file)
+(goto) 2>nul & del "%~f0"
+'''
+            
+            # Write batch script
+            with open(batch_script, 'w', encoding='utf-8') as f:
+                f.write(batch_content)
+            
+            self.status_callback("נוצר מתקין עדכון")
+            
+            # Start batch script in background
+            subprocess.Popen([str(batch_script)], 
+                           cwd=str(current_exe.parent),
+                           creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
+            
+            self.status_callback("עדכון יותקן לאחר סגירת האפליקציה...")
+            
+            # Schedule application exit
+            if restart_callback:
+                restart_callback()
+            else:
+                # Exit after short delay to allow batch script to start
+                def delayed_exit():
+                    time.sleep(3)
+                    os._exit(0)
+                
+                threading.Thread(target=delayed_exit, daemon=True).start()
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error in executable update: {e}")
+            self.status_callback(f"שגיאה בעדכון קובץ הפעלה: {e}")
+            
+            # Clean up temporary files on error
+            try:
+                if 'new_exe_temp' in locals() and Path(new_exe_temp).exists():
+                    Path(new_exe_temp).unlink()
+                if 'batch_script' in locals() and Path(batch_script).exists():
+                    Path(batch_script).unlink()
+            except:
+                pass
+            
             return False
     
     def _restart_application(self):

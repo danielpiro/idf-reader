@@ -7,7 +7,7 @@ Creates license keys and stores them directly in MongoDB with customer informati
 import sys
 import os
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -133,14 +133,14 @@ Examples:
                     if args.notes: update_data['notes'] = args.notes
                     
                     if update_data:
-                        update_data['updated_at'] = datetime.utcnow()
+                        update_data['updated_at'] = datetime.now(timezone.utc)
                         db.db.customers.update_one(
                             {"_id": customer["_id"]},
                             {"$set": update_data}
                         )
             
             # Calculate expiration date
-            expiration_date = datetime.utcnow() + timedelta(days=args.days)
+            expiration_date = datetime.now(timezone.utc) + timedelta(days=args.days)
             
             license_info = {
                 'serial_key': serial_key,
@@ -153,7 +153,7 @@ Examples:
                 'amount_paid': args.amount,
                 'currency': args.currency,
                 'order_id': order_id,
-                'created_at': datetime.utcnow().strftime('%d/%m/%Y %H:%M:%S')
+                'created_at': datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M:%S')
             }
             
             generated_licenses.append(license_info)
@@ -227,7 +227,7 @@ def output_json_format(licenses, args):
     import json
     
     output_data = {
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "license_count": len(licenses),
         "licenses": licenses
     }

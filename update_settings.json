@@ -1,7 +1,7 @@
 {
-    "auto_check": true,
-    "check_interval_hours": 24,
-    "last_check": 1755333155.039936,
+    "auto_check": false,
+    "check_interval_hours": 12,
+    "last_check": 1755418437.0702398,
     "update_channel": "stable",
     "download_timeout": 300
 }

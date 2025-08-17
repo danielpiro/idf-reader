@@ -79,7 +79,7 @@ def main():
             show_stats(db, args)
             
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f" Error: {e}")
         sys.exit(1)
 
 def add_customer(db, args):
@@ -88,7 +88,7 @@ def add_customer(db, args):
         # Check if customer already exists
         existing = db.get_customer_by_email(args.email)
         if existing:
-            print(f"❌ Customer with email {args.email} already exists")
+            print(f" Customer with email {args.email} already exists")
             return
         
         # Create customer
@@ -101,7 +101,7 @@ def add_customer(db, args):
             notes=args.notes or ''
         )
         
-        print(f"✅ Customer created successfully!")
+        print(f" Customer created successfully!")
         print(f"   Email: {args.email}")
         print(f"   ID: {customer_id}")
         
@@ -113,7 +113,7 @@ def add_customer(db, args):
             print(f"   Phone: {args.phone}")
             
     except Exception as e:
-        print(f"❌ Failed to create customer: {e}")
+        print(f" Failed to create customer: {e}")
 
 def list_customers(db, args):
     """List customers."""
@@ -121,7 +121,7 @@ def list_customers(db, args):
         customers = list(db.db.customers.find().sort("created_at", -1).limit(args.limit))
         
         if not customers:
-            print("📭 No customers found")
+            print(" No customers found")
             return
         
         if args.format == 'json':
@@ -151,14 +151,14 @@ def list_customers(db, args):
             print(f"Total: {len(customers)} customers")
             
     except Exception as e:
-        print(f"❌ Failed to list customers: {e}")
+        print(f" Failed to list customers: {e}")
 
 def view_customer(db, args):
     """View customer details."""
     try:
         customer = db.get_customer_by_email(args.email)
         if not customer:
-            print(f"❌ Customer not found: {args.email}")
+            print(f" Customer not found: {args.email}")
             return
         
         print(f"\n👤 Customer Details:")
@@ -183,7 +183,7 @@ def view_customer(db, args):
             
             if licenses:
                 for license_doc in licenses:
-                    status_icon = "✅" if license_doc["status"] == "active" else "❌"
+                    status_icon = "" if license_doc["status"] == "active" else ""
                     expires = license_doc["expires_at"].strftime('%d/%m/%Y') if license_doc["expires_at"] else "Never"
                     
                     print(f"{status_icon} {license_doc['serial_key']} ({license_doc['license_type']}) - Expires: {expires}")
@@ -193,14 +193,14 @@ def view_customer(db, args):
         print("=" * 60)
         
     except Exception as e:
-        print(f"❌ Failed to view customer: {e}")
+        print(f" Failed to view customer: {e}")
 
 def update_customer(db, args):
     """Update customer information."""
     try:
         customer = db.get_customer_by_email(args.email)
         if not customer:
-            print(f"❌ Customer not found: {args.email}")
+            print(f" Customer not found: {args.email}")
             return
         
         # Prepare update data
@@ -218,7 +218,7 @@ def update_customer(db, args):
             update_data['notes'] = args.notes
         
         if len(update_data) == 1:  # Only updated_at
-            print("❌ No fields to update provided")
+            print(" No fields to update provided")
             return
         
         # Update customer
@@ -228,17 +228,17 @@ def update_customer(db, args):
         )
         
         if result.modified_count > 0:
-            print(f"✅ Customer updated successfully!")
+            print(f" Customer updated successfully!")
             print(f"   Email: {args.email}")
             
             for field, value in update_data.items():
                 if field != 'updated_at':
                     print(f"   {field.title()}: {value}")
         else:
-            print("ℹ️  No changes made")
+            print("  No changes made")
             
     except Exception as e:
-        print(f"❌ Failed to update customer: {e}")
+        print(f" Failed to update customer: {e}")
 
 def search_customers(db, args):
     """Search customers."""
@@ -262,10 +262,10 @@ def search_customers(db, args):
         customers = list(db.db.customers.find(query).sort("created_at", -1))
         
         if not customers:
-            print(f"📭 No customers found matching: {args.query}")
+            print(f" No customers found matching: {args.query}")
             return
         
-        print(f"\n🔍 Search Results for '{args.query}' ({len(customers)} found):")
+        print(f"\n Search Results for '{args.query}' ({len(customers)} found):")
         print("=" * 100)
         print(f"{'Email':<30} {'Name':<20} {'Company':<20} {'Created':<12}")
         print("-" * 100)
@@ -281,7 +281,7 @@ def search_customers(db, args):
         print(f"Total: {len(customers)} customers found")
         
     except Exception as e:
-        print(f"❌ Search failed: {e}")
+        print(f" Search failed: {e}")
 
 def show_stats(db, args):
     """Show customer statistics."""
@@ -318,7 +318,7 @@ def show_stats(db, args):
         ]
         countries = list(db.db.customers.aggregate(countries_pipeline))
         
-        print(f"\n📊 Customer Statistics:")
+        print(f"\n Customer Statistics:")
         print("=" * 50)
         print(f"Total Customers:        {total_customers}")
         print(f"With Licenses:          {customers_with_licenses}")
@@ -341,7 +341,7 @@ def show_stats(db, args):
         print("=" * 50)
         
     except Exception as e:
-        print(f"❌ Failed to get stats: {e}")
+        print(f" Failed to get stats: {e}")
 
 if __name__ == "__main__":
     main()

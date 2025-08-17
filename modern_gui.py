@@ -281,11 +281,11 @@ class ModernIDFProcessorGUI:
             
             # Default colors based on message content
             if bgcolor is None:
-                if any(word in message for word in ["error", "שגיאה", "❌", "נכשל"]):
+                if any(word in message for word in ["error", "שגיאה", "נכשל"]):
                     bgcolor = ft.Colors.RED_500
-                elif any(word in message for word in ["success", "הצלחה", "✅", "הושלם"]):
+                elif any(word in message for word in ["success", "הצלחה", "הושלם"]):
                     bgcolor = ft.Colors.GREEN_500
-                elif any(word in message for word in ["warning", "אזהרה", "⚠️"]):
+                elif any(word in message for word in ["warning", "אזהרה"]):
                     bgcolor = ft.Colors.ORANGE_500
                 else:
                     bgcolor = ft.Colors.BLUE_500
@@ -394,7 +394,7 @@ class ModernIDFProcessorGUI:
         )
         
         city_field = ft.TextField(
-            label="🏙️ עיר",
+            label="עיר",
             hint_text="הקלד שם עיר... (לדוגמה: בת)",
             expand=True,
             border_radius=12,
@@ -403,6 +403,8 @@ class ModernIDFProcessorGUI:
             focused_border_color=ft.Colors.PRIMARY,
             text_align=ft.TextAlign.RIGHT,  # RTL support
             rtl=True,
+            label_style=ft.TextStyle(),
+            hint_style=ft.TextStyle(),
             on_change=self.on_city_change,
             on_focus=self.on_city_focus,
             on_blur=self.on_city_blur
@@ -594,12 +596,13 @@ class ModernIDFProcessorGUI:
             )
         
         dropdown = ft.Dropdown(
-            label="📋 סוג ISO",
+            label="סוג ISO",
             options=options,
             border_radius=12,
             filled=True,
             border_color=ft.Colors.OUTLINE_VARIANT,
             focused_border_color=ft.Colors.PRIMARY,
+            label_style=ft.TextStyle(),
             text_style=ft.TextStyle(size=14),
             # alignment=ft.alignment.center_right,  # RTL alignment - deprecated
             on_change=on_iso_change
@@ -623,7 +626,7 @@ class ModernIDFProcessorGUI:
             # No valid license - show activation message
             logger.info("UPDATE_FORM_VALIDATION: Setting button to activation mode")
             self.process_button.disabled = False  # Keep button clickable
-            self.process_button.text = "🔐 הפעל רישיון - לחץ על מקש הנעילה"
+            self.process_button.text = "הפעל רישיון - לחץ על מקש הנעילה"
             self.process_button.icon = ft.Icons.LOCK
             if self.page:
                 self.page.update()
@@ -757,24 +760,28 @@ class ModernIDFProcessorGUI:
         
         dialog = ft.AlertDialog(
             modal=True,
-            title=ft.Text("הגעת למגבלה היומית", size=20, weight=ft.FontWeight.BOLD),
+            title=ft.Text("הגעת למגבלה היומית", size=20, weight=ft.FontWeight.BOLD, rtl=True, text_align=ft.TextAlign.RIGHT),
             content=ft.Container(
                 content=ft.Column([
                     ft.Text(
                         "הגעת למגבלה של 3 קבצים ביום במצב החינמי.",
-                        size=16
+                        size=16,
+                        rtl=True,
+                        text_align=ft.TextAlign.RIGHT
                     ),
                     ft.Text(
                         "שדרג לרישיון מקצועי לעיבוד ללא הגבלה ותכונות מתקדמות.",
                         size=14,
-                        color=ft.colors.GREY_600
+                        color=ft.colors.GREY_600,
+                        rtl=True,
+                        text_align=ft.TextAlign.RIGHT
                     ),
                     ft.Divider(),
-                    ft.Text("היתרונות של הרישיון המקצועי:", size=14, weight=ft.FontWeight.BOLD),
-                    ft.Text("• עיבוד ללא הגבלה", size=12),
-                    ft.Text("• כל סוגי הדוחות", size=12),
-                    ft.Text("• ייצוא Excel ו-PDF", size=12),
-                    ft.Text("• תמיכה טכנית מועדפת", size=12),
+                    ft.Text("היתרונות של הרישיון המקצועי:", size=14, weight=ft.FontWeight.BOLD, rtl=True, text_align=ft.TextAlign.RIGHT),
+                    ft.Text("• עיבוד ללא הגבלה", size=12, rtl=True, text_align=ft.TextAlign.RIGHT),
+                    ft.Text("• כל סוגי הדוחות", size=12, rtl=True, text_align=ft.TextAlign.RIGHT),
+                    ft.Text("• ייצוא Excel ו-PDF", size=12, rtl=True, text_align=ft.TextAlign.RIGHT),
+                    ft.Text("• תמיכה טכנית מועדפת", size=12, rtl=True, text_align=ft.TextAlign.RIGHT),
                 ]),
                 width=400,
                 height=250
@@ -900,7 +907,7 @@ class ModernIDFProcessorGUI:
                     logger.info("Button forced to licensed state")
                 else:
                     # Keep in activation state
-                    self.process_button.text = "🔐 הפעל רישיון - לחץ על מקש הנעילה"
+                    self.process_button.text = "הפעל רישיון - לחץ על מקש הנעילה"
                     self.process_button.icon = ft.Icons.LOCK
                     logger.info("Button kept in activation state")
                 
@@ -979,7 +986,7 @@ class ModernIDFProcessorGUI:
         
         self.is_processing = True
         self.process_button.disabled = True
-        self.process_button.text = "🔄 מעבד..."
+        self.process_button.text = "מעבד..."
         self.save_settings()
         
         if self.page:
@@ -1267,7 +1274,7 @@ class ModernIDFProcessorGUI:
         self.is_processing = False
         if self.process_button:
             self.process_button.disabled = False
-            self.process_button.text = "🚀 צור דוחות"
+            self.process_button.text = "צור דוחות"
         
         if self.energyplus_progress:
             self.energyplus_progress.value = 0
@@ -1425,19 +1432,19 @@ class ModernIDFProcessorGUI:
         
         # Create file selection section
         input_row, self.input_file_field = self.create_file_picker_field(
-            "📄 קובץ IDF קלט", 
+            "קובץ IDF קלט", 
             "file",
             lambda path: setattr(self, 'input_file', path) or self._debounced_save_settings() or self.update_form_validation()
         )
         
         eplus_row, self.energyplus_dir_field = self.create_file_picker_field(
-            "⚡ תיקיית EnergyPlus",
+            "תיקיית EnergyPlus",
             "folder", 
             lambda path: setattr(self, 'energyplus_dir', path) or self._debounced_save_settings() or self.update_form_validation()
         )
         
         output_row, self.output_dir_field = self.create_file_picker_field(
-            "📂 תיקיית פלט",
+            "תיקיית פלט",
             "folder",
             lambda path: setattr(self, 'output_dir', path) or self._debounced_save_settings() or self.update_form_validation()
         )
@@ -1453,7 +1460,7 @@ class ModernIDFProcessorGUI:
         file_section = ft.Card(
             content=ft.Container(
                 content=ft.Column([
-                    ft.Text("📁 הגדרת קבצים", size=20, weight=ft.FontWeight.BOLD, rtl=True, text_align=ft.TextAlign.RIGHT),
+                    ft.Text("הגדרת קבצים", size=20, weight=ft.FontWeight.BOLD, rtl=True, text_align=ft.TextAlign.RIGHT),
                     input_row,
                     eplus_row,
                     output_row
@@ -1478,7 +1485,7 @@ class ModernIDFProcessorGUI:
         config_section = ft.Card(
             content=ft.Container(
                 content=ft.Column([
-                    ft.Text("⚙️ הגדרת ניתוח", size=20, weight=ft.FontWeight.BOLD, rtl=True, text_align=ft.TextAlign.RIGHT),
+                    ft.Text("הגדרת ניתוח", size=20, weight=ft.FontWeight.BOLD, rtl=True, text_align=ft.TextAlign.RIGHT),
                     city_autocomplete_container,
                     self.iso_dropdown,
                     ft.Container(height=30)  # Spacer to match file section height
@@ -1507,13 +1514,13 @@ class ModernIDFProcessorGUI:
         progress_section = ft.Card(
             content=ft.Container(
                 content=ft.Column([
-                    ft.Text("📊 סטטוס עיבוד", size=20, weight=ft.FontWeight.BOLD, rtl=True, text_align=ft.TextAlign.RIGHT),
+                    ft.Text("סטטוס עיבוד", size=20, weight=ft.FontWeight.BOLD, rtl=True, text_align=ft.TextAlign.RIGHT),
                     ft.Column([
-                        ft.Text("⚡ סימולציית EnergyPlus", size=14, weight=ft.FontWeight.W_500, rtl=True, text_align=ft.TextAlign.RIGHT),
+                        ft.Text("סימולציית EnergyPlus", size=14, weight=ft.FontWeight.W_500, rtl=True, text_align=ft.TextAlign.RIGHT),
                         self.energyplus_progress
                     ], spacing=5),
                     ft.Column([
-                        ft.Text("📋 עיבוד IDF ודוחות", size=14, weight=ft.FontWeight.W_500, rtl=True, text_align=ft.TextAlign.RIGHT),
+                        ft.Text("עיבוד IDF ודוחות", size=14, weight=ft.FontWeight.W_500, rtl=True, text_align=ft.TextAlign.RIGHT),
                         self.reports_progress
                     ], spacing=5),
                     ft.Container(height=80)  # Larger spacer for consistent height
@@ -1534,7 +1541,7 @@ class ModernIDFProcessorGUI:
         status_section = ft.Card(
             content=ft.Container(
                 content=ft.Column([
-                    ft.Text("📋 יומן פעילות", size=20, weight=ft.FontWeight.BOLD, rtl=True, text_align=ft.TextAlign.RIGHT),
+                    ft.Text("יומן פעילות", size=20, weight=ft.FontWeight.BOLD, rtl=True, text_align=ft.TextAlign.RIGHT),
                     ft.Container(
                         content=self.status_text,
                         border=ft.border.all(1, ft.Colors.OUTLINE_VARIANT),
@@ -1551,7 +1558,7 @@ class ModernIDFProcessorGUI:
         
         # Create action button with improved styling
         self.process_button = ft.ElevatedButton(
-            "🚀 צור דוחות",
+            "צור דוחות",
             icon=ft.Icons.ROCKET_LAUNCH,
             height=60,
             width=300,
@@ -1611,7 +1618,7 @@ class ModernIDFProcessorGUI:
         
         # Initial validation and welcome message
         self.update_form_validation()
-        self.show_status(f"🎉 ברוכים הבאים! גרסה {self.current_version} - הגדירו את כל השדות כדי להתחיל בעיבוד.")
+        self.show_status(f"ברוכים הבאים! גרסה {self.current_version} - הגדירו את כל השדות כדי להתחיל בעיבוד.")
         
         # Check for updates automatically if enabled
         if self.update_manager.should_check_for_updates():
@@ -1637,18 +1644,18 @@ class ModernIDFProcessorGUI:
         """Manually check for updates (force check)."""
         def check_worker():
             try:
-                self.show_status("🔍 מתחבר לשרת עדכונים...", "info")
+                self.show_status("מתחבר לשרת עדכונים...", "info")
                 update_info = self.update_manager.check_for_updates(force=True)
                 
                 if update_info:
                     new_version = update_info.get("version", "")
-                    self.show_status(f"✨ נמצא עדכון זמין לגרסה {new_version}!", "success")
+                    self.show_status(f"נמצא עדכון זמין לגרסה {new_version}!", "success")
                     self.show_update_dialog(update_info)
                 else:
-                    self.show_status("✅ האפליקציה מעודכנת לגרסה האחרונה", "success")
+                    self.show_status("האפליקציה מעודכנת לגרסה האחרונה", "success")
             except Exception as e:
                 logger.error(f"Error checking for updates: {e}")
-                self.show_status(f"❌ שגיאה בבדיקת עדכונים: {e}", "error")
+                self.show_status(f"שגיאה בבדיקת עדכונים: {e}", "error")
         
         threading.Thread(target=check_worker, daemon=True).start()
     
@@ -1683,7 +1690,7 @@ class ModernIDFProcessorGUI:
             title=ft.Container(
                 content=ft.Row([
                     ft.Icon(ft.Icons.SYSTEM_UPDATE, size=28, color=ft.Colors.BLUE_600),
-                    ft.Text(f"עדכון זמין - גרסה {new_version}", size=22, weight=ft.FontWeight.BOLD),
+                    ft.Text(f"עדכון זמין - גרסה {new_version}", size=22, weight=ft.FontWeight.BOLD, rtl=True, text_align=ft.TextAlign.RIGHT),
                 ], spacing=10, alignment=ft.MainAxisAlignment.CENTER),
                 padding=ft.padding.only(bottom=15)
             ),
@@ -1694,7 +1701,7 @@ class ModernIDFProcessorGUI:
                             ft.Container(
                                 content=ft.Row([
                                     ft.Icon(ft.Icons.INFO_OUTLINE, size=18, color=ft.Colors.BLUE_600),
-                                    ft.Text("פרטי עדכון", size=16, weight=ft.FontWeight.BOLD),
+                                    ft.Text("פרטי עדכון", size=16, weight=ft.FontWeight.BOLD, rtl=True, text_align=ft.TextAlign.RIGHT),
                                 ], spacing=8),
                                 margin=ft.margin.only(bottom=10)
                             ),
@@ -1869,13 +1876,13 @@ class ModernIDFProcessorGUI:
                 self.show_license_dialog()
                 logger.info("show_license_dialog from main UI completed")
                 self.show_status("חלון רישיונות נפתח", "success")
-                self.show_snackbar("📋 חלון ניהול רישיונות נפתח")
+                self.show_snackbar("חלון ניהול רישיונות נפתח")
             except Exception as ex:
                 logger.error(f"Error opening license dialog: {ex}")
                 import traceback
                 logger.error(traceback.format_exc())
                 self.show_status(f"שגיאה בפתיחת חלון רישיונות: {ex}", "error")
-                self.show_snackbar(f"❌ שגיאה בפתיחת חלון רישיונות")
+                self.show_snackbar(f"שגיאה בפתיחת חלון רישיונות")
         
         button = ft.IconButton(
             icon=icon,
@@ -1934,7 +1941,7 @@ class ModernIDFProcessorGUI:
                     title=ft.Container(
                         content=ft.Row([
                             ft.Icon(ft.Icons.SETTINGS, size=28, color=ft.Colors.BLUE_600),
-                            ft.Text("הגדרות עדכונים", size=22, weight=ft.FontWeight.BOLD),
+                            ft.Text("הגדרות עדכונים", size=22, weight=ft.FontWeight.BOLD, rtl=True, text_align=ft.TextAlign.RIGHT),
                         ], spacing=10, alignment=ft.MainAxisAlignment.CENTER),
                         padding=ft.padding.only(bottom=15)
                     ),
@@ -2034,7 +2041,7 @@ class ModernIDFProcessorGUI:
                 self.page.update()
                 logger.info("Update menu dialog should now be visible")
                 self.show_status("תפריט עדכונים נפתח", "success")
-                self.show_snackbar("🔄 תפריט עדכונים נפתח")
+                self.show_snackbar("תפריט עדכונים נפתח")
             
             except Exception as e:
                 logger.error(f"Error showing update menu: {e}")

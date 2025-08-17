@@ -155,9 +155,6 @@ class LicenseDialog:
             activation_card = self._create_activation_section()
             content_items.append(activation_card)
         
-        # Machine ID section
-        machine_id_card = self._create_machine_id_section()
-        content_items.append(machine_id_card)
         
         return ft.Container(
             content=ft.Column(
@@ -272,71 +269,6 @@ class LicenseDialog:
             surface_tint_color=ft.Colors.GREEN_50
         )
     
-    def _create_machine_id_section(self) -> ft.Card:
-        """Create the machine ID section."""
-        
-        machine_id = license_manager.get_machine_id()
-        
-        return ft.Card(
-            content=ft.Container(
-                content=ft.Column([
-                    ft.Container(
-                        content=ft.Row([
-                            ft.Icon(ft.Icons.COMPUTER, size=20, color=ft.Colors.PURPLE_600),
-                            ft.Text("מזהה מחשב", size=18, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.RIGHT, rtl=True),
-                        ], spacing=8, alignment=ft.MainAxisAlignment.CENTER, rtl=True),
-                        margin=ft.margin.only(bottom=8)
-                    ),
-                    ft.Container(
-                        content=ft.Text(
-                            "מזהה זה נדרש להפעלת הרישיון",
-                            size=14,
-                            color=ft.Colors.GREY_700,
-                            text_align=ft.TextAlign.CENTER,
-                            rtl=True
-                        ),
-                        margin=ft.margin.only(bottom=15)
-                    ),
-                    ft.Container(
-                        content=ft.TextField(
-                            value=machine_id,
-                            read_only=True,
-                            text_align=ft.TextAlign.CENTER,
-                            border_color=ft.Colors.PURPLE_200,
-                            bgcolor=ft.Colors.GREY_50,
-                            border_radius=10,
-                            text_style=ft.TextStyle(
-                                size=12,
-                                weight=ft.FontWeight.W_500,
-                                font_family="monospace"
-                            ),
-                            rtl=False  # Machine ID should be LTR
-                        ),
-                        margin=ft.margin.only(bottom=15)
-                    ),
-                    ft.Container(
-                        content=ft.ElevatedButton(
-                            text="העתק למשטח",
-                            icon=ft.Icons.CONTENT_COPY,
-                            on_click=lambda _: self._copy_to_clipboard(machine_id),
-                            style=ft.ButtonStyle(
-                                bgcolor=ft.Colors.BLUE_600,
-                                color=ft.Colors.WHITE,
-                                elevation=2,
-                                padding=ft.padding.symmetric(horizontal=20, vertical=10),
-                                shape=ft.RoundedRectangleBorder(radius=8)
-                            ),
-                            height=40
-                        ),
-                        alignment=ft.alignment.center
-                    )
-                ], spacing=5),
-                padding=20,
-                border_radius=12
-            ),
-            elevation=3,
-            surface_tint_color=ft.Colors.PURPLE_50
-        )
     
     def _create_feature_list(self) -> ft.Container:
         """Create the feature list display."""
@@ -381,7 +313,7 @@ class LicenseDialog:
             logger.error(f"Error formatting serial key: {ex}")
     
     def _activate_license(self, e):
-        """Activate license with entered serial key."""
+        """Activate license with entered serial key and detailed user feedback."""
         try:
             logger.info("=== LICENSE ACTIVATION STARTED ===")
             
@@ -391,15 +323,31 @@ class LicenseDialog:
                 return
             
             serial_key = self.serial_key_field.value.strip()
-            logger.info(f"Attempting to activate license: {serial_key[:8]}...")
+            logger.info(f"Attempting to activate license: {serial_key[:8] if len(serial_key) >= 8 else serial_key}...")
+            
+            # Validate key format before sending to server
+            clean_key = serial_key.replace("-", "").replace(" ", "")
+            if len(clean_key) != 16:
+                self._show_error("מפתח הרישיון חייב להכיל 16 תווים")
+                return
+            
+            if not clean_key.isalnum():
+                self._show_error("מפתח הרישיון יכול להכיל רק אותיות ומספרים")
+                return
             
             # Show loading with detailed feedback
-            self.activate_button.text = "🔄 מפעיל..."
+            self.activate_button.text = "מפעיל..."
             self.activate_button.disabled = True
             self.page.update()
             
-            # Show status message
-            self._show_info("🔍 מתחבר לשרת רישיונות...")
+            # Show progress status messages
+            self._show_info("בודק פורמט מפתח...")
+            
+            # Small delay to show the format check message
+            import time
+            time.sleep(0.5)
+            
+            self._show_info("מתחבר לשרת רישיונות...")
             
             # Activate license
             logger.info("Calling license_manager.activate_license...")
@@ -410,32 +358,72 @@ class LicenseDialog:
                 logger.info("=" * 50)
                 logger.info("LICENSE ACTIVATION SUCCESSFUL!")
                 logger.info("=" * 50)
-                self._show_success(f"✅ {message}")
+                
+                # Show success with animated feedback
+                self._show_success("הרישיון הופעל בהצלחה!")
+                
+                # Update activation button to show success
+                self.activate_button.text = "הופעל בהצלחה"
+                self.activate_button.style.bgcolor = ft.Colors.GREEN_500
+                self.page.update()
+                
                 logger.info("Updating license status display...")
                 self._update_license_status()
+                
                 logger.info("Clearing input field...")
                 # Clear the input field
                 self.serial_key_field.value = ""
                 self.page.update()
+                
+                # Show detailed success info
+                time.sleep(1)
+                self._show_info(f"{message}")
+                
                 logger.info("License activation UI updates completed")
                 
                 # Automatically refresh UI without asking user
                 self._auto_refresh_after_activation()
                 logger.info("Auto-refresh after activation completed")
+                
             else:
                 logger.warning(f"License activation failed: {message}")
-                self._show_error(f"❌ {message}")
+                
+                # Show specific error with icon
+                if "format" in message.lower():
+                    self._show_error(f"{message}")
+                elif "not found" in message.lower():
+                    self._show_error(f"{message}")
+                elif "expired" in message.lower():
+                    self._show_error(f"{message}")
+                else:
+                    self._show_error(f"{message}")
+                
+                # Update button to show failure
+                self.activate_button.text = "נכשל"
+                self.activate_button.style.bgcolor = ft.Colors.RED_500
+                self.page.update()
+                
+                # Reset button after a short delay
+                time.sleep(2)
             
         except Exception as ex:
             logger.error(f"License activation error: {ex}")
             import traceback
             logger.error(traceback.format_exc())
             self._show_error(f"שגיאה בהפעלת הרישיון: {ex}")
+            
+            # Update button to show error
+            self.activate_button.text = "שגיאה"
+            self.activate_button.style.bgcolor = ft.Colors.RED_500
+            self.page.update()
         
         finally:
-            # Reset button
+            # Reset button after delay
+            import time
+            time.sleep(1)
             logger.info("Resetting activation button")
             self.activate_button.text = "הפעל רישיון"
+            self.activate_button.style.bgcolor = ft.Colors.GREEN_600
             self.activate_button.disabled = False
             self.page.update()
             logger.info("=== LICENSE ACTIVATION COMPLETED ===")
@@ -593,36 +581,36 @@ class LicenseDialog:
             if license_type == LicenseManager.LICENSE_FREE or status["status"] != LicenseManager.STATUS_VALID:
                 # Free tier features
                 features = [
-                    ("✅", "עד 3 קבצי IDF ביום"),
-                    ("✅", "דוחות בסיסיים"),
-                    ("✅", "נתוני מזג אוויר ישראליים"),
-                    ("❌", "דוחות דירוג אנרגיה"),
-                    ("❌", "דוחות מתקדמים"),
-                    ("❌", "ייצוא Excel")
+                    ("כן", "עד 3 קבצי IDF ביום"),
+                    ("כן", "דוחות בסיסיים"),
+                    ("כן", "נתוני מזג אוויר ישראליים"),
+                    ("לא", "דוחות דירוג אנרגיה"),
+                    ("לא", "דוחות מתקדמים"),
+                    ("לא", "ייצוא Excel")
                 ]
             elif license_type == LicenseManager.LICENSE_PROFESSIONAL:
                 # Professional features
                 features = [
-                    ("✅", "עיבוד ללא הגבלה"),
-                    ("✅", "כל סוגי הדוחות"),
-                    ("✅", "דוחות דירוג אנרגיה"),
-                    ("✅", "ייצוא PDF ו-Excel"),
-                    ("✅", "תמיכה טכנית מועדפת"),
-                    ("✅", "גישה לתכונות חדשות")
+                    ("כן", "עיבוד ללא הגבלה"),
+                    ("כן", "כל סוגי הדוחות"),
+                    ("כן", "דוחות דירוג אנרגיה"),
+                    ("כן", "ייצוא PDF ו-Excel"),
+                    ("כן", "תמיכה טכנית מועדפת"),
+                    ("כן", "גישה לתכונות חדשות")
                 ]
             else:
                 # Enterprise features
                 features = [
-                    ("✅", "כל תכונות המקצועי"),
-                    ("✅", "עד 10 משתמשים"),
-                    ("✅", "API לאינטגרציה"),
-                    ("✅", "מיתוג מותאם אישית"),
-                    ("✅", "תמיכה 24/7"),
-                    ("✅", "הדרכה אישית")
+                    ("כן", "כל תכונות המקצועי"),
+                    ("כן", "עד 10 משתמשים"),
+                    ("כן", "API לאינטגרציה"),
+                    ("כן", "מיתוג מותאם אישית"),
+                    ("כן", "תמיכה 24/7"),
+                    ("כן", "הדרכה אישית")
                 ]
             
             for icon, feature in features:
-                is_enabled = icon == "✅"
+                is_enabled = icon == "כן"
                 color = ft.Colors.GREEN_600 if is_enabled else ft.Colors.GREY_500
                 bgcolor = ft.Colors.GREEN_50 if is_enabled else ft.Colors.GREY_50
                 

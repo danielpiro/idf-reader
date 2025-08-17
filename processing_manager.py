@@ -234,7 +234,7 @@ class ProcessingManager:
                 current_iso_type = "Office"
             logger.info(f"Automatic validation: Raw ISO type '{raw_iso_type}' -> Mapped to '{current_iso_type}'")
             parsers["automatic_error_detection"].process_idf(idf, current_iso_type)
-            self.update_status("✅ Automatic validation data processed successfully")
+            self.update_status("Automatic validation data processed successfully")
         except Exception as e:
             error_message = f"Failed processing automatic validation data: {type(e).__name__} - {str(e)}"
             self.update_status(error_message)
