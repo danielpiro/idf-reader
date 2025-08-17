@@ -1,475 +1,596 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="format-detection" content="telephone=no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="format-detection" content="telephone=no" />
     <title>IDF Reader - מחולל דוחות אנרגיה מקצועי למבנים</title>
-    <meta name="description" content="תוכנה מקצועית לניתוח קבצי IDF ויצירת דוחות אנרגיה מפורטים. תומכת בתקני ISO ישראליים ובינלאומיים.">
-    <meta name="keywords" content="IDF, EnergyPlus, דוחות אנרגיה, בנייה ירוקה, תקן ישראלי, ISO">
-    
+    <meta
+      name="description"
+      content="תוכנה מקצועית לניתוח קבצי IDF ויצירת דוחות אנרגיה מפורטים. תומכת בתקני ISO ישראליים ובינלאומיים."
+    />
+    <meta
+      name="keywords"
+      content="IDF, EnergyPlus, דוחות אנרגיה, בנייה ירוקה, תקן ישראלי, ISO"
+    />
+
     <!-- Accessibility meta tags -->
-    <meta name="color-scheme" content="light">
-    <meta name="theme-color" content="#667eea">
-    
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#667eea" />
+
     <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://idf-reader.vercel.app/">
-    <meta property="og:title" content="IDF Reader - מחולל דוחות אנרגיה מקצועי">
-    <meta property="og:description" content="תוכנה מקצועי לניתוח קבצי IDF ויצירת דוחות אנרגיה מפורטים">
-    <meta property="og:image" content="https://idf-reader.vercel.app/images/preview.png">
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://idf-reader.vercel.app/" />
+    <meta
+      property="og:title"
+      content="IDF Reader - מחולל דוחות אנרגיה מקצועי"
+    />
+    <meta
+      property="og:description"
+      content="תוכנה מקצועי לניתוח קבצי IDF ויצירת דוחות אנרגיה מפורטים"
+    />
+    <meta
+      property="og:image"
+      content="https://idf-reader.vercel.app/images/preview.png"
+    />
 
     <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://idf-reader.vercel.app/">
-    <meta property="twitter:title" content="IDF Reader - מחולל דוחות אנרגיה מקצועי">
-    <meta property="twitter:description" content="תוכנה מקצועי לניתוח קבצי IDF ויצירת דוחות אנרגיה מפורטים">
-    <meta property="twitter:image" content="https://idf-reader.vercel.app/images/preview.png">
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://idf-reader.vercel.app/" />
+    <meta
+      property="twitter:title"
+      content="IDF Reader - מחולל דוחות אנרגיה מקצועי"
+    />
+    <meta
+      property="twitter:description"
+      content="תוכנה מקצועי לניתוח קבצי IDF ויצירת דוחות אנרגיה מפורטים"
+    />
+    <meta
+      property="twitter:image"
+      content="https://idf-reader.vercel.app/images/preview.png"
+    />
 
     <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="logo.ico">
-    <link rel="apple-touch-icon" sizes="180x180" href="logo.png">
-    
+    <link rel="icon" type="image/x-icon" href="logo.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="logo.png" />
+
     <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
     <!-- Styles -->
-    <link rel="stylesheet" href="styles.css">
-    
+    <link rel="stylesheet" href="styles.css" />
+
     <!-- Analytics (optional) -->
     <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=GA_TRACKING_ID"></script> -->
-</head>
-<body>
+  </head>
+  <body>
     <!-- Skip Links for Accessibility -->
     <div class="skip-links" aria-label="קישורי דילוג לנגישות">
-        <a href="#main-content" class="skip-link">דלג לתוכן הראשי</a>
-        <a href="#navigation" class="skip-link">דלג לתפריט הניווט</a>
-        <a href="#download" class="skip-link">דלג לקישור ההורדה</a>
-        <a href="#contact" class="skip-link">דלג לטופס יצירת קשר</a>
+      <a href="#main-content" class="skip-link">דלג לתוכן הראשי</a>
+      <a href="#navigation" class="skip-link">דלג לתפריט הניווט</a>
+      <a href="#download" class="skip-link">דלג לקישור ההורדה</a>
+      <a href="#contact" class="skip-link">דלג לטופס יצירת קשר</a>
     </div>
-    
+
     <!-- Screen Reader Announcements -->
-    <div id="sr-announcements" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+    <div
+      id="sr-announcements"
+      class="sr-only"
+      aria-live="polite"
+      aria-atomic="true"
+    ></div>
     <!-- Navigation -->
-    <nav class="navbar" id="navigation" role="navigation" aria-label="תפריט ניווט ראשי">
-        <div class="container">
-            <div class="nav-brand">
-                <img src="logo.png" alt="לוגו IDF Reader - מחולל דוחות אנרגיה" class="logo">
-                <span class="brand-text">IDF Reader</span>
-            </div>
-            <div class="nav-menu" id="navMenu" role="menubar" aria-label="תפריט ניווט">
-                <a href="#home" class="nav-link" role="menuitem" aria-current="page">בית</a>
-                <a href="#features" class="nav-link" role="menuitem">תכונות</a>
-                <a href="#pricing" class="nav-link" role="menuitem">מחירים</a>
-                <a href="#download" class="nav-link" role="menuitem">הורדה</a>
-                <a href="#contact" class="nav-link" role="menuitem">צור קשר</a>
-            </div>
-            <button class="nav-toggle" id="navToggle" 
-                    aria-expanded="false" 
-                    aria-controls="navMenu" 
-                    aria-label="פתח/סגור תפריט ניווט"
-                    type="button">
-                <span aria-hidden="true"></span>
-                <span aria-hidden="true"></span>
-                <span aria-hidden="true"></span>
-            </button>
+    <nav
+      class="navbar"
+      id="navigation"
+      role="navigation"
+      aria-label="תפריט ניווט ראשי"
+    >
+      <div class="container">
+        <div class="nav-brand">
+          <img
+            src="logo.png"
+            alt="לוגו IDF Reader - מחולל דוחות אנרגיה"
+            class="logo"
+          />
+          <span class="brand-text">IDF Reader</span>
         </div>
+        <div
+          class="nav-menu"
+          id="navMenu"
+          role="menubar"
+          aria-label="תפריט ניווט"
+        >
+          <a href="#home" class="nav-link" role="menuitem" aria-current="page"
+            >בית</a
+          >
+          <a href="#features" class="nav-link" role="menuitem">תכונות</a>
+          <a href="#pricing" class="nav-link" role="menuitem">מחירים</a>
+          <a href="#download" class="nav-link" role="menuitem">הורדה</a>
+          <a href="#contact" class="nav-link" role="menuitem">צור קשר</a>
+        </div>
+        <button
+          class="nav-toggle"
+          id="navToggle"
+          aria-expanded="false"
+          aria-controls="navMenu"
+          aria-label="פתח/סגור תפריט ניווט"
+          type="button"
+        >
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+          <span aria-hidden="true"></span>
+        </button>
+      </div>
     </nav>
 
     <!-- Hero Section -->
     <section id="home" class="hero" role="banner" aria-labelledby="hero-title">
-        <div class="container">
-            <div class="hero-content-centered">
-                <div class="hero-logo-container">
-                    <img src="logo.png" 
-                         alt="לוגו IDF Reader" 
-                         class="hero-logo">
-                </div>
-                <div class="hero-text">
-                    <h1 id="hero-title" class="hero-title centered-title">
-                        מחולל דוחות <span class="highlight">IDF</span> מקצועי
-                    </h1>
-                    <div class="hero-buttons" role="group" aria-label="פעולות ראשיות">
-                        <a href="#download" class="btn btn-primary" 
-                           aria-describedby="download-description">
-                            <span class="btn-icon" aria-hidden="true">📥</span>
-                            הורד עכשיו בחינם
-                        </a>
-                        <span id="download-description" class="sr-only">הורדת התוכנה בחינם ללא התחייבות</span>
-                        <a href="#features" class="btn btn-secondary"
-                           aria-describedby="features-description">
-                            <span class="btn-icon" aria-hidden="true">🔍</span>
-                            גלה תכונות
-                        </a>
-                        <span id="features-description" class="sr-only">עבור לסקירת תכונות התוכנה</span>
-                    </div>
-                </div>
+      <div class="container">
+        <div class="hero-content-centered">
+          <div class="hero-logo-container">
+            <img src="logo.png" alt="לוגו IDF Reader" class="hero-logo" />
+          </div>
+          <div class="hero-text">
+            <h1 id="hero-title" class="hero-title centered-title">
+              מחולל דוחות <span class="highlight">IDF</span> מקצועי
+            </h1>
+            <div class="hero-buttons" role="group" aria-label="פעולות ראשיות">
+              <a
+                href="#download"
+                class="btn btn-primary"
+                aria-describedby="download-description"
+              >
+                <span class="btn-icon" aria-hidden="true">📥</span>
+                הורד עכשיו בחינם
+              </a>
+              <span id="download-description" class="sr-only"
+                >הורדת התוכנה בחינם ללא התחייבות</span
+              >
+              <a
+                href="#features"
+                class="btn btn-secondary"
+                aria-describedby="features-description"
+              >
+                <span class="btn-icon" aria-hidden="true">🔍</span>
+                גלה תכונות
+              </a>
+              <span id="features-description" class="sr-only"
+                >עבור לסקירת תכונות התוכנה</span
+              >
             </div>
+          </div>
         </div>
-        <div class="hero-background">
-            <div class="shape shape-1"></div>
-            <div class="shape shape-2"></div>
-            <div class="shape shape-3"></div>
-        </div>
+      </div>
+      <div class="hero-background">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+        <div class="shape shape-3"></div>
+      </div>
     </section>
 
     <!-- Main Content -->
     <main id="main-content" role="main">
-        <!-- Features Section -->
-        <section id="features" class="features" aria-labelledby="features-title">
+      <!-- Features Section -->
+      <section id="features" class="features" aria-labelledby="features-title">
         <div class="container">
-            <div class="section-header">
-                <h2 id="features-title" class="section-title">תכונות מתקדמות</h2>
-                <p class="section-subtitle">כל מה שאתה צריך לניתוח אנרגיה מקצועי</p>
-            </div>
-            
-            <div class="features-grid" role="list" aria-label="רשימת תכונות">
-                <article class="feature-card" role="listitem">
-                    <div class="feature-icon" aria-hidden="true">📊</div>
-                    <h3 class="feature-title">דוחות מפורטים</h3>
-                    <p class="feature-description">
-                        יצירת דוחות אנרגיה מקיפים עם גרפים, טבלאות וניתוחים מתקדמים בפורמט PDF ו-Excel
-                    </p>
-                </article>
-                
-                <article class="feature-card" role="listitem">
-                    <div class="feature-icon" aria-hidden="true">🇮🇱</div>
-                    <h3 class="feature-title">תקני ISO ישראליים</h3>
-                    <p class="feature-description">
-                        תמיכה מלאה בתקני ISO ישראליים 2017 ו-2023, כולל מגורים, משרדים ומלונות
-                    </p>
-                </article>
-                
-                <article class="feature-card" role="listitem">
-                    <div class="feature-icon" aria-hidden="true">🔄</div>
-                    <h3 class="feature-title">עדכונים אוטומטיים</h3>
-                    <p class="feature-description">
-                        התוכנה מתעדכנת אוטומטית לגרסאות חדשות ותמיד מקבלת את התכונות והתיקונים האחרונים
-                    </p>
-                </article>
-                
-                <article class="feature-card" role="listitem">
-                    <div class="feature-icon" aria-hidden="true">⚡</div>
-                    <h3 class="feature-title">עיבוד מהיר</h3>
-                    <p class="feature-description">
-                        עיבוד קבצי IDF מורכבים תוך דקות ספורות עם ממשק משתמש אינטואיטיבי בעברית
-                    </p>
-                </article>
-                
-                <article class="feature-card" role="listitem">
-                    <div class="feature-icon" aria-hidden="true">📍</div>
-                    <h3 class="feature-title">נתוני מזג אוויר ישראליים</h3>
-                    <p class="feature-description">
-                        מאגר נתונים מעודכן של תחנות מזג אוויר בכל רחבי ישראל לחישובי אנרגיה מדויקים
-                    </p>
-                </article>
-                
-                <article class="feature-card" role="listitem">
-                    <div class="feature-icon" aria-hidden="true">🔒</div>
-                    <h3 class="feature-title">אבטחה ופרטיות</h3>
-                    <p class="feature-description">
-                        כל הנתונים נשמרים במחשב שלך - אין שליחת מידע לחוץ, פרטיות ואבטחה מלאים
-                    </p>
-                </article>
-            </div>
-        </div>
-        </section>
+          <div class="section-header">
+            <h2 id="features-title" class="section-title">תכונות מתקדמות</h2>
+            <p class="section-subtitle">כל מה שאתה צריך לניתוח אנרגיה מקצועי</p>
+          </div>
 
-        <!-- Pricing Section -->
-        <section id="pricing" class="pricing" aria-labelledby="pricing-title">
-        <div class="container">
-            <div class="section-header">
-                <h2 id="pricing-title" class="section-title">תוכניות מחיר</h2>
-                <p class="section-subtitle">בחר את התוכנית המתאימה לך</p>
-            </div>
-            
-            <div class="pricing-toggle" role="group" aria-label="בחירת מחזור תשלום">
-                <span class="toggle-label" id="monthly-label">חודשי</span>
-                <label class="toggle-switch" for="pricingToggle">
-                    <input type="checkbox" 
-                           id="pricingToggle" 
-                           aria-describedby="monthly-label yearly-label"
-                           aria-label="החלף בין תמחור חודשי לשנתי">
-                    <span class="slider" aria-hidden="true"></span>
-                </label>
-                <span class="toggle-label" id="yearly-label">שנתי <span class="discount">חסוך 20%</span></span>
-            </div>
-            
-            <div class="pricing-grid">
-                <div class="pricing-card">
-                    <div class="pricing-header">
-                        <h3 class="pricing-title">בסיסי</h3>
-                        <div class="pricing-price">
-                            <span class="price-currency">₪</span>
-                            <span class="price-amount">0</span>
-                            <span class="price-period">/תמיד</span>
-                        </div>
-                    </div>
-                    <ul class="pricing-features">
-                        <li>✅ עד 3 קבצי IDF ביום</li>
-                        <li>✅ דוחות בסיסיים</li>
-                        <li>✅ נתוני מזג אוויר ישראליים</li>
-                        <li>❌ דוחות דירוג אנרגיה</li>
-                        <li>❌ דוחות מתקדמים</li>
-                        <li>❌ ייצוא Excel</li>
-                    </ul>
-                    <a href="#download" class="btn btn-outline">התחל בחינם</a>
-                </div>
-                
-                <div class="pricing-card featured">
-                    <div class="pricing-badge">הכי פופולרי</div>
-                    <div class="pricing-header">
-                        <h3 class="pricing-title">מקצועי</h3>
-                        <div class="pricing-price">
-                            <span class="price-currency">₪</span>
-                            <span class="price-amount monthly-price">199</span>
-                            <span class="price-amount yearly-price" style="display: none;">159</span>
-                            <span class="price-period monthly-period">/חודש</span>
-                            <span class="price-period yearly-period" style="display: none;">/חודש</span>
-                        </div>
-                    </div>
-                    <ul class="pricing-features">
-                        <li>✅ עיבוד ללא הגבלה</li>
-                        <li>✅ כל סוגי הדוחות</li>
-                        <li>✅ דוחות דירוג אנרגיה</li>
-                        <li>✅ ייצוא PDF ו-Excel</li>
-                        <li>✅ תמיכה טכנית מועדפת</li>
-                        <li>✅ גישה לתכונות חדשות</li>
-                    </ul>
-                    <a href="#contact" class="btn btn-primary">התחל ניסיון 14 יום</a>
-                </div>
-                
-                <div class="pricing-card">
-                    <div class="pricing-header">
-                        <h3 class="pricing-title">ארגוני</h3>
-                        <div class="pricing-price">
-                            <span class="price-currency">₪</span>
-                            <span class="price-amount monthly-price">499</span>
-                            <span class="price-amount yearly-price" style="display: none;">399</span>
-                            <span class="price-period monthly-period">/חודש</span>
-                            <span class="price-period yearly-period" style="display: none;">/חודש</span>
-                        </div>
-                    </div>
-                    <ul class="pricing-features">
-                        <li>✅ כל תכונות המקצועי</li>
-                        <li>✅ עד 10 משתמשים</li>
-                        <li>✅ API לאינטגרציה</li>
-                        <li>✅ מיתוג מותאם אישית</li>
-                        <li>✅ תמיכה 24/7</li>
-                        <li>✅ הדרכה אישית</li>
-                    </ul>
-                    <a href="#contact" class="btn btn-outline">צור קשר</a>
-                </div>
-            </div>
-        </div>
-    </section>
+          <div class="features-grid" role="list" aria-label="רשימת תכונות">
+            <article class="feature-card" role="listitem">
+              <div class="feature-icon" aria-hidden="true">📊</div>
+              <h3 class="feature-title">דוחות מפורטים</h3>
+              <p class="feature-description">
+                יצירת דוחות אנרגיה מקיפים עם גרפים, טבלאות וניתוחים מתקדמים
+                בפורמט PDF ו-Excel
+              </p>
+            </article>
 
-    <!-- Download Section -->
-    <section id="download" class="download">
-        <div class="container">
-            <div class="download-content">
-                <div class="download-text">
-                    <h2 class="section-title">הורד את IDF Reader</h2>
-                    <p class="section-subtitle">
-                        תוכנה מקצועית לניתוח קבצי IDF ויצירת דוחות אנרגיה
-                    </p>
-                    <div class="download-features">
-                        <div class="download-feature">
-                            <span class="feature-icon">💻</span>
-                            <span>תואם Windows 10/11</span>
-                        </div>
-                        <div class="download-feature">
-                            <span class="feature-icon">📦</span>
-                            <span>קובץ יחיד ללא התקנה</span>
-                        </div>
-                        <div class="download-feature">
-                            <span class="feature-icon">🔄</span>
-                            <span>עדכונים אוטומטיים</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="download-buttons">
-                    <a href="#" id="downloadButton" class="btn btn-primary btn-large" onclick="downloadLatest()">
-                        <span class="btn-icon">📥</span>
-                        הורד עכשיו
-                        <span class="btn-subtitle">Windows (64-bit) • ~50MB</span>
-                    </a>
-                    
-                    <div class="download-links">
-                        <a href="#contact" class="download-link">
-                            📞 צור קשר לתמיכה
-                        </a>
-                        <a href="#features" class="download-link">
-                            📋 תכונות התוכנה
-                        </a>
-                    </div>
-                </div>
-            </div>
-            
-        </div>
-    </section>
+            <article class="feature-card" role="listitem">
+              <div class="feature-icon" aria-hidden="true">🇮🇱</div>
+              <h3 class="feature-title">תקני ISO ישראליים</h3>
+              <p class="feature-description">
+                תמיכה מלאה בתקני ISO ישראליים 2017 ו-2023, כולל מגורים, משרדים
+                ומלונות
+              </p>
+            </article>
 
-    <!-- Contact Section -->
-    <section id="contact" class="contact">
-        <div class="container">
-            <div class="section-header">
-                <h2 class="section-title">צור קשר</h2>
-                <p class="section-subtitle">יש לך שאלות? נשמח לעזור</p>
-            </div>
-            
-            <div class="contact-content">
-                <div class="contact-info">
-                    <div class="contact-item">
-                        <div class="contact-icon">📧</div>
-                        <div class="contact-details">
-                            <h3>אימייל</h3>
-                            <p>support@idf-reader.com</p>
-                        </div>
-                    </div>
-                    
-                    <div class="contact-item">
-                        <div class="contact-icon">💬</div>
-                        <div class="contact-details">
-                            <h3>תמיכה טכנית</h3>
-                            <p>זמינים בימים א'-ה' 9:00-17:00</p>
-                        </div>
-                    </div>
-                    
-                    <div class="contact-item">
-                        <div class="contact-icon">🐛</div>
-                        <div class="contact-details">
-                            <h3>דיווח על באגים</h3>
-                            <p>GitHub Issues או אימייל</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <form class="contact-form" 
-                      onsubmit="submitContactForm(event)" 
-                      aria-label="טופס יצירת קשר"
-                      novalidate>
-                    <div class="form-group">
-                        <label for="name">שם מלא <span class="required" aria-label="שדה חובה">*</span></label>
-                        <input type="text" 
-                               id="name" 
-                               name="name" 
-                               required 
-                               aria-describedby="name-error"
-                               autocomplete="name">
-                        <div id="name-error" class="error-message" role="alert" aria-live="polite"></div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="email">אימייל <span class="required" aria-label="שדה חובה">*</span></label>
-                        <input type="email" 
-                               id="email" 
-                               name="email" 
-                               required 
-                               aria-describedby="email-error"
-                               autocomplete="email">
-                        <div id="email-error" class="error-message" role="alert" aria-live="polite"></div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="subject">נושא <span class="required" aria-label="שדה חובה">*</span></label>
-                        <select id="subject" 
-                                name="subject" 
-                                required
-                                aria-describedby="subject-error">
-                            <option value="">בחר נושא</option>
-                            <option value="support">תמיכה טכנית</option>
-                            <option value="sales">מכירות ומחירים</option>
-                            <option value="feature">בקשת תכונה</option>
-                            <option value="bug">דיווח על באג</option>
-                            <option value="other">אחר</option>
-                        </select>
-                        <div id="subject-error" class="error-message" role="alert" aria-live="polite"></div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="message">הודעה <span class="required" aria-label="שדה חובה">*</span></label>
-                        <textarea id="message" 
-                                  name="message" 
-                                  rows="5" 
-                                  required
-                                  aria-describedby="message-error message-help"
-                                  maxlength="1000"></textarea>
-                        <div id="message-help" class="form-help">עד 1000 תווים</div>
-                        <div id="message-error" class="error-message" role="alert" aria-live="polite"></div>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary">
-                        <span class="btn-icon" aria-hidden="true">📤</span>
-                        שלח הודעה
-                    </button>
-                </form>
-            </div>
+            <article class="feature-card" role="listitem">
+              <div class="feature-icon" aria-hidden="true">🔄</div>
+              <h3 class="feature-title">עדכונים אוטומטיים</h3>
+              <p class="feature-description">
+                התוכנה מתעדכנת אוטומטית לגרסאות חדשות ותמיד מקבלת את התכונות
+                והתיקונים האחרונים
+              </p>
+            </article>
+
+            <article class="feature-card" role="listitem">
+              <div class="feature-icon" aria-hidden="true">⚡</div>
+              <h3 class="feature-title">עיבוד מהיר</h3>
+              <p class="feature-description">
+                עיבוד קבצי IDF מורכבים תוך דקות ספורות עם ממשק משתמש אינטואיטיבי
+                בעברית
+              </p>
+            </article>
+
+            <article class="feature-card" role="listitem">
+              <div class="feature-icon" aria-hidden="true">📍</div>
+              <h3 class="feature-title">נתוני מזג אוויר ישראליים</h3>
+              <p class="feature-description">
+                מאגר נתונים מעודכן של תחנות מזג אוויר בכל רחבי ישראל לחישובי
+                אנרגיה מדויקים
+              </p>
+            </article>
+
+            <article class="feature-card" role="listitem">
+              <div class="feature-icon" aria-hidden="true">🔒</div>
+              <h3 class="feature-title">אבטחה ופרטיות</h3>
+              <p class="feature-description">
+                כל הנתונים נשמרים במחשב שלך - אין שליחת מידע לחוץ, פרטיות ואבטחה
+                מלאים
+              </p>
+            </article>
+          </div>
         </div>
-        </section>
+      </section>
+
+      <!-- Pricing Section -->
+      <section id="pricing" class="pricing" aria-labelledby="pricing-title">
+        <div class="container">
+          <div class="section-header">
+            <h2 id="pricing-title" class="section-title">תוכניות מחיר</h2>
+            <p class="section-subtitle">בחר את התוכנית המתאימה לך</p>
+          </div>
+
+          <div
+            class="pricing-toggle"
+            role="group"
+            aria-label="בחירת מחזור תשלום"
+          >
+            <span class="toggle-label" id="monthly-label">חודשי</span>
+            <label class="toggle-switch" for="pricingToggle">
+              <input
+                type="checkbox"
+                id="pricingToggle"
+                aria-describedby="monthly-label yearly-label"
+                aria-label="החלף בין תמחור חודשי לשנתי"
+              />
+              <span class="slider" aria-hidden="true"></span>
+            </label>
+            <span class="toggle-label" id="yearly-label"
+              >שנתי <span class="discount">חסוך 20%</span></span
+            >
+          </div>
+
+          <div class="pricing-grid">
+            <div class="pricing-card">
+              <div class="pricing-header">
+                <h3 class="pricing-title">בסיסי</h3>
+                <div class="pricing-price">
+                  <span class="price-currency">₪</span>
+                  <span class="price-amount">0</span>
+                  <span class="price-period">/תמיד</span>
+                </div>
+              </div>
+              <ul class="pricing-features">
+                <li>✅ עד 3 קבצי IDF ביום</li>
+                <li>✅ דוחות בסיסיים</li>
+                <li>✅ נתוני מזג אוויר ישראליים</li>
+                <li>❌ דוחות דירוג אנרגיה</li>
+                <li>❌ דוחות מתקדמים</li>
+                <li>❌ ייצוא Excel</li>
+              </ul>
+              <a href="#download" class="btn btn-outline">התחל בחינם</a>
+            </div>
+
+            <div class="pricing-card featured">
+              <div class="pricing-badge">הכי פופולרי</div>
+              <div class="pricing-header">
+                <h3 class="pricing-title">מקצועי</h3>
+                <div class="pricing-price">
+                  <span class="price-currency">₪</span>
+                  <span class="price-amount monthly-price">199</span>
+                  <span class="price-amount yearly-price" style="display: none"
+                    >159</span
+                  >
+                  <span class="price-period monthly-period">/חודש</span>
+                  <span class="price-period yearly-period" style="display: none"
+                    >/חודש</span
+                  >
+                </div>
+              </div>
+              <ul class="pricing-features">
+                <li>✅ עיבוד ללא הגבלה</li>
+                <li>✅ כל סוגי הדוחות</li>
+                <li>✅ דוחות דירוג אנרגיה</li>
+                <li>✅ ייצוא PDF ו-Excel</li>
+                <li>✅ תמיכה טכנית מועדפת</li>
+                <li>✅ גישה לתכונות חדשות</li>
+              </ul>
+              <a href="#contact" class="btn btn-primary">התחל ניסיון 14 יום</a>
+            </div>
+
+            <div class="pricing-card">
+              <div class="pricing-header">
+                <h3 class="pricing-title">ארגוני</h3>
+                <div class="pricing-price">
+                  <span class="price-currency">₪</span>
+                  <span class="price-amount monthly-price">499</span>
+                  <span class="price-amount yearly-price" style="display: none"
+                    >399</span
+                  >
+                  <span class="price-period monthly-period">/חודש</span>
+                  <span class="price-period yearly-period" style="display: none"
+                    >/חודש</span
+                  >
+                </div>
+              </div>
+              <ul class="pricing-features">
+                <li>✅ כל תכונות המקצועי</li>
+                <li>✅ עד 10 משתמשים</li>
+                <li>✅ API לאינטגרציה</li>
+                <li>✅ מיתוג מותאם אישית</li>
+                <li>✅ תמיכה 24/7</li>
+                <li>✅ הדרכה אישית</li>
+              </ul>
+              <a href="#contact" class="btn btn-outline">צור קשר</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Download Section -->
+      <section id="download" class="download">
+        <div class="container">
+          <div class="download-content">
+            <div class="download-text">
+              <h2 class="section-title">הורד את IDF Reader</h2>
+              <div class="download-features">
+                <div class="download-feature">
+                  <span class="feature-icon">💻</span>
+                  <span>תואם Windows 10/11</span>
+                </div>
+                <div class="download-feature">
+                  <span class="feature-icon">📦</span>
+                  <span>קובץ יחיד ללא התקנה</span>
+                </div>
+                <div class="download-feature">
+                  <span class="feature-icon">🔄</span>
+                  <span>עדכונים אוטומטיים</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="download-buttons">
+              <a
+                href="#"
+                id="downloadButton"
+                class="btn btn-primary btn-large"
+                onclick="downloadLatest()"
+              >
+                <span class="btn-icon">📥</span>
+                הורד עכשיו
+                <span class="btn-subtitle">Windows (64-bit) • ~50MB</span>
+              </a>
+
+              <div class="download-links">
+                <a href="#contact" class="download-link"> 📞 צור קשר לתמיכה </a>
+                <a href="#features" class="download-link"> 📋 תכונות התוכנה </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Contact Section -->
+      <section id="contact" class="contact">
+        <div class="container">
+          <div class="section-header">
+            <h2 class="section-title">צור קשר</h2>
+            <p class="section-subtitle">יש לך שאלות? נשמח לעזור</p>
+          </div>
+
+          <div class="contact-content">
+            <div class="contact-info">
+              <div class="contact-item">
+                <div class="contact-icon">📧</div>
+                <div class="contact-details">
+                  <h3>אימייל</h3>
+                  <p>support@idf-reader.com</p>
+                </div>
+              </div>
+
+              <div class="contact-item">
+                <div class="contact-icon">💬</div>
+                <div class="contact-details">
+                  <h3>תמיכה טכנית</h3>
+                  <p>זמינים בימים א'-ה' 9:00-17:00</p>
+                </div>
+              </div>
+
+              <div class="contact-item">
+                <div class="contact-icon">🐛</div>
+                <div class="contact-details">
+                  <h3>דיווח על באגים</h3>
+                  <p>GitHub Issues או אימייל</p>
+                </div>
+              </div>
+            </div>
+
+            <form
+              class="contact-form"
+              onsubmit="submitContactForm(event)"
+              aria-label="טופס יצירת קשר"
+              novalidate
+            >
+              <div class="form-group">
+                <label for="name"
+                  >שם מלא
+                  <span class="required" aria-label="שדה חובה">*</span></label
+                >
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  required
+                  aria-describedby="name-error"
+                  autocomplete="name"
+                />
+                <div
+                  id="name-error"
+                  class="error-message"
+                  role="alert"
+                  aria-live="polite"
+                ></div>
+              </div>
+
+              <div class="form-group">
+                <label for="email"
+                  >אימייל
+                  <span class="required" aria-label="שדה חובה">*</span></label
+                >
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  required
+                  aria-describedby="email-error"
+                  autocomplete="email"
+                />
+                <div
+                  id="email-error"
+                  class="error-message"
+                  role="alert"
+                  aria-live="polite"
+                ></div>
+              </div>
+
+              <div class="form-group">
+                <label for="subject"
+                  >נושא
+                  <span class="required" aria-label="שדה חובה">*</span></label
+                >
+                <select
+                  id="subject"
+                  name="subject"
+                  required
+                  aria-describedby="subject-error"
+                >
+                  <option value="">בחר נושא</option>
+                  <option value="support">תמיכה טכנית</option>
+                  <option value="sales">מכירות ומחירים</option>
+                  <option value="feature">בקשת תכונה</option>
+                  <option value="bug">דיווח על באג</option>
+                  <option value="other">אחר</option>
+                </select>
+                <div
+                  id="subject-error"
+                  class="error-message"
+                  role="alert"
+                  aria-live="polite"
+                ></div>
+              </div>
+
+              <div class="form-group">
+                <label for="message"
+                  >הודעה
+                  <span class="required" aria-label="שדה חובה">*</span></label
+                >
+                <textarea
+                  id="message"
+                  name="message"
+                  rows="5"
+                  required
+                  aria-describedby="message-error message-help"
+                  maxlength="1000"
+                ></textarea>
+                <div id="message-help" class="form-help">עד 1000 תווים</div>
+                <div
+                  id="message-error"
+                  class="error-message"
+                  role="alert"
+                  aria-live="polite"
+                ></div>
+              </div>
+
+              <button type="submit" class="btn btn-primary">
+                <span class="btn-icon" aria-hidden="true">📤</span>
+                שלח הודעה
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
     </main>
 
     <!-- Footer -->
     <footer class="footer" role="contentinfo" aria-label="כותרת תחתונה">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <div class="footer-brand">
-                        <img src="logo.png" alt="IDF Reader" class="footer-logo">
-                        <span class="brand-text">IDF Reader</span>
-                    </div>
-                    <p class="footer-description">
-                        תוכנה מקצועית לניתוח קבצי IDF ויצירת דוחות אנרגיה מפורטים עם תמיכה מלאה בתקני ISO ישראליים.
-                    </p>
-                </div>
-                
-                <div class="footer-section">
-                    <h4>קישורים מהירים</h4>
-                    <ul class="footer-links">
-                        <li><a href="#features">תכונות</a></li>
-                        <li><a href="#pricing">מחירים</a></li>
-                        <li><a href="#download">הורדה</a></li>
-                        <li><a href="#contact">צור קשר</a></li>
-                    </ul>
-                </div>
-                
-                <div class="footer-section">
-                    <h4>תמיכה</h4>
-                    <ul class="footer-links">
-                        <li><a href="#contact">מדריך משתמש</a></li>
-                        <li><a href="#contact">דיווח על באג</a></li>
-                        <li><a href="#contact">צור קשר</a></li>
-                        <li><a href="/privacy">מדיניות פרטיות</a></li>
-                    </ul>
-                </div>
-                
-                <div class="footer-section">
-                    <h4>עקוב אחרינו</h4>
-                    <div class="social-links">
-                        <a href="mailto:support@idf-reader.com" class="social-link">
-                            📧 Email
-                        </a>
-                        <a href="#contact" class="social-link">
-                            📞 צור קשר
-                        </a>
-                    </div>
-                </div>
+      <div class="container">
+        <div class="footer-content">
+          <div class="footer-section">
+            <div class="footer-brand">
+              <img src="logo.png" alt="IDF Reader" class="footer-logo" />
+              <span class="brand-text">IDF Reader</span>
             </div>
-            
-            <div class="footer-bottom">
-                <p>&copy; 2024 IDF Reader. כל הזכויות שמורות.</p>
-                <p>נבנה באהבה 🇮🇱 בישראל</p>
+            <p class="footer-description">
+              תוכנה מקצועית לניתוח קבצי IDF ויצירת דוחות אנרגיה מפורטים עם תמיכה
+              מלאה בתקני ISO ישראליים.
+            </p>
+          </div>
+
+          <div class="footer-section">
+            <h4>קישורים מהירים</h4>
+            <ul class="footer-links">
+              <li><a href="#features">תכונות</a></li>
+              <li><a href="#pricing">מחירים</a></li>
+              <li><a href="#download">הורדה</a></li>
+              <li><a href="#contact">צור קשר</a></li>
+            </ul>
+          </div>
+
+          <div class="footer-section">
+            <h4>תמיכה</h4>
+            <ul class="footer-links">
+              <li><a href="#contact">מדריך משתמש</a></li>
+              <li><a href="#contact">דיווח על באג</a></li>
+              <li><a href="#contact">צור קשר</a></li>
+              <li><a href="/privacy">מדיניות פרטיות</a></li>
+            </ul>
+          </div>
+
+          <div class="footer-section">
+            <h4>עקוב אחרינו</h4>
+            <div class="social-links">
+              <a href="mailto:support@idf-reader.com" class="social-link">
+                📧 Email
+              </a>
+              <a href="#contact" class="social-link"> 📞 צור קשר </a>
             </div>
+          </div>
         </div>
+
+        <div class="footer-bottom">
+          <p>&copy; 2024 IDF Reader. כל הזכויות שמורות.</p>
+          <p>נבנה באהבה 🇮🇱 בישראל</p>
+        </div>
+      </div>
     </footer>
 
     <!-- Scripts -->
     <script src="script.js"></script>
-    
-</body>
+  </body>
 </html>
