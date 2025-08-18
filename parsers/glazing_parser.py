@@ -435,7 +435,10 @@ class GlazingParser:
                     window_obj = window_data.get('raw_object')
                     if not window_obj: continue
 
+                    # Try multiple field name variations for EPJSON compatibility
                     frame_divider_name = getattr(window_obj, 'Frame_and_Divider_Name', None)
+                    if not frame_divider_name:
+                        frame_divider_name = getattr(window_obj, 'frame_and_divider_name', None)
                     if frame_divider_name and frame_divider_name in self._frame_divider_cache:
                         frame_data = self._frame_divider_cache[frame_divider_name]
                         data['frame_details'] = {

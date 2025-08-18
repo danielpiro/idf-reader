@@ -138,6 +138,108 @@ def _parse_exterior_fenestration_table(reader) -> Dict[str, Dict[str, Any]]:
                         }
     return result
 
+def _parse_opaque_construction_table(reader, table_name: str) -> Dict[str, Dict[str, Any]]:
+    """Parse opaque construction tables (Opaque Exterior or Opaque Interior)"""
+    header_map = {
+        "construction": 2,  # Construction is in column 2, not 1
+        "gross area [m2]": 6,  # Gross Area is in column 6 based on CSV structure
+        "u-factor with film [w/m2-k]": 4,
+        "u-factor no film [w/m2-k]": 5
+    }
+    col_indices = {}
+    result = {}
+    in_target_table = False
+    headers_found = False
+    
+    for row in reader:
+        if not row or not any(field.strip() for field in row):
+            continue
+            
+        # Look for the target table (e.g., "Opaque Exterior" or "Opaque Interior")
+        if not in_target_table and row[0].strip().lower() == table_name.lower():
+            in_target_table = True
+            headers_found = False
+            col_indices = {}
+            continue
+            
+        if in_target_table:
+            if not headers_found:
+                current_headers_norm = [h.strip().lower() for h in row]
+                if "construction" in current_headers_norm and "gross area [m2]" in current_headers_norm:
+                    for key_map in header_map:
+                        try:
+                            col_indices[key_map] = current_headers_norm.index(key_map)
+                        except ValueError:
+                            logger.warning(f"Header '{key_map}' not found in {table_name} table headers")
+                    headers_found = True
+                continue
+            else:
+                # Check for end of table
+                is_total_row = row[0].strip().lower().endswith("total or average")
+                is_blank_data_row = not row[0].strip() and (len(row) < 2 or not row[1].strip())
+                if is_total_row or is_blank_data_row:
+                    break
+                    
+                # Extract construction data
+                if len(row) > 2 and row[1].strip() and "construction" in col_indices and "gross area [m2]" in col_indices:
+                    surface_name = row[1].strip()  # Surface name is always in column 1
+                    construction_name = row[col_indices["construction"]].strip()
+                    area = safe_float(row[col_indices["gross area [m2]"]])
+                    u_factor = safe_float(row[col_indices.get("u-factor with film [w/m2-k]", col_indices.get("u-factor no film [w/m2-k]", 0))])
+                    
+                    # Store both surface name and construction name as keys
+                    surface_data = {
+                        'Construction': construction_name,
+                        'Area': area,
+                        'U-Factor': u_factor,
+                        'Type': table_name,
+                        'SurfaceName': surface_name
+                    }
+                    
+                    if surface_name:
+                        result[surface_name.upper()] = surface_data
+                    if construction_name:
+                        result[construction_name.upper()] = surface_data
+    return result
+
+def read_construction_areas_from_csv(csv_path: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
+    """
+    Read both glazing and opaque construction area data from eplustbl.csv.
+    Returns a dictionary mapping surface/construction names to their areas and properties.
+    """
+    result = {}
+    resolved_path = _find_csv_path(csv_path)
+    if not resolved_path:
+        logger.warning("eplustbl.csv not found - construction areas will use calculated values")
+        return result
+        
+    try:
+        with open(resolved_path, 'r', encoding='utf-8', errors='ignore') as csvfile:
+            # Read glazing data from Exterior Fenestration
+            csvfile.seek(0)
+            reader = csv.reader(csvfile)
+            glazing_data = _parse_exterior_fenestration_table(reader)
+            result.update(glazing_data)
+            
+            # Read opaque exterior construction data
+            csvfile.seek(0)
+            reader = csv.reader(csvfile)
+            opaque_exterior = _parse_opaque_construction_table(reader, "Opaque Exterior")
+            result.update(opaque_exterior)
+            
+            # Read opaque interior construction data
+            csvfile.seek(0)
+            reader = csv.reader(csvfile)
+            opaque_interior = _parse_opaque_construction_table(reader, "Opaque Interior")
+            result.update(opaque_interior)
+            
+        logger.info(f"Read construction areas for {len(result)} items from eplustbl.csv")
+        return result
+        
+    except Exception as e:
+        logger.warning(f"Error reading construction areas from CSV: {e}")
+        return result
+
 def read_glazing_data_from_csv(csv_path: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
     """
     Read glazing data from the eplustbl.csv file.

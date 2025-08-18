@@ -1345,7 +1345,8 @@ class ModernIDFProcessorGUI:
                 self.input_file,
                 os.path.join(self.energyplus_dir, "Energy+.idd"),
                 self.output_dir,
-                run_id
+                run_id,
+                self.energyplus_dir
             )
             
             if success:
@@ -1404,10 +1405,10 @@ class ModernIDFProcessorGUI:
         self.show_status("מוודא משתני פלט נדרשים ב-IDF...")
         try:
             from utils.data_loader import DataLoader
-            data_loader = DataLoader()  # Create a temporary loader
+            data_loader = DataLoader(energyplus_path=self.energyplus_dir)  # Create a temporary loader with EnergyPlus path
             # No need to load the full IDF here, just use the utility method
             idd_path = os.path.join(self.energyplus_dir, "Energy+.idd")
-            modified = data_loader.ensure_output_variables(idf_path, idd_path)
+            modified = data_loader.ensure_output_variables(idf_path, energyplus_path=self.energyplus_dir)
             if modified:
                 self.show_status("משתני פלט IDF הוודאו/עודכנו")
             else:

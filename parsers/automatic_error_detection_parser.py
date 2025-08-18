@@ -309,7 +309,7 @@ class AutomaticErrorDetectionParser:
         if version_info.get('energyplus'):
             current_version = version_info['energyplus']
             recommended_version = self.settings_table['EnergyPlus Version']['recommended']
-            if current_version != recommended_version:
+            if not self._numeric_values_equal(current_version, recommended_version):
                 self.error_detection_data.append({
                     'zone_name': 'Site',
                     'category': 'EnergyPlus Version',
@@ -327,7 +327,7 @@ class AutomaticErrorDetectionParser:
         if site_info.get('terrain'):
             current_terrain = site_info['terrain']
             recommended_terrain = self.settings_table['Terrain']['recommended']
-            if current_terrain != recommended_terrain:
+            if not self._numeric_values_equal(current_terrain, recommended_terrain):
                 self.error_detection_data.append({
                     'zone_name': 'Site',
                     'category': 'Terrain',
@@ -345,7 +345,7 @@ class AutomaticErrorDetectionParser:
         if algorithms.get('surface_convection_inside'):
             current_inside = algorithms['surface_convection_inside']
             recommended_inside = self.settings_table['Surface Convection Algorithm (Inside)']['recommended']
-            if current_inside != recommended_inside:
+            if not self._numeric_values_equal(current_inside, recommended_inside):
                 self.error_detection_data.append({
                     'zone_name': 'Site',
                     'category': 'Surface Convection Algorithm (Inside)',
@@ -357,7 +357,7 @@ class AutomaticErrorDetectionParser:
         if algorithms.get('surface_convection_outside'):
             current_outside = algorithms['surface_convection_outside']
             recommended_outside = self.settings_table['Surface Convection Algorithm (Outside)']['recommended']
-            if current_outside != recommended_outside:
+            if not self._numeric_values_equal(current_outside, recommended_outside):
                 self.error_detection_data.append({
                     'zone_name': 'Site',
                     'category': 'Surface Convection Algorithm (Outside)',
@@ -370,7 +370,7 @@ class AutomaticErrorDetectionParser:
         if algorithms.get('heat_balance'):
             current_heat_balance = algorithms['heat_balance']
             recommended_heat_balance = self.settings_table['Heat Balance Algorithm']['recommended']
-            if current_heat_balance != recommended_heat_balance:
+            if not self._numeric_values_equal(current_heat_balance, recommended_heat_balance):
                 self.error_detection_data.append({
                     'zone_name': 'Site',
                     'category': 'Heat Balance Algorithm',
@@ -381,9 +381,9 @@ class AutomaticErrorDetectionParser:
         
         # Validate Time Step
         if current_settings.get('simulation', {}).get('time_step'):
-            current_timestep = str(current_settings['simulation']['time_step'])
+            current_timestep = current_settings['simulation']['time_step']
             recommended_timestep = self.settings_table['Time Step']['recommended']
-            if current_timestep != recommended_timestep:
+            if not self._numeric_values_equal(current_timestep, recommended_timestep):
                 self.error_detection_data.append({
                     'zone_name': 'Site',
                     'category': 'Time Step',
@@ -398,9 +398,9 @@ class AutomaticErrorDetectionParser:
             for month in ['January', 'February', 'March', 'April', 'May', 'June', 
                          'July', 'August', 'September', 'October', 'November', 'December']:
                 if month in ground_temp:
-                    current_temp = str(ground_temp[month])
+                    current_temp = ground_temp[month]
                     recommended_temp = self.settings_table[f'Ground Temperature {month}']['recommended']
-                    if current_temp != recommended_temp:
+                    if not self._numeric_values_equal(current_temp, recommended_temp):
                         self.error_detection_data.append({
                             'zone_name': 'Site',
                             'category': f'Ground Temperature {month}',
@@ -415,9 +415,9 @@ class AutomaticErrorDetectionParser:
             for month in ['January', 'February', 'March', 'April', 'May', 'June', 
                          'July', 'August', 'September', 'October', 'November', 'December']:
                 if month in ground_reflectance:
-                    current_reflectance = str(ground_reflectance[month])
+                    current_reflectance = ground_reflectance[month]
                     recommended_reflectance = self.settings_table[f'Ground Reflectance {month}']['recommended']
-                    if current_reflectance != recommended_reflectance:
+                    if not self._numeric_values_equal(current_reflectance, recommended_reflectance):
                         self.error_detection_data.append({
                             'zone_name': 'Site',
                             'category': f'Ground Reflectance {month}',
@@ -940,7 +940,39 @@ class AutomaticErrorDetectionParser:
         if self._is_all_ones_schedule(current_rule) and self._is_all_ones_schedule(recommended_rule):
             return True
         
-        return current_values == recommended_values
+        # Convert string values to float for proper numeric comparison
+        def parse_values_to_numbers(values_string):
+            if not values_string:
+                return []
+            try:
+                return [float(val) for val in values_string.split()]
+            except ValueError:
+                return []
+        
+        current_numbers = parse_values_to_numbers(current_values)
+        recommended_numbers = parse_values_to_numbers(recommended_values)
+        
+        # Compare lengths first
+        if len(current_numbers) != len(recommended_numbers):
+            return False
+        
+        # Compare each number with tolerance for floating point precision
+        for curr, rec in zip(current_numbers, recommended_numbers):
+            if abs(curr - rec) > 1e-6:  # Small tolerance for floating point comparison
+                return False
+        
+        return True
+    
+    def _numeric_values_equal(self, current_val, recommended_val, tolerance=1e-6):
+        """Compare two values numerically if they are numbers, otherwise compare as strings."""
+        try:
+            # Try to convert both to float
+            current_float = float(current_val)
+            recommended_float = float(recommended_val)
+            return abs(current_float - recommended_float) <= tolerance
+        except (ValueError, TypeError):
+            # If conversion fails, fall back to string comparison
+            return str(current_val) == str(recommended_val)
     
     def _is_all_ones_schedule(self, schedule_rule):
         """Check if a schedule rule represents all 1's (commonly used for infiltration/ventilation)."""

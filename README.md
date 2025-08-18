@@ -50,7 +50,7 @@ idf-reader/
 ├── utils/                     # Core utilities
 │   ├── data_loader.py         # IDF data caching and loading
 │   ├── data_models.py         # Data structure definitions
-│   ├── eppy_handler.py        # EnergyPlus file handling
+│   ├── epjson_handler.py      # EnergyPlus EPJSON file handling
 │   └── hebrew_text_utils.py   # Hebrew text processing
 │
 ├── parsers/                   # Data extraction modules
@@ -130,7 +130,6 @@ pip install -r requirements.txt
 ```python
 # Core dependencies from requirements.txt
 reportlab>=3.6.8      # PDF generation
-eppy>=0.5.63          # EnergyPlus file handling
 customtkinter>=5.2.0  # Modern GUI framework
 pyinstaller>=6.3.0    # Executable packaging
 numpy>=1.24.0         # Numerical computations
@@ -414,7 +413,7 @@ Creates distributable package with all dependencies.
 
 Key build settings:
 
-- **Hidden Imports**: `eppy`, `reportlab`, `customtkinter`
+- **Hidden Imports**: `reportlab`, `customtkinter`
 - **Data Files**: Include `data/` directory
 - **Icon**: Application icon file
 - **One File**: Single executable output

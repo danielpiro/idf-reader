@@ -1,0 +1,3370 @@
+{
+    "Building": {
+        "Office": {
+            "loads_convergence_tolerance_value": 0.04,
+            "maximum_number_of_warmup_days": 25,
+            "minimum_number_of_warmup_days": 6,
+            "north_axis": 0,
+            "solar_distribution": "FullExterior",
+            "temperature_convergence_tolerance_value": 0.4,
+            "terrain": "Country"
+        }
+    },
+    "BuildingSurface:Detailed": {
+        "00X00:NEXOUT_Floor_0_0_0": {
+            "construction_name": "0_IntFloor",
+            "number_of_vertices": 30.385518,
+            "outside_boundary_condition": "00X00:NEXOUT_Floor_0_0_0",
+            "outside_boundary_condition_object": "NoSun",
+            "space_name": "Surface",
+            "sun_exposure": "NoWind",
+            "surface_type": "Floor",
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 0,
+                    "vertex_y_coordinate": 3.7,
+                    "vertex_z_coordinate": 24.285518
+                },
+                {
+                    "vertex_x_coordinate": 0,
+                    "vertex_y_coordinate": 3.7,
+                    "vertex_z_coordinate": 24.285518
+                },
+                {
+                    "vertex_x_coordinate": 8.2,
+                    "vertex_y_coordinate": 3.7,
+                    "vertex_z_coordinate": 30.385518
+                },
+                {
+                    "vertex_x_coordinate": 8.2,
+                    "vertex_y_coordinate": 3.7
+                }
+            ],
+            "view_factor_to_ground": 4,
+            "wind_exposure": "0",
+            "zone_name": "00X00:NEXOUT"
+        },
+        "00X00:NEXOUT_Roof_1_0_0": {
+            "construction_name": "0_FlatRoofTiled 5cm EPS",
+            "number_of_vertices": 24.285517999,
+            "outside_boundary_condition_object": "SunExposed",
+            "space_name": "Outdoors",
+            "sun_exposure": "WindExposed",
+            "surface_type": "Roof",
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 0,
+                    "vertex_y_coordinate": 7.4,
+                    "vertex_z_coordinate": 30.385517999
+                },
+                {
+                    "vertex_x_coordinate": 0,
+                    "vertex_y_coordinate": 7.4,
+                    "vertex_z_coordinate": 30.385517999
+                },
+                {
+                    "vertex_x_coordinate": 8.2,
+                    "vertex_y_coordinate": 7.4,
+                    "vertex_z_coordinate": 24.285517999
+                },
+                {
+                    "vertex_x_coordinate": 8.2,
+                    "vertex_y_coordinate": 7.4
+                }
+            ],
+            "view_factor_to_ground": 4,
+            "wind_exposure": "AutoCalculate",
+            "zone_name": "00X00:NEXOUT"
+        },
+        "00X00:NEXOUT_Wall_2_0_0": {
+            "construction_name": "0_ExtWall Pumice 22cm",
+            "number_of_vertices": 30.385517999,
+            "outside_boundary_condition_object": "SunExposed",
+            "space_name": "Outdoors",
+            "sun_exposure": "WindExposed",
+            "surface_type": "Wall",
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 8.2,
+                    "vertex_y_coordinate": 3.7,
+                    "vertex_z_coordinate": 24.285517999
+                },
+                {
+                    "vertex_x_coordinate": 8.2,
+                    "vertex_y_coordinate": 3.7,
+                    "vertex_z_coordinate": 24.285517999
+                },
+                {
+                    "vertex_x_coordinate": 8.2,
+                    "vertex_y_coordinate": 7.4,
+                    "vertex_z_coordinate": 30.385517999
+                },
+                {
+                    "vertex_x_coordinate": 8.2,
+                    "vertex_y_coordinate": 7.4
+                }
+            ],
+            "view_factor_to_ground": 4,
+            "wind_exposure": "AutoCalculate",
+            "zone_name": "00X00:NEXOUT"
+        },
+        "00X00:NEXOUT_Wall_3_0_0": {
+            "construction_name": "0_ExtWall Pumice 22cm",
+            "number_of_vertices": 24.285517999,
+            "outside_boundary_condition_object": "SunExposed",
+            "space_name": "Outdoors",
+            "sun_exposure": "WindExposed",
+            "surface_type": "Wall",
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 8.2,
+                    "vertex_y_coordinate": 3.7,
+                    "vertex_z_coordinate": 24.285517999
+                },
+                {
+                    "vertex_x_coordinate": 0,
+                    "vertex_y_coordinate": 3.7,
+                    "vertex_z_coordinate": 24.285517999
+                },
+                {
+                    "vertex_x_coordinate": 0,
+                    "vertex_y_coordinate": 7.4,
+                    "vertex_z_coordinate": 24.285517999
+                },
+                {
+                    "vertex_x_coordinate": 8.2,
+                    "vertex_y_coordinate": 7.4
+                }
+            ],
+            "view_factor_to_ground": 4,
+            "wind_exposure": "AutoCalculate",
+            "zone_name": "00X00:NEXOUT"
+        },
+        "00X00:NEXOUT_Wall_4_0_0": {
+            "construction_name": "0_ExtWall Pumice 22cm",
+            "number_of_vertices": 24.285517999,
+            "outside_boundary_condition_object": "SunExposed",
+            "space_name": "Outdoors",
+            "sun_exposure": "WindExposed",
+            "surface_type": "Wall",
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 0,
+                    "vertex_y_coordinate": 3.7,
+                    "vertex_z_coordinate": 30.385517999
+                },
+                {
+                    "vertex_x_coordinate": 0,
+                    "vertex_y_coordinate": 3.7,
+                    "vertex_z_coordinate": 30.385517999
+                },
+                {
+                    "vertex_x_coordinate": 0,
+                    "vertex_y_coordinate": 7.4,
+                    "vertex_z_coordinate": 24.285517999
+                },
+                {
+                    "vertex_x_coordinate": 0,
+                    "vertex_y_coordinate": 7.4
+                }
+            ],
+            "view_factor_to_ground": 4,
+            "wind_exposure": "AutoCalculate",
+            "zone_name": "00X00:NEXOUT"
+        },
+        "00X00:NEXOUT_Wall_5_0_0": {
+            "construction_name": "0_ExtWall Pumice 22cm",
+            "number_of_vertices": 30.385517999,
+            "outside_boundary_condition_object": "SunExposed",
+            "space_name": "Outdoors",
+            "sun_exposure": "WindExposed",
+            "surface_type": "Wall",
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 0,
+                    "vertex_y_coordinate": 3.7,
+                    "vertex_z_coordinate": 30.385517999
+                },
+                {
+                    "vertex_x_coordinate": 8.2,
+                    "vertex_y_coordinate": 3.7,
+                    "vertex_z_coordinate": 30.385517999
+                },
+                {
+                    "vertex_x_coordinate": 8.2,
+                    "vertex_y_coordinate": 7.4,
+                    "vertex_z_coordinate": 30.385517999
+                },
+                {
+                    "vertex_x_coordinate": 0,
+                    "vertex_y_coordinate": 7.4
+                }
+            ],
+            "view_factor_to_ground": 4,
+            "wind_exposure": "AutoCalculate",
+            "zone_name": "00X00:NEXOUT"
+        }
+    },
+    "Construction": {
+        "0_ExtWall Pumice 22cm": {
+            "layer_2": "_Block Pumice 22sm_.22",
+            "layer_3": "_1045_IntTiah_Cement Lime Plaster_2.1_.015",
+            "outside_layer": "_1045_Cemented Plaster_2.2_.02"
+        },
+        "0_ExtWall Pumice 22cm_Rev": {
+            "layer_2": "_Block Pumice 22sm_.22",
+            "layer_3": "_1045_Cemented Plaster_2.2_.02",
+            "outside_layer": "_1045_IntTiah_Cement Lime Plaster_2.1_.015"
+        },
+        "0_FlatRoofTiled 5cm EPS": {
+            "layer_2": "_1045_Cemented Plaster_2.2_.02",
+            "layer_3": "_1045 Sand and gravel_10.1_.08",
+            "layer_4": "_Bitumen_.005",
+            "layer_5": "_1045 Light Concrete Coarse Aggregate NonQuartsSand 1200_1.2.1_.05",
+            "layer_6": "_1045 Expanded Polystyrene EPS 30_14.1_.05",
+            "layer_7": "_1045_RegularConcrete_1.1.1_.2",
+            "layer_8": "_1045_IntTiah_Cement Lime Plaster_2.1_.015",
+            "outside_layer": "_1045 Ceramic porcelain_12.1_.01"
+        },
+        "0_FlatRoofTiled 5cm EPS_Rev": {
+            "layer_2": "_1045_RegularConcrete_1.1.1_.2",
+            "layer_3": "_1045 Expanded Polystyrene EPS 30_14.1_.05",
+            "layer_4": "_1045 Light Concrete Coarse Aggregate NonQuartsSand 1200_1.2.1_.05",
+            "layer_5": "_Bitumen_.005",
+            "layer_6": "_1045 Sand and gravel_10.1_.08",
+            "layer_7": "_1045_Cemented Plaster_2.2_.02",
+            "layer_8": "_1045 Ceramic porcelain_12.1_.01",
+            "outside_layer": "_1045_IntTiah_Cement Lime Plaster_2.1_.015"
+        },
+        "0_IntFloor": {
+            "layer_2": "_1045_Cemented Plaster_2.2_.02",
+            "layer_3": "_1045 Sand and gravel_10.1_.08",
+            "layer_4": "_1045_RegularConcrete_1.1.1_.2",
+            "layer_5": "_1045_IntTiah_Cement Lime Plaster_2.1_.02",
+            "outside_layer": "_1045 Ceramic porcelain_12.1_.02"
+        },
+        "0_IntFloor_Rev": {
+            "layer_2": "_1045_RegularConcrete_1.1.1_.2",
+            "layer_3": "_1045 Sand and gravel_10.1_.08",
+            "layer_4": "_1045_Cemented Plaster_2.2_.02",
+            "layer_5": "_1045 Ceramic porcelain_12.1_.02",
+            "outside_layer": "_1045_IntTiah_Cement Lime Plaster_2.1_.02"
+        },
+        "6+6+6 - 1003": {
+            "layer_2": "1001",
+            "layer_3": "3",
+            "outside_layer": "3"
+        },
+        "IRTSurface": {
+            "outside_layer": "IRTMaterial"
+        },
+        "LinearBridgingConstruction": {
+            "outside_layer": "LinearBridgingLayer"
+        },
+        "Sgl Clr 6mm - 1001": {
+            "outside_layer": "3"
+        },
+        "_6mm - 1002": {
+            "outside_layer": "64"
+        }
+    },
+    "ConvergenceLimits": {
+        "ConvergenceLimits 1": {
+            "maximum_hvac_iterations": 25,
+            "minimum_system_timestep": 1
+        }
+    },
+    "Daylighting:Controls": {
+        "00X00:NEXOUT": {
+            "availability_schedule_name": "On",
+            "control_data": [
+                {
+                    "daylighting_reference_point_name": "00X00:NEXOUT Ref Point 1",
+                    "fraction_of_lights_controlled_by_reference_point": 0.5,
+                    "illuminance_setpoint_at_reference_point": 500
+                },
+                {
+                    "daylighting_reference_point_name": "00X00:NEXOUT Ref Point 2",
+                    "fraction_of_lights_controlled_by_reference_point": 0.5,
+                    "illuminance_setpoint_at_reference_point": 500
+                }
+            ],
+            "daylighting_method": "SplitFlux",
+            "delight_gridding_resolution": 1.0,
+            "glare_calculation_azimuth_angle_of_view_direction_clockwise_from_zone_y_axis": 0,
+            "glare_calculation_daylighting_reference_point_name": "00X00:NEXOUT Ref Point 1",
+            "lighting_control_type": "Stepped",
+            "maximum_allowable_discomfort_glare_index": 22,
+            "number_of_stepped_control_steps": 1,
+            "probability_lighting_will_be_reset_when_needed_in_manual_stepped_control": 1,
+            "zone_or_space_name": "00X00:NEXOUT"
+        }
+    },
+    "Daylighting:ReferencePoint": {
+        "00X00:NEXOUT Ref Point 1": {
+            "x_coordinate_of_reference_point": 27.336,
+            "y_coordinate_of_reference_point": 4.1,
+            "z_coordinate_of_reference_point": 4.5,
+            "zone_or_space_name": "00X00:NEXOUT"
+        },
+        "00X00:NEXOUT Ref Point 2": {
+            "x_coordinate_of_reference_point": 27.336,
+            "y_coordinate_of_reference_point": 4.6,
+            "z_coordinate_of_reference_point": 4.5,
+            "zone_or_space_name": "00X00:NEXOUT"
+        }
+    },
+    "EnvironmentalImpactFactors": {
+        "EnvironmentalImpactFactors 1": {
+            "district_cooling_cop": 3.0,
+            "district_heating_steam_conversion_efficiency": 0.25,
+            "district_heating_water_efficiency": 0.3,
+            "total_carbon_equivalent_emission_factor_from_ch4": 6.2727,
+            "total_carbon_equivalent_emission_factor_from_co2": 0.2727,
+            "total_carbon_equivalent_emission_factor_from_n2o": 80.7272
+        }
+    },
+    "FenestrationSurface:Detailed": {
+        "00X00:NEXOUT_Wall_4_0_0_0_0_0_Win": {
+            "building_surface_name": "00X00:NEXOUT_Wall_4_0_0",
+            "construction_name": "_6mm - 1002",
+            "frame_and_divider_name": "1",
+            "multiplier": 1,
+            "number_of_vertices": 4,
+            "surface_type": "Window",
+            "vertex_1_x_coordinate": 24.76541039,
+            "vertex_1_y_coordinate": 0,
+            "vertex_1_z_coordinate": 4.75,
+            "vertex_2_x_coordinate": 29.96541039,
+            "vertex_2_y_coordinate": 0,
+            "vertex_2_z_coordinate": 4.75,
+            "vertex_3_x_coordinate": 29.96541039,
+            "vertex_3_y_coordinate": 0,
+            "vertex_3_z_coordinate": 6.35,
+            "vertex_4_x_coordinate": 24.76541039,
+            "vertex_4_y_coordinate": 0,
+            "vertex_4_z_coordinate": 6.35,
+            "view_factor_to_ground": "Autocalculate"
+        }
+    },
+    "GlobalGeometryRules": {
+        "GlobalGeometryRules 1": {
+            "coordinate_system": "Relative",
+            "starting_vertex_position": "LowerLeftCorner",
+            "vertex_entry_direction": "Counterclockwise"
+        }
+    },
+    "HeatBalanceAlgorithm": {
+        "HeatBalanceAlgorithm 1": {
+            "algorithm": "ConductionTransferFunction",
+            "maximum_surface_convection_heat_transfer_coefficient_value": 1000,
+            "minimum_surface_convection_heat_transfer_coefficient_value": 1e-08,
+            "surface_temperature_upper_limit": 2000
+        }
+    },
+    "Lights": {
+        "00X00:NEXOUT General lighting": {
+            "design_level_calculation_method": "Watts/Area",
+            "end_use_subcategory": "ELECTRIC EQUIPMENT#00X00:NEXOUT#GeneralLights",
+            "fraction_radiant": 0.72,
+            "fraction_replaceable": 1,
+            "fraction_visible": 0.18,
+            "return_air_fraction": 0,
+            "schedule_name": "0_Baseline Office Lighting Schedule",
+            "watts_per_floor_area": 12,
+            "zone_or_zonelist_or_space_or_spacelist_name": "00X00:NEXOUT"
+        }
+    },
+    "Material": {
+        "_1045 Ceramic porcelain_12.1_.01": {
+            "conductivity": 1.3,
+            "density": 2300,
+            "roughness": "Smooth",
+            "solar_absorptance": 0.4,
+            "specific_heat": 840,
+            "thermal_absorptance": 0.9,
+            "thickness": 0.01,
+            "visible_absorptance": 0.4
+        },
+        "_1045 Ceramic porcelain_12.1_.02": {
+            "conductivity": 1.3,
+            "density": 2300,
+            "roughness": "Smooth",
+            "solar_absorptance": 0.4,
+            "specific_heat": 840,
+            "thermal_absorptance": 0.9,
+            "thickness": 0.02,
+            "visible_absorptance": 0.4
+        },
+        "_1045 Expanded Polystyrene EPS 30_14.1_.05": {
+            "conductivity": 0.034,
+            "density": 30,
+            "roughness": "Rough",
+            "solar_absorptance": 0.4,
+            "specific_heat": 1450,
+            "thermal_absorptance": 0.9,
+            "thickness": 0.05,
+            "visible_absorptance": 0.4
+        },
+        "_1045 Light Concrete Coarse Aggregate NonQuartsSand 1200_1.2.1_.05": {
+            "conductivity": 0.62,
+            "density": 1200,
+            "roughness": "MediumRough",
+            "solar_absorptance": 0.4,
+            "specific_heat": 1000,
+            "thermal_absorptance": 0.9,
+            "thickness": 0.05,
+            "visible_absorptance": 0.4
+        },
+        "_1045 Sand and gravel_10.1_.08": {
+            "conductivity": 2,
+            "density": 1950,
+            "roughness": "Rough",
+            "solar_absorptance": 0.4,
+            "specific_heat": 1045,
+            "thermal_absorptance": 0.9,
+            "thickness": 0.08,
+            "visible_absorptance": 0.4
+        },
+        "_1045_Cemented Plaster_2.2_.02": {
+            "conductivity": 1,
+            "density": 1800,
+            "roughness": "Rough",
+            "solar_absorptance": 0.4,
+            "specific_heat": 1000,
+            "thermal_absorptance": 0.9,
+            "thickness": 0.02,
+            "visible_absorptance": 0.4
+        },
+        "_1045_IntTiah_Cement Lime Plaster_2.1_.02": {
+            "conductivity": 0.8,
+            "density": 1600,
+            "roughness": "Smooth",
+            "solar_absorptance": 0.4,
+            "specific_heat": 1000,
+            "thermal_absorptance": 0.9,
+            "thickness": 0.02,
+            "visible_absorptance": 0.4
+        },
+        "_1045_IntTiah_Cement Lime Plaster_2.1_.015": {
+            "conductivity": 0.8,
+            "density": 1600,
+            "roughness": "Smooth",
+            "solar_absorptance": 0.4,
+            "specific_heat": 1000,
+            "thermal_absorptance": 0.9,
+            "thickness": 0.015,
+            "visible_absorptance": 0.4
+        },
+        "_1045_RegularConcrete_1.1.1_.2": {
+            "conductivity": 2,
+            "density": 2400,
+            "roughness": "MediumRough",
+            "solar_absorptance": 0.4,
+            "specific_heat": 1000,
+            "thermal_absorptance": 0.9,
+            "thickness": 0.2,
+            "visible_absorptance": 0.4
+        },
+        "_Bitumen_.005": {
+            "conductivity": 0.17,
+            "density": 1200,
+            "roughness": "Rough",
+            "solar_absorptance": 0.4,
+            "specific_heat": 1660,
+            "thermal_absorptance": 0.9,
+            "thickness": 0.005,
+            "visible_absorptance": 0.4
+        },
+        "_Block Pumice 22sm_.22": {
+            "conductivity": 0.244,
+            "density": 795,
+            "roughness": "MediumRough",
+            "solar_absorptance": 0.4,
+            "specific_heat": 970,
+            "thermal_absorptance": 0.9,
+            "thickness": 0.22,
+            "visible_absorptance": 0.4
+        }
+    },
+    "Material:InfraredTransparent": {
+        "IRTMaterial": {}
+    },
+    "Material:NoMass": {
+        "LinearBridgingLayer": {
+            "roughness": "Rough",
+            "solar_absorptance": 0.0,
+            "thermal_absorptance": 1e-05,
+            "thermal_resistance": 0.6267,
+            "visible_absorptance": 0.0
+        }
+    },
+    "NodeList": {
+        "00X00:NEXOUT Inlets": {
+            "nodes": [
+                {
+                    "node_name": "Node 00X00:NEXOUT In"
+                }
+            ]
+        }
+    },
+    "OtherEquipment": {
+        "00X00:NEXOUT Computing gain": {
+            "carbon_dioxide_generation_rate": 0,
+            "design_level_calculation_method": "Watts/Area",
+            "end_use_subcategory": "General",
+            "fraction_latent": 0,
+            "fraction_lost": 0,
+            "fraction_radiant": 0.2,
+            "fuel_type": "Electricity",
+            "power_per_floor_area": 8,
+            "schedule_name": "0_Baseline Office Non Fixed Equipment Schedule",
+            "zone_or_zonelist_or_space_or_spacelist_name": "00X00:NEXOUT"
+        },
+        "00X00:NEXOUT Equipment gain": {
+            "carbon_dioxide_generation_rate": 0,
+            "design_level_calculation_method": "Watts/Area",
+            "end_use_subcategory": "General",
+            "fraction_latent": 0,
+            "fraction_lost": 0,
+            "fraction_radiant": 0.2,
+            "fuel_type": "Electricity",
+            "power_per_floor_area": 0.4,
+            "schedule_name": "0_Baseline Office Fixed Equipment Schedule",
+            "zone_or_zonelist_or_space_or_spacelist_name": "00X00:NEXOUT"
+        }
+    },
+    "Output:Constructions": {
+        "Output:Constructions 1": {
+            "details_type_1": "Constructions"
+        }
+    },
+    "Output:Diagnostics": {
+        "Output:Diagnostics 1": {
+            "diagnostics": [
+                {
+                    "key": "DisplayAdvancedReportVariables"
+                }
+            ]
+        }
+    },
+    "Output:EnvironmentalImpactFactors": {
+        "Output:EnvironmentalImpactFactors 1": {
+            "reporting_frequency": "Daily"
+        },
+        "Output:EnvironmentalImpactFactors 2": {
+            "reporting_frequency": "Monthly"
+        },
+        "Output:EnvironmentalImpactFactors 3": {
+            "reporting_frequency": "RunPeriod"
+        }
+    },
+    "Output:Meter": {
+        "Output:Meter 1": {
+            "key_name": "Electricity:Facility",
+            "reporting_frequency": "Daily"
+        },
+        "Output:Meter 2": {
+            "key_name": "NATURALGAS:Facility",
+            "reporting_frequency": "Daily"
+        },
+        "Output:Meter 3": {
+            "key_name": "InteriorEquipment:Electricity",
+            "reporting_frequency": "Daily"
+        },
+        "Output:Meter 4": {
+            "key_name": "InteriorLights:Electricity",
+            "reporting_frequency": "Daily"
+        },
+        "Output:Meter 5": {
+            "key_name": "Electricity:Facility",
+            "reporting_frequency": "Monthly"
+        },
+        "Output:Meter 6": {
+            "key_name": "NATURALGAS:Facility",
+            "reporting_frequency": "Monthly"
+        },
+        "Output:Meter 7": {
+            "key_name": "InteriorEquipment:Electricity",
+            "reporting_frequency": "Monthly"
+        },
+        "Output:Meter 8": {
+            "key_name": "InteriorLights:Electricity",
+            "reporting_frequency": "Monthly"
+        },
+        "Output:Meter 9": {
+            "key_name": "Electricity:Facility",
+            "reporting_frequency": "RunPeriod"
+        },
+        "Output:Meter 10": {
+            "key_name": "NATURALGAS:Facility",
+            "reporting_frequency": "RunPeriod"
+        },
+        "Output:Meter 11": {
+            "key_name": "InteriorEquipment:Electricity",
+            "reporting_frequency": "RunPeriod"
+        },
+        "Output:Meter 12": {
+            "key_name": "InteriorLights:Electricity",
+            "reporting_frequency": "RunPeriod"
+        }
+    },
+    "Output:Surfaces:Drawing": {
+        "Output:Surfaces:Drawing 1": {
+            "report_specifications_1": "Triangulate3DFace",
+            "report_type": "DXF"
+        }
+    },
+    "Output:Surfaces:List": {
+        "Output:Surfaces:List 1": {
+            "report_type": "Details"
+        }
+    },
+    "Output:Table:SummaryReports": {
+        "Output:Table:SummaryReports 1": {
+            "reports": [
+                {
+                    "report_name": "AnnualBuildingUtilityPerformanceSummary"
+                },
+                {
+                    "report_name": "SensibleHeatGainSummary"
+                },
+                {
+                    "report_name": "InputVerificationandResultsSummary"
+                },
+                {
+                    "report_name": "ClimaticDataSummary"
+                },
+                {
+                    "report_name": "EnvelopeSummary"
+                },
+                {
+                    "report_name": "LightingSummary"
+                },
+                {
+                    "report_name": "HVACSizingSummary"
+                },
+                {
+                    "report_name": "SystemSummary"
+                },
+                {
+                    "report_name": "ComponentSizingSummary"
+                },
+                {
+                    "report_name": "OutdoorAirSummary"
+                }
+            ]
+        }
+    },
+    "Output:Variable": {
+        "Output:Variable 1": {
+            "key_value": "*",
+            "reporting_frequency": "Daily",
+            "variable_name": "Site Outdoor Air Drybulb Temperature"
+        },
+        "Output:Variable 2": {
+            "key_value": "*",
+            "reporting_frequency": "Daily",
+            "variable_name": "Site Outdoor Air Dewpoint Temperature"
+        },
+        "Output:Variable 3": {
+            "key_value": "*",
+            "reporting_frequency": "Daily",
+            "variable_name": "Site Wind Speed"
+        },
+        "Output:Variable 4": {
+            "key_value": "*",
+            "reporting_frequency": "Daily",
+            "variable_name": "Site Wind Direction"
+        },
+        "Output:Variable 5": {
+            "key_value": "*",
+            "reporting_frequency": "Daily",
+            "variable_name": "Site Direct Solar Radiation Rate per Area"
+        },
+        "Output:Variable 6": {
+            "key_value": "*",
+            "reporting_frequency": "Daily",
+            "variable_name": "Site Diffuse Solar Radiation Rate per Area"
+        },
+        "Output:Variable 7": {
+            "key_value": "*",
+            "reporting_frequency": "Daily",
+            "variable_name": "Site Solar Azimuth Angle"
+        },
+        "Output:Variable 8": {
+            "key_value": "*",
+            "reporting_frequency": "Daily",
+            "variable_name": "Site Solar Altitude Angle"
+        },
+        "Output:Variable 9": {
+            "key_value": "*",
+            "reporting_frequency": "Daily",
+            "variable_name": "Site Outdoor Air Barometric Pressure"
+        },
+        "Output:Variable 10": {
+            "key_value": "*",
+            "reporting_frequency": "Monthly",
+            "variable_name": "Site Outdoor Air Drybulb Temperature"
+        },
+        "Output:Variable 11": {
+            "key_value": "*",
+            "reporting_frequency": "Monthly",
+            "variable_name": "Site Outdoor Air Dewpoint Temperature"
+        },
+        "Output:Variable 12": {
+            "key_value": "*",
+            "reporting_frequency": "Monthly",
+            "variable_name": "Site Wind Speed"
+        },
+        "Output:Variable 13": {
+            "key_value": "*",
+            "reporting_frequency": "Monthly",
+            "variable_name": "Site Wind Direction"
+        },
+        "Output:Variable 14": {
+            "key_value": "*",
+            "reporting_frequency": "Monthly",
+            "variable_name": "Site Direct Solar Radiation Rate per Area"
+        },
+        "Output:Variable 15": {
+            "key_value": "*",
+            "reporting_frequency": "Monthly",
+            "variable_name": "Site Diffuse Solar Radiation Rate per Area"
+        },
+        "Output:Variable 16": {
+            "key_value": "*",
+            "reporting_frequency": "Monthly",
+            "variable_name": "Site Solar Azimuth Angle"
+        },
+        "Output:Variable 17": {
+            "key_value": "*",
+            "reporting_frequency": "Monthly",
+            "variable_name": "Site Solar Altitude Angle"
+        },
+        "Output:Variable 18": {
+            "key_value": "*",
+            "reporting_frequency": "Monthly",
+            "variable_name": "Site Outdoor Air Barometric Pressure"
+        },
+        "Output:Variable 19": {
+            "key_value": "*",
+            "reporting_frequency": "RunPeriod",
+            "variable_name": "Site Outdoor Air Drybulb Temperature"
+        },
+        "Output:Variable 20": {
+            "key_value": "*",
+            "reporting_frequency": "RunPeriod",
+            "variable_name": "Site Outdoor Air Dewpoint Temperature"
+        },
+        "Output:Variable 21": {
+            "key_value": "*",
+            "reporting_frequency": "RunPeriod",
+            "variable_name": "Site Wind Speed"
+        },
+        "Output:Variable 22": {
+            "key_value": "*",
+            "reporting_frequency": "RunPeriod",
+            "variable_name": "Site Wind Direction"
+        },
+        "Output:Variable 23": {
+            "key_value": "*",
+            "reporting_frequency": "RunPeriod",
+            "variable_name": "Site Direct Solar Radiation Rate per Area"
+        },
+        "Output:Variable 24": {
+            "key_value": "*",
+            "reporting_frequency": "RunPeriod",
+            "variable_name": "Site Diffuse Solar Radiation Rate per Area"
+        },
+        "Output:Variable 25": {
+            "key_value": "*",
+            "reporting_frequency": "RunPeriod",
+            "variable_name": "Site Solar Azimuth Angle"
+        },
+        "Output:Variable 26": {
+            "key_value": "*",
+            "reporting_frequency": "RunPeriod",
+            "variable_name": "Site Solar Altitude Angle"
+        },
+        "Output:Variable 27": {
+            "key_value": "*",
+            "reporting_frequency": "RunPeriod",
+            "variable_name": "Site Outdoor Air Barometric Pressure"
+        }
+    },
+    "OutputControl:IlluminanceMap:Style": {
+        "OutputControl:IlluminanceMap:Style 1": {
+            "column_separator": "Comma"
+        }
+    },
+    "OutputControl:ReportingTolerances": {
+        "OutputControl:ReportingTolerances 1": {
+            "tolerance_for_time_cooling_setpoint_not_met": 1.11,
+            "tolerance_for_time_heating_setpoint_not_met": 1.11
+        }
+    },
+    "OutputControl:Table:Style": {
+        "OutputControl:Table:Style 1": {
+            "column_separator": "CommaAndHTML",
+            "unit_conversion": "JtoKWH"
+        }
+    },
+    "People": {
+        "People 00X00:NEXOUT": {
+            "activity_level_schedule_name": "Activity Schedule 2987",
+            "air_velocity_schedule_name": "Default Air Velocity for Comfort Calculations",
+            "carbon_dioxide_generation_rate": 3.82e-08,
+            "clothing_insulation_calculation_method": "ClothingInsulationSchedule",
+            "clothing_insulation_schedule_name": "Clothing Schedule 2987",
+            "enable_ashrae_55_comfort_warnings": "No",
+            "fraction_radiant": 0.3,
+            "mean_radiant_temperature_calculation_type": "ZoneAveraged",
+            "number_of_people_calculation_method": "People/Area",
+            "number_of_people_schedule_name": "0_Baseline Office Occupency Schedule",
+            "people_per_floor_area": 0.12,
+            "sensible_heat_fraction": "Autocalculate",
+            "work_efficiency_schedule_name": "Work efficiency",
+            "zone_or_zonelist_or_space_or_spacelist_name": "00X00:NEXOUT"
+        }
+    },
+    "RunPeriod": {
+        "1 (01-01:31-12)": {
+            "apply_weekend_holiday_rule": "Yes",
+            "begin_day_of_month": 1,
+            "begin_month": 1,
+            "begin_year": 2002,
+            "end_day_of_month": 31,
+            "end_month": 12,
+            "end_year": 2002,
+            "treat_weather_as_actual": "No",
+            "use_weather_file_daylight_saving_period": "Yes",
+            "use_weather_file_holidays_and_special_days": "No",
+            "use_weather_file_rain_indicators": "Yes",
+            "use_weather_file_snow_indicators": "Yes"
+        }
+    },
+    "Schedule:Compact": {
+        "00X00:NEXOUT Cooling Availability Sch": {
+            "data": [
+                {
+                    "field": "Through: 31 March"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 0
+                },
+                {
+                    "field": "Through: 31 October"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 07:00"
+                },
+                {
+                    "field": 1
+                },
+                {
+                    "field": "Until: 18:00"
+                },
+                {
+                    "field": 1
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 1
+                },
+                {
+                    "field": "Through: 31 December"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 0
+                }
+            ],
+            "schedule_type_limits_name": "Temperature"
+        },
+        "00X00:NEXOUT Cooling SP Sch": {
+            "data": [
+                {
+                    "field": "Through: 31 March"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 100
+                },
+                {
+                    "field": "Through: 31 October"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 07:00"
+                },
+                {
+                    "field": 35
+                },
+                {
+                    "field": "Until: 18:00"
+                },
+                {
+                    "field": 23.5
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 35
+                },
+                {
+                    "field": "Through: 31 December"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 100
+                }
+            ],
+            "schedule_type_limits_name": "Temperature"
+        },
+        "00X00:NEXOUT Heating Availability Sch": {
+            "data": [
+                {
+                    "field": "Through: 31 March"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 07:00"
+                },
+                {
+                    "field": 1
+                },
+                {
+                    "field": "Until: 18:00"
+                },
+                {
+                    "field": 1
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 1
+                },
+                {
+                    "field": "Through: 31 Oct"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 0
+                },
+                {
+                    "field": "Through: 31 December"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 07:00"
+                },
+                {
+                    "field": 1
+                },
+                {
+                    "field": "Until: 18:00"
+                },
+                {
+                    "field": 1
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 1
+                }
+            ],
+            "schedule_type_limits_name": "Temperature"
+        },
+        "00X00:NEXOUT Heating Setpoint Schedule": {
+            "data": [
+                {
+                    "field": "Through: 31 March"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 07:00"
+                },
+                {
+                    "field": 15
+                },
+                {
+                    "field": "Until: 18:00"
+                },
+                {
+                    "field": 20.5
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 15
+                },
+                {
+                    "field": "Through: 31 Oct"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": -50
+                },
+                {
+                    "field": "Through: 31 December"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 07:00"
+                },
+                {
+                    "field": 15
+                },
+                {
+                    "field": "Until: 18:00"
+                },
+                {
+                    "field": 20.5
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 15
+                }
+            ],
+            "schedule_type_limits_name": "Temperature"
+        },
+        "0_Baseline Office Fixed Equipment Schedule": {
+            "data": [
+                {
+                    "field": "Through: 31 Dec"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 1
+                }
+            ],
+            "schedule_type_limits_name": "Fraction"
+        },
+        "0_Baseline Office Lighting Schedule": {
+            "data": [
+                {
+                    "field": "Through: 31 Dec"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 08:00"
+                },
+                {
+                    "field": 0.0666
+                },
+                {
+                    "field": "Until: 17:00"
+                },
+                {
+                    "field": 1
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 0.0666
+                }
+            ],
+            "schedule_type_limits_name": "Fraction"
+        },
+        "0_Baseline Office Non Fixed Equipment Schedule": {
+            "data": [
+                {
+                    "field": "Through: 31 Dec"
+                },
+                {
+                    "field": "For: Alldays"
+                },
+                {
+                    "field": "Until: 08:00"
+                },
+                {
+                    "field": 0
+                },
+                {
+                    "field": "Until: 17:00"
+                },
+                {
+                    "field": 1
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 0
+                }
+            ],
+            "schedule_type_limits_name": "Fraction"
+        },
+        "0_Baseline Office Occupency Schedule": {
+            "data": [
+                {
+                    "field": "Through: 31 Dec"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 08:00"
+                },
+                {
+                    "field": 0
+                },
+                {
+                    "field": "Until: 17:00"
+                },
+                {
+                    "field": 1
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 0
+                }
+            ],
+            "schedule_type_limits_name": "Fraction"
+        },
+        "Activity Schedule 2987": {
+            "data": [
+                {
+                    "field": "Through: 12/31"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 126
+                }
+            ],
+            "schedule_type_limits_name": "Any Number"
+        },
+        "Clothing Schedule 2987": {
+            "data": [
+                {
+                    "field": "Through: 4/1"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 1
+                },
+                {
+                    "field": "Through: 9/30"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 0.5
+                },
+                {
+                    "field": "Through: 12/31"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 1
+                }
+            ],
+            "schedule_type_limits_name": "Any Number"
+        },
+        "Default Air Velocity for Comfort Calculations": {
+            "data": [
+                {
+                    "field": "Through: 12/31"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 0.137
+                }
+            ],
+            "schedule_type_limits_name": "Any Number"
+        },
+        "Design Days Only": {
+            "data": [
+                {
+                    "field": "Through: 12/31"
+                },
+                {
+                    "field": "For: SummerDesignDay WinterDesignDay"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 1
+                },
+                {
+                    "field": "For: AllOtherDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 0
+                }
+            ],
+            "schedule_type_limits_name": "Any Number"
+        },
+        "Off": {
+            "data": [
+                {
+                    "field": "Through: 12/31"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 0
+                }
+            ],
+            "schedule_type_limits_name": "Any Number"
+        },
+        "On": {
+            "data": [
+                {
+                    "field": "Through: 12/31"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 1
+                }
+            ],
+            "schedule_type_limits_name": "Any Number"
+        },
+        "On 24/7": {
+            "data": [
+                {
+                    "field": "Through: 12/31"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 1
+                }
+            ],
+            "schedule_type_limits_name": "Any Number"
+        },
+        "OnSummerDesignDay": {
+            "data": [
+                {
+                    "field": "Through: 12/31"
+                },
+                {
+                    "field": "For: SummerDesignDay"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 1
+                },
+                {
+                    "field": "For: AllOtherDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 0
+                }
+            ],
+            "schedule_type_limits_name": "Any Number"
+        },
+        "OnWinterDesignDay": {
+            "data": [
+                {
+                    "field": "Through: 12/31"
+                },
+                {
+                    "field": "For: WinterDesignDay"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 1
+                },
+                {
+                    "field": "For: AllOtherDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 0
+                }
+            ],
+            "schedule_type_limits_name": "Any Number"
+        },
+        "OpaqueShade": {
+            "data": [
+                {
+                    "field": "Through: 12/31"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 0
+                }
+            ],
+            "schedule_type_limits_name": "Any Number"
+        },
+        "TypOperativeTempControlSch": {
+            "data": [
+                {
+                    "field": "Through: 31 Dec"
+                },
+                {
+                    "field": "For: SummerDesignDay WinterDesignDay"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 0.0
+                },
+                {
+                    "field": "For: AllOtherDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 0.5
+                }
+            ],
+            "schedule_type_limits_name": "Temperature"
+        },
+        "Work efficiency": {
+            "data": [
+                {
+                    "field": "Through: 12/31"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 0
+                }
+            ],
+            "schedule_type_limits_name": "Any Number"
+        },
+        "Zone Comfort Control Type Sched": {
+            "data": [
+                {
+                    "field": "Through: 12/31"
+                },
+                {
+                    "field": "For: AllDays"
+                },
+                {
+                    "field": "Until: 24:00"
+                },
+                {
+                    "field": 4
+                }
+            ],
+            "schedule_type_limits_name": "Control Type"
+        }
+    },
+    "Schedule:Day:Hourly": {
+        "0": {
+            "hour_1": 0,
+            "hour_2": 0,
+            "hour_3": 0,
+            "hour_4": 0,
+            "hour_5": 0,
+            "hour_6": 0,
+            "hour_7": 0,
+            "hour_8": 0,
+            "hour_9": 0,
+            "hour_10": 0,
+            "hour_11": 0,
+            "hour_12": 0,
+            "hour_13": 0,
+            "hour_14": 0,
+            "hour_15": 0,
+            "hour_16": 0,
+            "hour_17": 0,
+            "hour_18": 0,
+            "hour_19": 0,
+            "hour_20": 0,
+            "hour_21": 0,
+            "hour_22": 0,
+            "hour_23": 0,
+            "hour_24": 0,
+            "schedule_type_limits_name": "Any Number"
+        },
+        "50": {
+            "hour_1": 50,
+            "hour_2": 50,
+            "hour_3": 50,
+            "hour_4": 50,
+            "hour_5": 50,
+            "hour_6": 50,
+            "hour_7": 50,
+            "hour_8": 50,
+            "hour_9": 50,
+            "hour_10": 50,
+            "hour_11": 50,
+            "hour_12": 50,
+            "hour_13": 50,
+            "hour_14": 50,
+            "hour_15": 50,
+            "hour_16": 50,
+            "hour_17": 50,
+            "hour_18": 50,
+            "hour_19": 50,
+            "hour_20": 50,
+            "hour_21": 50,
+            "hour_22": 50,
+            "hour_23": 50,
+            "hour_24": 50,
+            "schedule_type_limits_name": "Any Number"
+        },
+        "Off": {
+            "hour_1": 0,
+            "hour_2": 0,
+            "hour_3": 0,
+            "hour_4": 0,
+            "hour_5": 0,
+            "hour_6": 0,
+            "hour_7": 0,
+            "hour_8": 0,
+            "hour_9": 0,
+            "hour_10": 0,
+            "hour_11": 0,
+            "hour_12": 0,
+            "hour_13": 0,
+            "hour_14": 0,
+            "hour_15": 0,
+            "hour_16": 0,
+            "hour_17": 0,
+            "hour_18": 0,
+            "hour_19": 0,
+            "hour_20": 0,
+            "hour_21": 0,
+            "hour_22": 0,
+            "hour_23": 0,
+            "hour_24": 0,
+            "schedule_type_limits_name": "Fraction"
+        },
+        "Summer Control Type Day Sch": {
+            "hour_1": 4,
+            "hour_2": 4,
+            "hour_3": 4,
+            "hour_4": 4,
+            "hour_5": 4,
+            "hour_6": 4,
+            "hour_7": 4,
+            "hour_8": 4,
+            "hour_9": 4,
+            "hour_10": 4,
+            "hour_11": 4,
+            "hour_12": 4,
+            "hour_13": 4,
+            "hour_14": 4,
+            "hour_15": 4,
+            "hour_16": 4,
+            "hour_17": 4,
+            "hour_18": 4,
+            "hour_19": 4,
+            "hour_20": 4,
+            "hour_21": 4,
+            "hour_22": 4,
+            "hour_23": 4,
+            "hour_24": 4,
+            "schedule_type_limits_name": "Control Type"
+        },
+        "Summer Control Type Day Sch - cool": {
+            "hour_1": 2,
+            "hour_2": 2,
+            "hour_3": 2,
+            "hour_4": 2,
+            "hour_5": 2,
+            "hour_6": 2,
+            "hour_7": 2,
+            "hour_8": 2,
+            "hour_9": 2,
+            "hour_10": 2,
+            "hour_11": 2,
+            "hour_12": 2,
+            "hour_13": 2,
+            "hour_14": 2,
+            "hour_15": 2,
+            "hour_16": 2,
+            "hour_17": 2,
+            "hour_18": 2,
+            "hour_19": 2,
+            "hour_20": 2,
+            "hour_21": 2,
+            "hour_22": 2,
+            "hour_23": 2,
+            "hour_24": 2,
+            "schedule_type_limits_name": "Control Type"
+        },
+        "Winter Control Type Day Sch": {
+            "hour_1": 4,
+            "hour_2": 4,
+            "hour_3": 4,
+            "hour_4": 4,
+            "hour_5": 4,
+            "hour_6": 4,
+            "hour_7": 4,
+            "hour_8": 4,
+            "hour_9": 4,
+            "hour_10": 4,
+            "hour_11": 4,
+            "hour_12": 4,
+            "hour_13": 4,
+            "hour_14": 4,
+            "hour_15": 4,
+            "hour_16": 4,
+            "hour_17": 4,
+            "hour_18": 4,
+            "hour_19": 4,
+            "hour_20": 4,
+            "hour_21": 4,
+            "hour_22": 4,
+            "hour_23": 4,
+            "hour_24": 4,
+            "schedule_type_limits_name": "Control Type"
+        },
+        "Winter Control Type Day Sch - heat": {
+            "hour_1": 1,
+            "hour_2": 1,
+            "hour_3": 1,
+            "hour_4": 1,
+            "hour_5": 1,
+            "hour_6": 1,
+            "hour_7": 1,
+            "hour_8": 1,
+            "hour_9": 1,
+            "hour_10": 1,
+            "hour_11": 1,
+            "hour_12": 1,
+            "hour_13": 1,
+            "hour_14": 1,
+            "hour_15": 1,
+            "hour_16": 1,
+            "hour_17": 1,
+            "hour_18": 1,
+            "hour_19": 1,
+            "hour_20": 1,
+            "hour_21": 1,
+            "hour_22": 1,
+            "hour_23": 1,
+            "hour_24": 1,
+            "schedule_type_limits_name": "Control Type"
+        }
+    },
+    "Schedule:Week:Daily": {
+        "Off": {
+            "customday1_schedule_day_name": "Off",
+            "customday2_schedule_day_name": "Off",
+            "friday_schedule_day_name": "Off",
+            "holiday_schedule_day_name": "Off",
+            "monday_schedule_day_name": "Off",
+            "saturday_schedule_day_name": "Off",
+            "summerdesignday_schedule_day_name": "Off",
+            "sunday_schedule_day_name": "Off",
+            "thursday_schedule_day_name": "Off",
+            "tuesday_schedule_day_name": "Off",
+            "wednesday_schedule_day_name": "Off",
+            "winterdesignday_schedule_day_name": "Off"
+        },
+        "Summer Control Type Week Sch": {
+            "customday1_schedule_day_name": "Summer Control Type Day Sch",
+            "customday2_schedule_day_name": "Summer Control Type Day Sch",
+            "friday_schedule_day_name": "Summer Control Type Day Sch",
+            "holiday_schedule_day_name": "Summer Control Type Day Sch",
+            "monday_schedule_day_name": "Summer Control Type Day Sch",
+            "saturday_schedule_day_name": "Summer Control Type Day Sch",
+            "summerdesignday_schedule_day_name": "Summer Control Type Day Sch",
+            "sunday_schedule_day_name": "Summer Control Type Day Sch",
+            "thursday_schedule_day_name": "Summer Control Type Day Sch",
+            "tuesday_schedule_day_name": "Summer Control Type Day Sch",
+            "wednesday_schedule_day_name": "Summer Control Type Day Sch",
+            "winterdesignday_schedule_day_name": "Summer Control Type Day Sch"
+        },
+        "Summer Control Type Week Sch - cool": {
+            "customday1_schedule_day_name": "Summer Control Type Day Sch - cool",
+            "customday2_schedule_day_name": "Summer Control Type Day Sch - cool",
+            "friday_schedule_day_name": "Summer Control Type Day Sch - cool",
+            "holiday_schedule_day_name": "Summer Control Type Day Sch - cool",
+            "monday_schedule_day_name": "Summer Control Type Day Sch - cool",
+            "saturday_schedule_day_name": "Summer Control Type Day Sch - cool",
+            "summerdesignday_schedule_day_name": "Summer Control Type Day Sch - cool",
+            "sunday_schedule_day_name": "Summer Control Type Day Sch - cool",
+            "thursday_schedule_day_name": "Summer Control Type Day Sch - cool",
+            "tuesday_schedule_day_name": "Summer Control Type Day Sch - cool",
+            "wednesday_schedule_day_name": "Summer Control Type Day Sch - cool",
+            "winterdesignday_schedule_day_name": "Summer Control Type Day Sch - cool"
+        },
+        "Winter Control Type Week Sch": {
+            "customday1_schedule_day_name": "Winter Control Type Day Sch",
+            "customday2_schedule_day_name": "Winter Control Type Day Sch",
+            "friday_schedule_day_name": "Winter Control Type Day Sch",
+            "holiday_schedule_day_name": "Winter Control Type Day Sch",
+            "monday_schedule_day_name": "Winter Control Type Day Sch",
+            "saturday_schedule_day_name": "Winter Control Type Day Sch",
+            "summerdesignday_schedule_day_name": "Winter Control Type Day Sch",
+            "sunday_schedule_day_name": "Winter Control Type Day Sch",
+            "thursday_schedule_day_name": "Winter Control Type Day Sch",
+            "tuesday_schedule_day_name": "Winter Control Type Day Sch",
+            "wednesday_schedule_day_name": "Winter Control Type Day Sch",
+            "winterdesignday_schedule_day_name": "Winter Control Type Day Sch"
+        },
+        "Winter Control Type Week Sch - heat": {
+            "customday1_schedule_day_name": "Winter Control Type Day Sch - heat",
+            "customday2_schedule_day_name": "Winter Control Type Day Sch - heat",
+            "friday_schedule_day_name": "Winter Control Type Day Sch - heat",
+            "holiday_schedule_day_name": "Winter Control Type Day Sch - heat",
+            "monday_schedule_day_name": "Winter Control Type Day Sch - heat",
+            "saturday_schedule_day_name": "Winter Control Type Day Sch - heat",
+            "summerdesignday_schedule_day_name": "Winter Control Type Day Sch - heat",
+            "sunday_schedule_day_name": "Winter Control Type Day Sch - heat",
+            "thursday_schedule_day_name": "Winter Control Type Day Sch - heat",
+            "tuesday_schedule_day_name": "Winter Control Type Day Sch - heat",
+            "wednesday_schedule_day_name": "Winter Control Type Day Sch - heat",
+            "winterdesignday_schedule_day_name": "Winter Control Type Day Sch - heat"
+        }
+    },
+    "Schedule:Year": {
+        "Zone Control Type Sched": {
+            "schedule_type_limits_name": "Control Type",
+            "schedule_weeks": [
+                {
+                    "end_day": 31,
+                    "end_month": 3,
+                    "schedule_week_name": "Winter Control Type Week Sch",
+                    "start_day": 1,
+                    "start_month": 1
+                },
+                {
+                    "end_day": 30,
+                    "end_month": 9,
+                    "schedule_week_name": "Summer Control Type Week Sch",
+                    "start_day": 1,
+                    "start_month": 4
+                },
+                {
+                    "end_day": 31,
+                    "end_month": 12,
+                    "schedule_week_name": "Winter Control Type Week Sch",
+                    "start_day": 1,
+                    "start_month": 10
+                }
+            ]
+        }
+    },
+    "ScheduleTypeLimits": {
+        "Any Number": {},
+        "Control Type": {
+            "lower_limit_value": 0,
+            "numeric_type": "Discrete",
+            "upper_limit_value": 4
+        },
+        "Fraction": {
+            "lower_limit_value": 0.0,
+            "numeric_type": "Continuous",
+            "upper_limit_value": 1.0
+        },
+        "On/Off": {
+            "lower_limit_value": 0,
+            "numeric_type": "Discrete",
+            "upper_limit_value": 1
+        },
+        "Temperature": {
+            "lower_limit_value": -60,
+            "numeric_type": "Continuous",
+            "upper_limit_value": 200
+        }
+    },
+    "Shading:Building:Detailed": {
+        "Ext1": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 30.385517999,
+                    "vertex_y_coordinate": 8.2,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 24.285517999,
+                    "vertex_y_coordinate": 8.2,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 24.285517999,
+                    "vertex_y_coordinate": 8.2,
+                    "vertex_z_coordinate": 3.7
+                },
+                {
+                    "vertex_x_coordinate": 30.385517999,
+                    "vertex_y_coordinate": 8.2,
+                    "vertex_z_coordinate": 3.7
+                }
+            ]
+        },
+        "Ext2": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 24.285517999,
+                    "vertex_y_coordinate": 8.2,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 24.285517999,
+                    "vertex_y_coordinate": 0,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 24.285517999,
+                    "vertex_y_coordinate": 0,
+                    "vertex_z_coordinate": 3.7
+                },
+                {
+                    "vertex_x_coordinate": 24.285517999,
+                    "vertex_y_coordinate": 8.2,
+                    "vertex_z_coordinate": 3.7
+                }
+            ]
+        },
+        "Ext3": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 24.285517999,
+                    "vertex_y_coordinate": 0,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 30.385517999,
+                    "vertex_y_coordinate": 0,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 30.385517999,
+                    "vertex_y_coordinate": 0,
+                    "vertex_z_coordinate": 3.7
+                },
+                {
+                    "vertex_x_coordinate": 24.285517999,
+                    "vertex_y_coordinate": 0,
+                    "vertex_z_coordinate": 3.7
+                }
+            ]
+        },
+        "Ext4": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 30.385517999,
+                    "vertex_y_coordinate": 0,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 30.385517999,
+                    "vertex_y_coordinate": 8.2,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 30.385517999,
+                    "vertex_y_coordinate": 8.2,
+                    "vertex_z_coordinate": 3.7
+                },
+                {
+                    "vertex_x_coordinate": 30.385517999,
+                    "vertex_y_coordinate": 0,
+                    "vertex_z_coordinate": 3.7
+                }
+            ]
+        },
+        "Ext5": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 4.285517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 9.0903738671,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 9.0903738671,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 4.285517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext6": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 9.0903738671,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 4.285517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 4.285517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 9.0903738671,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext7": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 4.285517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 4.285517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 4.285517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 4.285517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext8": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 4.285517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 9.0903738671,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 9.0903738671,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 4.285517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext9": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 9.0903738671,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 14.285517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 14.285517999,
+                    "vertex_y_coordinate": 7.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 9.0903738671,
+                    "vertex_y_coordinate": 7.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext10": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 14.285517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 14.285517999,
+                    "vertex_y_coordinate": 7.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 14.285517999,
+                    "vertex_y_coordinate": 7.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 14.285517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext11": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 9.0903738671,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 14.285517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 14.285517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 9.0903738671,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext12": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 9.0903738671,
+                    "vertex_y_coordinate": 7.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 14.285517999,
+                    "vertex_y_coordinate": 7.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 14.285517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 9.0903738671,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext13": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 14.285517999,
+                    "vertex_y_coordinate": 7.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 14.285517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 14.285517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 14.285517999,
+                    "vertex_y_coordinate": 7.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext14": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 14.285517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 9.0903738671,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 9.0903738671,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 14.285517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext15": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 40.385517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 45.1903738671,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 45.1903738671,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 40.385517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext16": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 45.1903738671,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 40.385517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 40.385517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 45.1903738671,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext17": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 40.385517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 40.385517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 40.385517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 40.385517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext18": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 40.385517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 45.1903738671,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 45.1903738671,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 40.385517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext19": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 45.1903738671,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 50.385517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 50.385517999,
+                    "vertex_y_coordinate": 7.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 45.1903738671,
+                    "vertex_y_coordinate": 7.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext20": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 50.385517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 50.385517999,
+                    "vertex_y_coordinate": 7.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 50.385517999,
+                    "vertex_y_coordinate": 7.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 50.385517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext21": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 45.1903738671,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 50.385517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 50.385517999,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 45.1903738671,
+                    "vertex_y_coordinate": 2.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext22": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 45.1903738671,
+                    "vertex_y_coordinate": 7.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 50.385517999,
+                    "vertex_y_coordinate": 7.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 50.385517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 45.1903738671,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext23": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 50.385517999,
+                    "vertex_y_coordinate": 7.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 50.385517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 50.385517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 50.385517999,
+                    "vertex_y_coordinate": 7.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext24": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 50.385517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 45.1903738671,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 45.1903738671,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 50.385517999,
+                    "vertex_y_coordinate": 12.5292254459,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext25": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": -26.1131365314,
+                    "vertex_y_coordinate": 1.9117977571,
+                    "vertex_z_coordinate": 3.5
+                },
+                {
+                    "vertex_x_coordinate": -16.1131365314,
+                    "vertex_y_coordinate": 1.9117977571,
+                    "vertex_z_coordinate": 3.5
+                },
+                {
+                    "vertex_x_coordinate": -16.1131365314,
+                    "vertex_y_coordinate": 11.9117977571,
+                    "vertex_z_coordinate": 3.5
+                },
+                {
+                    "vertex_x_coordinate": -26.1131365314,
+                    "vertex_y_coordinate": 11.9117977571,
+                    "vertex_z_coordinate": 3.5
+                }
+            ]
+        },
+        "Ext26": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": -16.1131365314,
+                    "vertex_y_coordinate": 1.9117977571,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": -16.1131365314,
+                    "vertex_y_coordinate": 11.9117977571,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": -16.1131365314,
+                    "vertex_y_coordinate": 11.9117977571,
+                    "vertex_z_coordinate": 3.5
+                },
+                {
+                    "vertex_x_coordinate": -16.1131365314,
+                    "vertex_y_coordinate": 1.9117977571,
+                    "vertex_z_coordinate": 3.5
+                }
+            ]
+        },
+        "Ext27": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": -16.1131365314,
+                    "vertex_y_coordinate": 11.9117977571,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": -26.1131365314,
+                    "vertex_y_coordinate": 11.9117977571,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": -26.1131365314,
+                    "vertex_y_coordinate": 11.9117977571,
+                    "vertex_z_coordinate": 3.5
+                },
+                {
+                    "vertex_x_coordinate": -16.1131365314,
+                    "vertex_y_coordinate": 11.9117977571,
+                    "vertex_z_coordinate": 3.5
+                }
+            ]
+        },
+        "Ext28": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": -26.1131365314,
+                    "vertex_y_coordinate": 11.9117977571,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": -26.1131365314,
+                    "vertex_y_coordinate": 1.9117977571,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": -26.1131365314,
+                    "vertex_y_coordinate": 1.9117977571,
+                    "vertex_z_coordinate": 3.5
+                },
+                {
+                    "vertex_x_coordinate": -26.1131365314,
+                    "vertex_y_coordinate": 11.9117977571,
+                    "vertex_z_coordinate": 3.5
+                }
+            ]
+        },
+        "Ext29": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": -26.1131365314,
+                    "vertex_y_coordinate": 1.9117977571,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": -16.1131365314,
+                    "vertex_y_coordinate": 1.9117977571,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": -16.1131365314,
+                    "vertex_y_coordinate": 1.9117977571,
+                    "vertex_z_coordinate": 3.5
+                },
+                {
+                    "vertex_x_coordinate": -26.1131365314,
+                    "vertex_y_coordinate": 1.9117977571,
+                    "vertex_z_coordinate": 3.5
+                }
+            ]
+        },
+        "Ext30": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 60.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 60.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext31": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 60.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 60.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 60.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 60.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext32": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 60.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 60.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext33": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -32.0730590157,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -32.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext34": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext35": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -32.0730590157,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -32.0730590157,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext36": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 0
+                },
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 3.15
+                }
+            ]
+        },
+        "Ext37": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 60.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 9.45
+                },
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 9.45
+                },
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 9.45
+                },
+                {
+                    "vertex_x_coordinate": 60.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 9.45
+                }
+            ]
+        },
+        "Ext38": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 60.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 60.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 9.45
+                },
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 9.45
+                }
+            ]
+        },
+        "Ext39": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 60.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 60.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 60.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 9.45
+                },
+                {
+                    "vertex_x_coordinate": 60.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 9.45
+                }
+            ]
+        },
+        "Ext40": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 60.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 9.45
+                },
+                {
+                    "vertex_x_coordinate": 60.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 9.45
+                }
+            ]
+        },
+        "Ext41": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 9.45
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 9.45
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 9.45
+                },
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 9.45
+                }
+            ]
+        },
+        "Ext42": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 9.45
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 9.45
+                }
+            ]
+        },
+        "Ext43": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 9.45
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 9.45
+                }
+            ]
+        },
+        "Ext44": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 9.45
+                },
+                {
+                    "vertex_x_coordinate": 65.1903738671,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 9.45
+                }
+            ]
+        },
+        "Ext45": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 56.77850687,
+                    "vertex_y_coordinate": -37.07305902,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 60.385518,
+                    "vertex_y_coordinate": -37.07305902,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 60.385518,
+                    "vertex_y_coordinate": -27.07305902,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 56.77850687,
+                    "vertex_y_coordinate": -27.07305902,
+                    "vertex_z_coordinate": 6.3
+                }
+            ]
+        },
+        "Ext46": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 63.3164795984,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 56.7785068725,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 56.7785068725,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 63.3164795984,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 6.3
+                }
+            ]
+        },
+        "Ext47": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 56.7785068725,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 56.7785068725,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 56.7785068725,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 56.7785068725,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 6.3
+                }
+            ]
+        },
+        "Ext48": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 56.7785068725,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 63.3164795984,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 63.3164795984,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 56.7785068725,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 6.3
+                }
+            ]
+        },
+        "Ext49": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -32.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -32.0730590157,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 6.3
+                }
+            ]
+        },
+        "Ext50": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 63.3164795984,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 63.3164795984,
+                    "vertex_y_coordinate": -37.0730590157,
+                    "vertex_z_coordinate": 6.3
+                }
+            ]
+        },
+        "Ext51": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -32.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -32.0730590157,
+                    "vertex_z_coordinate": 6.3
+                }
+            ]
+        },
+        "Ext52": {
+            "number_of_vertices": 4,
+            "vertices": [
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 63.3164795984,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 3.15
+                },
+                {
+                    "vertex_x_coordinate": 63.3164795984,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 6.3
+                },
+                {
+                    "vertex_x_coordinate": 70.385517999,
+                    "vertex_y_coordinate": -27.0730590157,
+                    "vertex_z_coordinate": 6.3
+                }
+            ]
+        }
+    },
+    "ShadowCalculation": {
+        "ShadowCalculation 1": {
+            "maximum_figures_in_shadow_overlap_calculations": 15000,
+            "polygon_clipping_algorithm": "SutherlandHodgman",
+            "shading_calculation_method": "PolygonClipping",
+            "shading_calculation_update_frequency": 20,
+            "shading_calculation_update_frequency_method": "Periodic",
+            "sky_diffuse_modeling_algorithm": "SimpleSkyDiffuseModeling"
+        }
+    },
+    "SimulationControl": {
+        "SimulationControl 1": {
+            "do_plant_sizing_calculation": "No",
+            "do_system_sizing_calculation": "No",
+            "do_zone_sizing_calculation": "No",
+            "run_simulation_for_sizing_periods": "No",
+            "run_simulation_for_weather_file_run_periods": "Yes"
+        }
+    },
+    "Site:GroundReflectance": {
+        "Site:GroundReflectance 1": {
+            "april_ground_reflectance": 0.2,
+            "august_ground_reflectance": 0.2,
+            "december_ground_reflectance": 0.2,
+            "february_ground_reflectance": 0.2,
+            "january_ground_reflectance": 0.2,
+            "july_ground_reflectance": 0.2,
+            "june_ground_reflectance": 0.2,
+            "march_ground_reflectance": 0.2,
+            "may_ground_reflectance": 0.2,
+            "november_ground_reflectance": 0.2,
+            "october_ground_reflectance": 0.2,
+            "september_ground_reflectance": 0.2
+        }
+    },
+    "Site:GroundReflectance:SnowModifier": {
+        "Site:GroundReflectance:SnowModifier 1": {
+            "daylighting_ground_reflected_solar_modifier": 2.0,
+            "ground_reflected_solar_modifier": 2.0
+        }
+    },
+    "Site:GroundTemperature:BuildingSurface": {
+        "Site:GroundTemperature:BuildingSurface 1": {
+            "april_ground_temperature": 18,
+            "august_ground_temperature": 18,
+            "december_ground_temperature": 18,
+            "february_ground_temperature": 18,
+            "january_ground_temperature": 18,
+            "july_ground_temperature": 18,
+            "june_ground_temperature": 18,
+            "march_ground_temperature": 18,
+            "may_ground_temperature": 18,
+            "november_ground_temperature": 18,
+            "october_ground_temperature": 18,
+            "september_ground_temperature": 18
+        }
+    },
+    "Site:GroundTemperature:Deep": {
+        "Site:GroundTemperature:Deep 1": {
+            "april_deep_ground_temperature": 18,
+            "august_deep_ground_temperature": 18,
+            "december_deep_ground_temperature": 18,
+            "february_deep_ground_temperature": 18,
+            "january_deep_ground_temperature": 18,
+            "july_deep_ground_temperature": 18,
+            "june_deep_ground_temperature": 18,
+            "march_deep_ground_temperature": 18,
+            "may_deep_ground_temperature": 18,
+            "november_deep_ground_temperature": 18,
+            "october_deep_ground_temperature": 18,
+            "september_deep_ground_temperature": 18
+        }
+    },
+    "Site:GroundTemperature:FCfactorMethod": {
+        "Site:GroundTemperature:FCfactorMethod 1": {
+            "april_ground_temperature": 20.9,
+            "august_ground_temperature": 26.66,
+            "december_ground_temperature": 15.82,
+            "february_ground_temperature": 16.44,
+            "january_ground_temperature": 15.26,
+            "july_ground_temperature": 27.76,
+            "june_ground_temperature": 27.17,
+            "march_ground_temperature": 18.73,
+            "may_ground_temperature": 25.0,
+            "november_ground_temperature": 17.87,
+            "october_ground_temperature": 20.98,
+            "september_ground_temperature": 24.13
+        }
+    },
+    "Site:GroundTemperature:Shallow": {
+        "Site:GroundTemperature:Shallow 1": {
+            "april_surface_ground_temperature": 18,
+            "august_surface_ground_temperature": 18,
+            "december_surface_ground_temperature": 18,
+            "february_surface_ground_temperature": 18,
+            "january_surface_ground_temperature": 18,
+            "july_surface_ground_temperature": 18,
+            "june_surface_ground_temperature": 18,
+            "march_surface_ground_temperature": 18,
+            "may_surface_ground_temperature": 18,
+            "november_surface_ground_temperature": 18,
+            "october_surface_ground_temperature": 18,
+            "september_surface_ground_temperature": 18
+        }
+    },
+    "Site:Location": {
+        "1 (01-01:31-12)  (01-01:31-12)": {
+            "elevation": 49,
+            "latitude": 32,
+            "longitude": 34.9,
+            "time_zone": 2
+        }
+    },
+    "SurfaceConvectionAlgorithm:Inside": {
+        "SurfaceConvectionAlgorithm:Inside 1": {
+            "algorithm": "TARP"
+        }
+    },
+    "SurfaceConvectionAlgorithm:Outside": {
+        "SurfaceConvectionAlgorithm:Outside 1": {
+            "algorithm": "DOE-2"
+        }
+    },
+    "ThermostatSetpoint:DualSetpoint": {
+        "Dual Setpoint - Zone 00X00:NEXOUT": {
+            "cooling_setpoint_temperature_schedule_name": "00X00:NEXOUT Cooling SP Sch",
+            "heating_setpoint_temperature_schedule_name": "00X00:NEXOUT Heating Setpoint Schedule"
+        }
+    },
+    "Timestep": {
+        "Timestep 1": {
+            "number_of_timesteps_per_hour": 6
+        }
+    },
+    "Version": {
+        "Version 1": {
+            "version_identifier": "9.4.0.002"
+        }
+    },
+    "WindowMaterial:Gas": {
+        "1001": {
+            "gas_type": "Air",
+            "thickness": 0.006
+        },
+        "Half thickness 1001": {
+            "gas_type": "Air",
+            "thickness": 0.003
+        }
+    },
+    "WindowMaterial:Glazing": {
+        "3": {
+            "back_side_infrared_hemispherical_emissivity": 0.84,
+            "back_side_solar_reflectance_at_normal_incidence": 0.071,
+            "back_side_visible_reflectance_at_normal_incidence": 0.08,
+            "conductivity": 0.9,
+            "dirt_correction_factor_for_solar_and_visible_transmittance": 1,
+            "front_side_infrared_hemispherical_emissivity": 0.84,
+            "front_side_solar_reflectance_at_normal_incidence": 0.071,
+            "front_side_visible_reflectance_at_normal_incidence": 0.08,
+            "infrared_transmittance_at_normal_incidence": 0.0,
+            "optical_data_type": "SpectralAverage",
+            "solar_transmittance_at_normal_incidence": 0.775,
+            "thickness": 0.006,
+            "visible_transmittance_at_normal_incidence": 0.881
+        },
+        "64": {
+            "back_side_infrared_hemispherical_emissivity": 0.84,
+            "back_side_solar_reflectance_at_normal_incidence": 0.075,
+            "back_side_visible_reflectance_at_normal_incidence": 0.081,
+            "conductivity": 1,
+            "dirt_correction_factor_for_solar_and_visible_transmittance": 1,
+            "front_side_infrared_hemispherical_emissivity": 0.84,
+            "front_side_solar_reflectance_at_normal_incidence": 0.075,
+            "front_side_visible_reflectance_at_normal_incidence": 0.081,
+            "infrared_transmittance_at_normal_incidence": 0.0,
+            "optical_data_type": "SpectralAverage",
+            "solar_transmittance_at_normal_incidence": 0.79,
+            "thickness": 0.006,
+            "visible_transmittance_at_normal_incidence": 0.881
+        }
+    },
+    "WindowProperty:FrameAndDivider": {
+        "1": {
+            "divider_type": "DividedLite",
+            "frame_conductance": 500,
+            "frame_inside_projection": 0,
+            "frame_outside_projection": 0,
+            "frame_solar_absorptance": 0.3,
+            "frame_thermal_hemispherical_emissivity": 0.3,
+            "frame_visible_absorptance": 0.3,
+            "frame_width": 0.05,
+            "inside_reveal_depth": 0,
+            "inside_reveal_solar_absorptance": 0.3,
+            "inside_sill_depth": 0,
+            "inside_sill_solar_absorptance": 0.3,
+            "number_of_horizontal_dividers": 0,
+            "number_of_vertical_dividers": 0,
+            "outside_reveal_solar_absorptance": 0.3,
+            "ratio_of_frame_edge_glass_conductance_to_center_of_glass_conductance": 1
+        }
+    },
+    "Zone": {
+        "00X00:NEXOUT": {
+            "direction_of_relative_north": 0,
+            "floor_area": 50.02,
+            "multiplier": 1,
+            "part_of_total_floor_area": "Yes",
+            "type": 1,
+            "volume": 185.074,
+            "x_origin": 0,
+            "y_origin": 0,
+            "z_origin": 0,
+            "zone_inside_convection_algorithm": "TARP"
+        }
+    },
+    "ZoneCapacitanceMultiplier:ResearchSpecial": {
+        "All": {
+            "carbon_dioxide_capacity_multiplier": 1.0,
+            "generic_contaminant_capacity_multiplier": 1.0,
+            "humidity_capacity_multiplier": 1.0,
+            "temperature_capacity_multiplier": 5
+        }
+    },
+    "ZoneControl:Thermostat": {
+        "00X00:NEXOUT Thermostat": {
+            "control_1_name": "Dual Setpoint - Zone 00X00:NEXOUT",
+            "control_1_object_type": "ThermostatSetpoint:DualSetpoint",
+            "control_type_schedule_name": "Zone Control Type Sched",
+            "zone_or_zonelist_name": "00X00:NEXOUT"
+        }
+    },
+    "ZoneHVAC:EquipmentConnections": {
+        "ZoneHVAC:EquipmentConnections 1": {
+            "zone_air_inlet_node_or_nodelist_name": "00X00:NEXOUT Inlets",
+            "zone_air_node_name": "Node 00X00:NEXOUT Zone",
+            "zone_conditioning_equipment_list_name": "00X00:NEXOUT Equipment",
+            "zone_name": "00X00:NEXOUT",
+            "zone_return_air_node_or_nodelist_name": "Node 00X00:NEXOUT Out"
+        }
+    },
+    "ZoneHVAC:EquipmentList": {
+        "00X00:NEXOUT Equipment": {
+            "equipment": [
+                {
+                    "zone_equipment_cooling_sequence": 1,
+                    "zone_equipment_heating_or_no_load_sequence": 1,
+                    "zone_equipment_name": "00X00:NEXOUT Ideal Loads Air",
+                    "zone_equipment_object_type": "ZoneHVAC:IdealLoadsAirSystem",
+                    "zone_equipment_sequential_cooling_fraction_schedule_name": "On 24/7",
+                    "zone_equipment_sequential_heating_fraction_schedule_name": "On 24/7"
+                }
+            ],
+            "load_distribution_scheme": "SequentialLoad"
+        }
+    },
+    "ZoneHVAC:IdealLoadsAirSystem": {
+        "00X00:NEXOUT Ideal Loads Air": {
+            "cooling_availability_schedule_name": "00X00:NEXOUT Cooling Availability Sch",
+            "cooling_limit": "NoLimit",
+            "dehumidification_control_type": "None",
+            "heat_recovery_type": "None",
+            "heating_availability_schedule_name": "00X00:NEXOUT Heating Availability Sch",
+            "heating_limit": "NoLimit",
+            "humidification_control_type": "None",
+            "maximum_heating_supply_air_humidity_ratio": 0.0156,
+            "maximum_heating_supply_air_temperature": 35,
+            "minimum_cooling_supply_air_humidity_ratio": 0.0077,
+            "minimum_cooling_supply_air_temperature": 12,
+            "outdoor_air_economizer_type": "NoEconomizer",
+            "zone_supply_air_node_name": "Node 00X00:NEXOUT In"
+        }
+    },
+    "ZoneInfiltration:DesignFlowRate": {
+        "00X00:NEXOUT Infiltration": {
+            "constant_term_coefficient": 1,
+            "design_flow_rate": 0.051409,
+            "design_flow_rate_calculation_method": "Flow/Zone",
+            "schedule_name": "On 24/7",
+            "temperature_term_coefficient": 0,
+            "velocity_squared_term_coefficient": 0,
+            "velocity_term_coefficient": 0,
+            "zone_or_zonelist_or_space_or_spacelist_name": "00X00:NEXOUT"
+        }
+    }
+}

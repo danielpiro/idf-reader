@@ -102,8 +102,8 @@ class AreaReportGenerator(BaseReportGenerator):
                             if direction and direction != "Unknown":
                                 window_directions.add(direction)
         
-        # Define custom sort order for directions
-        direction_order = {'North': 0, 'South': 1, 'East': 2, 'West': 3}
+        # Define custom sort order for directions (clockwise from North)
+        direction_order = {'North': 0, 'East': 1, 'South': 2, 'West': 3}
         
         # Sort directions according to custom order
         sorted_directions = sorted(window_directions, key=lambda x: direction_order.get(x, 999))

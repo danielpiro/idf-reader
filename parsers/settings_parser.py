@@ -2,6 +2,43 @@ import re
 from typing import Dict, Any
 from utils.data_loader import DataLoader
 
+class EPJSONObjectWrapper:
+    """
+    Wrapper class to make EPJSON objects behave like eppy objects
+    for compatibility with existing settings parsing logic.
+    """
+    def __init__(self, name: str, data: Dict[str, Any]):
+        self.Name = name
+        self.name = name
+        self._data = data
+        
+        # Convert all keys to attribute-like access
+        for key, value in data.items():
+            # Convert EPJSON keys to eppy-style attribute names
+            attr_name = key.replace(' ', '_').replace('/', '_').replace('-', '_')
+            setattr(self, attr_name, value)
+            
+            # Also try some common field name variations
+            if 'version' in key.lower():
+                setattr(self, 'Version_Identifier', value)
+            elif 'north' in key.lower() and 'axis' in key.lower():
+                setattr(self, 'North_Axis', value)
+            elif 'terrain' in key.lower():
+                setattr(self, 'Terrain', value)
+    
+    def __getattr__(self, name):
+        # Try exact match first
+        if name in self._data:
+            return self._data[name]
+        
+        # Try case-insensitive match
+        for key, value in self._data.items():
+            if key.lower().replace(' ', '_').replace('/', '_').replace('-', '_') == name.lower():
+                return value
+                
+        # Return None if not found (like eppy does)
+        return None
+
 class SettingsExtractor:
     """
     Extracts settings and simulation parameters from IDF files using a DataLoader instance.
@@ -266,93 +303,45 @@ class SettingsExtractor:
 
     def process_idf(self) -> None:
         """
-        Process the loaded IDF model from DataLoader to extract settings.
-        This process will extract settings from various objects in the IDF file.
+        Process the loaded EPJSON model from DataLoader to extract settings.
+        This process will extract settings from various objects in the EPJSON file.
         """
         self._parse_designbuilder_comments()
 
-        idf = self.data_loader.get_idf()
-        if not idf:
+        epjson_data = self.data_loader.get_idf()
+        if not epjson_data:
             return
 
         try:
-            if 'VERSION' in idf.idfobjects:
-                for obj in idf.idfobjects['VERSION']:
-                    self.process_eppy_object('VERSION', obj)
+            # Process each object type from EPJSON
+            object_types_to_process = [
+                'Version', 'Building', 'Site:Location', 'SizingPeriod:DesignDay',
+                'Site:GroundTemperature:BuildingSurface', 'SimulationControl',
+                'RunPeriod', 'Timestep', 'Site:GroundTemperature:Deep',
+                'Site:GroundTemperature:Shallow', 'Site:GroundTemperature:FCfactorMethod',
+                'Site:GroundReflectance', 'Site:GroundReflectance:SnowModifier',
+                'ConvergenceLimits', 'ShadowCalculation',
+                'SurfaceConvectionAlgorithm:Inside', 'SurfaceConvectionAlgorithm:Outside',
+                'HeatBalanceAlgorithm'
+            ]
 
-            if 'BUILDING' in idf.idfobjects:
-                for obj in idf.idfobjects['BUILDING']:
-                    self.process_eppy_object('BUILDING', obj)
-
-            if 'SITE:LOCATION' in idf.idfobjects:
-                for obj in idf.idfobjects['SITE:LOCATION']:
-                    self.process_eppy_object('SITE:LOCATION', obj)
-
-            if 'SIZINGPERIOD:DESIGNDAY' in idf.idfobjects:
-                for obj in idf.idfobjects['SIZINGPERIOD:DESIGNDAY']:
-                    self.process_eppy_object('SIZINGPERIOD:DESIGNDAY', obj)
-
-            if 'SITE:GROUNDTEMPERATURE:BUILDINGSURFACE' in idf.idfobjects:
-                for obj in idf.idfobjects['SITE:GROUNDTEMPERATURE:BUILDINGSURFACE']:
-                    self.process_eppy_object('SITE:GROUNDTEMPERATURE:BUILDINGSURFACE', obj)
-
-            if 'SIMULATIONCONTROL' in idf.idfobjects:
-                for obj in idf.idfobjects['SIMULATIONCONTROL']:
-                    self.process_eppy_object('SIMULATIONCONTROL', obj)
-
-            if 'RUNPERIOD' in idf.idfobjects:
-                for obj in idf.idfobjects['RUNPERIOD']:
-                    self.process_eppy_object('RUNPERIOD', obj)
-
-            if 'TIMESTEP' in idf.idfobjects:
-                for obj in idf.idfobjects['TIMESTEP']:
-                    self.process_eppy_object('TIMESTEP', obj)
-
-            if 'SITE:GROUNDTEMPERATURE:DEEP' in idf.idfobjects:
-                for obj in idf.idfobjects['SITE:GROUNDTEMPERATURE:DEEP']:
-                    self.process_eppy_object('SITE:GROUNDTEMPERATURE:DEEP', obj)
-            if 'SITE:GROUNDTEMPERATURE:SHALLOW' in idf.idfobjects:
-                for obj in idf.idfobjects['SITE:GROUNDTEMPERATURE:SHALLOW']:
-                    self.process_eppy_object('SITE:GROUNDTEMPERATURE:SHALLOW', obj)
-            if 'SITE:GROUNDTEMPERATURE:FCFACTORMETHOD' in idf.idfobjects:
-                for obj in idf.idfobjects['SITE:GROUNDTEMPERATURE:FCFACTORMETHOD']:
-                    self.process_eppy_object('SITE:GROUNDTEMPERATURE:FCFACTORMETHOD', obj)
-            if 'SITE:GROUNDREFLECTANCE' in idf.idfobjects:
-                for obj in idf.idfobjects['SITE:GROUNDREFLECTANCE']:
-                    self.process_eppy_object('SITE:GROUNDREFLECTANCE', obj)
-            if 'SITE:GROUNDREFLECTANCE:SNOWMODIFIER' in idf.idfobjects:
-                for obj in idf.idfobjects['SITE:GROUNDREFLECTANCE:SNOWMODIFIER']:
-                    self.process_eppy_object('SITE:GROUNDREFLECTANCE:SNOWMODIFIER', obj)
-            if 'CONVERGENCELIMITS' in idf.idfobjects:
-                for obj in idf.idfobjects['CONVERGENCELIMITS']:
-                    self.process_eppy_object('CONVERGENCELIMITS', obj)
-            if 'SHADOWCALCULATION' in idf.idfobjects:
-                for obj in idf.idfobjects['SHADOWCALCULATION']:
-                    self.process_eppy_object('SHADOWCALCULATION', obj)
-
-            # Process algorithm settings
-            if 'SURFACECONVECTIONALGORITHM:INSIDE' in idf.idfobjects:
-                for obj in idf.idfobjects['SURFACECONVECTIONALGORITHM:INSIDE']:
-                    self.process_eppy_object('SURFACECONVECTIONALGORITHM:INSIDE', obj)
-
-            if 'SURFACECONVECTIONALGORITHM:OUTSIDE' in idf.idfobjects:
-                for obj in idf.idfobjects['SURFACECONVECTIONALGORITHM:OUTSIDE']:
-                    self.process_eppy_object('SURFACECONVECTIONALGORITHM:OUTSIDE', obj)
-
-            if 'HEATBALANCEALGORITHM' in idf.idfobjects:
-                for obj in idf.idfobjects['HEATBALANCEALGORITHM']:
-                    self.process_eppy_object('HEATBALANCEALGORITHM', obj)
+            for obj_type in object_types_to_process:
+                if obj_type in epjson_data:
+                    for obj_name, obj_data in epjson_data[obj_type].items():
+                        # Create a compatibility wrapper that mimics eppy object behavior
+                        obj_wrapper = EPJSONObjectWrapper(obj_name, obj_data)
+                        self.process_idf_object(obj_type.upper().replace(':', ':'), obj_wrapper)
 
         except Exception as e:
             pass
 
-    def process_eppy_object(self, obj_type: str, obj) -> None:
+    def process_idf_object(self, obj_type: str, obj) -> None:
         """
-        Process a single eppy object and extract relevant settings.
+        Process a single IDF object and extract relevant settings.
 
         Args:
-            obj_type: Type of the eppy object (e.g., 'BUILDING', 'SITE:LOCATION')
-            obj: The eppy object to process
+            obj_type: Type of the IDF object (e.g., 'BUILDING', 'SITE:LOCATION')
+            obj: The IDF object to process
         """
         if obj_type not in self._settings_map:
             return
@@ -477,7 +466,7 @@ class SettingsExtractor:
         Implementation details moved from DataLoader.
 
         Args:
-            obj: The SizingPeriod:DesignDay eppy object
+            obj: The SizingPeriod:DesignDay IDF object
         """
         try:
             name = str(obj.Name)

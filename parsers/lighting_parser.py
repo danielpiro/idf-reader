@@ -64,6 +64,7 @@ class LightingParser:
             lighting_control_type = str(getattr(control, "Lighting_Control_Type", ""))
             availability_schedule = str(getattr(control, "Availability_Schedule_Name", ""))
             num_stepped_steps = int(safe_float(getattr(control, "Number_of_Stepped_Control_Steps"))) if getattr(control, "Number_of_Stepped_Control_Steps", None) is not None else None
+                
             min_power_frac = None
             min_output_frac = None
 
@@ -71,31 +72,56 @@ class LightingParser:
                 min_power_frac = safe_float(getattr(control, "Minimum_Input_Power_Fraction_for_Continuous_or_ContinuousOff_Dimming_Control"))
                 min_output_frac = safe_float(getattr(control, "Minimum_Light_Output_Fraction_for_Continuous_or_ContinuousOff_Dimming_Control"))
 
-            for i in range(1, 11):
-                ref_point_field_name = f"Daylighting_Reference_Point_{i}_Name"
-                fraction_field_name = f"Fraction_of_Zone_Controlled_by_Reference_Point_{i}"
-                setpoint_field_name = f"Illuminance_Setpoint_at_Reference_Point_{i}"
+            # Handle EPJSON format with control_data array
+            control_data = getattr(control, "control_data", [])
+            if control_data and isinstance(control_data, list):
+                for data_item in control_data:
+                    ref_point_name = str(data_item.get("daylighting_reference_point_name", ""))
+                    if not ref_point_name:
+                        continue
+                    
+                    fraction = safe_float(data_item.get("fraction_of_lights_controlled_by_reference_point", 0.0))
+                    setpoint = safe_float(data_item.get("illuminance_setpoint_at_reference_point", 0.0))
+                    
+                    controls.append({
+                        "Zone": zone_name,
+                        "Availability Schedule Name": availability_schedule,
+                        "Lighting Control Type": lighting_control_type,
+                        "Number of Stepped Control Steps": num_stepped_steps,
+                        "Daylighting Reference": ref_point_name,
+                        "Fraction of Zone Controlled": fraction,
+                        "Illuminance Setpoint": setpoint,
+                        "Minimum Input Power Fraction": min_power_frac,
+                        "Minimum Light Output Fraction": min_output_frac,
+                    })
+            else:
+                # Fallback to old format for backwards compatibility
+                for i in range(1, 11):
+                    ref_point_field_name = f"Daylighting_Reference_Point_{i}_Name"
+                    fraction_field_name = f"Fraction_of_Zone_Controlled_by_Reference_Point_{i}"
+                    setpoint_field_name = f"Illuminance_Setpoint_at_Reference_Point_{i}"
 
-                ref_point_name = str(getattr(control, ref_point_field_name, ""))
-                if not ref_point_name:
-                    if i == 1:
-                        break
-                    continue
+                    ref_point_name = str(getattr(control, ref_point_field_name, ""))
+                    if not ref_point_name:
+                        if i == 1:
+                            break
+                        continue
 
-                fraction = safe_float(getattr(control, fraction_field_name))
-                setpoint = safe_float(getattr(control, setpoint_field_name))
+                    fraction = safe_float(getattr(control, fraction_field_name))
+                    setpoint = safe_float(getattr(control, setpoint_field_name))
+                    
+                    controls.append({
+                        "Zone": zone_name,
+                        "Availability Schedule Name": availability_schedule,
+                        "Lighting Control Type": lighting_control_type,
+                        "Number of Stepped Control Steps": num_stepped_steps,
+                        "Daylighting Reference": ref_point_name,
+                        "Fraction of Zone Controlled": fraction,
+                        "Illuminance Setpoint": setpoint,
+                        "Minimum Input Power Fraction": min_power_frac,
+                        "Minimum Light Output Fraction": min_output_frac,
+                    })
 
-                controls.append({
-                    "Zone": zone_name,
-                    "Availability Schedule Name": availability_schedule,
-                    "Lighting Control Type": lighting_control_type,
-                    "Number of Stepped Control Steps": num_stepped_steps,
-                    "Daylighting Reference": ref_point_name,
-                    "Fraction of Zone Controlled": fraction,
-                    "Illuminance Setpoint": setpoint,
-                    "Minimum Input Power Fraction": min_power_frac,
-                    "Minimum Light Output Fraction": min_output_frac,
-                })
 
         return controls
 

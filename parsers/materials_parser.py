@@ -68,8 +68,6 @@ class MaterialsParser(BaseParser):
             
             construction_cache = self.data_loader.get_constructions()
             
-            pass
-            
             constructions_processed = 0
             constructions_with_missing_materials = 0
             

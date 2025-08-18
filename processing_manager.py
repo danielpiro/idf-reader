@@ -4,7 +4,6 @@ from utils.sentry_config import capture_exception_with_context, add_breadcrumb, 
 from pathlib import Path
 from datetime import datetime
 from utils.data_loader import DataLoader
-from utils.eppy_handler import EppyHandler
 from generators.settings_report_generator import generate_settings_report_pdf
 from generators.schedule_report_generator import generate_schedules_report_pdf
 from generators.load_report_generator import generate_loads_report_pdf
@@ -117,23 +116,22 @@ class ProcessingManager:
             self._ensure_directory_exists(os.path.join(dir_to_check, "dummy.txt")) # Create dir with a dummy file
         return paths
 
-    def _initialize_core_components(self, input_file: str, idd_path: str):
+    def _initialize_core_components(self, input_file: str, idd_path: str = None, energyplus_path: str = None):
         """
-        Initializes DataLoader, EppyHandler, and loads the IDF.
+        Initializes DataLoader and loads the IDF/EPJSON file.
 
         Args:
-            input_file: Path to the IDF file.
-            idd_path: Path to the IDD file.
+            input_file: Path to the IDF/EPJSON file.
+            idd_path: Path to the IDD file (not used with EPJSON, kept for compatibility).
+            energyplus_path: Path to EnergyPlus installation directory.
 
         Returns:
-            Tuple: (DataLoader instance, EppyHandler instance, IDF object)
+            DataLoader instance
         """
         self.update_status("טוען קובץ IDF...")
-        data_loader = DataLoader()
-        data_loader.load_file(input_file, idd_path=idd_path)
-        eppy_handler = EppyHandler(idd_path=idd_path)
-        idf = eppy_handler.load_idf(input_file)
-        return data_loader, eppy_handler, idf
+        data_loader = DataLoader(energyplus_path=energyplus_path)
+        data_loader.load_file(input_file, energyplus_path=energyplus_path)
+        return data_loader
 
     def _get_climate_zone_from_city_info(self) -> str:
         """
@@ -193,7 +191,7 @@ class ProcessingManager:
         }
         return parsers
 
-    def _process_data_sources(self, parsers: dict, idf, eppy_handler: EppyHandler, data_loader: DataLoader, simulation_output_csv: str):
+    def _process_data_sources(self, parsers: dict, data_loader: DataLoader, simulation_output_csv: str):
         """
         Processes data using the initialized parsers.
         """
@@ -202,14 +200,14 @@ class ProcessingManager:
         if self.is_cancelled: return
 
         self.update_status("מעבד לוחות זמנים...")
-        for schedule_obj in eppy_handler.get_schedule_objects(idf):
-            parsers["schedule"].process_eppy_schedule(schedule_obj)
+        for schedule_obj in data_loader.get_schedule_objects():
+            parsers["schedule"].process_schedule_object(schedule_obj)
         if self.is_cancelled: return
 
         self.update_status("מעבד נתונים נוספים (עומסים, חומרים, אזורים)...")
-        parsers["load"].process_idf(idf)
-        parsers["materials"].process_idf(idf)
-        parsers["area"].process_idf(idf)
+        parsers["load"].process_idf(data_loader.get_idf())
+        parsers["materials"].process_idf(data_loader.get_idf())
+        parsers["area"].process_idf(data_loader.get_idf())
         parsers["lighting"].parse()
         parsers["glazing"].parse_glazing_data()
 
@@ -236,7 +234,7 @@ class ProcessingManager:
             else:
                 current_iso_type = "Office"
             logger.info(f"Automatic validation: Raw ISO type '{raw_iso_type}' -> Mapped to '{current_iso_type}'")
-            parsers["automatic_error_detection"].process_idf(idf, current_iso_type)
+            parsers["automatic_error_detection"].process_idf(data_loader.get_idf(), current_iso_type)
             self.update_status("נתוני בדיקה אוטומטית עובדו בהצלחה")
         except Exception as e:
             error_message = f"Failed processing automatic validation data: {type(e).__name__} - {str(e)}"
@@ -480,15 +478,16 @@ class ProcessingManager:
         }
         return area_name_to_hebrew.get(str(area_name), area_name)
 
-    def process_idf(self, input_file: str, idd_path: str, output_dir: str, run_id: str = None) -> bool:
+    def process_idf(self, input_file: str, idd_path: str, output_dir: str, run_id: str = None, energyplus_path: str = None) -> bool:
         """
         Main method to process an IDF file and generate all reports.
         
         Args:
             input_file: Path to the IDF file
-            idd_path: Path to the IDD file
+            idd_path: Path to the IDD file (compatibility only, not used with EPJSON)
             output_dir: Base output directory
             run_id: Optional pre-generated run ID. If None, will generate one.
+            energyplus_path: Path to EnergyPlus installation directory
         """
         # Start Sentry transaction for performance monitoring
         transaction = start_transaction(name="process_idf", op="idf_processing")
@@ -510,7 +509,7 @@ class ProcessingManager:
             if self.is_cancelled: return False
             self.update_progress(0.1)
 
-            data_loader, eppy_handler, idf = self._initialize_core_components(input_file, idd_path)
+            data_loader = self._initialize_core_components(input_file, idd_path, energyplus_path)
 
             if self.is_cancelled: return False
             self.update_progress(0.2)
@@ -536,7 +535,7 @@ class ProcessingManager:
             if self.is_cancelled: return False
             self.update_progress(0.3)
 
-            self._process_data_sources(parsers, idf, eppy_handler, data_loader, self.simulation_output_csv)
+            self._process_data_sources(parsers, data_loader, self.simulation_output_csv)
 
             if self.is_cancelled: return False
             self.update_progress(0.6) # Progress after parsing

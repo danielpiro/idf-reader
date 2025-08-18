@@ -28,6 +28,14 @@ class AreaParser:
         except Exception as e:
             pass
             self.glazing_data_from_csv = {}
+            
+        # Load construction areas from eplustbl.csv for both glazing and opaque constructions
+        try:
+            from parsers.eplustbl_reader import read_construction_areas_from_csv
+            self.construction_areas_from_csv = read_construction_areas_from_csv(csv_path)
+        except Exception as e:
+            self.construction_areas_from_csv = {}
+            
         self.materials_parser = materials_parser
         self.areas_by_zone = {}
         self.processed = False
@@ -37,7 +45,7 @@ class AreaParser:
         Extract area information.
 
         Args:
-            idf: eppy IDF object (not directly used but passed to materials_parser)
+            idf: IDF data object (not directly used but passed to materials_parser)
         """
         if not self.data_loader:
             pass
@@ -133,29 +141,46 @@ class AreaParser:
                     zone_name = surface.get("zone_name")
                     if not zone_name or zone_name not in self.areas_by_zone:
                         continue
+                        
+                    # Check if this is a window/glazing surface
+                    is_window_surface = surface.get("is_glazing", False)
 
                     construction_name = surface.get("construction_name")
                     if not construction_name:
                         continue
 
-                    original_area = safe_float(surface.get("area"))
-                    if original_area is None or original_area <= 0.0:
-                        continue
-
-                    area = original_area
+                    # Get area from eplustbl.csv if available, otherwise use calculated area
+                    csv_area = None
+                    if is_window_surface and surface_id.upper() in self.construction_areas_from_csv:
+                        # For glazing, use area from Exterior Fenestration table
+                        csv_area = safe_float(self.construction_areas_from_csv[surface_id.upper()].get('Area', 0.0))
+                    elif surface_id.upper() in self.construction_areas_from_csv:
+                        # For opaque constructions, check surface name in CSV first
+                        csv_area = safe_float(self.construction_areas_from_csv[surface_id.upper()].get('Area', 0.0))
+                    elif construction_name.upper() in self.construction_areas_from_csv:
+                        # Fallback: check construction name in CSV
+                        csv_area = safe_float(self.construction_areas_from_csv[construction_name.upper()].get('Area', 0.0))
+                    
+                    # Use CSV area if available and valid, otherwise use calculated area
+                    if csv_area and csv_area > 0.0:
+                        area = csv_area
+                    else:
+                        area = safe_float(surface.get("area"))
+                        if area is None or area <= 0.0:
+                            continue
                     if not surface.get("is_glazing", False) and surface_id in windows_by_base_surface:
                         try:
                             window_areas = sum(w.get("area", 0.0) for w in windows_by_base_surface.get(surface_id, []))
-                            area = max(0.0, original_area - window_areas)
+                            area = max(0.0, area - window_areas)
                         except Exception as e_sum:
                             pass
-                            area = original_area
+                            # Keep the area as-is if window subtraction fails
 
                     u_value = None
                     is_glazing_from_idf = surface.get("is_glazing", False)
                     is_glazing_from_csv = False
                     glazing_area_override = None
-
+                    
                     surface_id_upper = surface_id.upper()
                     if not isinstance(surface_id, str):
                         pass
@@ -186,6 +211,7 @@ class AreaParser:
 
                     surface_type = surface.get("surface_type", "wall")
                     is_glazing = is_glazing_from_csv or is_glazing_from_idf
+                    
 
                     if construction_name not in self.areas_by_zone[zone_name]["constructions"]:
                         self.areas_by_zone[zone_name]["constructions"][construction_name] = {
@@ -203,6 +229,7 @@ class AreaParser:
                                 if obc and isinstance(obc, str) and obc.lower() == "outdoors":
                                     is_external_boundary = True
                         element_type_str = "External Glazing" if is_external_boundary else "Internal Glazing"
+                        
 
                     final_area = area
                     if is_glazing and glazing_area_override is not None and glazing_area_override > 0:
@@ -215,7 +242,7 @@ class AreaParser:
 
                     element_data = {
                         "zone": zone_name, "surface_name": surface_id, "element_type": element_type_str,
-                        "area": final_area, "original_area": original_area, "u_value": u_value,
+                        "area": final_area, "original_area": area, "u_value": u_value,
                         "area_u_value": final_area * u_value
                     }
 

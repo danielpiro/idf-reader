@@ -107,7 +107,6 @@ def run_pyinstaller(version):
         '--add-data', '.env;.',
         '--hidden-import', 'flet',
         '--hidden-import', 'reportlab',
-        '--hidden-import', 'eppy',
         'main.py'
     ]
     

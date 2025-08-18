@@ -24,20 +24,32 @@ BASIC_TYPES = [
     "onsummerdesignday", "heating setpoint schedule", "cooling sp sch"
 ]
 
-def _is_basic_type(schedule_type: str) -> bool:
+def _is_basic_type(schedule_type: str, schedule_name: str = None) -> bool:
     """
     Check if schedule is a basic type that should be filtered out.
-    Handles schedule types that may have a zone prefix (e.g., "00:01XLIVING Heating Setpoint Schedule").
+    Checks both schedule type and schedule name for basic type patterns.
 
     Args:
         schedule_type: The schedule type to check
+        schedule_name: The schedule name to check (optional)
 
     Returns:
         bool: True if schedule should be filtered out
     """
     zone_prefix_pattern = r'^\d{2}:\d{2}[A-Z\d]*\s+'
+    
+    # Check schedule type
     actual_schedule_type_name = re.sub(zone_prefix_pattern, '', schedule_type, count=1)
-    return any(basic_type.lower() == actual_schedule_type_name.lower() for basic_type in BASIC_TYPES)
+    if any(basic_type.lower() == actual_schedule_type_name.lower() for basic_type in BASIC_TYPES):
+        return True
+    
+    # Check schedule name if provided
+    if schedule_name:
+        actual_schedule_name = re.sub(zone_prefix_pattern, '', schedule_name, count=1)
+        if any(basic_type.lower() == actual_schedule_name.lower() for basic_type in BASIC_TYPES):
+            return True
+    
+    return False
 
 def _standardize_date_format(date_string: str) -> str:
     """
@@ -217,17 +229,17 @@ class ScheduleExtractor:
 
             schedule_name, schedule_type, *rule_fields = data
 
-            if _is_basic_type(schedule_type):
+            if _is_basic_type(schedule_type, schedule_name):
                 return
 
             self._store_schedule(schedule_name, schedule_type, rule_fields)
 
-    def process_eppy_schedule(self, schedule_obj) -> None:
+    def process_schedule_object(self, schedule_obj) -> None:
         """
-        Process a Schedule:Compact object from eppy directly.
+        Process a Schedule:Compact object from EPJSON data.
 
         Args:
-            schedule_obj: An eppy Schedule:Compact object
+            schedule_obj: A schedule object with EPJSON data
         """
         data = [field for field in schedule_obj.fieldvalues]
         self.process_element('object', 'Schedule:Compact', data)
@@ -238,7 +250,7 @@ class ScheduleExtractor:
         Implementation details moved from DataLoader.
 
         Args:
-            idf: eppy IDF object (kept for compatibility)
+            idf: IDF data object (kept for compatibility)
         """
         if not self.data_loader:
             raise RuntimeError("ScheduleExtractor requires a DataLoader instance.")
@@ -247,6 +259,10 @@ class ScheduleExtractor:
 
         for schedule_id, schedule_data in schedule_cache.items():
             schedule_type = schedule_data['type']
+
+            # Filter out basic types
+            if _is_basic_type(schedule_type, schedule_id):
+                continue
 
             rule_fields = self.data_loader.get_schedule_rules(schedule_id)
 

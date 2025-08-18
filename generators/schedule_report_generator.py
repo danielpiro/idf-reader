@@ -244,34 +244,22 @@ def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "o
                 logger.warning(f"Skipping invalid schedule item (not a dict): {schedule_item}")
                 continue
 
-            raw_schedule_type = schedule_item.get('type', 'Unknown Type')
-            schedule_type_lower = raw_schedule_type.lower()
-            if "activity" in schedule_type_lower or "clothing" in schedule_type_lower:
-                parts = raw_schedule_type.split(" ")
-                schedule_type = f"{parts[0]} Schedule" if len(parts) > 1 else f"{raw_schedule_type} Schedule"
-            elif "heating" in schedule_type_lower or "cooling" in schedule_type_lower:
-                parts = raw_schedule_type.split(" ")
-                if len(parts) > 2: schedule_type = f"{parts[1]} {parts[2]} Schedule"
-                elif len(parts) > 1: schedule_type = f"{parts[0]} Schedule"
-                else: schedule_type = f"{raw_schedule_type} Schedule"
-            else:
-                schedule_type = raw_schedule_type
+            # Use the schedule name as the primary title
+            raw_schedule_name = schedule_item.get('name', 'Unknown Schedule')
+            schedule_type = schedule_item.get('type', 'Unknown Type')
+            
+            # Remove zone prefix from schedule name for general report
+            schedule_name = raw_schedule_name
+            if ' ' in raw_schedule_name:
+                # Remove zone prefix (e.g., "00X01:01XLIVING Cooling Availability Sch" -> "Cooling Availability Sch")
+                parts = raw_schedule_name.split(' ', 1)
+                if len(parts) > 1 and (':' in parts[0] or parts[0].isupper()):
+                    schedule_name = parts[1]
 
             rule_blocks = schedule_item.get('rule_blocks', [])
 
-            generic_name_map = {
-                "activity": "People", "clothing": "People", "occupancy": "People",
-                "heating": "Temperature", "cooling": "Temperature",
-                "ventilation": "Ventilation", "lighting": "Lighting",
-                "shading": "Shading", "equipment": "Equipment"
-            }
-            determined_schedule_name = None
-            for key, val_name in generic_name_map.items():
-                if key in schedule_type.lower():
-                    determined_schedule_name = val_name
-                    break
-
-            name_text = f"{schedule_type} [{determined_schedule_name}]" if determined_schedule_name else f"{schedule_type}"
+            # Show schedule name only
+            name_text = schedule_name
             p_sched_name = Paragraph(name_text, schedule_name_style)
             p_sched_name.wrapOn(c, content_width, margin_y)
             name_height = p_sched_name.height

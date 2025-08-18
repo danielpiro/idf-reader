@@ -32,14 +32,18 @@ def cli_status_update(message: str) -> None:
     Args:
         message: The message string to print.
     """
-    if "error" in message.lower() or "failed" in message.lower():
-        print(Fore.RED + message)
-    elif "success" in message.lower() or "completed" in message.lower():
-        print(Fore.GREEN + message)
-    elif "warning" in message.lower():
-        print(Fore.YELLOW + message)
-    else:
-        print(Fore.WHITE + message)
+    try:
+        if "error" in message.lower() or "failed" in message.lower():
+            print(Fore.RED + message)
+        elif "success" in message.lower() or "completed" in message.lower():
+            print(Fore.GREEN + message)
+        elif "warning" in message.lower():
+            print(Fore.YELLOW + message)
+        else:
+            print(Fore.WHITE + message)
+    except UnicodeEncodeError:
+        # Fall back to plain text if Unicode encoding fails
+        print(f"[STATUS] {message.encode('ascii', 'replace').decode('ascii')}")
 
 def cli_progress_update(value: float) -> None:
     """
@@ -50,12 +54,21 @@ def cli_progress_update(value: float) -> None:
     """
     bar_length = 40
     filled_length = int(round(bar_length * value))
-    bar = '█' * filled_length + '-' * (bar_length - filled_length)
+    
+    try:
+        bar = '█' * filled_length + '-' * (bar_length - filled_length)
+    except UnicodeEncodeError:
+        # Fallback to ASCII characters if Unicode fails
+        bar = '=' * filled_length + '-' * (bar_length - filled_length)
 
-    if value >= 1.0:
-        print(f"\r{bar} 100% Complete", end='\n')
-    else:
-        print(f"\r{bar} {value * 100:.2f}% Complete", end='')
+    try:
+        if value >= 1.0:
+            print(f"\r{bar} 100% Complete", end='\n')
+        else:
+            print(f"\r{bar} {value * 100:.2f}% Complete", end='')
+    except UnicodeEncodeError:
+        # Fallback for progress display
+        print(f"\r[{value * 100:.2f}%] Processing...", end='')
 
 def _parse_arguments() -> argparse.Namespace:
     """
@@ -73,8 +86,8 @@ def _parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument(
         "--idd",
-        required=True,
-        help="Path to the Energy+.idd file (required)."
+        required=False,
+        help="Path to the Energy+.idd file (optional for EPJSON files)."
     )
     parser.add_argument(
         "-o", "--output",
@@ -137,8 +150,6 @@ def run_cli() -> None:
         err_msg = str(import_err).lower()
         if 'reportlab' in err_msg:
             _handle_cli_error("Error: 'reportlab' library is required. Install with: pip install reportlab")
-        elif 'eppy' in err_msg:
-            _handle_cli_error("Error: 'eppy' library is required. Install with: pip install eppy")
         else:
             _handle_cli_error(f"An unexpected import error occurred: {import_err}")
     except Exception as e:
@@ -221,8 +232,6 @@ def run_gui() -> None:
              _handle_cli_error("Error: Flet library is required for GUI mode. Install with: pip install flet")
         elif 'reportlab' in err_msg:
              _handle_cli_error("Error: 'reportlab' library is required. Install with: pip install reportlab")
-        elif 'eppy' in err_msg:
-             _handle_cli_error("Error: 'eppy' library is required. Install with: pip install eppy")
         else:
             _handle_cli_error(f"An unexpected import error occurred while starting GUI: {import_err}")
     except Exception as e:

@@ -1,5 +1,4 @@
 reportlab>=3.6.8
-eppy>=0.5.63
 flet>=0.24.1
 flet-desktop>=0.24.1
 pyinstaller>=6.3.0

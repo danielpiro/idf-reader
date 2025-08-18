@@ -207,7 +207,6 @@ jobs:
           --hidden-import flet_desktop `
           --hidden-import flet_desktop.version `
           --hidden-import reportlab `
-          --hidden-import eppy `
           --hidden-import openpyxl `
           --hidden-import numpy `
           --hidden-import pandas `
