@@ -1,0 +1,18 @@
+{
+  "buildCommand": "echo 'Static site - no build needed'",
+  "outputDirectory": "website",
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/website/index.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/website/privacy.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/website/$1"
+    }
+  ]
+}
