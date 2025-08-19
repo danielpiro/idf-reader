@@ -1,14 +1,14 @@
 {
-  "previous_version": "1.1.0",
-  "triggered_by": "push",
-  "platform": "win32",
-  "build_type": "auto-release",
-  "build_date": "2025-08-19T14:26:33Z",
-  "increment_type": "patch",
   "python_version": "Python 3.11.9",
-  "build_timestamp": 1755613594,
+  "previous_version": "1.1.1",
+  "platform": "win32",
+  "build_timestamp": 1755614051,
   "repository": "danielpiro/idf-reader",
-  "version": "1.1.1",
-  "commit_sha": "25ed40284f53f9ffb01c45481cebeac02be1dd62",
-  "commit_message": "Update README.md, script.js, and Vercel configuration\r\n\r\n- Revise README.md for clearer deployment instructions and project structure.\r\n- Enhance script.js with improved accessibility features and local version management.\r\n- Modify Vercel configuration to streamline URL handling and caching policies.\r\n- Introduce version.json for dynamic version management and download URL retrieval."
+  "commit_sha": "58bd640a628b8151014fd23fff51c728f55cf2d7",
+  "build_type": "auto-release",
+  "build_date": "2025-08-19T14:34:11Z",
+  "triggered_by": "push",
+  "commit_message": "Merge branch 'main' of https://github.com/danielpiro/idf-reader",
+  "version": "1.1.2",
+  "increment_type": "patch"
 }
