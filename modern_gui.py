@@ -90,6 +90,13 @@ class ModernIDFProcessorGUI:
         self.energyplus_progress = None
         self.reports_progress = None
         
+        # Animation control
+        self.animation_timer = None
+        self.is_animating_energyplus = False
+        self.is_animating_reports = False
+        self.animation_step = 0
+        self.animation_start_time = 0
+        
         # Window settings (will be loaded in load_settings)
         self.window_settings = {
             'width': None,
@@ -410,10 +417,108 @@ class ModernIDFProcessorGUI:
 
     def update_progress(self, value):
         """Update reports progress bar."""
+        # Stop animation when we get actual progress updates
+        if self.is_animating_reports:
+            self.stop_progress_animation()
+        
         if self.reports_progress:
             self.reports_progress.value = value
             if self.page:
                 self.page.update()
+
+    def start_progress_animation(self, progress_bar_type="reports"):
+        """Start modern indeterminate loading animation for the specified progress bar."""
+        self.stop_progress_animation()
+        
+        if progress_bar_type == "energyplus":
+            self.is_animating_energyplus = True
+        else:
+            self.is_animating_reports = True
+            
+        self.animation_step = 0
+        import time
+        self.animation_start_time = time.time()
+        self._animate_progress_bar(progress_bar_type)
+    
+    def stop_progress_animation(self):
+        """Stop the progress bar animation."""
+        if self.animation_timer:
+            self.animation_timer.cancel()
+            self.animation_timer = None
+        self.is_animating_energyplus = False
+        self.is_animating_reports = False
+        
+        # Reset colors to default when stopping animation
+        try:
+            if self.energyplus_progress and hasattr(self.energyplus_progress, 'color'):
+                self.energyplus_progress.color = ft.Colors.PRIMARY
+            if self.reports_progress and hasattr(self.reports_progress, 'color'):
+                self.reports_progress.color = ft.Colors.PRIMARY
+        except:
+            pass  # Ignore if color reset fails
+    
+    def _animate_progress_bar(self, progress_bar_type):
+        """Internal method to create modern indeterminate loading animation."""
+        import math
+        import time
+        
+        if progress_bar_type == "energyplus" and not self.is_animating_energyplus:
+            return
+        if progress_bar_type == "reports" and not self.is_animating_reports:
+            return
+        
+        # Get elapsed time for smooth animation
+        elapsed_time = time.time() - self.animation_start_time
+        
+        # Consistent smooth indeterminate animation (Material Design style)
+        cycle_duration = 2.5  # Each cycle takes 2.5 seconds for smooth feel
+        cycle_position = (elapsed_time % cycle_duration) / cycle_duration  # 0 to 1
+        
+        # Single consistent pattern: smooth traveling wave
+        if cycle_position < 0.4:
+            # Growing phase: progress grows from 0 to 70%
+            progress_value = (cycle_position / 0.4) * 0.7
+        elif cycle_position < 0.6:
+            # Hold phase: stays at 70% briefly
+            progress_value = 0.7
+        else:
+            # Shrinking phase: shrinks from 70% back to 0
+            shrink_position = (cycle_position - 0.6) / 0.4
+            progress_value = 0.7 * (1 - shrink_position)
+        
+        # Ensure progress value is in valid range
+        progress_value = max(0.05, min(0.95, progress_value))
+        
+        # Add very subtle color animation synchronized with progress
+        color_intensity = 0.9 + 0.1 * math.sin(cycle_position * 2 * math.pi)  # Very gentle pulse
+        
+        try:
+            target_progress_bar = None
+            if progress_bar_type == "energyplus" and self.energyplus_progress:
+                target_progress_bar = self.energyplus_progress
+            elif progress_bar_type == "reports" and self.reports_progress:
+                target_progress_bar = self.reports_progress
+            
+            if target_progress_bar:
+                target_progress_bar.value = progress_value
+                # Add subtle opacity animation for modern feel
+                try:
+                    # Only apply color animation if the progress bar supports it
+                    if hasattr(target_progress_bar, 'color') and hasattr(ft.Colors, 'with_opacity'):
+                        target_progress_bar.color = ft.Colors.with_opacity(color_intensity, ft.Colors.PRIMARY)
+                except:
+                    pass  # Fallback to basic animation if color animation fails
+                
+            if self.page:
+                self.page.update()
+        except Exception as e:
+            logger.error(f"Error updating progress animation: {e}")
+        
+        # Schedule next animation frame with higher frequency for smoothness
+        if (progress_bar_type == "energyplus" and self.is_animating_energyplus) or \
+           (progress_bar_type == "reports" and self.is_animating_reports):
+            self.animation_timer = threading.Timer(0.05, lambda: self._animate_progress_bar(progress_bar_type))
+            self.animation_timer.start()
 
     def create_file_picker_field(self, label, file_type="file", on_result=None):
         """Create a modern file picker field."""
@@ -1336,6 +1441,9 @@ class ModernIDFProcessorGUI:
             
             # Process IDF and generate reports
             self.show_status("מתחיל עיבוד IDF ויצירת דוחות...")
+            # Start loading animation for reports progress
+            self.start_progress_animation("reports")
+            
             # Convert Hebrew ISO selection back to English for processing
             english_iso = self.iso_map.get(self.selected_iso, self.selected_iso)
             self.processing_manager.city_info['iso_type'] = english_iso
@@ -1462,11 +1570,8 @@ OUTPUT:VARIABLE,
         import os  # Explicit import to avoid scope issues
         self.show_status("מתחיל סימולציית EnergyPlus...")
         
-        # Update progress to indeterminate style
-        if self.energyplus_progress:
-            self.energyplus_progress.value = 0.1
-            if self.page:
-                self.page.update()
+        # Start loading animation for EnergyPlus progress
+        self.start_progress_animation("energyplus")
         
         output_csv_path = os.path.join(simulation_dir, "eplustbl.csv")
         simulation_successful = False
@@ -1558,6 +1663,8 @@ OUTPUT:VARIABLE,
                         else:
                             self.show_status("אזהרה: חלו בעיות בהעברת קבצי סימולציה", "warning")
                     
+                    # Stop animation and set final progress
+                    self.stop_progress_animation()
                     if self.energyplus_progress:
                         self.energyplus_progress.value = 1.0
                         if self.page:
@@ -1597,6 +1704,9 @@ OUTPUT:VARIABLE,
             self.show_status(f"שגיאה לא צפויה במהלך הסימולציה: {type(sim_e).__name__} - {str(sim_e)}", "error")
             logger.error(f"Unexpected error in run_energyplus_simulation: {sim_e}", exc_info=True)
         finally:
+            # Always stop the progress animation
+            self.stop_progress_animation()
+            
             # Clean up temporary IDF file (Unicode/Hebrew handling)
             if idf_cleanup:
                 idf_cleanup()
@@ -1615,6 +1725,9 @@ OUTPUT:VARIABLE,
 
     def reset_gui_state(self):
         """Reset GUI state after processing."""
+        # Stop any running animations
+        self.stop_progress_animation()
+        
         self.is_processing = False
         if self.process_button:
             self.process_button.disabled = False
@@ -1843,16 +1956,20 @@ OUTPUT:VARIABLE,
         # Create progress section
         self.energyplus_progress = ft.ProgressBar(
             width=400,
-            height=10,
-            border_radius=5,
-            value=0
+            height=12,
+            border_radius=8,
+            value=0,
+            bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.PRIMARY),
+            color=ft.Colors.PRIMARY
         )
         
         self.reports_progress = ft.ProgressBar(
             width=400,
-            height=10,
-            border_radius=5,
-            value=0
+            height=12,
+            border_radius=8,
+            value=0,
+            bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.PRIMARY),
+            color=ft.Colors.PRIMARY
         )
         
         progress_section = ft.Card(
