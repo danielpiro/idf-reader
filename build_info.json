@@ -1,14 +1,14 @@
 {
+  "build_type": "auto-release",
+  "build_date": "2025-08-19T19:36:37Z",
+  "commit_message": "Merge branch 'main' of https://github.com/danielpiro/idf-reader",
+  "build_timestamp": 1755632197,
   "platform": "win32",
   "repository": "danielpiro/idf-reader",
-  "version": "1.1.4",
-  "build_timestamp": 1755623398,
-  "commit_message": "fix: Update reference point fraction key in LightingParser and add required output variables in lights.idf",
-  "increment_type": "patch",
-  "build_type": "auto-release",
-  "commit_sha": "27cb64a6b21edba3c29b4c74505e20103db4e8ae",
-  "build_date": "2025-08-19T17:09:58Z",
   "python_version": "Python 3.11.9",
+  "previous_version": "1.1.4",
+  "commit_sha": "be59d4015e68b2c9169c4e04530ebf57258cb5af",
   "triggered_by": "push",
-  "previous_version": "1.1.3"
+  "version": "1.1.5",
+  "increment_type": "patch"
 }
