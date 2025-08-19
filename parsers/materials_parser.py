@@ -5,7 +5,6 @@ Uses DataLoader for cached access to IDF data.
 from typing import Dict, Any, Optional, List, Tuple
 from utils.data_loader import DataLoader
 from utils.data_models import MaterialData, ConstructionData
-from .utils import safe_float, filter_hvac_zones
 from .base_parser import BaseParser
 
 # Surface film resistance configuration
@@ -39,7 +38,6 @@ class MaterialsParser(BaseParser):
         Process materials and constructions using data from DataLoader.
         """
         if not self.data_loader:
-            pass
             raise RuntimeError("MaterialsParser requires a DataLoader instance.")
         
         
@@ -50,8 +48,6 @@ class MaterialsParser(BaseParser):
             
             # Process materials
             material_cache = self.data_loader.get_materials()
-            materials_processed = 0
-            materials_with_missing_data = 0
             
             for material_id, raw_material_data in material_cache.items():
                 
@@ -64,61 +60,35 @@ class MaterialsParser(BaseParser):
                     thickness=raw_material_data.get('thickness'),
                     solar_absorptance=raw_material_data.get('solar_absorptance')
                 )
-                materials_processed += 1
             
             construction_cache = self.data_loader.get_constructions()
             
-            constructions_processed = 0
-            constructions_with_missing_materials = 0
             
             for construction_id, raw_construction_data in construction_cache.items():
                 material_layers = raw_construction_data['material_layers']
                 # Check for missing materials
                 missing_materials = []
-                valid_materials = []
                 total_thickness = 0.0
                 
                 for layer_id in material_layers:
                     if layer_id in self.materials:
-                        valid_materials.append(layer_id)
                         material_thickness = self.materials[layer_id].thickness
                         if material_thickness:
                             total_thickness += material_thickness
-                        else:
-                            pass
                     else:
                         missing_materials.append(layer_id)
                 
-                if missing_materials:
-                    constructions_with_missing_materials += 1
-                    pass
                 
                 self.constructions[construction_id] = ConstructionData(
                     id=construction_id,
                     name=construction_id,
                     material_layers=material_layers,
                     thickness=total_thickness
-                )
-                constructions_processed += 1     
+                )     
             self._process_element_data(construction_cache)
             
         except Exception as e:
-            pass
             raise RuntimeError(f"Error processing materials and constructions: {e}")
-
-    def _filter_reversed_constructions(self, construction_cache: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
-        """
-        Filter constructions to handle reversed construction logic:
-        - Never show constructions with _rev suffix (regardless of whether non-reversed version exists)
-        - For _Reversed suffix: only show if no identical regular version exists (same materials)
-        
-        Args:
-            construction_cache: Dictionary of all constructions from DataLoader
-            
-        Returns:
-            Dict[str, Dict[str, Any]]: Filtered construction cache
-        """ 
-        return {k: v for k, v in construction_cache.items() if not k.lower().endswith('_rev')}
 
     def _calculate_material_mass_with_low_conductivity_adjustment(self, material_data, element_type: str = None, construction_id: str = None, low_conductivity_found: Dict = None) -> float:
         """
@@ -172,38 +142,20 @@ class MaterialsParser(BaseParser):
         Process element data for report generation.
         This combines materials and constructions to create report data.
         """
-        pass
-        
         # We only need surfaces for element type detection - get all surfaces once
         surfaces = self.data_loader.get_surfaces()
-        pass
         
         
         # Create mapping for _rev constructions to their base versions
         construction_mapping = {}
-        
         low_conductivity_found = {}
-        element_data_count = 0
-        skipped_constructions = 0
-        skipped_reasons = {"dont_use": [], "no_element_types": [], "no_surfaces": []}
-        
+
         for construction_id in construction_cache.keys():
             construction_data = self.constructions[construction_id]
             # Note: Reversed constructions are already filtered out during process_idf
             element_types, dont_use = self._get_element_type(construction_id, surfaces, construction_mapping)
             
-            pass
-            
-            pass
-            
-            if dont_use:
-                skipped_reasons["dont_use"].append(construction_id)
-                skipped_constructions += 1
-                continue
-                
-            if not element_types:
-                skipped_reasons["no_element_types"].append(construction_id)
-                skipped_constructions += 1
+            if dont_use or not element_types:
                 continue
             
             s_type, boundary = self._get_surface_type_and_boundary(construction_id, surfaces, construction_mapping)
@@ -216,7 +168,6 @@ class MaterialsParser(BaseParser):
                 for layer_id in construction_data.material_layers:
                     material_data = self.materials.get(layer_id)
                     if not material_data:
-                        pass
                         continue
                     
                     thermal_resistance = self._calculate_thermal_resistance(material_data)
@@ -241,13 +192,62 @@ class MaterialsParser(BaseParser):
                     }
                     
                     self.element_data.append(element_entry)
-                    element_data_count += 1
+        
+        # Filter the final element data after all processing is complete
+        self._filter_element_data(construction_cache)
+
+    def _filter_element_data(self, construction_cache: Dict[str, Dict[str, Any]]) -> None:
+        """
+        Filter the element data based on your criteria.
+        This runs after all element types and properties are calculated.
+        
+        Args:
+            construction_cache: Dictionary of construction data from DataLoader
+        """
+        # Filter constructions: remove _rev/_reversed_rev if same type and materials as base version
+        constructions_to_remove = []
+        
+        for construction_id in list(self.constructions.keys()):
+            if (construction_id.lower().endswith('_rev') or construction_id.lower().endswith('_reversed_rev')) and not construction_id.lower().endswith('_reversed'):
+                # Find base construction name
+                if construction_id.lower().endswith('_reversed_rev'):
+                    base_name = construction_id[:-len('_reversed_rev')]
+                else:  # ends with _rev
+                    base_name = construction_id[:-len('_rev')]
+                
+                # Check if base construction exists (case insensitive)
+                base_name_found = None
+                for existing_name in self.constructions.keys():
+                    if existing_name.lower() == base_name.lower():
+                        base_name_found = existing_name
+                        break
+                
+                if base_name_found:
+                    base_construction = self.constructions[base_name_found]
+                    suffix_construction = self.constructions[construction_id]
                     
+                    # Compare element types using _get_element_type
+                    surfaces = self.data_loader.get_surfaces()
+                    base_element_types, _ = self._get_element_type(base_name_found, surfaces, {})
+                    suffix_element_types, _ = self._get_element_type(construction_id, surfaces, {})
+                    
+                    # Convert to sets for comparison
+                    base_type_set = set(base_element_types)
+                    suffix_type_set = set(suffix_element_types)
+                    
+                    # Compare materials (order doesn't matter)
+                    base_materials = set(base_construction.material_layers)
+                    suffix_materials = set(suffix_construction.material_layers)
+                    
+                    # If suffix element types are subset of base element types and same materials, remove the suffix version
+                    if suffix_type_set.issubset(base_type_set) and base_materials == suffix_materials:
+                        constructions_to_remove.append(construction_id)
         
-        pass
-        
-        pass
-        
+        # Remove the identified constructions
+        for construction_id in constructions_to_remove:
+            del self.constructions[construction_id]
+            # Also remove from element_data
+            self.element_data = [element for element in self.element_data if element.get('element_name') != construction_id]
 
     def _get_surface_type_and_boundary(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]], construction_mapping: Dict[str, str] = None):
         """
@@ -283,10 +283,7 @@ class MaterialsParser(BaseParser):
         
         construction_surfaces = self._find_construction_surfaces(construction_id, surfaces, construction_mapping)
         
-        pass
-        
         if not construction_surfaces:
-            pass
             return [], False
 
         element_types = set()
@@ -295,46 +292,27 @@ class MaterialsParser(BaseParser):
         surfaces_with_hvac_zones = 0
         surfaces_without_hvac_zones = 0
         
-        for i, surface in enumerate(construction_surfaces):
-            surface_name = surface.get('name', 'unnamed')
-            
-            pass
+        for surface in construction_surfaces:
             
             if surface.get('is_glazing', False):
-                pass
                 element_types.add("Glazing")
                 continue
             
             surface_has_hvac, is_zone_interior = self._check_surface_hvac_zones(surface, hvac_zones)
-            
-            pass
             
             if surface_has_hvac:
                 surfaces_with_hvac_zones += 1
             else:
                 surfaces_without_hvac_zones += 1
                 # Skip surfaces without HVAC zones - they shouldn't contribute to element types
-                pass
                 continue
             
             element_type = self._determine_surface_element_type(surface, is_zone_interior)
             
-            pass
-            
             if element_type:
                 element_types.add(element_type)
-                pass
-            else:
-                pass
-                pass
         
         dont_use = surfaces_with_hvac_zones == 0 and surfaces_without_hvac_zones > 0
-        
-        pass
-        
-        pass
-        
-        pass
         
         return list(element_types), dont_use
     
@@ -389,8 +367,6 @@ class MaterialsParser(BaseParser):
             surface_has_hvac_zones = is_hvac_inside or is_hvac_outside
             is_zone_interior = is_hvac_inside and is_hvac_outside
             
-            pass
-            
             return surface_has_hvac_zones, is_zone_interior
             
         except Exception:
@@ -400,7 +376,6 @@ class MaterialsParser(BaseParser):
         """Determine element type based on surface type and boundary condition."""
         s_type = surface.get('surface_type', '').lower()
         boundary = surface.get('boundary_condition', '').lower()
-        surface_name = surface.get('name', 'unnamed')
         
         element_type_map = {
             "wall": {
@@ -427,21 +402,8 @@ class MaterialsParser(BaseParser):
             type_config = element_type_map[s_type]
             result = type_config.get(boundary, type_config.get("default", ""))
         else:
-            pass
             result = ""
         
-        # Log potentially problematic classifications for debugging
-        if s_type and boundary and result:
-            # Check for suspicious combinations that might indicate incorrect element types
-            suspicious = False
-            if s_type == "wall" and "floor" in surface_name.lower():
-                suspicious = True
-            elif s_type == "floor" and "wall" in surface_name.lower():
-                suspicious = True
-            elif s_type == "ceiling" and ("wall" in surface_name.lower() or "floor" in surface_name.lower()):
-                suspicious = True
-                
-            pass
         
         return result
 
@@ -469,8 +431,6 @@ class MaterialsParser(BaseParser):
         Returns:
             Dict[str, MaterialData]: Dictionary of all materials
         """
-        if not self.materials:
-            pass
         return self.materials
 
     def get_all_constructions(self) -> Dict[str, ConstructionData]:
@@ -480,8 +440,6 @@ class MaterialsParser(BaseParser):
         Returns:
             Dict[str, ConstructionData]: Dictionary of all constructions
         """
-        if not self.constructions:
-            pass
         return self.constructions
 
     def calculate_construction_mass_per_area(self, construction_id: str) -> float:
@@ -498,9 +456,7 @@ class MaterialsParser(BaseParser):
         
         construction = self.constructions.get(construction_id)
         if not construction:
-            pass
             return 0.0
-        
         
         total_mass_per_area = 0.0
         found_low_conductivity = False
@@ -508,7 +464,6 @@ class MaterialsParser(BaseParser):
         for layer_id in construction.material_layers:
             material = self.materials.get(layer_id)
             if material:
-                
                 # Use helper method but only apply low conductivity reduction to first occurrence
                 if not found_low_conductivity and material.conductivity is not None and material.conductivity < 0.2 and material.conductivity != 0:
                     layer_mass = self._calculate_material_mass_with_low_conductivity_adjustment(material)
@@ -517,8 +472,6 @@ class MaterialsParser(BaseParser):
                     layer_mass = (material.density or 0.0) * (material.thickness or 0.0)
                 
                 total_mass_per_area += layer_mass
-            else:
-                pass
         
         return total_mass_per_area
 
