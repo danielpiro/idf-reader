@@ -1,6 +1,7 @@
 """
 Parser for Daylighting:Controls and Daylighting:ReferencePoint objects.
 """
+from asyncio.log import logger
 from typing import Dict, List, Any
 from utils.data_loader import DataLoader, safe_float
 
@@ -80,7 +81,7 @@ class LightingParser:
                     if not ref_point_name:
                         continue
                     
-                    fraction = safe_float(data_item.get("fraction_of_lights_controlled_by_reference_point", 0.0))
+                    fraction = safe_float(data_item.get("fraction_of_zone_controlled_by_reference_point", 0.0))
                     setpoint = safe_float(data_item.get("illuminance_setpoint_at_reference_point", 0.0))
                     
                     controls.append({
