@@ -109,7 +109,7 @@ class EPJSONHandler:
                 safe_idf_path, cleanup_func = create_safe_path_for_energyplus(idf_path)
                 logger.info(f"Using ASCII-safe path for conversion: {safe_idf_path}")
             
-            # Get IDF version for logging purposes
+            # Get IDF version and handle version compatibility
             idf_version = self.version_checker.get_idf_version(safe_idf_path)
             if idf_version:
                 logger.info(f"Detected IDF version: {idf_version}")
@@ -119,16 +119,27 @@ class EPJSONHandler:
             if not energyplus_exe:
                 raise RuntimeError("Could not find EnergyPlus executable. Please ensure the EnergyPlus installation path is correctly specified.")
             
+            # Check if version update is needed
+            final_idf_path = safe_idf_path
+            version_cleanup_func = None
+            
+            # Note: Version update not available in this EnergyPlus version
+            # For older IDF versions, log a warning but try conversion anyway
+            if idf_version and (idf_version.startswith('8.') or idf_version.startswith('9.')):
+                logger.warning(f"IDF version {idf_version} may be incompatible with EnergyPlus 24.1. Attempting conversion anyway...")
+            
+            final_idf_path = safe_idf_path
+            
             # Determine output path
             if output_path is None:
                 output_path = os.path.splitext(idf_path)[0] + '.epJSON'
             
             # Run EnergyPlus converter
-            logger.info(f"Converting IDF to EPJSON: {idf_path} -> {output_path}")
+            logger.info(f"Converting IDF to EPJSON: {final_idf_path} -> {output_path}")
             
             result = subprocess.run(
-                [energyplus_exe, '--convert-only', safe_idf_path],
-                cwd=os.path.dirname(safe_idf_path),
+                [energyplus_exe, '--convert-only', final_idf_path],
+                cwd=os.path.dirname(final_idf_path),
                 capture_output=True,
                 text=True,
                 timeout=300  # 5 minute timeout
@@ -154,7 +165,7 @@ class EPJSONHandler:
                 raise RuntimeError(error_msg)
             
             # Find the generated EPJSON file
-            generated_epjson = os.path.splitext(safe_idf_path)[0] + '.epJSON'
+            generated_epjson = os.path.splitext(final_idf_path)[0] + '.epJSON'
             if os.path.exists(generated_epjson):
                 # Move to desired output location if different
                 if os.path.abspath(generated_epjson) != os.path.abspath(output_path):
@@ -169,10 +180,13 @@ class EPJSONHandler:
         except subprocess.TimeoutExpired:
             raise RuntimeError("EnergyPlus conversion timed out")
         finally:
-            # Clean up temporary file if it was created
+            # Clean up temporary files if they were created
             if cleanup_func:
                 cleanup_func()
                 logger.debug("Cleaned up temporary IDF file after conversion")
+            if version_cleanup_func:
+                version_cleanup_func()
+                logger.debug("Cleaned up version-updated IDF file after conversion")
     
     def convert_epjson_to_idf(self, epjson_path: str, output_path: Optional[str] = None) -> str:
         """
@@ -381,14 +395,23 @@ class EPJSONHandler:
         file_ext = os.path.splitext(file_path)[1].lower()
         
         if file_ext == '.epjson':
-            # File is already EPJSON
+            # File is already EPJSON - no injection needed
             epjson_data = self.load_epjson(file_path)
             return epjson_data, file_path
             
         elif file_ext == '.idf':
-            # Convert IDF to EPJSON (no version updating needed)
-            epjson_path = self.convert_idf_to_epjson(file_path)
-            epjson_data = self.load_epjson(epjson_path)
+            # Inject required output variables before conversion
+            temp_idf_path = self._inject_required_output_variables(file_path)
+            
+            try:
+                # Convert modified IDF to EPJSON with version handling
+                epjson_path = self.convert_idf_to_epjson(temp_idf_path)
+                epjson_data = self.load_epjson(epjson_path)
+            finally:
+                # Clean up temporary file
+                if os.path.exists(temp_idf_path):
+                    os.unlink(temp_idf_path)
+                    logger.debug(f"Cleaned up temporary IDF file: {temp_idf_path}")
             
             if prefer_epjson:
                 return epjson_data, epjson_path
@@ -396,6 +419,148 @@ class EPJSONHandler:
                 return epjson_data, file_path
         else:
             raise ValueError(f"Unsupported file format: {file_ext}. Expected .idf or .epJSON")
+    
+    def _inject_required_output_variables(self, idf_path: str) -> str:
+        """
+        Inject required Output:Variable entries into IDF file before conversion.
+        Creates a temporary modified IDF file with the required output variables.
+        
+        Args:
+            idf_path: Path to the original IDF file
+            
+        Returns:
+            Path to the temporary modified IDF file
+        """
+        import tempfile
+        import shutil
+        
+        # Create temporary file
+        temp_dir = tempfile.gettempdir()
+        temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.idf', delete=False, dir=temp_dir)
+        temp_path = temp_file.name
+        
+        try:
+            # Copy original file content
+            with open(idf_path, 'r', encoding='utf-8') as original:
+                content = original.read()
+            
+            # Add required output variables at the end using exact format specified
+            additional_content = """
+! Required Output:Variable entries for energy rating
+OUTPUT:VARIABLE,
+    *,                        !- Key Value
+    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
+    RunPeriod;                !- Reporting Frequency
+
+OUTPUT:VARIABLE,
+    *,                        !- Key Value
+    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
+    RunPeriod;                !- Reporting Frequency
+
+OUTPUT:VARIABLE,
+    *,                        !- Key Value
+    Lights Electricity Energy,    !- Variable Name
+    RunPeriod;                !- Reporting Frequency
+"""
+            
+            # Write to temporary file
+            temp_file.write(content + additional_content)
+            temp_file.close()
+            
+            logger.info(f"Injected 3 OUTPUT:VARIABLE entries into temporary IDF: {temp_path}")
+            return temp_path
+            
+        except Exception as e:
+            temp_file.close()
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+            raise RuntimeError(f"Failed to inject output variables: {e}")
+    
+    def _update_idf_version(self, idf_path: str) -> str:
+        """
+        Update IDF file to current EnergyPlus version.
+        
+        Args:
+            idf_path: Path to the IDF file to update
+            
+        Returns:
+            Path to the version-updated IDF file
+            
+        Raises:
+            RuntimeError: If version update fails
+        """
+        import tempfile
+        
+        # Create temporary file for updated IDF
+        temp_dir = tempfile.gettempdir()
+        temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.idf', delete=False, dir=temp_dir)
+        temp_path = temp_file.name
+        temp_file.close()
+        
+        # Find EnergyPlus executable
+        energyplus_exe = self._find_energyplus_executable()
+        if not energyplus_exe:
+            raise RuntimeError("EnergyPlus executable not found for version update")
+        
+        try:
+            # Use absolute path for version update
+            abs_idf_path = os.path.abspath(idf_path)
+            
+            # Run EnergyPlus version update
+            logger.info(f"Updating IDF version: {abs_idf_path} -> {temp_path}")
+            
+            result = subprocess.run(
+                [energyplus_exe, '--version-only', abs_idf_path],
+                cwd=os.path.dirname(abs_idf_path),
+                capture_output=True,
+                text=True,
+                timeout=120  # 2 minute timeout for version update
+            )
+            
+            if result.returncode != 0:
+                error_msg = f"Version update failed with return code {result.returncode}"
+                if result.stderr:
+                    error_msg += f": {result.stderr}"
+                if result.stdout:
+                    logger.error(f"Version update stdout: {result.stdout}")
+                raise RuntimeError(error_msg)
+            
+            # Find the version-updated file (EnergyPlus creates it in the same directory)
+            updated_file = os.path.splitext(abs_idf_path)[0] + '.idf'
+            
+            # If that doesn't exist, look for common version update output patterns
+            if not os.path.exists(updated_file):
+                dir_name = os.path.dirname(abs_idf_path)
+                base_name = os.path.splitext(os.path.basename(abs_idf_path))[0]
+                
+                # Check for various possible output file names
+                possible_names = [
+                    f"{base_name}.idf",
+                    f"{base_name}_updated.idf",
+                    f"{base_name}_V24-1-0.idf"
+                ]
+                
+                for name in possible_names:
+                    candidate = os.path.join(dir_name, name)
+                    if os.path.exists(candidate) and candidate != abs_idf_path:
+                        updated_file = candidate
+                        break
+            
+            if not os.path.exists(updated_file) or updated_file == abs_idf_path:
+                raise RuntimeError(f"Version-updated file not found or same as input: {updated_file}")
+            
+            # Move the updated file to our temporary location
+            import shutil
+            shutil.move(updated_file, temp_path)
+            
+            logger.info(f"IDF version update successful: {temp_path}")
+            return temp_path
+            
+        except Exception as e:
+            # Clean up temp file on error
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+            raise RuntimeError(f"IDF version update failed: {e}")
     
     def validate_epjson(self, epjson_data: Dict[str, Any]) -> List[str]:
         """

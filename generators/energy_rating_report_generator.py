@@ -661,20 +661,28 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
         # Primary sort: Floor ID (numeric first, then alphabetic)
         floor_val = item.get('floor_id_report', '')
         try:
-            floor_sort_val = int(floor_val)
+            floor_sort_val = (0, int(floor_val))  # (is_numeric, value) tuple
         except ValueError:
-            floor_sort_val = float('inf') if floor_val == '' else str(floor_val)
+            if floor_val == '':
+                floor_sort_val = (1, 999999)  # Empty values last
+            else:
+                floor_sort_val = (1, hash(str(floor_val)) % 999999)  # Non-numeric as hash
 
         # Secondary sort: Area ID (numeric first, then alphabetic)
         area_id_val = item.get('area_id_report', '')
         try:
-            area_sort_val = int(area_id_val) if area_id_val else float('inf')
+            area_sort_val = (0, int(area_id_val)) if area_id_val else (1, 999999)
         except ValueError:
-            area_sort_val = float('inf') if area_id_val == '' else str(area_id_val)
+            if area_id_val == '':
+                area_sort_val = (1, 999999)  # Empty values last
+            else:
+                area_sort_val = (1, hash(str(area_id_val)) % 999999)  # Non-numeric as hash
 
-        # Tertiary sort: Zone ID for consistency
-        zone_id_val = str(item.get('zone_id', ''))
-        return (floor_sort_val, area_sort_val, zone_id_val)
+        # Tertiary sort: Zone ID for consistency (always string, use hash for numeric comparison)
+        zone_id_val = item.get('zone_id', '')
+        zone_sort_val = (0, hash(str(zone_id_val)) % 999999)
+        
+        return (floor_sort_val, area_sort_val, zone_sort_val)
 
     raw_table_data.sort(key=sort_key)
 

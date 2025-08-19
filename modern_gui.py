@@ -4,7 +4,6 @@ import os
 import threading
 from datetime import datetime, timedelta
 from pathlib import Path
-import asyncio
 
 from utils.logging_config import get_logger
 from utils.sentry_config import capture_exception_with_context, add_breadcrumb, set_user_context
@@ -1400,6 +1399,45 @@ class ModernIDFProcessorGUI:
             self.show_status(f"שגיאה: קובץ מזג אוויר {epw_filename} לא נמצא. {e}", "error")
             return None
 
+    def _inject_output_variables_to_user_idf(self):
+        """Directly inject OUTPUT:VARIABLE entries into user's IDF file."""
+        try:
+            # Read the current IDF file
+            with open(self.input_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Add required output variables at the end using exact format specified
+            additional_content = """
+! Required Output:Variable entries for energy rating
+OUTPUT:VARIABLE,
+    *,                        !- Key Value
+    Zone Ideal Loads Supply Air Total Cooling Energy,    !- Variable Name
+    RunPeriod;                !- Reporting Frequency
+
+OUTPUT:VARIABLE,
+    *,                        !- Key Value
+    Zone Ideal Loads Supply Air Total Heating Energy,    !- Variable Name
+    RunPeriod;                !- Reporting Frequency
+
+OUTPUT:VARIABLE,
+    *,                        !- Key Value
+    Lights Electricity Energy,    !- Variable Name
+    RunPeriod;                !- Reporting Frequency
+"""
+            
+            # Write back to the same file
+            with open(self.input_file, 'w', encoding='utf-8') as f:
+                f.write(content + additional_content)
+            
+            logger.info(f"Injected 3 OUTPUT:VARIABLE entries directly into IDF: {self.input_file}")
+            self.show_status("הוזרקו 3 משתני OUTPUT:VARIABLE לקובץ IDF")
+            
+        except Exception as e:
+            logger.error(f"Failed to inject output variables into IDF: {e}")
+            self.show_status(f"שגיאה בהזרקת משתני פלט: {e}", "error")
+            raise
+
+    
     def _ensure_idf_output_variables(self, idf_path):
         """Ensure required IDF output variables are present."""
         self.show_status("מוודא משתני פלט נדרשים ב-IDF...")
@@ -1421,6 +1459,7 @@ class ModernIDFProcessorGUI:
 
     def run_energyplus_simulation(self, epw_file, simulation_dir):
         """Run EnergyPlus simulation using the same logic as original GUI."""
+        import os  # Explicit import to avoid scope issues
         self.show_status("מתחיל סימולציית EnergyPlus...")
         
         # Update progress to indeterminate style
@@ -1439,10 +1478,9 @@ class ModernIDFProcessorGUI:
         needs_move_back = False
         
         try:
-            # Ensure the IDF has necessary output variables before running
-            if not self._ensure_idf_output_variables(self.input_file):
-                self.show_status("מדלג על הסימולציה בשל בעיות במשתני הפלט של IDF", "warning")
-                return None
+            # Inject OUTPUT:VARIABLE entries directly into user's IDF file
+            self.show_status("מזריק משתני פלט נדרשים ל-IDF לפני סימולציה...")
+            self._inject_output_variables_to_user_idf()
             
             if self.energyplus_progress:
                 self.energyplus_progress.value = 0.2
@@ -1559,7 +1597,7 @@ class ModernIDFProcessorGUI:
             self.show_status(f"שגיאה לא צפויה במהלך הסימולציה: {type(sim_e).__name__} - {str(sim_e)}", "error")
             logger.error(f"Unexpected error in run_energyplus_simulation: {sim_e}", exc_info=True)
         finally:
-            # Clean up temporary IDF file
+            # Clean up temporary IDF file (Unicode/Hebrew handling)
             if idf_cleanup:
                 idf_cleanup()
                 self.show_status("ניקוי קובץ IDF זמני")

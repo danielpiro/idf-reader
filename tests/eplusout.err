@@ -1,4 +1,14 @@
-Program Version,EnergyPlus, Version 9.4.0-998c4b761e, YMD=2025.08.19 01:13,
+Program Version,EnergyPlus, Version 24.1.0-9d7789a3ac, YMD=2025.08.19 01:26,
+   ** Severe  ** <root>[BuildingSurface:Detailed][00X00:NEXOUT_Floor_0_0_0][outside_boundary_condition] - "00X00:NEXOUT_Floor_0_0_0" - Failed to match against any enum values.
+   ** Severe  ** <root>[BuildingSurface:Detailed][00X00:NEXOUT_Floor_0_0_0][sun_exposure] - "NoWind" - Failed to match against any enum values.
+   ** Severe  ** <root>[BuildingSurface:Detailed][00X00:NEXOUT_Floor_0_0_0][vertices][3] - Missing required property 'vertex_z_coordinate'.
+   ** Warning ** Version: in IDF="9.4.0.002" not the same as expected="24.1"
+   **  Fatal  ** Errors occurred on processing input file. Preceding condition(s) cause termination.
+   ...Summary of Errors that led to program termination:
+   ..... Reference severe error count=3
+   ..... Last severe error=<root>[BuildingSurface:Detailed][00X00:NEXOUT_Floor_0_0_0][vertices][3] - Missing required property 'vertex_z_coordinate'.
+   ************* Warning:  Node connection errors not checked - most system input has not been read (see previous warning).
+   ************* Fatal error -- final processing.  Program exited before simulations began.  See previous error messages.
    ************* EnergyPlus Warmup Error Summary. During Warmup: 0 Warning; 0 Severe Errors.
    ************* EnergyPlus Sizing Error Summary. During Sizing: 0 Warning; 0 Severe Errors.
-   ************* EnergyPlus Completed Successfully-- 0 Warning; 0 Severe Errors; Elapsed Time=00hr 00min  0.45sec
+   ************* EnergyPlus Terminated--Fatal Error Detected. 1 Warning; 3 Severe Errors; Elapsed Time=00hr 00min  0.05sec
