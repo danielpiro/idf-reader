@@ -97,6 +97,14 @@ class ModernIDFProcessorGUI:
         self.animation_step = 0
         self.animation_start_time = 0
         
+        # Queue system
+        self.job_queue = []  # List of job dictionaries
+        self.current_job_index = -1  # Index of currently running job (-1 if none)
+        self.max_queue_size = 10
+        self.queue_container = None
+        self.queue_worker_thread = None
+        self.stop_queue_processing = False
+        
         # Window settings (will be loaded in load_settings)
         self.window_settings = {
             'width': None,
@@ -175,6 +183,341 @@ class ModernIDFProcessorGUI:
             return os.getcwd()
         except Exception:
             return os.getcwd()
+
+    def add_job_to_queue(self, job_data):
+        """Add a new job to the processing queue."""
+        if len(self.job_queue) >= self.max_queue_size:
+            self.show_status(f"תור עבודות מלא! מקסימום {self.max_queue_size} עבודות בתור", "warning")
+            return False
+        
+        job = {
+            'id': len(self.job_queue) + 1,
+            'input_file': job_data['input_file'],
+            'output_dir': job_data['output_dir'],
+            'project_name': job_data.get('project_name', ''),
+            'city': job_data['city'],
+            'iso_type': job_data['iso_type'],
+            'consultant_data': job_data.get('consultant_data', {}),
+            'project_data': job_data.get('project_data', {}),
+            'status': 'pending',  # pending, running, completed, failed
+            'created_time': datetime.now().strftime("%H:%M:%S"),
+            'start_time': None,
+            'end_time': None,
+            'error_message': None
+        }
+        
+        self.job_queue.append(job)
+        self.update_queue_display()
+        self.update_form_validation()  # Update button text
+        
+        # Start queue processing if not already running
+        if not self.is_processing and self.current_job_index == -1:
+            self.start_queue_processing()
+        
+        return True
+    
+    def remove_job_from_queue(self, job_id):
+        """Remove a job from the queue (only if not running)."""
+        for i, job in enumerate(self.job_queue):
+            if job['id'] == job_id:
+                if job['status'] == 'running':
+                    self.show_status("לא ניתן להסיר עבודה שרצה כעת", "warning")
+                    return False
+                
+                self.job_queue.pop(i)
+                # Adjust current_job_index if needed
+                if i <= self.current_job_index:
+                    self.current_job_index -= 1
+                
+                self.update_queue_display()
+                self.update_form_validation()  # Update button text
+                return True
+        return False
+    
+    def clear_completed_jobs(self):
+        """Remove all completed and failed jobs from the queue."""
+        self.job_queue = [job for job in self.job_queue if job['status'] in ['pending', 'running']]
+        # Reset current_job_index if queue was cleared
+        running_jobs = [i for i, job in enumerate(self.job_queue) if job['status'] == 'running']
+        self.current_job_index = running_jobs[0] if running_jobs else -1
+        self.update_queue_display()
+        self.update_form_validation()  # Update button text
+    
+    def get_queue_status(self):
+        """Get current queue status summary."""
+        if not self.job_queue:
+            return "תור ריק"
+        
+        pending = sum(1 for job in self.job_queue if job['status'] == 'pending')
+        running = sum(1 for job in self.job_queue if job['status'] == 'running')
+        completed = sum(1 for job in self.job_queue if job['status'] == 'completed')
+        failed = sum(1 for job in self.job_queue if job['status'] == 'failed')
+        
+        return f"ממתין: {pending} | רץ: {running} | הושלם: {completed} | נכשל: {failed}"
+    
+    def start_queue_processing(self):
+        """Start processing jobs in the queue sequentially."""
+        if self.queue_worker_thread and self.queue_worker_thread.is_alive():
+            return  # Already processing
+        
+        self.stop_queue_processing = False
+        self.queue_worker_thread = threading.Thread(target=self._process_queue_worker, daemon=True)
+        self.queue_worker_thread.start()
+    
+    def stop_queue_processing_func(self):
+        """Stop queue processing after current job completes."""
+        self.stop_queue_processing = True
+        if self.processing_manager:
+            self.processing_manager.is_cancelled = True
+    
+    def _process_queue_worker(self):
+        """Worker thread that processes jobs in the queue sequentially."""
+        while not self.stop_queue_processing:
+            # Find next pending job
+            next_job_index = -1
+            for i, job in enumerate(self.job_queue):
+                if job['status'] == 'pending':
+                    next_job_index = i
+                    break
+            
+            if next_job_index == -1:
+                # No more pending jobs
+                self.current_job_index = -1
+                self.is_processing = False
+                if self.process_button:
+                    self.process_button.disabled = False
+                    self.process_button.text = "הוסף לתור"
+                    if self.page:
+                        self.page.update()
+                break
+            
+            # Process the next job
+            self.current_job_index = next_job_index
+            job = self.job_queue[next_job_index]
+            
+            try:
+                job['status'] = 'running'
+                job['start_time'] = datetime.now().strftime("%H:%M:%S")
+                self.update_queue_display()
+                
+                # Set GUI form values for this job
+                self.input_file = job['input_file']
+                self.output_dir = job['output_dir']
+                self.selected_city = job['city']
+                self.selected_iso = job['iso_type']
+                
+                # Process the job using existing process_files logic
+                success = self._process_single_job(job)
+                
+                if success:
+                    job['status'] = 'completed'
+                    job['end_time'] = datetime.now().strftime("%H:%M:%S")
+                    self.show_status(f"עבודה #{job['id']} הושלמה בהצלחה", "success")
+                else:
+                    job['status'] = 'failed'
+                    job['end_time'] = datetime.now().strftime("%H:%M:%S")
+                    job['error_message'] = "שגיאה בעיבוד"
+                    self.show_status(f"עבודה #{job['id']} נכשלה", "error")
+                
+            except Exception as e:
+                job['status'] = 'failed'
+                job['end_time'] = datetime.now().strftime("%H:%M:%S")
+                job['error_message'] = str(e)
+                logger.error(f"Error processing job {job['id']}: {e}", exc_info=True)
+                self.show_status(f"עבודה #{job['id']} נכשלה: {str(e)}", "error")
+            
+            finally:
+                self.update_queue_display()
+                # Small delay between jobs
+                import time
+                time.sleep(1)
+        
+        self.current_job_index = -1
+        self.is_processing = False
+    
+    def _process_single_job(self, job):
+        """Process a single job from the queue."""
+        try:
+            self.is_processing = True
+            
+            # Generate run ID
+            run_id = datetime.now().strftime('%d-%m-%Y-%H-%M-%S')
+            reports_dir = os.path.join(job['output_dir'], f"reports-{run_id}")
+            simulation_dir = os.path.join(reports_dir, "simulation")
+            
+            os.makedirs(simulation_dir, exist_ok=True)
+            self.show_status(f"מעבד עבודה #{job['id']}: {os.path.basename(job['input_file'])}")
+            
+            # Determine EPW file
+            epw_file = self.determine_epw_file()
+            if not epw_file:
+                self.show_status(f"עבודה #{job['id']}: קביעת קובץ EPW נכשלה", "error")
+                return False
+            
+            # Run EnergyPlus simulation
+            simulation_output_csv = self.run_energyplus_simulation(epw_file, simulation_dir)
+            if not simulation_output_csv:
+                self.show_status(f"עבודה #{job['id']}: סימולציה נכשלה, ממשיך בלי נתוני סימולציה", "warning")
+            
+            # Initialize ProcessingManager
+            self.processing_manager = ProcessingManager(
+                status_callback=self.show_status,
+                progress_callback=self.update_progress,
+                simulation_output_csv=simulation_output_csv
+            )
+            
+            # Set city info
+            self.processing_manager.city_info = {
+                'city': job['city'],
+                'area_name': self.city_area_name,
+                'area_code': self.city_area_code,
+                'iso_type': job['iso_type']
+            }
+            
+            # Set consultant and project data
+            consultant_data = job.get('consultant_data', {})
+            self.processing_manager.consultant_data = {
+                'consultant_company': consultant_data.get('consultant_company', ''),
+                'consultant_engineer': consultant_data.get('consultant_engineer', ''),
+                'consultant_phone': consultant_data.get('consultant_phone', ''),
+                'consultant_email': consultant_data.get('consultant_email', ''),
+                'tester_company': consultant_data.get('tester_company', ''),
+                'tester_engineer': consultant_data.get('tester_engineer', ''),
+                'tester_phone': consultant_data.get('tester_phone', ''),
+                'tester_email': consultant_data.get('tester_email', ''),
+                'project_gush': job.get('project_data', {}).get('project_gush', ''),
+                'project_helka': job.get('project_data', {}).get('project_helka', ''),
+                'iso_type': job['iso_type']
+            }
+            
+            # Process IDF and generate reports
+            self.show_status(f"עבודה #{job['id']}: מתחיל עיבוד IDF ויצירת דוחות...")
+            self.start_progress_animation("reports")
+            
+            english_iso = self.iso_map.get(job['iso_type'], job['iso_type'])
+            self.processing_manager.city_info['iso_type'] = english_iso
+            
+            success = self.processing_manager.process_idf(
+                job['input_file'],
+                os.path.join(self.energyplus_dir, "Energy+.idd"),
+                job['output_dir'],
+                run_id,
+                self.energyplus_dir
+            )
+            
+            if success:
+                self.show_status(f"עבודה #{job['id']} הושלמה בהצלחה!", "success")
+                return True
+            else:
+                self.show_status(f"עבודה #{job['id']} נכשלה בעיבוד", "error")
+                return False
+                
+        except Exception as e:
+            self.show_status(f"עבודה #{job['id']}: שגיאה קריטית - {str(e)}", "error")
+            logger.error(f"Critical error in job {job['id']}: {e}", exc_info=True)
+            return False
+        
+        finally:
+            self.stop_progress_animation()
+            self.is_processing = False
+    
+    def update_queue_display(self):
+        """Update the queue display UI."""
+        if not self.queue_container or not self.page:
+            return
+        
+        # Clear existing queue items
+        self.queue_container.content.controls.clear()
+        
+        # Add header
+        header = ft.Row([
+            ft.Text("תור עבודות", size=18, weight=ft.FontWeight.BOLD, rtl=True),
+            ft.Text(self.get_queue_status(), size=14, color=ft.Colors.GREY_600, rtl=True)
+        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+        self.queue_container.content.controls.append(header)
+        
+        # Add queue items
+        if not self.job_queue:
+            empty_msg = ft.Container(
+                content=ft.Text("אין עבודות בתור", size=14, color=ft.Colors.GREY_500, rtl=True),
+                padding=20,
+                alignment=ft.alignment.center
+            )
+            self.queue_container.content.controls.append(empty_msg)
+        else:
+            for i, job in enumerate(self.job_queue):
+                job_item = self._create_queue_item(job, i)
+                self.queue_container.content.controls.append(job_item)
+        
+        self.page.update()
+    
+    def _create_queue_item(self, job, index):
+        """Create a visual item for the queue display."""
+        # Status indicators
+        status_colors = {
+            'pending': ft.Colors.ORANGE,
+            'running': ft.Colors.BLUE,
+            'completed': ft.Colors.GREEN,
+            'failed': ft.Colors.RED
+        }
+        
+        status_icons = {
+            'pending': ft.Icons.SCHEDULE,
+            'running': ft.Icons.PLAY_CIRCLE,
+            'completed': ft.Icons.CHECK_CIRCLE,
+            'failed': ft.Icons.ERROR
+        }
+        
+        status_texts = {
+            'pending': 'ממתין',
+            'running': 'רץ',
+            'completed': 'הושלם',
+            'failed': 'נכשל'
+        }
+        
+        # Job info
+        file_name = os.path.basename(job['input_file'])
+        time_text = job['created_time']
+        if job['start_time']:
+            time_text = f"התחיל: {job['start_time']}"
+        if job['end_time']:
+            time_text = f"סיים: {job['end_time']}"
+        
+        # Create job item
+        job_row = ft.Container(
+            content=ft.Row([
+                # Status indicator
+                ft.Icon(
+                    status_icons[job['status']], 
+                    color=status_colors[job['status']], 
+                    size=20
+                ),
+                # Job info
+                ft.Column([
+                    ft.Text(f"#{job['id']}: {file_name}", size=14, weight=ft.FontWeight.W_500, rtl=True),
+                    ft.Text(f"{status_texts[job['status']]} • {time_text}", size=12, color=ft.Colors.GREY_600, rtl=True)
+                ], spacing=2, expand=True),
+                # Remove button (only for pending jobs)
+                ft.IconButton(
+                    icon=ft.Icons.DELETE,
+                    icon_color=ft.Colors.RED_400,
+                    icon_size=16,
+                    tooltip="הסר מהתור",
+                    on_click=lambda e, job_id=job['id']: self._remove_job_click(job_id),
+                    visible=job['status'] == 'pending'
+                )
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            padding=ft.padding.symmetric(horizontal=10, vertical=8),
+            border=ft.border.all(1, ft.Colors.GREY_300),
+            border_radius=8,
+            bgcolor=ft.Colors.GREY_50 if job['status'] == 'running' else None
+        )
+        
+        return job_row
+    
+    def _remove_job_click(self, job_id):
+        """Handle remove job button click."""
+        self.remove_job_from_queue(job_id)
 
     def load_settings(self):
         """Load saved settings from JSON file."""
@@ -952,8 +1295,9 @@ class ModernIDFProcessorGUI:
                     consultant_section_content,
                     tester_section_content,
                     project_section_content
-                ], spacing=8, scroll=ft.ScrollMode.AUTO, tight=True),
-                padding=15
+                ], spacing=8, scroll=ft.ScrollMode.AUTO),
+                padding=15,
+                expand=True
             ),
             elevation=2
         )
@@ -1034,9 +1378,19 @@ class ModernIDFProcessorGUI:
         ])
         
         logger.info(f"UPDATE_FORM_VALIDATION: Licensed user - form valid = {is_valid}")
-        self.process_button.disabled = not is_valid or self.is_processing
-        self.process_button.text = "צור דוחות" if is_valid and not self.is_processing else "השלם הגדרות"
-        self.process_button.icon = ft.Icons.ROCKET_LAUNCH if is_valid else ft.Icons.SETTINGS
+        self.process_button.disabled = not is_valid
+        
+        # Update button text based on queue status
+        if not is_valid:
+            self.process_button.text = "השלם הגדרות"
+            self.process_button.icon = ft.Icons.SETTINGS
+        elif len(self.job_queue) >= self.max_queue_size:
+            self.process_button.text = "תור מלא"
+            self.process_button.icon = ft.Icons.QUEUE
+            self.process_button.disabled = True
+        else:
+            self.process_button.text = f"הוסף לתור ({len(self.job_queue)}/{self.max_queue_size})"
+            self.process_button.icon = ft.Icons.ADD_TO_QUEUE
         
         logger.info(f"UPDATE_FORM_VALIDATION: Button text set to: {self.process_button.text}")
         
@@ -1359,7 +1713,7 @@ class ModernIDFProcessorGUI:
             logger.error(f"UI update error: {e}")
 
     def on_start_processing(self, e):
-        """Start the processing workflow."""
+        """Add job to processing queue."""
         # Check license status first
         license_status = license_manager.get_license_status()
         is_licensed = license_status["status"] == license_manager.STATUS_VALID
@@ -1376,16 +1730,36 @@ class ModernIDFProcessorGUI:
         if not self.check_license_and_usage():
             return
         
-        self.is_processing = True
-        self.process_button.disabled = True
-        self.process_button.text = "מעבד..."
-        self.save_settings()
+        # Prepare job data
+        job_data = {
+            'input_file': self.input_file,
+            'output_dir': self.output_dir,
+            'project_name': os.path.basename(self.input_file).replace('.idf', ''),
+            'city': self.selected_city,
+            'iso_type': self.selected_iso,
+            'consultant_data': {
+                'consultant_company': self.consultant_company,
+                'consultant_engineer': self.consultant_engineer,
+                'consultant_phone': self.consultant_phone,
+                'consultant_email': self.consultant_email,
+                'tester_company': self.tester_company,
+                'tester_engineer': self.tester_engineer,
+                'tester_phone': self.tester_phone,
+                'tester_email': self.tester_email,
+            },
+            'project_data': {
+                'project_gush': self.project_gush,
+                'project_helka': self.project_helka,
+            }
+        }
         
-        if self.page:
-            self.page.update()
-        
-        # Start processing in a separate thread
-        threading.Thread(target=self.process_files, daemon=True).start()
+        # Add job to queue
+        success = self.add_job_to_queue(job_data)
+        if success:
+            self.show_status(f"עבודה נוספה לתור: {os.path.basename(self.input_file)}", "success")
+            self.save_settings()
+        else:
+            self.show_status("לא ניתן להוסיף עבודה לתור", "error")
 
     def process_files(self):
         """Process files in background thread."""
@@ -1921,9 +2295,9 @@ OUTPUT:VARIABLE,
                     input_row,
                     eplus_row,
                     output_row
-                ], spacing=15),
+                ], spacing=15, scroll=ft.ScrollMode.AUTO),
                 padding=20,
-                height=260  # Consistent section height
+                expand=True  # Let container expand to fill available space
             ),
             elevation=2
         )
@@ -1946,9 +2320,9 @@ OUTPUT:VARIABLE,
                     city_autocomplete_container,
                     self.iso_dropdown,
                     ft.Container(height=50)  # Better spacing
-                ], spacing=15),
+                ], spacing=15, scroll=ft.ScrollMode.AUTO),
                 padding=20,
-                height=260  # Consistent section height
+                expand=True
             ),
             elevation=2
         )
@@ -1984,10 +2358,52 @@ OUTPUT:VARIABLE,
                         ft.Text("עיבוד IDF ודוחות", size=14, weight=ft.FontWeight.W_500, rtl=True, text_align=ft.TextAlign.RIGHT),
                         self.reports_progress
                     ], spacing=5),
-                    ft.Container(height=80)  # Better spacing
-                ], spacing=15),
+                    ft.Container(height=20)  # Spacing
+                ], spacing=15, scroll=ft.ScrollMode.AUTO),
                 padding=20,
-                height=280  # Slightly taller for balance
+                expand=True
+            ),
+            elevation=2
+        )
+        
+        # Create queue section
+        self.queue_container = ft.Container(
+            content=ft.Column([
+                # Queue items will be added here by update_queue_display()
+            ], spacing=8, scroll=ft.ScrollMode.AUTO),
+            padding=20
+        )
+        
+        queue_section = ft.Card(
+            content=ft.Container(
+                content=ft.Column([
+                    # Queue controls
+                    ft.Row([
+                        ft.Text("תור עבודות", size=18, weight=ft.FontWeight.BOLD, rtl=True),
+                        ft.Row([
+                            ft.IconButton(
+                                icon=ft.Icons.CLEAR_ALL,
+                                tooltip="נקה עבודות מושלמות",
+                                icon_color=ft.Colors.ORANGE,
+                                on_click=lambda e: self.clear_completed_jobs()
+                            ),
+                            ft.IconButton(
+                                icon=ft.Icons.STOP,
+                                tooltip="עצור עיבוד תור",
+                                icon_color=ft.Colors.RED,
+                                on_click=lambda e: self.stop_queue_processing_func()
+                            )
+                        ])
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    
+                    # Queue display container (scrollable)
+                    ft.Container(
+                        content=self.queue_container,
+                        expand=True
+                    )
+                ], spacing=10, scroll=ft.ScrollMode.AUTO),
+                padding=15,
+                expand=True
             ),
             elevation=2
         )
@@ -1995,8 +2411,8 @@ OUTPUT:VARIABLE,
         # Create status section
         self.status_text = ft.Column(
             scroll=ft.ScrollMode.AUTO,
-            height=200,
-            spacing=2
+            spacing=2,
+            expand=True  # Allow status text to expand
         )
         
         status_section = ft.Card(
@@ -2008,11 +2424,11 @@ OUTPUT:VARIABLE,
                         border=ft.border.all(1, ft.Colors.OUTLINE_VARIANT),
                         border_radius=8,
                         padding=10,
-                        height=520  # Taller status area
+                        expand=True  # Let status container expand
                     )
-                ], spacing=15),
+                ], spacing=15, scroll=ft.ScrollMode.AUTO),
                 padding=20,
-                height=580  # Tall for logs
+                expand=True
             ),
             elevation=2
         )
@@ -2057,27 +2473,29 @@ OUTPUT:VARIABLE,
         # Create consultant data section
         consultant_section = self.create_consultant_section()
         
-        # Clean 3-column layout for better organization
-        left_column = ft.Column([
-            file_section,
-            config_section
-        ], spacing=20, scroll=ft.ScrollMode.AUTO, expand=True)
+        # 2x3 Grid layout - Equal sized cards
+        card_height = 400  # Fixed height for all cards
+        card_spacing = 15
         
-        middle_column = ft.Column([
-            consultant_section,
-            progress_section
-        ], spacing=20, scroll=ft.ScrollMode.AUTO, expand=True)
+        # Top row: 3 cards
+        top_row = ft.Row([
+            ft.Container(content=file_section, expand=True, height=card_height),
+            ft.Container(content=config_section, expand=True, height=card_height),
+            ft.Container(content=consultant_section, expand=True, height=card_height)
+        ], spacing=card_spacing, expand=True)
         
-        right_column = ft.Column([
-            status_section
-        ], spacing=20, scroll=ft.ScrollMode.AUTO, expand=True)
+        # Bottom row: 3 cards  
+        bottom_row = ft.Row([
+            ft.Container(content=progress_section, expand=True, height=card_height),
+            ft.Container(content=status_section, expand=True, height=card_height),
+            ft.Container(content=queue_section, expand=True, height=card_height)
+        ], spacing=card_spacing, expand=True)
         
         main_content = ft.Container(
-            content=ft.Row([
-                left_column,
-                middle_column,
-                right_column
-            ], spacing=15, expand=True),
+            content=ft.Column([
+                top_row,
+                bottom_row
+            ], spacing=card_spacing, expand=True),
             expand=True
         )
         
@@ -2094,6 +2512,9 @@ OUTPUT:VARIABLE,
         # Initial validation and welcome message
         self.update_form_validation()
         self.show_status(f"ברוכים הבאים! גרסה {self.current_version} - הגדירו את כל השדות כדי להתחיל בעיבוד.")
+        
+        # Initialize queue display
+        self.update_queue_display()
         
         # Check for updates automatically if enabled
         if self.update_manager.should_check_for_updates():
