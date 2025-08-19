@@ -1,8 +1,14 @@
 {
-    "version": "1.0.1",
-    "build_type": "release",
-    "build_date": "2025-08-15T08:42:39.851793",
-    "build_timestamp": 1755236559,
-    "platform": "win32",
-    "python_version": "3.12.7 | packaged by Anaconda, Inc. | (main, Oct  4 2024, 13:17:27) [MSC v.1929 64 bit (AMD64)]"
+  "previous_version": "1.1.0",
+  "triggered_by": "push",
+  "platform": "win32",
+  "build_type": "auto-release",
+  "build_date": "2025-08-19T14:26:33Z",
+  "increment_type": "patch",
+  "python_version": "Python 3.11.9",
+  "build_timestamp": 1755613594,
+  "repository": "danielpiro/idf-reader",
+  "version": "1.1.1",
+  "commit_sha": "25ed40284f53f9ffb01c45481cebeac02be1dd62",
+  "commit_message": "Update README.md, script.js, and Vercel configuration\r\n\r\n- Revise README.md for clearer deployment instructions and project structure.\r\n- Enhance script.js with improved accessibility features and local version management.\r\n- Modify Vercel configuration to streamline URL handling and caching policies.\r\n- Introduce version.json for dynamic version management and download URL retrieval."
 }

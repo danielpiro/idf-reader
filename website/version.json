@@ -1,7 +1,7 @@
 {
-  "version": "1.1.0",
-  "release_date": "2025-01-19",
-  "download_url": "https://github.com/danielpiro/idf-reader/releases/download/v1.1.0/idf-reader-1.1.0.exe",
-  "release_notes_url": "https://github.com/danielpiro/idf-reader/releases/tag/v1.1.0",
-  "file_size_mb": 50.0
+  "file_size_mb": 91.4,
+  "release_notes_url": "https://github.com/danielpiro/idf-reader/releases/tag/v1.1.1",
+  "release_date": "2025-08-19",
+  "download_url": "https://github.com/danielpiro/idf-reader/releases/download/v1.1.1/idf-reader-1.1.1.exe",
+  "version": "1.1.1"
 }
