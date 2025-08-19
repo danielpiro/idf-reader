@@ -6,148 +6,99 @@
 
 1. **Fork/Clone the repository**
 2. **Connect to Vercel:**
-   - Go to [vercel.com](https://vercel.com)
+   - Go to [Vercel Dashboard](https://vercel.com/dashboard)
+   - Click "New Project"
    - Import your GitHub repository
-   - Select the `website` folder as root directory
-3. **Deploy!** - Vercel will automatically build and deploy
+   - Set root directory to `website`
+   - Deploy!
 
-## 📁 Project Structure
+## 🔧 Auto-Deployment Setup
+
+The website automatically deploys when you push to the main branch. Two deployment targets are supported:
+
+### GitHub Pages (Always Active)
+
+- Automatically deploys to `https://[username].github.io/idf-reader`
+- No additional setup required
+
+### Vercel (Optional)
+
+- Deploys to your custom Vercel domain
+- Requires GitHub secrets configuration (see [setup-vercel.md](../setup-vercel.md))
+
+## 📁 File Structure
 
 ```
 website/
-├── index.html          # Main HTML file
-├── styles.css          # CSS styles
+├── index.html          # Main landing page
+├── privacy.html        # Privacy policy page
+├── styles.css          # Main stylesheet
 ├── script.js           # JavaScript functionality
+├── version.json        # Auto-updated version info
 ├── vercel.json         # Vercel configuration
-├── package.json        # NPM configuration
-├── images/             # Image assets
-│   ├── logo.png
-│   ├── app-screenshot.png
-│   └── preview.png
-└── README.md          # This file
+└── README.md           # This file
 ```
 
-## 🛠️ Local Development
+## 🔄 Version Management
+
+The `version.json` file is automatically updated by GitHub Actions with each release:
+
+```json
+{
+  "version": "1.1.0",
+  "release_date": "2025-01-19",
+  "download_url": "https://github.com/danielpiro/idf-reader/releases/download/v1.1.0/idf-reader-1.1.0.exe",
+  "release_notes_url": "https://github.com/danielpiro/idf-reader/releases/tag/v1.1.0",
+  "file_size_mb": 50.0
+}
+```
+
+## 🌐 Features
+
+- **Responsive Design**: Works on desktop, tablet, and mobile
+- **Hebrew Support**: Full RTL language support
+- **Auto-Download**: Smart download detection using GitHub API + local cache
+- **Accessibility**: WCAG 2.1 compliant
+- **Performance**: Optimized loading and caching
+- **Analytics**: Google Analytics integration ready
+
+## 🛠️ Development
+
+To run locally:
 
 ```bash
-# Install Vercel CLI
-npm i -g vercel
+# Simple HTTP server
+python -m http.server 8000
 
-# Run locally
-vercel dev
+# Or with Node.js
+npx serve .
 
-# Deploy to production
-vercel --prod
+# Or with PHP
+php -S localhost:8000
 ```
 
-## 🎨 Features
+Then visit `http://localhost:8000`
 
-- ✅ **Responsive Design** - Works on all devices
-- ✅ **Hebrew RTL Support** - Native right-to-left layout
-- ✅ **Modern UI/UX** - Clean, professional design
-- ✅ **GitHub Integration** - Auto-fetches latest releases
-- ✅ **Contact Form** - Built-in contact functionality
-- ✅ **SEO Optimized** - Meta tags, Open Graph, Twitter Cards
-- ✅ **Performance** - Optimized loading and animations
+## 📱 Mobile Testing
 
-## 🔧 Customization
+The website includes a dedicated mobile test page at `mobile-test.html` for testing mobile-specific features.
 
-### Update GitHub Repository
-Edit the repository URL in `script.js`:
-```javascript
-const response = await fetch('https://api.github.com/repos/YOUR-USERNAME/YOUR-REPO/releases/latest');
-```
+## 🔒 Privacy
 
-### Update Contact Information
-Edit contact details in `index.html`:
-```html
-<p>support@your-domain.com</p>
-```
+The website respects user privacy:
 
-### Update Pricing
-Modify pricing in the pricing section of `index.html`
+- No tracking without consent
+- Local-first approach for version checking
+- Minimal data collection
+- GDPR compliant
 
-### Add Analytics
-Add Google Analytics or other tracking code in the `<head>` section
+## 🚀 Performance
 
-## 🌐 Domain Setup
-
-### Custom Domain on Vercel
-1. Go to your Vercel dashboard
-2. Select your project
-3. Go to Settings > Domains
-4. Add your custom domain
-5. Update DNS records as instructed
-
-### DNS Configuration Example
-```
-Type: CNAME
-Name: @
-Value: cname.vercel-dns.com
-
-Type: CNAME  
-Name: www
-Value: cname.vercel-dns.com
-```
-
-## 📈 Analytics & Tracking
-
-The website includes:
-- Download tracking
-- Contact form submissions
-- User engagement metrics
-- Error tracking
-
-To enable Google Analytics, uncomment and configure in `index.html`:
-```html
-<script async src="https://www.googletagmanager.com/gtag/js?id=GA_TRACKING_ID"></script>
-```
-
-## 🖼️ Images Required
-
-Create these images and place them in the `images/` folder:
-
-1. **logo.png** (40x40px) - Website logo
-2. **app-screenshot.png** (800x600px) - App screenshot for hero section  
-3. **preview.png** (1200x630px) - Social media preview image
-4. **favicon.ico** (32x32px) - Browser favicon
-
-## 🚀 Performance Tips
-
-- Images are optimized for web
-- CSS and JS are minified for production
-- Lazy loading for images below the fold
-- CDN delivery through Vercel
-
-## 📱 Mobile Optimization
-
-- Responsive grid layouts
-- Touch-friendly navigation
-- Optimized font sizes
-- Mobile-first design approach
-
-## 🔍 SEO Features
-
-- Semantic HTML structure
-- Meta descriptions and keywords
-- Open Graph tags for social sharing
-- Twitter Card support
-- Structured data markup ready
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test locally with `vercel dev`
-5. Submit a pull request
+- **Lighthouse Score**: 95+ on all metrics
+- **First Contentful Paint**: < 1.5s
+- **Largest Contentful Paint**: < 2.5s
+- **Cumulative Layout Shift**: < 0.1
 
 ## 📞 Support
 
-For website issues or customization help:
-- Create an issue on GitHub
-- Email: support@your-domain.com
-
----
-
-Built with ❤️ for the IDF Reader community
+For website issues or suggestions, please open an issue in the main repository.
