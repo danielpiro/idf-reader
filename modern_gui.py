@@ -2379,7 +2379,6 @@ OUTPUT:VARIABLE,
                 content=ft.Column([
                     # Queue controls
                     ft.Row([
-                        ft.Text("תור עבודות", size=18, weight=ft.FontWeight.BOLD, rtl=True),
                         ft.Row([
                             ft.IconButton(
                                 icon=ft.Icons.CLEAR_ALL,
