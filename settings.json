@@ -1,13 +1,13 @@
 {
-    "last_input": "C:\\Users\\daniel\\Desktop\\idf-reader\\tests\\in-office.idf",
+    "last_input": "C:\\Users\\daniel\\Desktop\\idf-reader\\tests\\in-mesradim.idf",
     "last_eplus_dir": "C:\\EnergyPlusV9-4-0",
     "last_output": "C:\\Users\\daniel\\Desktop",
-    "last_city": "בת ים",
+    "last_city": "בית שמש",
     "last_iso_type": "משרדים",
     "consultant_data": {
-        "consultant_company": "חברה",
-        "consultant_engineer": "אמיר המלשין",
-        "consultant_phone": "111",
+        "consultant_company": "pulse",
+        "consultant_engineer": "אמיר שרעבי",
+        "consultant_phone": "0505485486",
         "consultant_email": "dd@gmail.com",
         "tester_company": "שדג",
         "tester_engineer": "שדג",

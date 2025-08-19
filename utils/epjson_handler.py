@@ -123,10 +123,9 @@ class EPJSONHandler:
             final_idf_path = safe_idf_path
             version_cleanup_func = None
             
-            # Note: Version update not available in this EnergyPlus version
-            # For older IDF versions, log a warning but try conversion anyway
-            if idf_version and (idf_version.startswith('8.') or idf_version.startswith('9.')):
-                logger.warning(f"IDF version {idf_version} may be incompatible with EnergyPlus 24.1. Attempting conversion anyway...")
+            # Support all versions 9.4+ - no version compatibility warnings needed
+            if idf_version:
+                logger.info(f"Processing IDF version {idf_version} - all versions 9.4+ are supported")
             
             final_idf_path = safe_idf_path
             

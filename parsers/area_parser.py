@@ -5,6 +5,9 @@ from typing import Dict, Any, List, Optional
 from parsers.materials_parser import MaterialsParser
 from utils.data_loader import safe_float
 from parsers.eplustbl_reader import read_glazing_data_from_csv
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 class AreaParser:
     """
@@ -122,6 +125,8 @@ class AreaParser:
                 return
 
             windows_by_base_surface = {}
+            
+            # First, try to use base_surface property for window-wall mapping
             for surface_id, surface in surfaces.items():
                 try:
                     if surface.get("is_glazing", False):
@@ -133,6 +138,46 @@ class AreaParser:
                                 "window_id": surface_id,
                                 "area": safe_float(surface.get("area", 0.0), 0.0),
                             })
+                except (TypeError, AttributeError) as e_win:
+                    pass
+            
+            # Second, use naming pattern matching for windows that weren't matched
+            # Pattern: wall name followed by window suffix (e.g., 02:10XOFFICE_Wall_2_0_0 -> 02:10XOFFICE_WALL_2_0_0_*_WIN)
+            for surface_id, surface in surfaces.items():
+                try:
+                    if surface.get("is_glazing", False):
+                        # Skip if already matched by base_surface
+                        already_matched = False
+                        for wall_surfaces in windows_by_base_surface.values():
+                            if any(w["window_id"] == surface_id for w in wall_surfaces):
+                                already_matched = True
+                                break
+                        
+                        if already_matched:
+                            continue
+                            
+                        # Try to match by naming pattern
+                        window_name_upper = surface_id.upper()
+                        if "_WIN" in window_name_upper:
+                            # Extract the base wall name from window name
+                            # Convert 02:10XOFFICE_WALL_2_0_0_*_WIN to 02:10XOFFICE_Wall_2_0_0
+                            parts = window_name_upper.split("_WIN")[0]  # Remove _WIN suffix
+                            # Remove the window-specific parts (numbers after the wall base name)
+                            base_parts = parts.split("_")
+                            if len(base_parts) >= 4:  # Should have zone:name_WALL_x_y_z format
+                                # Find potential wall name by trying different combinations
+                                for wall_surface_id in surfaces.keys():
+                                    if not surfaces[wall_surface_id].get("is_glazing", False):
+                                        wall_name_upper = wall_surface_id.upper()
+                                        # Check if window name starts with wall name pattern
+                                        if self._is_window_for_wall(window_name_upper, wall_name_upper):
+                                            if wall_surface_id not in windows_by_base_surface:
+                                                windows_by_base_surface[wall_surface_id] = []
+                                            windows_by_base_surface[wall_surface_id].append({
+                                                "window_id": surface_id,
+                                                "area": safe_float(surface.get("area", 0.0), 0.0),
+                                            })
+                                            break
                 except (TypeError, AttributeError) as e_win:
                     pass
 
@@ -154,26 +199,52 @@ class AreaParser:
                     if is_window_surface and surface_id.upper() in self.construction_areas_from_csv:
                         # For glazing, use area from Exterior Fenestration table
                         csv_area = safe_float(self.construction_areas_from_csv[surface_id.upper()].get('Area', 0.0))
+                        logger.info(f"[EXTERNAL WALL DEBUG] Glazing surface {surface_id}: CSV area = {csv_area}")
                     elif surface_id.upper() in self.construction_areas_from_csv:
                         # For opaque constructions, check surface name in CSV first
                         csv_area = safe_float(self.construction_areas_from_csv[surface_id.upper()].get('Area', 0.0))
+                        logger.info(f"[EXTERNAL WALL DEBUG] Opaque surface {surface_id}: CSV area = {csv_area}")
                     elif construction_name.upper() in self.construction_areas_from_csv:
                         # Fallback: check construction name in CSV
                         csv_area = safe_float(self.construction_areas_from_csv[construction_name.upper()].get('Area', 0.0))
+                        logger.info(f"[EXTERNAL WALL DEBUG] Construction {construction_name}: CSV area = {csv_area}")
                     
                     # Use CSV area if available and valid, otherwise use calculated area
                     if csv_area and csv_area > 0.0:
                         area = csv_area
+                        logger.info(f"[EXTERNAL WALL DEBUG] Surface {surface_id}: Using CSV area = {area} m²")
                     else:
                         area = safe_float(surface.get("area"))
+                        logger.info(f"[EXTERNAL WALL DEBUG] Surface {surface_id}: Using IDF calculated area = {area} m²")
                         if area is None or area <= 0.0:
+                            logger.info(f"[EXTERNAL WALL DEBUG] Surface {surface_id}: Skipping - invalid area {area}")
                             continue
                     if not surface.get("is_glazing", False) and surface_id in windows_by_base_surface:
                         try:
-                            window_areas = sum(w.get("area", 0.0) for w in windows_by_base_surface.get(surface_id, []))
+                            # Calculate total window area - prioritize CSV data when available
+                            window_areas = 0.0
+                            windows_list = windows_by_base_surface.get(surface_id, [])
+                            
+                            for window_info in windows_list:
+                                window_id = window_info["window_id"]
+                                window_area = window_info["area"]
+                                
+                                # Try to get more accurate area from CSV data
+                                csv_window_area = None
+                                if window_id.upper() in self.construction_areas_from_csv:
+                                    csv_window_area = safe_float(self.construction_areas_from_csv[window_id.upper()].get('Area', 0.0))
+                                
+                                if csv_window_area and csv_window_area > 0.0:
+                                    window_areas += csv_window_area
+                                else:
+                                    window_areas += window_area
+                            
+                            original_area = area
                             area = max(0.0, area - window_areas)
+                            window_names = [w["window_id"] for w in windows_list]
+                            logger.info(f"[EXTERNAL WALL DEBUG] Surface {surface_id}: Wall area after window subtraction: {original_area} - {window_areas} = {area} m² (from {len(windows_list)} windows: {window_names})")
                         except Exception as e_sum:
-                            pass
+                            logger.info(f"[EXTERNAL WALL DEBUG] Surface {surface_id}: Window subtraction failed: {e_sum}")
                             # Keep the area as-is if window subtraction fails
 
                     u_value = None
@@ -211,6 +282,9 @@ class AreaParser:
 
                     surface_type = surface.get("surface_type", "wall")
                     is_glazing = is_glazing_from_csv or is_glazing_from_idf
+                    boundary_condition = surface.get("boundary_condition", "unknown")
+                    
+                    logger.info(f"[EXTERNAL WALL DEBUG] Surface {surface_id}: type={surface_type}, is_glazing={is_glazing}, boundary_condition={boundary_condition}, construction={construction_name}")
                     
 
                     if construction_name not in self.areas_by_zone[zone_name]["constructions"]:
@@ -228,7 +302,15 @@ class AreaParser:
                                 obc = base_surface_data.get("boundary_condition")
                                 if obc and isinstance(obc, str) and obc.lower() == "outdoors":
                                     is_external_boundary = True
+                                    logger.info(f"[EXTERNAL WALL DEBUG] Glazing {surface_id}: Base surface {base_surface_name} has outdoor boundary condition")
                         element_type_str = "External Glazing" if is_external_boundary else "Internal Glazing"
+                        logger.info(f"[EXTERNAL WALL DEBUG] Glazing {surface_id}: Classified as {element_type_str}")
+                    else:
+                        # For non-glazing surfaces, check if it's an external wall
+                        if surface_type.lower() == "wall" and boundary_condition.lower() == "outdoors":
+                            logger.info(f"[EXTERNAL WALL DEBUG] Wall {surface_id}: Classified as External Wall (area={area} m²)")
+                        elif surface_type.lower() == "wall":
+                            logger.info(f"[EXTERNAL WALL DEBUG] Wall {surface_id}: Classified as Internal Wall (boundary={boundary_condition}, area={area} m²)")
                         
 
                     final_area = area
@@ -250,6 +332,10 @@ class AreaParser:
                     constr_group["elements"].append(element_data)
                     constr_group["total_area"] += final_area
                     constr_group["total_u_value"] += final_area * u_value
+                    
+                    # Debug for external wall constructions
+                    if element_type_str == "Wall" and boundary_condition.lower() == "outdoors":
+                        logger.info(f"[EXTERNAL WALL DEBUG] Added to construction {construction_name}: zone={zone_name}, area={final_area} m², u_value={u_value}, total_construction_area={constr_group['total_area']} m²")
 
                 except (TypeError, ValueError, AttributeError, KeyError) as e_surf:
                     pass
@@ -543,17 +629,35 @@ class AreaParser:
                             "wall" in element.get("element_type", "").lower() and not element.get("element_type", "").endswith("Glazing")
                             for element in construction_data.get("elements", [])
                         )
+                        
+                        # Check specifically for external walls
+                        is_external_wall_construction = any(
+                            element.get("element_type", "").lower() == "wall" and 
+                            any(surf.get("boundary_condition", "").lower() == "outdoors" 
+                                for surf_id, surf in self.data_loader.get_surfaces().items() 
+                                if surf.get("construction_name") == construction_name and surf_id == element.get("surface_name"))
+                            for element in construction_data.get("elements", [])
+                        )
 
+                        construction_area = safe_float(construction_data.get("total_area", 0.0), 0.0)
+                        
                         if is_glazing_construction:
-                            result["window_area"] += safe_float(construction_data.get("total_area", 0.0), 0.0)
+                            result["window_area"] += construction_area
+                            logger.info(f"[EXTERNAL WALL DEBUG] Area totals for {area_id}: Adding glazing construction {construction_name}: {construction_area} m² (total glazing: {result['window_area']} m²)")
                         elif is_wall_construction:
-                            result["wall_area"] += safe_float(construction_data.get("total_area", 0.0), 0.0)
+                            result["wall_area"] += construction_area
+                            if is_external_wall_construction:
+                                logger.info(f"[EXTERNAL WALL DEBUG] Area totals for {area_id}: Adding EXTERNAL wall construction {construction_name}: {construction_area} m² (total walls: {result['wall_area']} m²)")
+                            else:
+                                logger.info(f"[EXTERNAL WALL DEBUG] Area totals for {area_id}: Adding internal wall construction {construction_name}: {construction_area} m² (total walls: {result['wall_area']} m²)")
                     except (TypeError, AttributeError) as e_constr:
                         pass
                         continue
 
             if not found_area:
-                pass
+                logger.info(f"[EXTERNAL WALL DEBUG] Area totals: No area found for area_id '{area_id}'")
+            else:
+                logger.info(f"[EXTERNAL WALL DEBUG] Final area totals for {area_id}: floor_area={result['total_floor_area']} m², wall_area={result['wall_area']} m², window_area={result['window_area']} m²")
             return result
         except Exception as e:
             pass
@@ -1078,6 +1182,38 @@ class AreaParser:
         except Exception as e:
             pass
             return "-"
+
+    def _is_window_for_wall(self, window_name_upper: str, wall_name_upper: str) -> bool:
+        """
+        Check if a window belongs to a wall based on naming patterns.
+        
+        Examples:
+        - Wall: 02:10XOFFICE_Wall_2_0_0
+        - Windows: 02:10XOFFICE_WALL_2_0_0_0_0_10_WIN, 02:10XOFFICE_WALL_2_0_0_1_0_9_WIN, etc.
+        
+        Args:
+            window_name_upper: Window name in uppercase
+            wall_name_upper: Wall name in uppercase
+            
+        Returns:
+            True if window belongs to the wall
+        """
+        try:
+            # Convert wall name to expected window prefix format
+            # 02:10XOFFICE_Wall_2_0_0 -> 02:10XOFFICE_WALL_2_0_0_
+            wall_prefix = wall_name_upper.replace("_WALL_", "_WALL_").replace("_Wall_", "_WALL_")
+            if not "_WALL_" in wall_prefix:
+                return False
+                
+            # Check if window name starts with the wall prefix pattern
+            expected_prefix = wall_prefix + "_"
+            if window_name_upper.startswith(expected_prefix) and "_WIN" in window_name_upper:
+                # Additional validation: ensure it ends with _WIN
+                return window_name_upper.endswith("_WIN")
+                
+            return False
+        except Exception as e:
+            return False
 
     def get_glazing_table_data(self, materials_parser: Optional[MaterialsParser] = None) -> Dict[str, List[Dict[str, Any]]]:
         """
