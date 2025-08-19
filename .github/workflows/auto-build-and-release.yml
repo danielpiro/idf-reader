@@ -69,12 +69,12 @@ jobs:
         } else {
           # Auto-determine from commit messages
           $commitMessages = git log --oneline -10 --pretty=format:"%s"
-          if ($commitMessages -match "BREAKING CHANGE|major:") {
+          if ($commitMessages -match "BREAKING CHANGE|major:|MAJOR:") {
             $incrementType = "major"
-          } elseif ($commitMessages -match "minor:|MINOR:") {
+          } elseif ($commitMessages -match "feat:|feature:|minor:|MINOR:|FEAT:|FEATURE:") {
             $incrementType = "minor"
           }
-          # Default to patch for feat:, fix:, and most changes
+          # Default to patch for fix:, refactor:, and other changes
         }
         
         # Increment version
