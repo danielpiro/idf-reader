@@ -137,12 +137,77 @@ class BaseParser(ABC):
         self._log_start_processing(len(items))
         
         for item_id, item_data in items.items():
-            try:
-                process_func(item_id, item_data)
-                self._log_item_processed(item_id)
-            except Exception as e:
-                self._log_item_error(str(e), item_id)
-                continue
+            self._process_single_item(item_id, item_data, process_func)
+        
+        self._log_processing_complete()
+    
+    def _process_single_item(self, item_id: str, item_data: Any, process_func) -> bool:
+        """
+        Process a single item with error handling.
+        
+        Args:
+            item_id: Identifier of the item
+            item_data: Data of the item
+            process_func: Function to process the item
+            
+        Returns:
+            bool: True if processed successfully, False otherwise
+        """
+        try:
+            process_func(item_id, item_data)
+            self._log_item_processed(item_id)
+            return True
+        except Exception as e:
+            self._log_item_error(str(e), item_id)
+            return False
+    
+    def _safe_process_with_fallback(self, process_func, fallback_value=None, *args, **kwargs):
+        """
+        Execute a processing function with safe error handling and fallback.
+        
+        Args:
+            process_func: Function to execute
+            fallback_value: Value to return if processing fails
+            *args, **kwargs: Arguments to pass to process_func
+            
+        Returns:
+            Result of process_func or fallback_value if error occurs
+        """
+        try:
+            return process_func(*args, **kwargs)
+        except Exception as e:
+            self.logger.warning(f"{self.parser_name}: Processing failed, using fallback - {e}")
+            return fallback_value
+    
+    def _batch_process_items(self, items: Dict[str, Any], process_func, 
+                            batch_size: int = 100, item_type: str = "items"):
+        """
+        Process items in batches for better memory management with large datasets.
+        
+        Args:
+            items: Dictionary of items to process
+            process_func: Function to process each item
+            batch_size: Size of each processing batch
+            item_type: Type of items for logging
+        """
+        if not items:
+            self.logger.warning(f"{self.parser_name}: No {item_type} to process")
+            return
+        
+        items_list = list(items.items())
+        total_batches = (len(items_list) + batch_size - 1) // batch_size
+        
+        self._log_start_processing(len(items))
+        
+        for batch_idx in range(total_batches):
+            start_idx = batch_idx * batch_size
+            end_idx = min(start_idx + batch_size, len(items_list))
+            batch = items_list[start_idx:end_idx]
+            
+            self.logger.debug(f"{self.parser_name}: Processing batch {batch_idx + 1}/{total_batches}")
+            
+            for item_id, item_data in batch:
+                self._process_single_item(item_id, item_data, process_func)
         
         self._log_processing_complete()
     
@@ -184,6 +249,26 @@ class BaseParser(ABC):
             self._log_item_error(f"Missing required fields: {missing_fields}", item_name)
             return False
         return True
+    
+    def _safe_get_nested_data(self, data_dict: Dict[str, Any], keys: List[str], default=None):
+        """
+        Safely navigate nested dictionary structure.
+        
+        Args:
+            data_dict: Dictionary to navigate
+            keys: List of keys to follow (e.g., ['level1', 'level2', 'field'])
+            default: Default value if navigation fails
+            
+        Returns:
+            Value at the nested location or default
+        """
+        current = data_dict
+        for key in keys:
+            if isinstance(current, dict) and key in current:
+                current = current[key]
+            else:
+                return default
+        return current
 
 class SimpleParser(BaseParser):
     """

@@ -17,16 +17,7 @@ from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-def safe_float(value: Any, default: float = 0.0) -> float:
-    """
-    Safely convert a value to float, returning default if conversion fails.
-    """
-    if value is None:
-        return default
-    try:
-        return float(value)
-    except (ValueError, TypeError):
-        return default
+from .utils import safe_float
 
 def _find_csv_path(csv_path: Optional[str]) -> Optional[str]:
     # Check provided path first

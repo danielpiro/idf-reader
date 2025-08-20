@@ -3,7 +3,7 @@ Extracts and processes area information including floor areas and material prope
 """
 from typing import Dict, Any, List, Optional
 from parsers.materials_parser import MaterialsParser
-from utils.data_loader import safe_float
+from .utils import safe_float
 from parsers.eplustbl_reader import read_glazing_data_from_csv
 from utils.logging_config import get_logger
 
@@ -18,18 +18,7 @@ class AreaParser:
         self.data_loader = data_loader
         try:
             self.glazing_data_from_csv = read_glazing_data_from_csv(csv_path)
-            if self.glazing_data_from_csv:
-                pass
-            else:
-                pass
-        except FileNotFoundError:
-            pass
-            self.glazing_data_from_csv = {}
-        except (ValueError, RuntimeError) as e:
-            pass
-            self.glazing_data_from_csv = {}
-        except Exception as e:
-            pass
+        except Exception:
             self.glazing_data_from_csv = {}
             
         # Load construction areas from eplustbl.csv for both glazing and opaque constructions

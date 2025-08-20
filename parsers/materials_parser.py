@@ -2,13 +2,10 @@
 Extracts and processes materials and constructions.
 Uses DataLoader for cached access to IDF data.
 """
-import logging
 from typing import Dict, Any, Optional, List, Tuple
 from utils.data_loader import DataLoader
 from utils.data_models import MaterialData, ConstructionData
 from .base_parser import BaseParser
-
-logger = logging.getLogger(__name__)
 
 # Surface film resistance configuration
 SURFACE_FILM_RESISTANCE = {
@@ -207,7 +204,6 @@ class MaterialsParser(BaseParser):
         Args:
             construction_cache: Dictionary of construction data from DataLoader
         """
-        logger.info(f"Starting construction filtering with {len(self.constructions)} constructions")
         # Filter constructions: remove duplicates with different suffixes
         constructions_to_remove = []
         processed_pairs = set()
@@ -230,7 +226,6 @@ class MaterialsParser(BaseParser):
                 # This construction has no suffix, so it could be a base construction
                 base_name = construction_id
             
-            logger.info(f"Processing construction '{construction_id}' with base_name '{base_name}'")
                 
             # Look for other constructions with the same base name but different suffixes
             potential_matches = []
@@ -253,7 +248,6 @@ class MaterialsParser(BaseParser):
                 
                 if other_base_name and other_base_name.lower() == base_name.lower():
                     potential_matches.append(other_id)
-                    logger.info(f"  Found potential match: '{other_id}' (base: '{other_base_name}')")
             
             # Compare current construction with all potential matches
             for match_id in potential_matches:
@@ -279,7 +273,6 @@ class MaterialsParser(BaseParser):
                 materials2 = set(construction2.material_layers)
                 
                 # If same materials and one element type set is subset of the other, remove the subset version
-                logger.info(f"  Comparing '{construction_id}' vs '{match_id}': types1={types1}, types2={types2}, materials_match={materials1 == materials2}")
                 if materials1 == materials2 and (type_set1 == type_set2 or type_set1.issubset(type_set2) or type_set2.issubset(type_set1)):
                     # Determine which one to remove - prefer keeping the one without suffix or with simpler suffix
                     to_remove = None
@@ -320,16 +313,12 @@ class MaterialsParser(BaseParser):
                     
                     if to_remove and to_remove not in constructions_to_remove:
                         constructions_to_remove.append(to_remove)
-                        logger.info(f"    -> Marked '{to_remove}' for removal (keeping '{construction_id if to_remove == match_id else match_id}')")
         
         # Remove the identified constructions
-        logger.info(f"Removing {len(constructions_to_remove)} constructions: {constructions_to_remove}")
         for construction_id in constructions_to_remove:
             del self.constructions[construction_id]
             # Also remove from element_data
             self.element_data = [element for element in self.element_data if element.get('element_name') != construction_id]
-        
-        logger.info(f"Filtering complete. Remaining constructions: {len(self.constructions)}")
 
     def _get_surface_type_and_boundary(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]], construction_mapping: Dict[str, str] = None):
         """

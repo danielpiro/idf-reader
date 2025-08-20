@@ -1,9 +1,9 @@
 """
 Extracts and processes zone loads and their associated schedules using cached data from DataLoader.
 """
-from asyncio.log import logger
 from typing import Dict, Any, Optional
-from utils.data_loader import DataLoader, safe_float
+from utils.data_loader import DataLoader
+from .utils import safe_float
 
 class LoadExtractor:
     """
@@ -54,11 +54,16 @@ class LoadExtractor:
                 continue
             zone_load_data = self.loads_by_zone[zone_name]["loads"]["people"]
             for load in loads:
+                # Initialize and accumulate people per area
                 if zone_load_data["people_per_area"] is None:
                     zone_load_data["people_per_area"] = 0.0
                 zone_load_data["people_per_area"] += load['people_per_area']
+                
+                # Set schedule if not already set
                 if zone_load_data["schedule"] is None:
                     zone_load_data["schedule"] = load['schedule']
+                
+                # Set activity schedule if not already set
                 if zone_load_data["activity_schedule"] is None:
                     rules = self.data_loader.get_schedule_rules(load['activity_schedule'])
                     if rules and len(rules) > 3:
@@ -66,14 +71,18 @@ class LoadExtractor:
 
     def _process_lights_loads(self) -> None:
         lights_loads = self.data_loader.get_lights_loads()
-        for zone_name, loads in lights_loads.items():
+        self._process_power_loads(lights_loads, "lights", "watts_per_area")
+
+    def _process_power_loads(self, loads_data: dict, load_type: str, power_key: str) -> None:
+        """Helper method to process power-based loads (lights, equipment)."""
+        for zone_name, loads in loads_data.items():
             if zone_name not in self.loads_by_zone:
                 continue
-            zone_load_data = self.loads_by_zone[zone_name]["loads"]["lights"]
+            zone_load_data = self.loads_by_zone[zone_name]["loads"][load_type]
             for load in loads:
-                if zone_load_data["watts_per_area"] is None:
-                    zone_load_data["watts_per_area"] = 0.0
-                zone_load_data["watts_per_area"] += load['watts_per_area']
+                if zone_load_data[power_key] is None:
+                    zone_load_data[power_key] = 0.0
+                zone_load_data[power_key] += load[power_key]
                 if zone_load_data["schedule"] is None:
                     zone_load_data["schedule"] = load['schedule']
 
@@ -83,8 +92,8 @@ class LoadExtractor:
             if zone_name not in self.loads_by_zone:
                 continue
             for load in loads:
-                key = "fixed_equipment" if load['type'] == 'fixed' else "non_fixed_equipment"
-                zone_load_data = self.loads_by_zone[zone_name]["loads"][key]
+                load_type = "fixed_equipment" if load['type'] == 'fixed' else "non_fixed_equipment"
+                zone_load_data = self.loads_by_zone[zone_name]["loads"][load_type]
                 if zone_load_data["watts_per_area"] is None:
                     zone_load_data["watts_per_area"] = 0.0
                 zone_load_data["watts_per_area"] += load['watts_per_area']
@@ -93,14 +102,18 @@ class LoadExtractor:
 
     def _process_infiltration_loads(self) -> None:
         infiltration_loads = self.data_loader.get_infiltration_loads()
-        for zone_name, loads in infiltration_loads.items():
+        self._process_ach_loads(infiltration_loads, "infiltration", "air_changes_per_hour")
+
+    def _process_ach_loads(self, loads_data: dict, load_type: str, ach_key: str) -> None:
+        """Helper method to process air change rate loads (infiltration)."""
+        for zone_name, loads in loads_data.items():
             if zone_name not in self.loads_by_zone:
                 continue
-            zone_load_data = self.loads_by_zone[zone_name]["loads"]["infiltration"]
+            zone_load_data = self.loads_by_zone[zone_name]["loads"][load_type]
             for load in loads:
                 if zone_load_data["rate_ach"] is None:
                     zone_load_data["rate_ach"] = 0.0
-                zone_load_data["rate_ach"] += load['air_changes_per_hour']
+                zone_load_data["rate_ach"] += load[ach_key]
                 if zone_load_data["schedule"] is None:
                     zone_load_data["schedule"] = load['schedule']
 
@@ -123,8 +136,6 @@ class LoadExtractor:
                     zone_load_data["schedule"] = load.get('schedule_name', '')
 
     def _process_mechanical_ventilation_loads(self) -> None:
-        if not self.data_loader:
-            return
         outdoor_air_specs = self.data_loader.get_outdoor_air_specifications()
         for zone_name, spec_data in outdoor_air_specs.items():
             if zone_name in self.loads_by_zone:
@@ -134,12 +145,7 @@ class LoadExtractor:
                     zone_load_data["schedule"] = spec_data.get('outdoor_air_flow_rate_fraction_schedule_name')
 
     def _process_temperature_schedules(self) -> None:
-        schedule_data = {}
-        if self.data_loader:
-            for obj_name in dir(self.data_loader):
-                if obj_name == '_schedules_cache':
-                    schedule_data = self.data_loader.get_schedules()
-                    break
+        schedule_data = self.data_loader.get_schedules()
         if not schedule_data:
             return
         zone_temp_schedules = {}
@@ -196,69 +202,45 @@ class LoadExtractor:
         """
         Extract setpoint values when availability is 0 (non-work time).
         """
-        logger.info(f"Extracting non-work time setpoints for zone '{zone_name}'")
-        
         # Process heating non-work time setpoint
         if temp_schedules['heating_setpoint'] and temp_schedules['heating_availability']:
             heating_setpoint_values = temp_schedules['heating_setpoint']['schedule_values']
             heating_availability_values = temp_schedules['heating_availability']['schedule_values']
             
-            logger.info(f"Zone '{zone_name}' heating setpoint values: {heating_setpoint_values}")
-            logger.info(f"Zone '{zone_name}' heating availability values: {heating_availability_values}")
-            
             non_work_heating = self._get_non_work_setpoint(heating_setpoint_values, heating_availability_values)
             if non_work_heating is not None:
                 self.loads_by_zone[zone_name]["setpoints"]["non_work_time_heating"] = non_work_heating
-                logger.info(f"Zone '{zone_name}' non-work heating setpoint: {non_work_heating}°C")
-            else:
-                logger.info(f"Zone '{zone_name}' no non-work heating setpoint found")
         
         # Process cooling non-work time setpoint  
         if temp_schedules['cooling_setpoint'] and temp_schedules['cooling_availability']:
             cooling_setpoint_values = temp_schedules['cooling_setpoint']['schedule_values']
             cooling_availability_values = temp_schedules['cooling_availability']['schedule_values']
             
-            logger.info(f"Zone '{zone_name}' cooling setpoint values: {cooling_setpoint_values}")
-            logger.info(f"Zone '{zone_name}' cooling availability values: {cooling_availability_values}")
-            
             non_work_cooling = self._get_non_work_setpoint(cooling_setpoint_values, cooling_availability_values)
             if non_work_cooling is not None:
                 self.loads_by_zone[zone_name]["setpoints"]["non_work_time_cooling"] = non_work_cooling
-                logger.info(f"Zone '{zone_name}' non-work cooling setpoint: {non_work_cooling}°C")
-            else:
-                logger.info(f"Zone '{zone_name}' no non-work cooling setpoint found")
 
     def _get_non_work_setpoint(self, setpoint_values: list, availability_values: list) -> Optional[float]:
         """
         Find the setpoint value corresponding to when availability is 0.
         """
         if not setpoint_values or not availability_values:
-            logger.info("Empty setpoint or availability values")
             return None
             
         # Parse schedule values to find periods where availability is 0
         availability_periods = self._parse_schedule_periods(availability_values)
         setpoint_periods = self._parse_schedule_periods(setpoint_values)
         
-        logger.info(f"Parsed availability periods: {availability_periods}")
-        logger.info(f"Parsed setpoint periods: {setpoint_periods}")
-        
         # Find setpoint values when availability is 0
         for avail_period in availability_periods:
             if avail_period['value'] == '0':
-                logger.info(f"Found availability 0 period: {avail_period}")
                 # Find corresponding setpoint for this period
                 for setpoint_period in setpoint_periods:
                     if self._periods_overlap(avail_period, setpoint_period):
-                        logger.info(f"Found matching setpoint period: {setpoint_period}")
                         try:
-                            value = float(setpoint_period['value'])
-                            logger.info(f"Returning non-work setpoint value: {value}")
-                            return value
+                            return float(setpoint_period['value'])
                         except (ValueError, TypeError):
-                            logger.info(f"Could not convert setpoint value to float: {setpoint_period['value']}")
                             continue
-        logger.info("No non-work setpoint found")
         return None
 
     def _parse_schedule_periods(self, schedule_values: list) -> list:
@@ -302,20 +284,3 @@ class LoadExtractor:
             if not any(keyword in zone_name.lower() for keyword in ['core', 'corridor', 'stair'])
         }
 
-    def get_zone_loads(self, zone_name: str) -> Optional[Dict[str, Any]]:
-        return self.loads_by_zone.get(zone_name)
-
-    def get_zone_load_summary(self) -> Dict[str, Dict[str, float]]:
-        summary = {}
-        for zone_name, zone_data in self.loads_by_zone.items():
-            loads = zone_data["loads"]
-            summary[zone_name] = {
-                "people": loads["people"]["people_per_area"],
-                "lights": loads["lights"]["watts_per_area"],
-                "fixed_equipment": loads["fixed_equipment"]["watts_per_area"],
-                "non_fixed_equipment": loads["non_fixed_equipment"]["watts_per_area"],
-                "infiltration": loads["infiltration"]["rate_ach"],
-                "ventilation": loads["ventilation"]["rate_ach"],
-                "mechanical_ventilation_per_person": loads["mechanical_ventilation"]["outdoor_air_flow_per_person"]
-            }
-        return summary

@@ -17,12 +17,32 @@ from .base_parser import BaseParser
 
 # time_str_to_minutes moved to schedule_utils.py
 
+# Constants for schedule filtering
 BASIC_TYPES = [
     "on", "off", "work efficiency", "opaqueshade",
     "zone comfort control type sched", "design days only",
     "typoperativetempcontrolsch", "onwinterdesignday",
     "onsummerdesignday", "heating setpoint schedule", "cooling sp sch"
 ]
+
+# Constants for date parsing
+MONTH_NAMES = {
+    "jan": 1, "january": 1,
+    "feb": 2, "february": 2,
+    "mar": 3, "march": 3,
+    "apr": 4, "april": 4,
+    "may": 5,
+    "jun": 6, "june": 6,
+    "jul": 7, "july": 7,
+    "aug": 8, "august": 8,
+    "sep": 9, "september": 9,
+    "oct": 10, "october": 10,
+    "nov": 11, "november": 11,
+    "dec": 12, "december": 12
+}
+
+# Patterns for schedule name formatting
+SCHEDULE_SUFFIXES = [' Schedule', ' Sch', '_schedule', '_sch']
 
 def _is_basic_type(schedule_type: str, schedule_name: str = None) -> bool:
     """
@@ -71,26 +91,12 @@ def _standardize_date_format(date_string: str) -> str:
     if date_string.lower().startswith("through:"):
         date_string = date_string[8:].strip().lower()
 
-    month_names = {
-        "jan": 1, "january": 1,
-        "feb": 2, "february": 2,
-        "mar": 3, "march": 3,
-        "apr": 4, "april": 4,
-        "may": 5,
-        "jun": 6, "june": 6,
-        "jul": 7, "july": 7,
-        "aug": 8, "august": 8,
-        "sep": 9, "september": 9,
-        "oct": 10, "october": 10,
-        "nov": 11, "november": 11,
-        "dec": 12, "december": 12
-    }
-
+    # Use global constant instead of redefining
     pattern1 = re.search(r'(\d{1,2})\s+([a-zA-Z]+)', date_string, re.IGNORECASE)
     if pattern1:
         day = int(pattern1.group(1))
         month_name = pattern1.group(2).lower()
-        for name, num in month_names.items():
+        for name, num in MONTH_NAMES.items():
             if month_name.startswith(name):
                 return f"{day:02d}/{num:02d}"
 
@@ -280,16 +286,7 @@ class ScheduleExtractor:
             type_: Schedule type
             rule_fields: List of rule field values
         """
-        zone_id = _extract_zone_id_from_schedule(name)
-        zone_type = None
-
-        if zone_id and self.data_loader:
-            zones = self.data_loader.get_zones()
-            for zone_name in zones:
-                if zone_id.lower() in zone_name.lower():
-                    # zone_type is not implemented in DataLoader, using None for now
-                    zone_type = None  # Could be enhanced later if zone type detection is needed
-                    break
+        zone_id, zone_type = self._get_zone_info(name)
 
         self.processed_schedules[name] = ScheduleData(
             id=name,
@@ -310,27 +307,13 @@ class ScheduleExtractor:
             rule_fields: List of rule field values
         """
         rule_tuple = tuple(rule_fields)
-
-        normalized_type = ' '.join(part for part in type_.split() if not (
-            ':' in part or
-            part.isdigit() or
-            (part.isupper() and len(part) > 1)
-        )).strip()
+        normalized_type = self._normalize_schedule_type(type_)
 
         if normalized_type not in self.schedules_by_type:
             self.schedules_by_type[normalized_type] = {}
 
         if rule_tuple not in self.schedules_by_type[normalized_type]:
-            zone_id = _extract_zone_id_from_schedule(name)
-            zone_type = None
-
-            if zone_id and self.data_loader:
-                zones = self.data_loader.get_zones()
-                for zone_name in zones:
-                    if zone_id.lower() in zone_name.lower():
-                        # zone_type is not implemented in DataLoader, using None for now
-                        zone_type = None  # Could be enhanced later if zone type detection is needed
-                        break
+            zone_id, zone_type = self._get_zone_info(name)
 
             schedule_data = {
                 'name': name,
@@ -417,21 +400,104 @@ class ScheduleExtractor:
         """
         name = schedule_id
 
-        for suffix in [' Schedule', ' Sch', '_schedule', '_sch']:
+        # Remove common schedule suffixes
+        name = self._remove_schedule_suffixes(name)
+        
+        # Remove zone prefix if present
+        name = self._remove_zone_prefix(name)
+        
+        # Format the remaining name
+        name = self._format_name_string(name)
+
+        return name
+    
+    def _get_zone_info(self, name: str) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Extract zone information from schedule name.
+        
+        Args:
+            name: Schedule name
+            
+        Returns:
+            Tuple of (zone_id, zone_type)
+        """
+        zone_id = _extract_zone_id_from_schedule(name)
+        zone_type = None
+
+        if zone_id and self.data_loader:
+            zones = self.data_loader.get_zones()
+            for zone_name in zones:
+                if zone_id.lower() in zone_name.lower():
+                    # zone_type is not implemented in DataLoader, using None for now
+                    zone_type = None  # Could be enhanced later if zone type detection is needed
+                    break
+
+        return zone_id, zone_type
+    
+    def _normalize_schedule_type(self, type_: str) -> str:
+        """
+        Normalize schedule type by removing zone prefixes and identifiers.
+        
+        Args:
+            type_: Original schedule type
+            
+        Returns:
+            Normalized schedule type
+        """
+        return ' '.join(part for part in type_.split() if not (
+            ':' in part or
+            part.isdigit() or
+            (part.isupper() and len(part) > 1)
+        )).strip()
+    
+    def _remove_schedule_suffixes(self, name: str) -> str:
+        """
+        Remove common schedule suffixes from name.
+        
+        Args:
+            name: Original name
+            
+        Returns:
+            Name with suffixes removed
+        """
+        for suffix in SCHEDULE_SUFFIXES:
             if name.lower().endswith(suffix.lower()):
                 name = name[:-len(suffix)]
-
+        return name
+    
+    def _remove_zone_prefix(self, name: str) -> str:
+        """
+        Remove zone prefix pattern from name.
+        
+        Args:
+            name: Name with potential zone prefix
+            
+        Returns:
+            Name with zone prefix removed
+        """
         zone_pattern = re.search(r'(\d{2}:\d{2}[A-Z]?)', name)
         if zone_pattern:
             remaining = name[zone_pattern.end():].strip()
             if remaining:
-                name = remaining
-
+                return remaining
+        return name
+    
+    def _format_name_string(self, name: str) -> str:
+        """
+        Apply standard formatting to name string.
+        
+        Args:
+            name: Raw name string
+            
+        Returns:
+            Formatted name string
+        """
+        # Add spaces before capital letters
         name = re.sub(r'([a-z])([A-Z])', r'\1 \2', name)
+        # Replace underscores with spaces
         name = name.replace('_', ' ')
-
+        # Capitalize each word
         name = ' '.join(word.capitalize() for word in name.split())
-
         return name
 
     def get_schedule_by_name(self, schedule_name: str) -> Optional[Dict[str, Any]]:

@@ -6,8 +6,63 @@ from utils.logging_config import get_logger
 import re
 from parsers.area_parser import AreaParser
 from collections import defaultdict
+from .utils import safe_float
 
 logger = get_logger(__name__)
+
+# Constants for H-value calculations
+LOCATION_MAPPING = {
+    "Ground Floor & Intermediate ceiling": 1,
+    "Ground Floor & Separation ceiling": 1,
+    "Intermediate Floor & Intermediate ceiling": 1,
+    "Intermediate Floor & Separation ceiling": 1,
+    "Separation Floor & Intermediate ceiling": 2,
+    "Separation Floor & Separation ceiling": 2,
+    "Ground Floor & External ceiling": 3,
+    "External Floor & External ceiling": 3,
+    "Separation Floor & External ceiling": 3,
+    "Intermediate Floor & External ceiling": 3,
+    "External Floor & Intermediate ceiling": 4,
+    "External Floor & Separation ceiling": 4
+}
+
+AREA_COLUMN_MAPPING = {"א": 0, "ב": 1, "ג": 2, "ד": 3}
+
+# H-value lookup tables
+H_VALUE_TABLES = {
+    # For location_num == 3 (external ceiling cases)
+    'location_3': {
+        'high_mass_single': [4.6, 4.2, 3.8, 3.7],
+        'high_mass_multi': [4.4, 4.0, 3.7, 3.6],
+        'low_mass_single': [3.9, 3.6, 3.3, 3.3],
+        'low_mass_multi': [3.8, 3.5, 3.2, 3.2]
+    },
+    # For other locations
+    'small_high_mass': [
+        [2.3, 2.2, 2.1, 2.0],  # location 1
+        [3.0, 2.6, 2.5, 2.5],  # location 2
+        [2.9, 2.8, 2.7, 2.6],  # location 3
+        [3.6, 3.2, 2.9, 2.9]   # location 4
+    ],
+    'small_low_mass': [
+        [1.8, 1.7, 1.7, 1.7],  # location 1
+        [2.5, 2.3, 2.1, 2.1],  # location 2
+        [2.4, 2.3, 2.3, 2.3],  # location 3
+        [3.1, 2.8, 2.5, 2.5]   # location 4
+    ],
+    'large_high_mass': [
+        [2.1, 2.0, 1.9, 1.8],  # location 1
+        [2.7, 2.5, 2.4, 2.3],  # location 2
+        [2.7, 2.6, 2.5, 2.4],  # location 3
+        [3.3, 3.0, 2.7, 2.7]   # location 4
+    ],
+    'large_low_mass': [
+        [1.7, 1.6, 1.6, 1.6],  # location 1
+        [2.3, 2.1, 2.0, 2.0],  # location 2
+        [2.3, 2.2, 2.2, 2.2],  # location 3
+        [2.9, 2.6, 2.4, 2.4]   # location 4
+    ]
+}
 
 class AreaLossParser:
     """
@@ -35,7 +90,7 @@ class AreaLossParser:
                 location = item.get('location', 'Unknown')
                 total_floor_area = item.get('total_floor_area')
                 wall_mass_per_area = wall_mass_data.get(area_id)
-                h_needed = self._calculate_h_needed(location, total_floor_area or 0, wall_mass_per_area or 0, area_id)
+                h_needed = self._calculate_h_needed(location, safe_float(total_floor_area), safe_float(wall_mass_per_area), area_id)
                 item['h_needed'] = h_needed
                 h_value = item.get('h_value')
                 if h_value is None:
@@ -83,69 +138,39 @@ class AreaLossParser:
         return wall_mass_data
 
     def _calculate_h_needed(self, location: str, total_floor_area: float, wall_mass_per_area: float, area_id: str) -> float:
-        final_location_map = {
-            "Ground Floor & Intermediate ceiling": 1,
-            "Ground Floor & Separation ceiling": 1,
-            "Intermediate Floor & Intermediate ceiling": 1,
-            "Intermediate Floor & Separation ceiling": 1,
-            "Separation Floor & Intermediate ceiling": 2,
-            "Separation Floor & Separation ceiling": 2,
-            "Ground Floor & External ceiling": 3,
-            "External Floor & External ceiling": 3,
-            "Separation Floor & External ceiling": 3,
-            "Intermediate Floor & External ceiling": 3,
-            "External Floor & Intermediate ceiling": 4,
-            "External Floor & Separation ceiling": 4
-        }
-        location_num = final_location_map.get(location, 1)
-        area_col = {"א": 0, "ב": 1, "ג": 2, "ד": 3}
-        col_idx = area_col.get(self.city_area_name, 0)
+        location_num = LOCATION_MAPPING.get(location, 1)
+        col_idx = AREA_COLUMN_MAPPING.get(self.city_area_name, 0)
+        
+        # Special case for external ceiling locations (location_num == 3)
         if location_num == 3:
-            level = area_id[:2] if len(area_id) >= 2 and area_id[:2].isdigit() else None
-            apts_per_level = self.apartments_per_level.get(level, 0) if level else 0
-            is_single_apt = apts_per_level <= 1
-            if wall_mass_per_area > 100:
-                table_z = [
-                    [4.6, 4.2, 3.8, 3.7],
-                    [4.4, 4.0, 3.7, 3.6]
-                ]
-                row_idx = 0 if is_single_apt else 1
-                return table_z[row_idx][col_idx]
-            else:
-                table_x = [
-                    [3.9, 3.6, 3.3, 3.3],
-                    [3.8, 3.5, 3.2, 3.2]
-                ]
-                row_idx = 0 if is_single_apt else 1
-                return table_x[row_idx][col_idx]
-        table1 = [
-            [2.3, 2.2, 2.1, 2.0],
-            [3.0, 2.6, 2.5, 2.5],
-            [2.9, 2.8, 2.7, 2.6],
-            [3.6, 3.2, 2.9, 2.9]
-        ]
-        table2 = [
-            [1.8, 1.7, 1.7, 1.7],
-            [2.5, 2.3, 2.1, 2.1],
-            [2.4, 2.3, 2.3, 2.3],
-            [3.1, 2.8, 2.5, 2.5]
-        ]
-        table3 = [
-            [2.1, 2.0, 1.9, 1.8],
-            [2.7, 2.5, 2.4, 2.3],
-            [2.7, 2.6, 2.5, 2.4],
-            [3.3, 3.0, 2.7, 2.7]
-        ]
-        table4 = [
-            [1.7, 1.6, 1.6, 1.6],
-            [2.3, 2.1, 2.0, 2.0],
-            [2.3, 2.2, 2.2, 2.2],
-            [2.9, 2.6, 2.4, 2.4]
-        ]
-        if total_floor_area <= 100:
-            table = table1 if wall_mass_per_area >= 100 else table2
+            return self._get_location_3_h_value(wall_mass_per_area, area_id, col_idx)
+        
+        # Regular location cases
+        return self._get_regular_location_h_value(total_floor_area, wall_mass_per_area, location_num, col_idx)
+    
+    def _get_location_3_h_value(self, wall_mass_per_area: float, area_id: str, col_idx: int) -> float:
+        """Calculate H-value for external ceiling locations."""
+        level = area_id[:2] if len(area_id) >= 2 and area_id[:2].isdigit() else None
+        apts_per_level = self.apartments_per_level.get(level, 0) if level else 0
+        is_single_apt = apts_per_level <= 1
+        
+        if wall_mass_per_area > 100:
+            table_key = 'high_mass_single' if is_single_apt else 'high_mass_multi'
         else:
-            table = table3 if wall_mass_per_area >= 100 else table4
+            table_key = 'low_mass_single' if is_single_apt else 'low_mass_multi'
+        
+        return H_VALUE_TABLES['location_3'][table_key][col_idx]
+    
+    def _get_regular_location_h_value(self, total_floor_area: float, wall_mass_per_area: float, 
+                                     location_num: int, col_idx: int) -> float:
+        """Calculate H-value for regular locations."""
+        # Select appropriate table based on area size and mass
+        if total_floor_area <= 100:
+            table_key = 'small_high_mass' if wall_mass_per_area >= 100 else 'small_low_mass'
+        else:
+            table_key = 'large_high_mass' if wall_mass_per_area >= 100 else 'large_low_mass'
+        
+        table = H_VALUE_TABLES[table_key]
         row_idx = min(max(location_num - 1, 0), 3)
         return table[row_idx][col_idx]
 

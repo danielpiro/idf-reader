@@ -6,17 +6,11 @@ import re
 import csv
 import os
 from utils.logging_config import get_logger
-from utils.sentry_config import capture_exception_with_context, add_breadcrumb
 
 logger = get_logger(__name__)
 from parsers.area_parser import AreaParser
-from utils.data_loader import safe_float
+from .utils import safe_float
 
-def safe_float(value, default=None):
-    try:
-        return float(value)
-    except (ValueError, TypeError):
-        return default
 
 class EnergyRatingParser:
     """

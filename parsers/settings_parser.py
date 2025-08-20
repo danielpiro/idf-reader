@@ -1,6 +1,7 @@
 import re
 from typing import Dict, Any
 from utils.data_loader import DataLoader
+from .utils import safe_float
 
 class EPJSONObjectWrapper:
     """
@@ -335,6 +336,16 @@ class SettingsExtractor:
         except Exception as e:
             pass
 
+    def _safe_getattr(self, obj, attr_name: str, default=None):
+        """Safely get attribute from object with optional type conversion."""
+        if hasattr(obj, attr_name):
+            value = getattr(obj, attr_name, default)
+            # Convert to float if it looks numeric
+            if isinstance(value, str) and value.replace('.', '').replace('-', '').isdigit():
+                return safe_float(value, default)
+            return value
+        return default
+    
     def process_idf_object(self, obj_type: str, obj) -> None:
         """
         Process a single IDF object and extract relevant settings.
@@ -347,21 +358,20 @@ class SettingsExtractor:
             return
 
         if obj_type == 'VERSION':
-            if hasattr(obj, 'Version_Identifier'):
-                self.extracted_settings['version']['energyplus'] = getattr(obj, 'Version_Identifier')
+            self.extracted_settings['version']['energyplus'] = self._safe_getattr(obj, 'Version_Identifier')
             return
 
         if obj_type == 'RUNPERIOD':
-            self.extracted_settings['simulation']['run_period']['location'] = getattr(obj, 'Name', None) if hasattr(obj, 'Name') else None
-            self.extracted_settings['simulation']['run_period']['start_month'] = getattr(obj, 'Begin_Month', None) if hasattr(obj, 'Begin_Month') else None
-            self.extracted_settings['simulation']['run_period']['start_day'] = getattr(obj, 'Begin_Day_of_Month', None) if hasattr(obj, 'Begin_Day_of_Month') else None
-            self.extracted_settings['simulation']['run_period']['end_month'] = getattr(obj, 'End_Month', None) if hasattr(obj, 'End_Month') else None
-            self.extracted_settings['simulation']['run_period']['end_day'] = getattr(obj, 'End_Day_of_Month', None) if hasattr(obj, 'End_Day_of_Month') else None
-
-            self.extracted_settings['simulation']['run_period']['use_weather_file_holidays_and_special_days'] = getattr(obj, 'Use_Weather_File_Holidays_and_Special_Days', None) if hasattr(obj, 'Use_Weather_File_Holidays_and_Special_Days') else None
-            self.extracted_settings['simulation']['run_period']['use_weather_file_rain'] = getattr(obj, 'Use_Weather_File_Rain_Indicators', None) if hasattr(obj, 'Use_Weather_File_Rain_Indicators') else None
-            self.extracted_settings['simulation']['run_period']['use_weather_file_snow'] = getattr(obj, 'Use_Weather_File_Snow_Indicators', None) if hasattr(obj, 'Use_Weather_File_Snow_Indicators') else None
-            self.extracted_settings['simulation']['run_period']['treat_weather_as_actual'] = getattr(obj, 'Treat_Weather_as_Actual', None) if hasattr(obj, 'Treat_Weather_as_Actual') else None
+            run_period = self.extracted_settings['simulation']['run_period']
+            run_period['location'] = self._safe_getattr(obj, 'Name')
+            run_period['start_month'] = self._safe_getattr(obj, 'Begin_Month')
+            run_period['start_day'] = self._safe_getattr(obj, 'Begin_Day_of_Month')
+            run_period['end_month'] = self._safe_getattr(obj, 'End_Month')
+            run_period['end_day'] = self._safe_getattr(obj, 'End_Day_of_Month')
+            run_period['use_weather_file_holidays_and_special_days'] = self._safe_getattr(obj, 'Use_Weather_File_Holidays_and_Special_Days')
+            run_period['use_weather_file_rain'] = self._safe_getattr(obj, 'Use_Weather_File_Rain_Indicators')
+            run_period['use_weather_file_snow'] = self._safe_getattr(obj, 'Use_Weather_File_Snow_Indicators')
+            run_period['treat_weather_as_actual'] = self._safe_getattr(obj, 'Treat_Weather_as_Actual')
             return
 
         if obj_type == 'SIMULATIONCONTROL':

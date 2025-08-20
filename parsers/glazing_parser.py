@@ -1,12 +1,8 @@
 import csv
 import os
 from typing import Dict, Any
-from .utils import safe_float as utils_safe_float
+from .utils import safe_float
 
-# Use the shared safe_float from utils instead of duplicate implementation
-def safe_float(value: Any, default: float = None) -> float:
-    """Wrapper for utils safe_float to maintain compatibility."""
-    return utils_safe_float(value, default or 0.0)
 
 class GlazingParser:
     """

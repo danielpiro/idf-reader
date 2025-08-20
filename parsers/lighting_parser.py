@@ -1,9 +1,9 @@
 """
 Parser for Daylighting:Controls and Daylighting:ReferencePoint objects.
 """
-from asyncio.log import logger
 from typing import Dict, List, Any
-from utils.data_loader import DataLoader, safe_float
+from utils.data_loader import DataLoader
+from .utils import safe_float
 
 class LightingParser:
     """
