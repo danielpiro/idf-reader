@@ -2515,7 +2515,7 @@ OUTPUT:VARIABLE,
         # Initialize queue display
         self.update_queue_display()
         
-        # Check for updates automatically if enabled
+        # Check for updates automatically and show website popup if available
         if self.update_manager.should_check_for_updates():
             self.check_for_updates_background()
         
@@ -2523,36 +2523,138 @@ OUTPUT:VARIABLE,
         self.save_settings()
 
     def check_for_updates_background(self):
-        """Check for updates in background."""
+        """Check for updates in background and show website popup if update available."""
         def check_worker():
             try:
                 update_info = self.update_manager.check_for_updates()
                 if update_info:
-                    # Update available - show notification dialog
-                    self.show_update_dialog(update_info)
+                    # Update available - show website navigation popup
+                    self.show_update_website_dialog(update_info)
             except Exception as e:
-                logger.error(f"Error checking for updates: {e}")
+                logger.error(f"Background update check failed: {e}")
         
         threading.Thread(target=check_worker, daemon=True).start()
     
     def check_for_updates_manual(self):
-        """Manually check for updates (force check)."""
+        """Manually check for updates and show website navigation popup."""
         def check_worker():
             try:
-                self.show_status("מתחבר לשרת עדכונים...", "info")
+                self.show_status("בודק עדכונים זמינים...", "info")
                 update_info = self.update_manager.check_for_updates(force=True)
                 
                 if update_info:
                     new_version = update_info.get("version", "")
                     self.show_status(f"נמצא עדכון זמין לגרסה {new_version}!", "success")
-                    self.show_update_dialog(update_info)
+                    self.show_update_website_dialog(update_info)
                 else:
                     self.show_status("האפליקציה מעודכנת לגרסה האחרונה", "success")
+                    # Still show the website dialog so users know where to check manually
+                    self.show_update_website_dialog()
             except Exception as e:
                 logger.error(f"Error checking for updates: {e}")
                 self.show_status(f"שגיאה בבדיקת עדכונים: {e}", "error")
+                # Show website dialog as fallback
+                self.show_update_website_dialog()
         
         threading.Thread(target=check_worker, daemon=True).start()
+    
+    def show_update_website_dialog(self, update_info=None):
+        """Show dialog to navigate to website for updates."""
+        if not self.page:
+            return
+        
+        def close_dialog(e):
+            if hasattr(self, 'website_update_dialog'):
+                self.website_update_dialog.open = False
+                self.page.update()
+        
+        def open_website(e):
+            import webbrowser
+            webbrowser.open("https://idf-reader.vercel.app/")
+            close_dialog(e)
+            self.show_status("נפתח האתר בדפדפן לבדיקת עדכונים", "info")
+        
+        # Determine dialog content based on whether update is available
+        if update_info:
+            new_version = update_info.get("version", "")
+            title_text = f"עדכון זמין - גרסה {new_version}"
+            title_icon = ft.Icons.SYSTEM_UPDATE
+            title_color = ft.Colors.GREEN_600
+            content_text = f"נמצא עדכון לגרסה {new_version}!\nאנא בקר באתר הרשמי להורדת הגרסה החדשה:"
+        else:
+            title_text = "בדיקת עדכונים"
+            title_icon = ft.Icons.OPEN_IN_BROWSER
+            title_color = ft.Colors.BLUE_600
+            content_text = "לבדיקת עדכונים זמינים והורדת הגרסה החדשה ביותר,\nאנא בקר באתר הרשמי:"
+        
+        self.website_update_dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Container(
+                content=ft.Row([
+                    ft.Icon(title_icon, size=28, color=title_color),
+                    ft.Text(title_text, size=22, weight=ft.FontWeight.BOLD, rtl=True, text_align=ft.TextAlign.RIGHT),
+                ], spacing=10, alignment=ft.MainAxisAlignment.CENTER),
+                padding=ft.padding.only(bottom=15)
+            ),
+            content=ft.Container(
+                content=ft.Column([
+                    ft.Container(
+                        content=ft.Text(
+                            content_text,
+                            size=16,
+                            text_align=ft.TextAlign.CENTER,
+                            rtl=True
+                        ),
+                        margin=ft.margin.only(bottom=20)
+                    ),
+                    ft.Container(
+                        content=ft.Text(
+                            "https://idf-reader.vercel.app/",
+                            size=14,
+                            color=ft.Colors.BLUE_600,
+                            text_align=ft.TextAlign.CENTER,
+                            weight=ft.FontWeight.BOLD
+                        ),
+                        margin=ft.margin.only(bottom=20)
+                    )
+                ], 
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                tight=True),
+                width=400,
+                padding=20
+            ),
+            actions=[
+                ft.Container(
+                    content=ft.Row([
+                        ft.ElevatedButton(
+                            text="פתח באתר",
+                            icon=ft.Icons.OPEN_IN_BROWSER,
+                            on_click=open_website,
+                            style=ft.ButtonStyle(
+                                bgcolor=ft.Colors.BLUE_600,
+                                color=ft.Colors.WHITE,
+                                padding=ft.padding.symmetric(horizontal=20, vertical=10)
+                            )
+                        ),
+                        ft.TextButton(
+                            text="סגור",
+                            on_click=close_dialog,
+                            style=ft.ButtonStyle(
+                                padding=ft.padding.symmetric(horizontal=20, vertical=10)
+                            )
+                        ),
+                    ], 
+                    spacing=10, 
+                    alignment=ft.MainAxisAlignment.CENTER),
+                    margin=ft.margin.only(top=10)
+                )
+            ],
+            actions_alignment=ft.MainAxisAlignment.CENTER
+        )
+        
+        self.page.overlay.append(self.website_update_dialog)
+        self.website_update_dialog.open = True
+        self.page.update()
     
     def show_update_dialog(self, update_info):
         """Show update available dialog."""
@@ -2821,23 +2923,9 @@ OUTPUT:VARIABLE,
                     
                     self.check_for_updates_manual()
                 
-                def toggle_auto_updates(e):
-                    settings = self.update_manager.get_update_settings()
-                    settings["auto_check"] = not settings["auto_check"]
-                    self.update_manager.update_settings(settings)
-                    status = "מופעל" if settings["auto_check"] else "מבוטל"
-                    self.show_status(f"בדיקת עדכונים אוטומטית {status}")
-                
-                def configure_github(e):
-                    self.show_github_config_dialog()
-                
-                # Show simple dialog with update options
                 def close_menu(e):
                     menu_dialog.open = False
                     self.page.update()
-                
-                settings = self.update_manager.get_update_settings()
-                auto_check_text = "בטל בדיקה אוטומטית" if settings["auto_check"] else "הפעל בדיקה אוטומטית"
                 
                 menu_dialog = ft.AlertDialog(
                     modal=True,
@@ -2870,18 +2958,13 @@ OUTPUT:VARIABLE,
                                         alignment=ft.alignment.center
                                     ),
                                     ft.Container(
-                                        content=ft.ElevatedButton(
-                                            auto_check_text,
-                                            icon=ft.Icons.AUTORENEW if settings["auto_check"] else ft.Icons.PAUSE_CIRCLE,
-                                            on_click=lambda e: (toggle_auto_updates(e), close_menu(e)),
-                                            style=ft.ButtonStyle(
-                                                bgcolor=ft.Colors.GREEN_600 if settings["auto_check"] else ft.Colors.ORANGE_600,
-                                                color=ft.Colors.WHITE,
-                                                elevation=2,
-                                                padding=ft.padding.symmetric(horizontal=20, vertical=12),
-                                                shape=ft.RoundedRectangleBorder(radius=8)
-                                            ),
-                                            height=45
+                                        content=ft.Text(
+                                            "לעדכונים נוספים בקר באתר הרשמי",
+                                            text_align=ft.TextAlign.CENTER,
+                                            size=14,
+                                            color=ft.Colors.BLUE_600,
+                                            weight=ft.FontWeight.W_500,
+                                            rtl=True
                                         ),
                                         width=220,
                                         alignment=ft.alignment.center

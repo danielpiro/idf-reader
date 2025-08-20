@@ -199,25 +199,22 @@ class AreaParser:
                     if is_window_surface and surface_id.upper() in self.construction_areas_from_csv:
                         # For glazing, use area from Exterior Fenestration table
                         csv_area = safe_float(self.construction_areas_from_csv[surface_id.upper()].get('Area', 0.0))
-                        logger.info(f"[EXTERNAL WALL DEBUG] Glazing surface {surface_id}: CSV area = {csv_area}")
+                        
                     elif surface_id.upper() in self.construction_areas_from_csv:
                         # For opaque constructions, check surface name in CSV first
                         csv_area = safe_float(self.construction_areas_from_csv[surface_id.upper()].get('Area', 0.0))
-                        logger.info(f"[EXTERNAL WALL DEBUG] Opaque surface {surface_id}: CSV area = {csv_area}")
+                       
                     elif construction_name.upper() in self.construction_areas_from_csv:
                         # Fallback: check construction name in CSV
                         csv_area = safe_float(self.construction_areas_from_csv[construction_name.upper()].get('Area', 0.0))
-                        logger.info(f"[EXTERNAL WALL DEBUG] Construction {construction_name}: CSV area = {csv_area}")
+                       
                     
                     # Use CSV area if available and valid, otherwise use calculated area
                     if csv_area and csv_area > 0.0:
                         area = csv_area
-                        logger.info(f"[EXTERNAL WALL DEBUG] Surface {surface_id}: Using CSV area = {area} m²")
                     else:
-                        area = safe_float(surface.get("area"))
-                        logger.info(f"[EXTERNAL WALL DEBUG] Surface {surface_id}: Using IDF calculated area = {area} m²")
+                        area = safe_float(surface.get("area"))       
                         if area is None or area <= 0.0:
-                            logger.info(f"[EXTERNAL WALL DEBUG] Surface {surface_id}: Skipping - invalid area {area}")
                             continue
                     if not surface.get("is_glazing", False) and surface_id in windows_by_base_surface:
                         try:
@@ -239,12 +236,9 @@ class AreaParser:
                                 else:
                                     window_areas += window_area
                             
-                            original_area = area
                             area = max(0.0, area - window_areas)
-                            window_names = [w["window_id"] for w in windows_list]
-                            logger.info(f"[EXTERNAL WALL DEBUG] Surface {surface_id}: Wall area after window subtraction: {original_area} - {window_areas} = {area} m² (from {len(windows_list)} windows: {window_names})")
                         except Exception as e_sum:
-                            logger.info(f"[EXTERNAL WALL DEBUG] Surface {surface_id}: Window subtraction failed: {e_sum}")
+                            pass
                             # Keep the area as-is if window subtraction fails
 
                     u_value = None
@@ -283,9 +277,7 @@ class AreaParser:
                     surface_type = surface.get("surface_type", "wall")
                     is_glazing = is_glazing_from_csv or is_glazing_from_idf
                     boundary_condition = surface.get("boundary_condition", "unknown")
-                    
-                    logger.info(f"[EXTERNAL WALL DEBUG] Surface {surface_id}: type={surface_type}, is_glazing={is_glazing}, boundary_condition={boundary_condition}, construction={construction_name}")
-                    
+                                        
 
                     if construction_name not in self.areas_by_zone[zone_name]["constructions"]:
                         self.areas_by_zone[zone_name]["constructions"][construction_name] = {
@@ -302,15 +294,7 @@ class AreaParser:
                                 obc = base_surface_data.get("boundary_condition")
                                 if obc and isinstance(obc, str) and obc.lower() == "outdoors":
                                     is_external_boundary = True
-                                    logger.info(f"[EXTERNAL WALL DEBUG] Glazing {surface_id}: Base surface {base_surface_name} has outdoor boundary condition")
                         element_type_str = "External Glazing" if is_external_boundary else "Internal Glazing"
-                        logger.info(f"[EXTERNAL WALL DEBUG] Glazing {surface_id}: Classified as {element_type_str}")
-                    else:
-                        # For non-glazing surfaces, check if it's an external wall
-                        if surface_type.lower() == "wall" and boundary_condition.lower() == "outdoors":
-                            logger.info(f"[EXTERNAL WALL DEBUG] Wall {surface_id}: Classified as External Wall (area={area} m²)")
-                        elif surface_type.lower() == "wall":
-                            logger.info(f"[EXTERNAL WALL DEBUG] Wall {surface_id}: Classified as Internal Wall (boundary={boundary_condition}, area={area} m²)")
                         
 
                     final_area = area
@@ -332,10 +316,6 @@ class AreaParser:
                     constr_group["elements"].append(element_data)
                     constr_group["total_area"] += final_area
                     constr_group["total_u_value"] += final_area * u_value
-                    
-                    # Debug for external wall constructions
-                    if element_type_str == "Wall" and boundary_condition.lower() == "outdoors":
-                        logger.info(f"[EXTERNAL WALL DEBUG] Added to construction {construction_name}: zone={zone_name}, area={final_area} m², u_value={u_value}, total_construction_area={constr_group['total_area']} m²")
 
                 except (TypeError, ValueError, AttributeError, KeyError) as e_surf:
                     pass
@@ -643,21 +623,16 @@ class AreaParser:
                         
                         if is_glazing_construction:
                             result["window_area"] += construction_area
-                            logger.info(f"[EXTERNAL WALL DEBUG] Area totals for {area_id}: Adding glazing construction {construction_name}: {construction_area} m² (total glazing: {result['window_area']} m²)")
                         elif is_wall_construction:
                             result["wall_area"] += construction_area
                             if is_external_wall_construction:
-                                logger.info(f"[EXTERNAL WALL DEBUG] Area totals for {area_id}: Adding EXTERNAL wall construction {construction_name}: {construction_area} m² (total walls: {result['wall_area']} m²)")
+                                pass
                             else:
-                                logger.info(f"[EXTERNAL WALL DEBUG] Area totals for {area_id}: Adding internal wall construction {construction_name}: {construction_area} m² (total walls: {result['wall_area']} m²)")
+                                pass
                     except (TypeError, AttributeError) as e_constr:
                         pass
                         continue
 
-            if not found_area:
-                logger.info(f"[EXTERNAL WALL DEBUG] Area totals: No area found for area_id '{area_id}'")
-            else:
-                logger.info(f"[EXTERNAL WALL DEBUG] Final area totals for {area_id}: floor_area={result['total_floor_area']} m², wall_area={result['wall_area']} m², window_area={result['window_area']} m²")
             return result
         except Exception as e:
             pass

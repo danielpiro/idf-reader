@@ -367,6 +367,7 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
         for zone_name, zone_info in zone_data.items():
             loads = zone_info.get('loads', {})
             schedules = zone_info.get('schedules', {})
+            setpoints = zone_info.get('setpoints', {})
             
             # Extract data for both tables
             people_density = _get_load_data(loads, 'people', 'people_per_area')
@@ -383,13 +384,13 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
             heating_sched_name = heating_schedule_obj.get('name', '-') if isinstance(heating_schedule_obj, dict) else '-'
             heating_sched_values = heating_schedule_obj.get('schedule_values', []) if isinstance(heating_schedule_obj, dict) else []
             heating_setpoint = extract_setpoint(heating_sched_values, 'work', zone_name, heating_schedule_obj)
-            heating_setpoint_non_work = extract_setpoint(heating_sched_values, 'non_work', zone_name, heating_schedule_obj)
+            heating_setpoint_non_work = setpoints.get('non_work_time_heating', '-')
             
             cooling_schedule_obj = schedules.get('cooling')
             cooling_sched_name = cooling_schedule_obj.get('name', '-') if isinstance(cooling_schedule_obj, dict) else '-'
             cooling_sched_values = cooling_schedule_obj.get('schedule_values', []) if isinstance(cooling_schedule_obj, dict) else []
             cooling_setpoint = extract_setpoint(cooling_sched_values, 'work', zone_name, cooling_schedule_obj)
-            cooling_setpoint_non_work = extract_setpoint(cooling_sched_values, 'non_work', zone_name, cooling_schedule_obj)
+            cooling_setpoint_non_work = setpoints.get('non_work_time_cooling', '-')
             
             infil_rate = _get_load_data(loads, 'infiltration', 'rate_ach')
             infil_sched = _get_load_data(loads, 'infiltration', 'schedule')

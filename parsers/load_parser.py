@@ -1,6 +1,7 @@
 """
 Extracts and processes zone loads and their associated schedules using cached data from DataLoader.
 """
+from asyncio.log import logger
 from typing import Dict, Any, Optional
 from utils.data_loader import DataLoader, safe_float
 
@@ -42,7 +43,8 @@ class LoadExtractor:
                     "ventilation": {"rate_ach": None, "schedule": None},
                     "mechanical_ventilation": {"outdoor_air_flow_per_person": None, "schedule": None}
                 },
-                "schedules": {"heating": None, "cooling": None}
+                "schedules": {"heating": None, "cooling": None},
+                "setpoints": {"non_work_time_heating": None, "non_work_time_cooling": None}
             }
 
     def _process_people_loads(self) -> None:
@@ -59,8 +61,8 @@ class LoadExtractor:
                     zone_load_data["schedule"] = load['schedule']
                 if zone_load_data["activity_schedule"] is None:
                     rules = self.data_loader.get_schedule_rules(load['activity_schedule'])
-                    if rules and len(rules) > 4:
-                        zone_load_data["activity_schedule"] = rules[4]
+                    if rules and len(rules) > 3:
+                        zone_load_data["activity_schedule"] = rules[3]
 
     def _process_lights_loads(self) -> None:
         lights_loads = self.data_loader.get_lights_loads()
@@ -186,6 +188,107 @@ class LoadExtractor:
                 if temp_schedules['cooling_availability']:
                     cooling_data['cooling_availability'] = temp_schedules['cooling_availability']
                 self.loads_by_zone[zone_name]["schedules"]["cooling"] = cooling_data
+            
+            # Extract non-work time setpoints
+            self._extract_non_work_time_setpoints(zone_name, temp_schedules)
+
+    def _extract_non_work_time_setpoints(self, zone_name: str, temp_schedules: Dict[str, Any]) -> None:
+        """
+        Extract setpoint values when availability is 0 (non-work time).
+        """
+        logger.info(f"Extracting non-work time setpoints for zone '{zone_name}'")
+        
+        # Process heating non-work time setpoint
+        if temp_schedules['heating_setpoint'] and temp_schedules['heating_availability']:
+            heating_setpoint_values = temp_schedules['heating_setpoint']['schedule_values']
+            heating_availability_values = temp_schedules['heating_availability']['schedule_values']
+            
+            logger.info(f"Zone '{zone_name}' heating setpoint values: {heating_setpoint_values}")
+            logger.info(f"Zone '{zone_name}' heating availability values: {heating_availability_values}")
+            
+            non_work_heating = self._get_non_work_setpoint(heating_setpoint_values, heating_availability_values)
+            if non_work_heating is not None:
+                self.loads_by_zone[zone_name]["setpoints"]["non_work_time_heating"] = non_work_heating
+                logger.info(f"Zone '{zone_name}' non-work heating setpoint: {non_work_heating}°C")
+            else:
+                logger.info(f"Zone '{zone_name}' no non-work heating setpoint found")
+        
+        # Process cooling non-work time setpoint  
+        if temp_schedules['cooling_setpoint'] and temp_schedules['cooling_availability']:
+            cooling_setpoint_values = temp_schedules['cooling_setpoint']['schedule_values']
+            cooling_availability_values = temp_schedules['cooling_availability']['schedule_values']
+            
+            logger.info(f"Zone '{zone_name}' cooling setpoint values: {cooling_setpoint_values}")
+            logger.info(f"Zone '{zone_name}' cooling availability values: {cooling_availability_values}")
+            
+            non_work_cooling = self._get_non_work_setpoint(cooling_setpoint_values, cooling_availability_values)
+            if non_work_cooling is not None:
+                self.loads_by_zone[zone_name]["setpoints"]["non_work_time_cooling"] = non_work_cooling
+                logger.info(f"Zone '{zone_name}' non-work cooling setpoint: {non_work_cooling}°C")
+            else:
+                logger.info(f"Zone '{zone_name}' no non-work cooling setpoint found")
+
+    def _get_non_work_setpoint(self, setpoint_values: list, availability_values: list) -> Optional[float]:
+        """
+        Find the setpoint value corresponding to when availability is 0.
+        """
+        if not setpoint_values or not availability_values:
+            logger.info("Empty setpoint or availability values")
+            return None
+            
+        # Parse schedule values to find periods where availability is 0
+        availability_periods = self._parse_schedule_periods(availability_values)
+        setpoint_periods = self._parse_schedule_periods(setpoint_values)
+        
+        logger.info(f"Parsed availability periods: {availability_periods}")
+        logger.info(f"Parsed setpoint periods: {setpoint_periods}")
+        
+        # Find setpoint values when availability is 0
+        for avail_period in availability_periods:
+            if avail_period['value'] == '0':
+                logger.info(f"Found availability 0 period: {avail_period}")
+                # Find corresponding setpoint for this period
+                for setpoint_period in setpoint_periods:
+                    if self._periods_overlap(avail_period, setpoint_period):
+                        logger.info(f"Found matching setpoint period: {setpoint_period}")
+                        try:
+                            value = float(setpoint_period['value'])
+                            logger.info(f"Returning non-work setpoint value: {value}")
+                            return value
+                        except (ValueError, TypeError):
+                            logger.info(f"Could not convert setpoint value to float: {setpoint_period['value']}")
+                            continue
+        logger.info("No non-work setpoint found")
+        return None
+
+    def _parse_schedule_periods(self, schedule_values: list) -> list:
+        """
+        Parse schedule values into periods with start/end dates and values.
+        """
+        periods = []
+        current_period = {}
+        
+        for i, value in enumerate(schedule_values):
+            if value.startswith('Through:'):
+                current_period['end_date'] = value.replace('Through: ', '').strip()
+            elif value.startswith('For:'):
+                current_period['day_type'] = value.replace('For: ', '').strip()
+            elif value.startswith('Until:'):
+                current_period['end_time'] = value.replace('Until: ', '').strip()
+            else:
+                # This should be the actual value
+                current_period['value'] = value.strip()
+                if 'end_date' in current_period:
+                    periods.append(current_period.copy())
+                    current_period = {}
+        
+        return periods
+
+    def _periods_overlap(self, period1: dict, period2: dict) -> bool:
+        """
+        Check if two schedule periods overlap (simplified check based on end_date).
+        """
+        return period1.get('end_date') == period2.get('end_date')
 
     def get_parsed_zone_loads(self, include_core: bool = False) -> Dict[str, Any]:
         """

@@ -2,10 +2,13 @@
 Extracts and processes materials and constructions.
 Uses DataLoader for cached access to IDF data.
 """
+import logging
 from typing import Dict, Any, Optional, List, Tuple
 from utils.data_loader import DataLoader
 from utils.data_models import MaterialData, ConstructionData
 from .base_parser import BaseParser
+
+logger = logging.getLogger(__name__)
 
 # Surface film resistance configuration
 SURFACE_FILM_RESISTANCE = {
@@ -204,50 +207,129 @@ class MaterialsParser(BaseParser):
         Args:
             construction_cache: Dictionary of construction data from DataLoader
         """
-        # Filter constructions: remove _rev/_reversed_rev if same type and materials as base version
+        logger.info(f"Starting construction filtering with {len(self.constructions)} constructions")
+        # Filter constructions: remove duplicates with different suffixes
         constructions_to_remove = []
+        processed_pairs = set()
         
         for construction_id in list(self.constructions.keys()):
-            if (construction_id.lower().endswith('_rev') or construction_id.lower().endswith('_reversed_rev')) and not construction_id.lower().endswith('_reversed'):
-                # Find base construction name
-                if construction_id.lower().endswith('_reversed_rev'):
-                    base_name = construction_id[:-len('_reversed_rev')]
-                else:  # ends with _rev
-                    base_name = construction_id[:-len('_rev')]
+            if construction_id in constructions_to_remove:
+                continue
                 
-                # Check if base construction exists (case insensitive)
-                base_name_found = None
-                for existing_name in self.constructions.keys():
-                    if existing_name.lower() == base_name.lower():
-                        base_name_found = existing_name
-                        break
+            construction_id_lower = construction_id.lower()
+            base_name = None
+            
+            # Extract base name by removing suffix, or use construction_id as base name if no suffix
+            if construction_id_lower.endswith('_reversed_rev'):
+                base_name = construction_id[:-len('_reversed_rev')]
+            elif construction_id_lower.endswith('_reversed'):
+                base_name = construction_id[:-len('_reversed')]
+            elif construction_id_lower.endswith('_rev'):
+                base_name = construction_id[:-len('_rev')]
+            else:
+                # This construction has no suffix, so it could be a base construction
+                base_name = construction_id
+            
+            logger.info(f"Processing construction '{construction_id}' with base_name '{base_name}'")
                 
-                if base_name_found:
-                    base_construction = self.constructions[base_name_found]
-                    suffix_construction = self.constructions[construction_id]
+            # Look for other constructions with the same base name but different suffixes
+            potential_matches = []
+            for other_id in self.constructions.keys():
+                if other_id == construction_id or other_id in constructions_to_remove:
+                    continue
                     
-                    # Compare element types using _get_element_type
-                    surfaces = self.data_loader.get_surfaces()
-                    base_element_types, _ = self._get_element_type(base_name_found, surfaces, {})
-                    suffix_element_types, _ = self._get_element_type(construction_id, surfaces, {})
+                other_id_lower = other_id.lower()
+                other_base_name = None
+                
+                if other_id_lower.endswith('_reversed_rev'):
+                    other_base_name = other_id[:-len('_reversed_rev')]
+                elif other_id_lower.endswith('_reversed'):
+                    other_base_name = other_id[:-len('_reversed')]
+                elif other_id_lower.endswith('_rev'):
+                    other_base_name = other_id[:-len('_rev')]
+                else:
+                    # This other construction has no suffix, so it could be a base construction
+                    other_base_name = other_id
+                
+                if other_base_name and other_base_name.lower() == base_name.lower():
+                    potential_matches.append(other_id)
+                    logger.info(f"  Found potential match: '{other_id}' (base: '{other_base_name}')")
+            
+            # Compare current construction with all potential matches
+            for match_id in potential_matches:
+                pair_key = tuple(sorted([construction_id, match_id]))
+                if pair_key in processed_pairs:
+                    continue
+                processed_pairs.add(pair_key)
+                
+                construction1 = self.constructions[construction_id]
+                construction2 = self.constructions[match_id]
+                
+                # Compare element types
+                surfaces = self.data_loader.get_surfaces()
+                types1, _ = self._get_element_type(construction_id, surfaces, {})
+                types2, _ = self._get_element_type(match_id, surfaces, {})
+                
+                # Convert to sets for comparison
+                type_set1 = set(types1)
+                type_set2 = set(types2)
+                
+                # Compare materials (order doesn't matter)
+                materials1 = set(construction1.material_layers)
+                materials2 = set(construction2.material_layers)
+                
+                # If same materials and one element type set is subset of the other, remove the subset version
+                logger.info(f"  Comparing '{construction_id}' vs '{match_id}': types1={types1}, types2={types2}, materials_match={materials1 == materials2}")
+                if materials1 == materials2 and (type_set1 == type_set2 or type_set1.issubset(type_set2) or type_set2.issubset(type_set1)):
+                    # Determine which one to remove - prefer keeping the one without suffix or with simpler suffix
+                    to_remove = None
                     
-                    # Convert to sets for comparison
-                    base_type_set = set(base_element_types)
-                    suffix_type_set = set(suffix_element_types)
+                    # Check if either construction has a suffix
+                    construction_id_has_suffix = (construction_id.lower().endswith('_rev') or 
+                                                construction_id.lower().endswith('_reversed') or 
+                                                construction_id.lower().endswith('_reversed_rev'))
+                    match_id_has_suffix = (match_id.lower().endswith('_rev') or 
+                                         match_id.lower().endswith('_reversed') or 
+                                         match_id.lower().endswith('_reversed_rev'))
                     
-                    # Compare materials (order doesn't matter)
-                    base_materials = set(base_construction.material_layers)
-                    suffix_materials = set(suffix_construction.material_layers)
+                    # Priority 1: Keep the one with more element types (superset)
+                    if type_set1.issuperset(type_set2) and not type_set2.issuperset(type_set1):
+                        # construction_id has more types, remove match_id
+                        to_remove = match_id
+                    elif type_set2.issuperset(type_set1) and not type_set1.issuperset(type_set2):
+                        # match_id has more types, remove construction_id
+                        to_remove = construction_id
+                    # Priority 2: Keep base version (no suffix) over suffix version
+                    elif not construction_id_has_suffix and match_id_has_suffix:
+                        # construction_id is base, match_id has suffix - remove suffix version
+                        to_remove = match_id
+                    elif construction_id_has_suffix and not match_id_has_suffix:
+                        # match_id is base, construction_id has suffix - remove suffix version
+                        to_remove = construction_id
+                    # Priority 3: Both have suffixes, prefer _rev over _reversed
+                    elif construction_id_has_suffix and match_id_has_suffix:
+                        if construction_id.lower().endswith('_rev') and match_id.lower().endswith('_reversed'):
+                            to_remove = match_id
+                        elif construction_id.lower().endswith('_reversed') and match_id.lower().endswith('_rev'):
+                            to_remove = construction_id
+                        else:  # Both same suffix type, keep first alphabetically
+                            to_remove = max(construction_id, match_id)
+                    # If neither has suffix and same types, shouldn't happen but keep first alphabetically
+                    else:
+                        to_remove = max(construction_id, match_id)
                     
-                    # If suffix element types are subset of base element types and same materials, remove the suffix version
-                    if suffix_type_set.issubset(base_type_set) and base_materials == suffix_materials:
-                        constructions_to_remove.append(construction_id)
+                    if to_remove and to_remove not in constructions_to_remove:
+                        constructions_to_remove.append(to_remove)
+                        logger.info(f"    -> Marked '{to_remove}' for removal (keeping '{construction_id if to_remove == match_id else match_id}')")
         
         # Remove the identified constructions
+        logger.info(f"Removing {len(constructions_to_remove)} constructions: {constructions_to_remove}")
         for construction_id in constructions_to_remove:
             del self.constructions[construction_id]
             # Also remove from element_data
             self.element_data = [element for element in self.element_data if element.get('element_name') != construction_id]
+        
+        logger.info(f"Filtering complete. Remaining constructions: {len(self.constructions)}")
 
     def _get_surface_type_and_boundary(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]], construction_mapping: Dict[str, str] = None):
         """
