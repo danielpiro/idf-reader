@@ -493,7 +493,8 @@ class ProcessingManager:
         transaction = start_transaction(name="process_idf", op="idf_processing")
         
         try:
-            project_name = Path(input_file).stem
+            # Use project name from consultant data if provided, otherwise default to IDF filename
+            project_name = self.consultant_data.get('project_name', '').strip() or Path(input_file).stem
             if run_id is None:
                 run_id = datetime.now().strftime('%d-%m-%Y-%H-%M-%S')
 

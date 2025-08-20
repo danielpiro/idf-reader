@@ -435,7 +435,7 @@ class EPJSONHandler:
         
         # Create temporary file
         temp_dir = tempfile.gettempdir()
-        temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.idf', delete=False, dir=temp_dir)
+        temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.idf', delete=False, dir=temp_dir, encoding='utf-8')
         temp_path = temp_file.name
         
         try:

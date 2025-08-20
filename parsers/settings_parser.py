@@ -1,7 +1,10 @@
 import re
 from typing import Dict, Any
 from utils.data_loader import DataLoader
+from utils.logging_config import get_logger
 from .utils import safe_float
+
+logger = get_logger(__name__)
 
 class EPJSONObjectWrapper:
     """
@@ -20,25 +23,29 @@ class EPJSONObjectWrapper:
             setattr(self, attr_name, value)
             
             # Also try some common field name variations
-            if 'version' in key.lower():
+            if 'version_identifier' in key.lower():
                 setattr(self, 'Version_Identifier', value)
+                setattr(self, 'Version', value)
             elif 'north' in key.lower() and 'axis' in key.lower():
                 setattr(self, 'North_Axis', value)
             elif 'terrain' in key.lower():
                 setattr(self, 'Terrain', value)
     
     def __getattr__(self, name):
-        # Try exact match first
+        # __getattr__ is only called if the attribute doesn't exist in __dict__
+        # So if we reach here, the attribute wasn't set during __init__
+        
+        # Try exact match in raw data first
         if name in self._data:
             return self._data[name]
         
-        # Try case-insensitive match
+        # Try case-insensitive match in raw data
         for key, value in self._data.items():
             if key.lower().replace(' ', '_').replace('/', '_').replace('-', '_') == name.lower():
                 return value
                 
-        # Return None if not found (like eppy does)
-        return None
+        # Raise AttributeError if not found (so hasattr() works correctly)
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
 class SettingsExtractor:
     """
@@ -338,12 +345,20 @@ class SettingsExtractor:
 
     def _safe_getattr(self, obj, attr_name: str, default=None):
         """Safely get attribute from object with optional type conversion."""
-        if hasattr(obj, attr_name):
+        has_attr = hasattr(obj, attr_name)
+        
+        if has_attr:
             value = getattr(obj, attr_name, default)
             # Convert to float if it looks numeric
             if isinstance(value, str) and value.replace('.', '').replace('-', '').isdigit():
                 return safe_float(value, default)
             return value
+        
+        # Also check if it's in the raw data
+        if hasattr(obj, '_data') and attr_name in obj._data:
+            value = obj._data[attr_name]
+            return value
+            
         return default
     
     def process_idf_object(self, obj_type: str, obj) -> None:
@@ -358,7 +373,14 @@ class SettingsExtractor:
             return
 
         if obj_type == 'VERSION':
-            self.extracted_settings['version']['energyplus'] = self._safe_getattr(obj, 'Version_Identifier')
+            # Try different possible field names for version
+            version_identifier = self._safe_getattr(obj, 'Version_Identifier')
+            version_identifier_lower = self._safe_getattr(obj, 'version_identifier')
+            version = self._safe_getattr(obj, 'Version')
+            
+            final_version = version_identifier or version_identifier_lower or version or obj.__dict__.get('Version_Identifier')
+            
+            self.extracted_settings['version']['energyplus'] = final_version
             return
 
         if obj_type == 'RUNPERIOD':

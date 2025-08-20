@@ -49,6 +49,7 @@ class ModernIDFProcessorGUI:
         self.tester_email = ""
         
         # Optional project fields
+        self.project_name = ""
         self.project_gush = ""
         self.project_helka = ""
         
@@ -385,6 +386,7 @@ class ModernIDFProcessorGUI:
                 'tester_engineer': consultant_data.get('tester_engineer', ''),
                 'tester_phone': consultant_data.get('tester_phone', ''),
                 'tester_email': consultant_data.get('tester_email', ''),
+                'project_name': job.get('project_data', {}).get('project_name', ''),
                 'project_gush': job.get('project_data', {}).get('project_gush', ''),
                 'project_helka': job.get('project_data', {}).get('project_helka', ''),
                 'iso_type': job['iso_type']
@@ -562,6 +564,7 @@ class ModernIDFProcessorGUI:
                 
                 # Load optional project fields
                 project_data = settings.get('project_data', {})
+                self.project_name = project_data.get('project_name', '')
                 self.project_gush = project_data.get('project_gush', '')
                 self.project_helka = project_data.get('project_helka', '')
                 
@@ -626,6 +629,7 @@ class ModernIDFProcessorGUI:
                     'tester_email': self.tester_email
                 },
                 'project_data': {
+                    'project_name': self.project_name,
                     'project_gush': self.project_gush,
                     'project_helka': self.project_helka
                 },
@@ -1253,6 +1257,17 @@ class ModernIDFProcessorGUI:
         )
         
         # Optional project fields
+        project_name_field = ft.TextField(
+            label="שם הפרויקט (אופציונלי)",
+            value=self.project_name,
+            on_change=on_consultant_field_change('project_name'),
+            text_align=ft.TextAlign.RIGHT,
+            rtl=True,
+            border_radius=8,
+            filled=True,
+            expand=True
+        )
+        
         project_gush_field = ft.TextField(
             label="גוש (אופציונלי)",
             value=self.project_gush,
@@ -1282,7 +1297,11 @@ class ModernIDFProcessorGUI:
             initially_expanded=False,
             controls=[
                 ft.Container(
-                    content=ft.Row([project_gush_field, project_helka_field], spacing=10),
+                    content=ft.Column([
+                        project_name_field,
+                        ft.Container(height=10),  # Spacer
+                        ft.Row([project_gush_field, project_helka_field], spacing=10)
+                    ]),
                     padding=ft.padding.all(10)
                 )
             ]
@@ -1748,6 +1767,7 @@ class ModernIDFProcessorGUI:
                 'tester_email': self.tester_email,
             },
             'project_data': {
+                'project_name': self.project_name,
                 'project_gush': self.project_gush,
                 'project_helka': self.project_helka,
             }
@@ -1808,6 +1828,7 @@ class ModernIDFProcessorGUI:
                 'tester_engineer': self.tester_engineer,
                 'tester_phone': self.tester_phone,
                 'tester_email': self.tester_email,
+                'project_name': self.project_name,
                 'project_gush': self.project_gush,
                 'project_helka': self.project_helka,
                 'iso_type': self.selected_iso
