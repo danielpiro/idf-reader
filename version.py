@@ -2,8 +2,8 @@
 Version management for IDF Reader application.
 """
 
-__version__ = "1.1.5"
-__version_info__ = (1, 1, 5)
+__version__ = "1.1.6"
+__version_info__ = (1, 1, 6)
 
 # Update server configuration
 UPDATE_SERVER_URL = "http://localhost:8000/api"  # Local development server
@@ -42,6 +42,7 @@ def compare_versions(version1, version2):
         return 1
     else:
         return 0
+
 
 
 
