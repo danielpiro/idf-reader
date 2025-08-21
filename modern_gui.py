@@ -271,6 +271,37 @@ class ModernIDFProcessorGUI:
         if self.processing_manager:
             self.processing_manager.is_cancelled = True
     
+    def _safe_page_update(self):
+        """Safely update the page from any thread."""
+        try:
+            if self.page and hasattr(self.page, '_session_id'):
+                self.page.update()
+        except RuntimeError as e:
+            if "Event loop is closed" in str(e):
+                logger.warning("Page update skipped: Event loop is closed")
+            else:
+                logger.error(f"Page update error: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected page update error: {e}")
+    
+    def cleanup_on_close(self):
+        """Clean up resources when the application is closing."""
+        try:
+            # Stop queue processing
+            self.stop_queue_processing = True
+            
+            # Stop progress animation
+            if hasattr(self, 'stop_progress_animation'):
+                self.stop_progress_animation()
+            
+            # Cancel any ongoing processing
+            if self.processing_manager:
+                self.processing_manager.is_cancelled = True
+            
+            logger.info("Application cleanup completed")
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")
+
     def _process_queue_worker(self):
         """Worker thread that processes jobs in the queue sequentially."""
         while not self.stop_queue_processing:
@@ -288,8 +319,7 @@ class ModernIDFProcessorGUI:
                 if self.process_button:
                     self.process_button.disabled = False
                     self.process_button.text = "הוסף לתור"
-                    if self.page:
-                        self.page.update()
+                    self._safe_page_update()
                 break
             
             # Process the next job
@@ -451,7 +481,7 @@ class ModernIDFProcessorGUI:
                 job_item = self._create_queue_item(job, i)
                 self.queue_container.content.controls.append(job_item)
         
-        self.page.update()
+        self._safe_page_update()
     
     def _create_queue_item(self, job, index):
         """Create a visual item for the queue display."""
@@ -715,7 +745,7 @@ class ModernIDFProcessorGUI:
             
             # Scroll to bottom
             if self.page:
-                self.page.update()
+                self._safe_page_update()
 
         # Log message
         if level == "error":
@@ -758,7 +788,7 @@ class ModernIDFProcessorGUI:
             )
             self.page.snack_bar = snack
             snack.open = True
-            self.page.update()
+            self._safe_page_update()
         except Exception as e:
             logger.error(f"Error showing snackbar: {e}")
 
@@ -771,7 +801,7 @@ class ModernIDFProcessorGUI:
         if self.reports_progress:
             self.reports_progress.value = value
             if self.page:
-                self.page.update()
+                self._safe_page_update()
 
     def start_progress_animation(self, progress_bar_type="reports"):
         """Start modern indeterminate loading animation for the specified progress bar."""
@@ -857,7 +887,7 @@ class ModernIDFProcessorGUI:
                     pass  # Fallback to basic animation if color animation fails
                 
             if self.page:
-                self.page.update()
+                self._safe_page_update()
         except Exception as e:
             logger.error(f"Error updating progress animation: {e}")
         
@@ -885,7 +915,7 @@ class ModernIDFProcessorGUI:
                 if on_result:
                     on_result(selected_path)
                 if self.page:
-                    self.page.update()
+                    self._safe_page_update()
                 logger.info(f"Path selected via browse: {selected_path}")
         
         # Create file picker
@@ -1024,7 +1054,7 @@ class ModernIDFProcessorGUI:
             if hasattr(self, 'suggestions_container'):
                 self.suggestions_container.visible = False
                 if self.page:
-                    self.page.update()
+                    self._safe_page_update()
         
         threading.Thread(target=hide_suggestions, daemon=True).start()
     
@@ -1102,8 +1132,7 @@ class ModernIDFProcessorGUI:
             # Hide suggestions if search text is empty or too short
             self.suggestions_container.visible = False
         
-        if self.page:
-            self.page.update()
+        self._safe_page_update()
     
     def select_city_from_suggestion(self, city_name):
         """Handle selection of a city from suggestions."""
@@ -1123,8 +1152,7 @@ class ModernIDFProcessorGUI:
         self._debounced_save_settings()
         self.update_form_validation()
         
-        if self.page:
-            self.page.update()
+        self._safe_page_update()
 
     def create_consultant_section(self):
         """Create consultant data input section."""
@@ -1337,7 +1365,7 @@ class ModernIDFProcessorGUI:
             
             self.update_form_validation()
             if self.page:
-                self.page.update()
+                self._safe_page_update()
         
         # Create dropdown options with styling for disabled items
         options = []
@@ -1384,7 +1412,7 @@ class ModernIDFProcessorGUI:
             self.process_button.text = "הפעל רישיון - לחץ על מקש הנעילה"
             self.process_button.icon = ft.Icons.LOCK
             if self.page:
-                self.page.update()
+                self._safe_page_update()
             return
             
         # Check if all required fields are filled and valid
@@ -1413,8 +1441,7 @@ class ModernIDFProcessorGUI:
         
         logger.info(f"UPDATE_FORM_VALIDATION: Button text set to: {self.process_button.text}")
         
-        if self.page:
-            self.page.update()
+        self._safe_page_update()
 
     def validate_inputs(self):
         """Validate all inputs before processing."""
@@ -1516,12 +1543,12 @@ class ModernIDFProcessorGUI:
         """Show dialog when daily limit is reached."""
         def upgrade_license(e):
             dialog.open = False
-            self.page.update()
+            self._safe_page_update()
             self.show_license_dialog()
         
         def close_dialog(e):
             dialog.open = False
-            self.page.update()
+            self._safe_page_update()
         
         dialog = ft.AlertDialog(
             modal=True,
@@ -1568,7 +1595,7 @@ class ModernIDFProcessorGUI:
         
         self.page.overlay.append(dialog)
         dialog.open = True
-        self.page.update()
+        self._safe_page_update()
     
     def show_license_dialog(self):
         """Show license management dialog."""
@@ -1655,7 +1682,7 @@ class ModernIDFProcessorGUI:
             # Force UI update
             logger.info("Forcing page update after license change")
             if self.page:
-                self.page.update()
+                self._safe_page_update()
             
             # Directly update button as final step
             logger.info("Final button update check...")
@@ -1677,7 +1704,7 @@ class ModernIDFProcessorGUI:
                     logger.info("Button kept in activation state")
                 
                 if self.page:
-                    self.page.update()
+                    self._safe_page_update()
                     logger.info("Final page update completed")
             
             # Refresh license button if it exists
@@ -1985,7 +2012,7 @@ OUTPUT:VARIABLE,
             if self.energyplus_progress:
                 self.energyplus_progress.value = 0.2
                 if self.page:
-                    self.page.update()
+                    self._safe_page_update()
 
             # Check if paths contain Hebrew/Unicode characters and create safe copies if needed
             if contains_non_ascii(self.input_file):
@@ -2006,7 +2033,7 @@ OUTPUT:VARIABLE,
             if self.energyplus_progress:
                 self.energyplus_progress.value = 0.4
                 if self.page:
-                    self.page.update()
+                    self._safe_page_update()
 
             # Normalize paths for EnergyPlus compatibility
             from utils.path_utils import normalize_path_for_energyplus
@@ -2021,7 +2048,7 @@ OUTPUT:VARIABLE,
             if self.energyplus_progress:
                 self.energyplus_progress.value = 0.6
                 if self.page:
-                    self.page.update()
+                    self._safe_page_update()
             
             import subprocess
             process = subprocess.run(
@@ -2041,7 +2068,7 @@ OUTPUT:VARIABLE,
             if self.energyplus_progress:
                 self.energyplus_progress.value = 0.9
                 if self.page:
-                    self.page.update()
+                    self._safe_page_update()
 
             # Check if simulation produced output in the temporary location
             if os.path.exists(temp_output_csv_path):
@@ -2063,7 +2090,7 @@ OUTPUT:VARIABLE,
                     if self.energyplus_progress:
                         self.energyplus_progress.value = 1.0
                         if self.page:
-                            self.page.update()
+                            self._safe_page_update()
                     
                     self.show_status(f"סימולציית EnergyPlus הצליחה. פלט: {output_csv_path}")
                 else:
@@ -2133,8 +2160,7 @@ OUTPUT:VARIABLE,
         if self.reports_progress:
             self.reports_progress.value = 0
         
-        if self.page:
-            self.page.update()
+        self._safe_page_update()
 
     def build_ui(self, page: ft.Page):
         """Build the modern UI."""
@@ -2142,6 +2168,12 @@ OUTPUT:VARIABLE,
         page.title = "מחולל דוחות IDF"
         page.theme_mode = ft.ThemeMode.SYSTEM
         page.rtl = True  # Enable RTL layout for the entire page
+        
+        # Set up close handler to cleanup resources
+        def on_window_close(e):
+            self.cleanup_on_close()
+        
+        page.on_window_event = on_window_close
         
         # Load settings first
         self.load_settings()
@@ -2587,7 +2619,7 @@ OUTPUT:VARIABLE,
         def close_dialog(e):
             if hasattr(self, 'website_update_dialog'):
                 self.website_update_dialog.open = False
-                self.page.update()
+                self._safe_page_update()
         
         def open_website(e):
             import webbrowser
@@ -2675,7 +2707,7 @@ OUTPUT:VARIABLE,
         
         self.page.overlay.append(self.website_update_dialog)
         self.website_update_dialog.open = True
-        self.page.update()
+        self._safe_page_update()
     
     def show_update_dialog(self, update_info):
         """Show update available dialog."""
@@ -2689,7 +2721,7 @@ OUTPUT:VARIABLE,
         def close_dialog(e):
             if self.update_dialog:
                 self.update_dialog.open = False
-                self.page.update()
+                self._safe_page_update()
         
         def install_update(e):
             close_dialog(e)
@@ -2824,7 +2856,7 @@ OUTPUT:VARIABLE,
         
         self.page.overlay.append(self.update_dialog)
         self.update_dialog.open = True
-        self.page.update()
+        self._safe_page_update()
     
     def install_update(self, update_info):
         """Install the available update."""
@@ -2940,13 +2972,13 @@ OUTPUT:VARIABLE,
                     
                     # Close the menu dialog first
                     menu_dialog.open = False
-                    self.page.update()
+                    self._safe_page_update()
                     
                     self.check_for_updates_manual()
                 
                 def close_menu(e):
                     menu_dialog.open = False
-                    self.page.update()
+                    self._safe_page_update()
                 
                 menu_dialog = ft.AlertDialog(
                     modal=True,
@@ -3045,7 +3077,7 @@ OUTPUT:VARIABLE,
                 # Add dialog to overlay
                 self.page.overlay.append(menu_dialog)
                 menu_dialog.open = True
-                self.page.update()
+                self._safe_page_update()
                 logger.info("Update menu dialog should now be visible")
                 self.show_status("תפריט עדכונים נפתח", "success")
                 self.show_snackbar("תפריט עדכונים נפתח")
@@ -3080,7 +3112,7 @@ OUTPUT:VARIABLE,
                 if isinstance(control, ft.AlertDialog):
                     control.open = False
                     self.page.overlay.remove(control)
-            self.page.update()
+            self._safe_page_update()
             logger.info("Test dialog closed")
     
     def show_github_config_dialog(self):
@@ -3108,17 +3140,17 @@ OUTPUT:VARIABLE,
             else:
                 self.show_status("Please enter a valid token", "warning")
             config_dialog.open = False
-            self.page.update()
+            self._safe_page_update()
         
         def remove_token(e):
             self.update_manager.set_github_token(None)
             self.show_status("GitHub token removed", "info")
             config_dialog.open = False
-            self.page.update()
+            self._safe_page_update()
         
         def close_config(e):
             config_dialog.open = False
-            self.page.update()
+            self._safe_page_update()
         
         def open_github_help(e):
             import webbrowser
@@ -3188,7 +3220,7 @@ OUTPUT:VARIABLE,
         
         self.page.overlay.append(config_dialog)
         config_dialog.open = True
-        self.page.update()
+        self._safe_page_update()
 
 def main(page: ft.Page):
     logger.info("=== MAIN FUNCTION STARTED ===")

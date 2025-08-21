@@ -466,16 +466,20 @@ class AreaParser:
             pass
             return 0.0
 
+
     def _merge_reverse_constructions(self, materials_parser: MaterialsParser) -> None:
         """
         Merges constructions with '_rev' or '_reverse' suffixes into their base counterparts
-        ONLY IF they share the exact same set of element types determined by MaterialsParser.
-        Sums total_area and total_u_value, combines elements, and removes the reverse entry.
-        Important: Glazing constructions (identified by CSV or element type) are not merged.
+        based on the same filtering logic as materials_parser._filter_element_data.
+        Uses comprehensive comparison of element types, materials, and suffix priority.
+        Sums total_area and total_u_value, combines elements, and removes duplicate entries.
         """
         try:
+            if not self.areas_by_zone or not materials_parser:
+                return
+
             surfaces = self.data_loader.get_surfaces()
-            if not self.areas_by_zone:
+            if not surfaces:
                 return
 
             for zone_id, zone_data in self.areas_by_zone.items():
@@ -484,65 +488,143 @@ class AreaParser:
                     if not constructions:
                         continue
 
-                    construction_names = list(constructions.keys())
-                    to_remove = []
+                    constructions_to_remove = []
+                    processed_pairs = set()
 
-                    for name in construction_names:
-                        if name in to_remove:
+                    for construction_id in list(constructions.keys()):
+                        if construction_id in constructions_to_remove:
                             continue
-
+                            
+                        construction_id_lower = construction_id.lower()
                         base_name = None
-                        if name.endswith("_rev"):
-                            base_name = name[:-4]
-                        elif name.endswith("_reverse"):
-                            base_name = name[:-8]
-
-                        if base_name and base_name in constructions and base_name not in to_remove:
-                            reverse_name = name
-
-                            if base_name in self.glazing_data_from_csv or reverse_name in self.glazing_data_from_csv:
+                        
+                        # Extract base name by removing suffix
+                        if construction_id_lower.endswith('_reversed_rev'):
+                            base_name = construction_id[:-len('_reversed_rev')]
+                        elif construction_id_lower.endswith('_reversed'):
+                            base_name = construction_id[:-len('_reversed')]
+                        elif construction_id_lower.endswith('_rev'):
+                            base_name = construction_id[:-len('_rev')]
+                        else:
+                            base_name = construction_id
+                            
+                        # Look for other constructions with the same base name but different suffixes
+                        potential_matches = []
+                        for other_id in constructions.keys():
+                            if other_id == construction_id or other_id in constructions_to_remove:
                                 continue
-
-                            base_elements = constructions.get(base_name, {}).get("elements", [])
-                            reverse_elements = constructions.get(reverse_name, {}).get("elements", [])
-
-                            has_base_glazing_element = any(
-                                element.get("element_type", "").endswith("Glazing") for element in base_elements
-                            )
-                            has_reverse_glazing_element = any(
-                                element.get("element_type", "").endswith("Glazing") for element in reverse_elements
-                            )
-                            if has_base_glazing_element or has_reverse_glazing_element:
+                                
+                            other_id_lower = other_id.lower()
+                            other_base_name = None
+                            
+                            if other_id_lower.endswith('_reversed_rev'):
+                                other_base_name = other_id[:-len('_reversed_rev')]
+                            elif other_id_lower.endswith('_reversed'):
+                                other_base_name = other_id[:-len('_reversed')]
+                            elif other_id_lower.endswith('_rev'):
+                                other_base_name = other_id[:-len('_rev')]
+                            else:
+                                other_base_name = other_id
+                            
+                            if other_base_name and other_base_name.lower() == base_name.lower():
+                                potential_matches.append(other_id)
+                        
+                        # Compare current construction with all potential matches
+                        for match_id in potential_matches:
+                            pair_key = tuple(sorted([construction_id, match_id]))
+                            if pair_key in processed_pairs:
                                 continue
-
+                            processed_pairs.add(pair_key)
+                            
+                            construction1_data = constructions[construction_id]
+                            construction2_data = constructions[match_id]
+                            
+                            # Skip glazing constructions
+                            elements1 = construction1_data.get("elements", [])
+                            elements2 = construction2_data.get("elements", [])
+                            
+                            has_glazing1 = any(elem.get("element_type", "").endswith("Glazing") for elem in elements1)
+                            has_glazing2 = any(elem.get("element_type", "").endswith("Glazing") for elem in elements2)
+                            
+                            if has_glazing1 or has_glazing2:
+                                continue
+                            
+                            # Compare element types using materials_parser logic
                             try:
-                                base_types_list, base_dont_use = materials_parser._get_element_type(base_name, surfaces)
-                                reverse_types_list, reverse_dont_use = materials_parser._get_element_type(reverse_name, surfaces)
-
-                                if base_dont_use or reverse_dont_use:
+                                types1, dont_use1 = materials_parser._get_element_type(construction_id, surfaces, {})
+                                types2, dont_use2 = materials_parser._get_element_type(match_id, surfaces, {})
+                                
+                                if dont_use1 or dont_use2:
                                     continue
-
-                                base_types_set = set(bt for bt in base_types_list if bt and "Glazing" not in bt)
-                                reverse_types_set = set(rt for rt in reverse_types_list if rt and "Glazing" not in rt)
-
-                                if base_types_set and base_types_set == reverse_types_set:
-                                    base_constr = constructions[base_name]
-                                    reverse_constr = constructions[reverse_name]
-
-                                    base_constr["total_area"] += reverse_constr.get("total_area", 0.0)
-                                    base_constr["total_u_value"] += reverse_constr.get("total_u_value", 0.0)
-                                    base_constr["elements"].extend(reverse_constr.get("elements", []))
-                                    to_remove.append(reverse_name)
-                                else:
-                                    pass
-
+                                
+                                # Convert to sets for comparison
+                                type_set1 = set(types1)
+                                type_set2 = set(types2)
+                                
+                                # Compare materials from constructions data
+                                constructions_dict = self.data_loader.get_constructions()
+                                materials1 = set()
+                                materials2 = set()
+                                
+                                if construction_id in constructions_dict:
+                                    materials1 = set(constructions_dict[construction_id].get('material_layers', []))
+                                if match_id in constructions_dict:
+                                    materials2 = set(constructions_dict[match_id].get('material_layers', []))
+                                
+                                # If same materials and one element type set is subset of the other, merge them
+                                if materials1 == materials2 and (type_set1 == type_set2 or type_set1.issubset(type_set2) or type_set2.issubset(type_set1)):
+                                    # Determine which one to remove using same priority logic as materials_parser
+                                    to_remove = None
+                                    
+                                    construction_id_has_suffix = (construction_id.lower().endswith('_rev') or 
+                                                                construction_id.lower().endswith('_reversed') or 
+                                                                construction_id.lower().endswith('_reversed_rev'))
+                                    match_id_has_suffix = (match_id.lower().endswith('_rev') or 
+                                                         match_id.lower().endswith('_reversed') or 
+                                                         match_id.lower().endswith('_reversed_rev'))
+                                    
+                                    # Priority 1: Keep the one with more element types (superset)
+                                    if type_set1.issuperset(type_set2) and not type_set2.issuperset(type_set1):
+                                        to_remove = match_id
+                                    elif type_set2.issuperset(type_set1) and not type_set1.issuperset(type_set2):
+                                        to_remove = construction_id
+                                    # Priority 2: Keep base version (no suffix) over suffix version
+                                    elif not construction_id_has_suffix and match_id_has_suffix:
+                                        to_remove = match_id
+                                    elif construction_id_has_suffix and not match_id_has_suffix:
+                                        to_remove = construction_id
+                                    # Priority 3: Both have suffixes, prefer _rev over _reversed
+                                    elif construction_id_has_suffix and match_id_has_suffix:
+                                        if construction_id.lower().endswith('_rev') and match_id.lower().endswith('_reversed'):
+                                            to_remove = match_id
+                                        elif construction_id.lower().endswith('_reversed') and match_id.lower().endswith('_rev'):
+                                            to_remove = construction_id
+                                        else:  # Both same suffix type, keep first alphabetically
+                                            to_remove = max(construction_id, match_id)
+                                    else:
+                                        to_remove = max(construction_id, match_id)
+                                    
+                                    if to_remove and to_remove not in constructions_to_remove:
+                                        # Merge the data before removing
+                                        keep_id = match_id if to_remove == construction_id else construction_id
+                                        remove_data = constructions[to_remove]
+                                        keep_data = constructions[keep_id]
+                                        
+                                        # Sum the areas and u_values
+                                        keep_data["total_area"] += remove_data.get("total_area", 0.0)
+                                        keep_data["total_u_value"] += remove_data.get("total_u_value", 0.0)
+                                        keep_data["elements"].extend(remove_data.get("elements", []))
+                                        
+                                        constructions_to_remove.append(to_remove)
+                                        
                             except Exception as e_type:
                                 pass
-
-                    for key_to_remove in to_remove:
-                        if key_to_remove in constructions:
-                            del constructions[key_to_remove]
-
+                    
+                    # Remove the identified constructions after merging
+                    for construction_id in constructions_to_remove:
+                        if construction_id in constructions:
+                            del constructions[construction_id]
+                            
                 except (TypeError, ValueError, AttributeError, KeyError) as e_zone_merge:
                     pass
                     continue
