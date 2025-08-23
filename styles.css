@@ -361,6 +361,15 @@ h1, h2, h3, h4, h5, h6 {
     text-align: center;
 }
 
+.hero-subtitle {
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: #374151;
+    text-align: center;
+    margin-top: 1rem;
+    line-height: 1.4;
+}
+
 .highlight {
     background: linear-gradient(45deg, #f093fb 0%, #f5576c 100%);
     -webkit-background-clip: text;
@@ -696,6 +705,25 @@ input:checked + .slider:before {
 
 .pricing-features li:last-child {
     border-bottom: none;
+}
+
+.price-per-project {
+    font-size: 0.9rem;
+    color: #667eea;
+    font-weight: 500;
+    margin-top: 0.5rem;
+    text-align: center;
+}
+
+.monthly-payment {
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin: 1rem 0 0.5rem 0;
+    text-align: center;
 }
 
 /* Download Section */

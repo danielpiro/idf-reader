@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="format-detection" content="telephone=no" />
-    <title>IDF Reader - מחולל דוחות אנרגיה מקצועי למבנים</title>
+    <title>IDF Reader - דירוג אנרגטי וקריאת קבצי IDF מקצועית</title>
     <meta
       name="description"
       content="תוכנה מקצועית לניתוח קבצי IDF ויצירת דוחות אנרגיה מפורטים. תומכת בתקני ISO ישראליים ובינלאומיים."
@@ -29,7 +29,7 @@
     <meta property="og:url" content="https://idf-reader.vercel.app/" />
     <meta
       property="og:title"
-      content="IDF Reader - מחולל דוחות אנרגיה מקצועי"
+      content="IDF Reader - דירוג אנרגטי וקריאת קבצי IDF"
     />
     <meta
       property="og:description"
@@ -45,7 +45,7 @@
     <meta property="twitter:url" content="https://idf-reader.vercel.app/" />
     <meta
       property="twitter:title"
-      content="IDF Reader - מחולל דוחות אנרגיה מקצועי"
+      content="IDF Reader - דירוג אנרגטי וקריאת קבצי IDF"
     />
     <meta
       property="twitter:description"
@@ -144,7 +144,8 @@
           </div>
           <div class="hero-text">
             <h1 id="hero-title" class="hero-title centered-title">
-              מחולל דוחות <span class="highlight">IDF</span> מקצועי
+              <span class="highlight">דירוג אנרגטי</span>
+              <div class="hero-subtitle">קורא קבצי IDF מקצועי</div>
             </h1>
             <div class="hero-buttons" role="group" aria-label="פעולות ראשיות">
               <a
@@ -196,7 +197,7 @@
               <h3 class="feature-title">דוחות מפורטים</h3>
               <p class="feature-description">
                 יצירת דוחות אנרגיה מקיפים עם גרפים, טבלאות וניתוחים מתקדמים
-                בפורמט PDF ו-Excel
+                בפורמט PDF ו-Excel. יצירת כלל הדוחות עבור המעבדות המוסמכות
               </p>
             </article>
 
@@ -204,8 +205,7 @@
               <div class="feature-icon" aria-hidden="true">🇮🇱</div>
               <h3 class="feature-title">תקני ISO ישראליים</h3>
               <p class="feature-description">
-                תמיכה מלאה בתקני ISO ישראליים 2017 ו-2023, כולל מגורים, משרדים
-                ומלונות
+                ת"י 5282. תמיכה מלאה בת"י 5282 לכל המהדורות וגליונות התיקון לכל ייעוד
               </p>
             </article>
 
@@ -228,11 +228,10 @@
             </article>
 
             <article class="feature-card" role="listitem">
-              <div class="feature-icon" aria-hidden="true">📍</div>
-              <h3 class="feature-title">נתוני מזג אוויר ישראליים</h3>
+              <div class="feature-icon" aria-hidden="true">🔍</div>
+              <h3 class="feature-title">זיהוי שגיאות אוטומטי</h3>
               <p class="feature-description">
-                מאגר נתונים מעודכן של תחנות מזג אוויר בכל רחבי ישראל לחישובי
-                אנרגיה מדויקים
+                מערכת אימות מתקדמת הבודקת את קובץ ה-IDF מול טבלאות אימות לפי תקני ISO ישראליים, מזהה סטיות ושגיאות אוטומטית ומספקת המלצות לתיקון
               </p>
             </article>
 
@@ -256,97 +255,65 @@
             <p class="section-subtitle">בחר את התוכנית המתאימה לך</p>
           </div>
 
-          <div
-            class="pricing-toggle"
-            role="group"
-            aria-label="בחירת מחזור תשלום"
-          >
-            <span class="toggle-label" id="monthly-label">חודשי</span>
-            <label class="toggle-switch" for="pricingToggle">
-              <input
-                type="checkbox"
-                id="pricingToggle"
-                aria-describedby="monthly-label yearly-label"
-                aria-label="החלף בין תמחור חודשי לשנתי"
-              />
-              <span class="slider" aria-hidden="true"></span>
-            </label>
-            <span class="toggle-label" id="yearly-label"
-              >שנתי <span class="discount">חסוך 20%</span></span
-            >
-          </div>
 
           <div class="pricing-grid">
             <div class="pricing-card">
               <div class="pricing-header">
-                <h3 class="pricing-title">בסיסי</h3>
+                <h3 class="pricing-title">מסלול 1</h3>
                 <div class="pricing-price">
                   <span class="price-currency">₪</span>
-                  <span class="price-amount">0</span>
-                  <span class="price-period">/תמיד</span>
+                  <span class="price-amount">4,875</span>
+                  <span class="price-period">/שנה</span>
                 </div>
+                <div class="price-per-project">195 ₪ לפרויקט</div>
               </div>
               <ul class="pricing-features">
-                <li>✅ עד 3 קבצי IDF ביום</li>
-                <li>✅ דוחות בסיסיים</li>
-                <li>✅ נתוני מזג אוויר ישראליים</li>
-                <li>❌ דוחות דירוג אנרגיה</li>
-                <li>❌ דוחות מתקדמים</li>
-                <li>❌ ייצוא Excel</li>
+                <li>✅ עד 25 הרצות</li>
+                <li>✅ כל סוגי הדוחות</li>
+                <li>✅ דוחות דירוג אנרגיה</li>
+                <li>✅ תמיכה טכנית</li>
               </ul>
-              <a href="#download" class="btn btn-outline">התחל בחינם</a>
+              <div class="monthly-payment">תשלום חודשי: 406 ₪</div>
+              <a href="#contact" class="btn btn-outline">צור קשר</a>
             </div>
 
             <div class="pricing-card featured">
               <div class="pricing-badge">הכי פופולרי</div>
               <div class="pricing-header">
-                <h3 class="pricing-title">מקצועי</h3>
+                <h3 class="pricing-title">מסלול 2</h3>
                 <div class="pricing-price">
                   <span class="price-currency">₪</span>
-                  <span class="price-amount monthly-price">199</span>
-                  <span class="price-amount yearly-price" style="display: none"
-                    >159</span
-                  >
-                  <span class="price-period monthly-period">/חודש</span>
-                  <span class="price-period yearly-period" style="display: none"
-                    >/חודש</span
-                  >
+                  <span class="price-amount">10,200</span>
+                  <span class="price-period">/שנה</span>
                 </div>
+                <div class="price-per-project">170 ₪ לפרויקט</div>
               </div>
               <ul class="pricing-features">
-                <li>✅ עיבוד ללא הגבלה</li>
+                <li>✅ עד 60 הרצות</li>
                 <li>✅ כל סוגי הדוחות</li>
                 <li>✅ דוחות דירוג אנרגיה</li>
-                <li>✅ ייצוא PDF ו-Excel</li>
                 <li>✅ תמיכה טכנית מועדפת</li>
-                <li>✅ גישה לתכונות חדשות</li>
               </ul>
-              <a href="#contact" class="btn btn-primary">התחל ניסיון 14 יום</a>
+              <div class="monthly-payment">תשלום חודשי: 850 ₪</div>
+              <a href="#contact" class="btn btn-primary">צור קשר</a>
             </div>
 
             <div class="pricing-card">
               <div class="pricing-header">
-                <h3 class="pricing-title">ארגוני</h3>
+                <h3 class="pricing-title">מסלול 3</h3>
                 <div class="pricing-price">
                   <span class="price-currency">₪</span>
-                  <span class="price-amount monthly-price">499</span>
-                  <span class="price-amount yearly-price" style="display: none"
-                    >399</span
-                  >
-                  <span class="price-period monthly-period">/חודש</span>
-                  <span class="price-period yearly-period" style="display: none"
-                    >/חודש</span
-                  >
+                  <span class="price-amount">16,500</span>
+                  <span class="price-period">/שנה</span>
                 </div>
               </div>
               <ul class="pricing-features">
-                <li>✅ כל תכונות המקצועי</li>
-                <li>✅ עד 10 משתמשים</li>
-                <li>✅ API לאינטגרציה</li>
-                <li>✅ מיתוג מותאם אישית</li>
-                <li>✅ תמיכה 24/7</li>
-                <li>✅ הדרכה אישית</li>
+                <li>✅ ללא הגבלה</li>
+                <li>✅ כל סוגי הדוחות</li>
+                <li>✅ דוחות דירוג אנרגיה</li>
+                <li>✅ תמיכה טכנית מועדפת</li>
               </ul>
+              <div class="monthly-payment">תשלום חודשי: 1,375 ₪</div>
               <a href="#contact" class="btn btn-outline">צור קשר</a>
             </div>
           </div>
