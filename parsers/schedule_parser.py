@@ -235,8 +235,8 @@ class ScheduleExtractor:
 
             schedule_name, schedule_type, *rule_fields = data
 
-            if _is_basic_type(schedule_type, schedule_name):
-                return
+            # if _is_basic_type(schedule_type, schedule_name):
+            #     return
 
             self._store_schedule(schedule_name, schedule_type, rule_fields)
 
