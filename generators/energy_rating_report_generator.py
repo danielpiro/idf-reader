@@ -78,31 +78,52 @@ CLIMATE_ZONE_MAP = {
     "d": "Zone D", "D": "Zone D", "אזור ד": "Zone D",
 }
 
-def _get_table_style():
-    return TableStyle([
+def _get_table_style(model_year=None):
+    # Dynamic column spans based on model year
+    if model_year == 2023:
+        # 2023: 13 columns with natural bonus (removed redundant final rating)
+        span_commands = [
+            ('SPAN', (0,0), (3,0)),
+            ('SPAN', (4,0), (7,0)),
+            ('SPAN', (8,0), (12,0)),
+        ]
+    else:
+        # Non-2023: 12 columns without natural bonus
+        span_commands = [
+            ('SPAN', (0,0), (3,0)),
+            ('SPAN', (4,0), (7,0)),
+            ('SPAN', (8,0), (11,0)),
+        ]
+    
+    base_styles = [
         ('BACKGROUND', (0,0), (-1,0), COLORS['primary_blue']),
         ('TEXTCOLOR', (0,0), (-1,0), COLORS['white']),
         ('ALIGN', (0,0), (-1,0), 'CENTER'),
         ('VALIGN', (0,0), (-1,0), 'MIDDLE'),
         ('FONTNAME', (0,0), (-1,0), FONTS['table_header']),
-        ('FONTSIZE', (0,0), (-1,0), FONT_SIZES['table_header']),
+        ('FONTSIZE', (0,0), (-1,0), 8),  # Reduced from FONT_SIZES['table_header']
 
         ('BACKGROUND', (0,1), (-1,1), COLORS['secondary_blue']),
         ('TEXTCOLOR', (0,1), (-1,1), COLORS['dark_gray']),
         ('ALIGN', (0,1), (-1,1), 'CENTER'),
         ('VALIGN', (0,1), (-1,1), 'MIDDLE'),
         ('FONTNAME', (0,1), (-1,1), FONTS['table_header']),
-        ('FONTSIZE', (0,1), (-1,1), FONT_SIZES['table_body']),
-
-        ('SPAN', (0,0), (4,0)),
-        ('SPAN', (5,0), (8,0)),
-        ('SPAN', (9,0), (12,0)),
+        ('FONTSIZE', (0,1), (-1,1), 8),  # Header row 2
+    ]
+    
+    return TableStyle(base_styles + span_commands + [
 
         ('FONTNAME', (0,2), (-1,-1), FONTS['table_body']),
-        ('FONTSIZE', (0,2), (-1,-1), FONT_SIZES['table_body']),
+        ('FONTSIZE', (0,2), (-1,-1), 7),  # Data rows
         ('ALIGN', (0,2), (-1,-1), 'CENTER'),
         ('VALIGN', (0,2), (-1,-1), 'MIDDLE'),
         ('TEXTCOLOR', (0,2), (-1,-1), COLORS['dark_gray']),
+        
+        # Add padding for better readability
+        ('LEFTPADDING', (0,0), (-1,-1), 4),
+        ('RIGHTPADDING', (0,0), (-1,-1), 4),
+        ('TOPPADDING', (0,0), (-1,-1), 3),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
 
         ('ROWBACKGROUNDS', (0,2), (-1,-1), [COLORS['white'], COLORS['light_blue']]),
 
@@ -111,10 +132,10 @@ def _get_table_style():
         ('GRID', (0,2), (-1,-1), 0.5, COLORS['border_gray']),
         ('BOX', (0,0), (-1,-1), 1, COLORS['medium_gray']),
 
-        ('LEFTPADDING', (0,0), (-1,-1), 6),
-        ('RIGHTPADDING', (0,0), (-1,-1), 6),
-        ('TOPPADDING', (0,0), (-1,-1), 4),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('LEFTPADDING', (0,0), (-1,-1), 3),  # Reduced from 6
+        ('RIGHTPADDING', (0,0), (-1,-1), 3),  # Reduced from 6
+        ('TOPPADDING', (0,0), (-1,-1), 2),   # Reduced from 4
+        ('BOTTOMPADDING', (0,0), (-1,-1), 2),  # Reduced from 4
     ])
 
 def _format_number(value):
@@ -282,12 +303,26 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
     # Check if this is office ISO
     is_office_iso = isinstance(model_year, str) and 'office' in model_year.lower()
     
+    # Track processed groups to avoid double-counting expanded zones
+    processed_groups = set()
+    
     for row in raw_table_data:
-        # For office ISO: group by zone_id, for others: group by floor/area
+        # For office ISO: group by zone_id, for others: use parser group key
         if is_office_iso:
             group_key = str(row.get('zone_id', 'N/A'))
         else:
-            group_key = (str(row.get('floor_id_report', 'N/A')), str(row.get('area_id_report', 'N/A')))
+            # Use the group key from parser if available, otherwise use zone name as fallback
+            parser_group_key = row.get('group_key')
+            if parser_group_key:
+                group_key = str(parser_group_key)
+            else:
+                # Fallback for individual zones not in any group
+                group_key = str(row.get('zone_name_report', 'N/A'))
+        
+        # Skip if we already processed this group (to avoid double-counting expanded zones)
+        if group_key in processed_groups:
+            continue
+        processed_groups.add(group_key)
             
         if group_key not in grouped_data:
             grouped_data[group_key] = {
@@ -295,7 +330,8 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
                 'sum_total_area': 0.0,
                 'model_csv_area_description': row.get('model_csv_area_description'),
                 'area_effective_for_numerator': 0.0,
-                'raw_zone_area_sum_for_denominator': 0.0,                'calculated_score': None
+                'raw_zone_area_sum_for_denominator': 0.0,
+                'calculated_score': None
             }
 
         zone_area = safe_float(row.get('total_area', 0))
@@ -652,9 +688,12 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
     Creates the energy rating table as a ReportLab Table object.
     Returns Table object or None if no data.
     """
+    logger.info(f"_energy_rating_table called with model_year={model_year}, model_area_definition={model_area_definition}, city={selected_city_name}")
     raw_table_data = energy_rating_parser.get_energy_rating_table_data(model_year)
+    logger.info(f"_energy_rating_table got {len(raw_table_data) if raw_table_data else 0} rows from parser")
 
     if not raw_table_data:
+        logger.warning("_energy_rating_table: No raw table data available")
         return None
 
     def sort_key(item):
@@ -668,33 +707,39 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
             else:
                 floor_sort_val = (1, hash(str(floor_val)) % 999999)  # Non-numeric as hash
 
-        # Secondary sort: Area ID (numeric first, then alphabetic)
-        area_id_val = item.get('area_id_report', '')
-        try:
-            area_sort_val = (0, int(area_id_val)) if area_id_val else (1, 999999)
-        except ValueError:
-            if area_id_val == '':
-                area_sort_val = (1, 999999)  # Empty values last
-            else:
-                area_sort_val = (1, hash(str(area_id_val)) % 999999)  # Non-numeric as hash
-
-        # Tertiary sort: Zone ID for consistency (always string, use hash for numeric comparison)
+        # Secondary sort: Zone ID for consistency (always string, use hash for numeric comparison)
         zone_id_val = item.get('zone_id', '')
         zone_sort_val = (0, hash(str(zone_id_val)) % 999999)
         
-        return (floor_sort_val, area_sort_val, zone_sort_val)
+        return (floor_sort_val, zone_sort_val)
 
     raw_table_data.sort(key=sort_key)
 
-    header_row1 = [
-        "Building Details", None, None, None, None,
-        "Energy Consumption per Meter", None, None, None,
-        "Summary and Calculation by 5282", None, None, None
-    ]
-    header_row2 = [
-        "Floor", "Area id", "Zone id", "Zone area", "Zone multiplier",
-        "Lighting", "Cooling", "Heating", "Sum",
-        "Energy consumption", "Improve by %", "Energy rating", "Area score"    ]
+    # Dynamic headers based on model year
+    if model_year == 2023:
+        # 2023: Include natural bonus and final rating columns
+        header_row1 = [
+            "Building Details", None, None, None,
+            "Energy Consumption per Meter", None, None, None,
+            "Summary and Calculation by 5282", None, None, None, None
+        ]
+        header_row2 = [
+            "Floor", "Zone", "Area", "Mult.",
+            "Light.", "Cool.", "Heat.", "Sum",
+            "Energy Cons.", "Improve %", "Score", "Nat. Bonus", "Rating"
+        ]
+    else:
+        # Non-2023: Standard columns without natural bonus
+        header_row1 = [
+            "Building Details", None, None, None,
+            "Energy Consumption per Meter", None, None, None,
+            "Summary and Calculation by 5282", None, None, None
+        ]
+        header_row2 = [
+            "Floor", "Zone", "Area", "Mult.",
+            "Light.", "Cool.", "Heat.", "Sum",
+            "Energy Cons.", "Improve %", "Score", "Rating"
+        ]
     table_content = [header_row1, header_row2]
 
     span_commands = []
@@ -712,13 +757,28 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
         # Check if this is office ISO
         is_office_iso = isinstance(model_year, str) and 'office' in model_year.lower()
         
+        # Calculate group sums by accumulating individual zone values
+        group_sums_for_display_accumulator = {}
+        group_total_floor_areas_accumulator = {}
+        
         for row_dict in raw_table_data:
-            # For office ISO: group by zone_id, for others: group by floor/area
+            # For office ISO: group by zone_id, for others: group by actual group key from parser
             if is_office_iso:
                 item_group_key_for_sum = str(row_dict.get('zone_id', 'N/A'))
             else:
-                item_group_key_for_sum = (str(row_dict.get('floor_id_report','N/A')), str(row_dict.get('area_id_report','N/A')))
-            # For 2023, exclude lighting from energy calculations
+                # Use the group key from parser if available, otherwise use zone name as fallback
+                group_key_from_parser = row_dict.get('group_key')
+                zone_name = row_dict.get('zone_name_report', 'N/A')
+                logger.info(f"GENERATOR SUM DEBUG - Zone: '{zone_name}', group_key_from_parser: {group_key_from_parser}")
+                if group_key_from_parser:
+                    item_group_key_for_sum = str(group_key_from_parser)
+                    logger.info(f"GENERATOR SUM DEBUG - Using group key: '{item_group_key_for_sum}' for zone '{zone_name}'")
+                else:
+                    # Fallback for individual zones not in any group
+                    item_group_key_for_sum = str(row_dict.get('zone_name_report', 'N/A'))
+                    logger.info(f"GENERATOR SUM DEBUG - Using fallback (zone name): '{item_group_key_for_sum}' for zone '{zone_name}'")
+            
+            # Calculate individual zone energy sum
             if model_year == 2023:
                 current_row_energy_sum = safe_float(row_dict.get('cooling', 0.0)) + \
                                          safe_float(row_dict.get('heating', 0.0))
@@ -726,18 +786,40 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
                 current_row_energy_sum = safe_float(row_dict.get('lighting', 0.0)) + \
                                          safe_float(row_dict.get('cooling', 0.0)) + \
                                          safe_float(row_dict.get('heating', 0.0))
-            group_sums_for_display[item_group_key_for_sum] = group_sums_for_display.get(item_group_key_for_sum, 0.0) + current_row_energy_sum
-            group_total_floor_areas[item_group_key_for_sum] = group_total_floor_areas.get(item_group_key_for_sum, 0.0) + safe_float(row_dict.get('total_area', 0.0))
+            
+            # Accumulate sums for the group
+            if item_group_key_for_sum not in group_sums_for_display_accumulator:
+                group_sums_for_display_accumulator[item_group_key_for_sum] = 0.0
+                group_total_floor_areas_accumulator[item_group_key_for_sum] = 0.0
+            
+            group_sums_for_display_accumulator[item_group_key_for_sum] += current_row_energy_sum
+            group_total_floor_areas_accumulator[item_group_key_for_sum] += safe_float(row_dict.get('total_area', 0.0))
+        
+        # Use the accumulated values
+        group_sums_for_display = group_sums_for_display_accumulator
+        group_total_floor_areas = group_total_floor_areas_accumulator
 
+    # Dictionary to store calculated group values
+    group_calculations = {}
     current_group_key = None
     group_start_pdf_row_index_in_table_content = -1
 
     for i, row_dict in enumerate(raw_table_data):
-        # For office ISO: group by zone_id, for others: group by floor/area
+        # For office ISO: group by zone_id, for others: group by actual group key from parser
         if is_office_iso:
             item_group_key = str(row_dict.get('zone_id', 'N/A'))
         else:
-            item_group_key = (str(row_dict.get('floor_id_report','N/A')), str(row_dict.get('area_id_report','N/A')))
+            # Use the group key from parser if available, otherwise use zone name as fallback
+            group_key_from_parser = row_dict.get('group_key')
+            zone_name = row_dict.get('zone_name_report', 'N/A')
+            logger.info(f"GENERATOR MAIN DEBUG - Zone: '{zone_name}', group_key_from_parser: {group_key_from_parser}")
+            if group_key_from_parser:
+                item_group_key = str(group_key_from_parser)
+                logger.info(f"GENERATOR MAIN DEBUG - Using group key: '{item_group_key}' for zone '{zone_name}'")
+            else:
+                # Fallback for individual zones not in any group
+                item_group_key = str(row_dict.get('zone_name_report', 'N/A'))
+                logger.info(f"GENERATOR MAIN DEBUG - Using fallback (zone name): '{item_group_key}' for zone '{zone_name}'")
 
         display_sum_for_row = ""
         display_energy_consump = ""
@@ -745,15 +827,35 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
         display_energy_rating = ""
         display_area_rating = ""
         display_floor_id = str(row_dict.get('floor_id_report', ''))
-        display_area_id = str(row_dict.get('area_id_report', ''))
 
-        if item_group_key != current_group_key:
+        # Check if we already calculated this group
+        logger.info(f"CALC DEBUG - Zone: '{zone_name}', item_group_key: '{item_group_key}', current_group_key: '{current_group_key}'")
+        logger.info(f"CALC DEBUG - item_group_key in group_calculations: {item_group_key in group_calculations}")
+        logger.info(f"CALC DEBUG - item_group_key != current_group_key: {item_group_key != current_group_key}")
+        
+        if item_group_key in group_calculations:
+            logger.info(f"CALC DEBUG - Using cached calculations for group '{item_group_key}'")
+            # Don't show sum for subsequent zones in group
+            display_sum_for_row = ""
+            
+            # Use pre-calculated group values for other columns
+            display_energy_consump = group_calculations[item_group_key]['energy_consump']
+            display_improve_by = group_calculations[item_group_key]['improve_by']
+            display_energy_rating = group_calculations[item_group_key]['energy_rating']
+            display_area_rating = group_calculations[item_group_key]['area_rating']
+            display_floor_id = ""  # Don't repeat floor ID for subsequent zones
+        elif item_group_key != current_group_key:
+            logger.info(f"CALC DEBUG - New group detected. Calculating for group '{item_group_key}'")  
             if current_group_key is not None:
                 num_rows_in_prev_group = i - group_start_pdf_row_index_in_table_content
                 if num_rows_in_prev_group > 1:
                     start_span_pdf_row = pdf_data_start_row + group_start_pdf_row_index_in_table_content
                     end_span_pdf_row = pdf_data_start_row + i - 1
-                    columns_to_span = [0, 1] + list(range(8, 13))
+                    # Dynamic column spans based on model year
+                    if model_year == 2023:
+                        columns_to_span = [0] + list(range(7, 13))  # 13 columns for 2023 (removed redundant final rating)
+                    else:
+                        columns_to_span = [0] + list(range(7, 12))  # 12 columns for non-2023
                     for col_idx in columns_to_span:
                         span_commands.append(('SPAN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row)))
                         span_commands.append(('VALIGN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row), 'MIDDLE'))
@@ -762,7 +864,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
             group_start_pdf_row_index_in_table_content = i
 
             current_group_actual_sum = group_sums_for_display.get(current_group_key, 0.0)
-            display_sum_for_row = _format_number(current_group_actual_sum)
+            display_sum_for_row = _format_number(current_group_actual_sum)  # Show group sum only for first zone
 
             numeric_energy_consumption = None
             calculated_improve_by_value = None  # Initialize at the beginning to avoid UnboundLocalError
@@ -852,7 +954,8 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
                                 break
                     elif not climate_zone_lookup_key:
                         logger.warning(f"ReportGen _energy_rating_table: Could not map model_area_definition '{model_area_definition}' to a known climate zone. Rating/Score will be N/A.")
-                    else:                        logger.warning(f"ReportGen _energy_rating_table: Climate zone '{climate_zone_lookup_key}' (from model_area_definition '{model_area_definition}') not found in ENERGY_RATING_DATA_2017 for year {model_year}. Rating/Score will be N/A.")
+                    else:
+                        logger.warning(f"ReportGen _energy_rating_table: Climate zone '{climate_zone_lookup_key}' (from model_area_definition '{model_area_definition}') not found in ENERGY_RATING_DATA_2017 for year {model_year}. Rating/Score will be N/A.")
                 elif model_year == 2023:
                     # 2023 uses universal thresholds, no climate zone mapping needed
                     thresholds = ENERGY_RATING_DATA_2023
@@ -883,19 +986,34 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
 
             if isinstance(calculated_improve_by_value, (int, float)):
                  display_improve_by = _format_number(calculated_improve_by_value)
+            
+            # Store calculated group values for reuse by other zones in the same group
+            group_calculations[item_group_key] = {
+                'sum_for_row': display_sum_for_row,
+                'energy_consump': display_energy_consump,
+                'improve_by': display_improve_by,
+                'energy_rating': display_energy_rating,
+                'area_rating': display_area_rating
+            }
 
         else:
             display_floor_id = ""
-            display_area_id = ""
-            display_sum_for_row = ""
+            # For individual zones (not in groups), calculate their own sum
+            if model_year == 2023:
+                individual_sum = safe_float(row_dict.get('cooling', 0.0)) + safe_float(row_dict.get('heating', 0.0))
+            else:
+                individual_sum = safe_float(row_dict.get('lighting', 0.0)) + safe_float(row_dict.get('cooling', 0.0)) + safe_float(row_dict.get('heating', 0.0))
+            display_sum_for_row = _format_number(individual_sum)
+            
             display_energy_consump = ""
             display_improve_by = ""
             display_energy_rating = ""
             display_area_rating = ""
-
-        table_content.append([
+        
+        
+        # Build base row content (common to all models)
+        row_content = [
             display_floor_id,
-            display_area_id,
             str(row_dict.get('zone_name_report', '')),
             _format_number(row_dict.get('total_area', 0)),
             str(row_dict.get('multiplier', '')),
@@ -905,22 +1023,76 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
             display_sum_for_row,
             display_energy_consump,
             display_improve_by,
-            display_energy_rating,
-            display_area_rating
-        ])
+            display_area_rating,  # Score column moved before bonus
+        ]
+        
+        # Add columns based on model year
+        if model_year == 2023:
+            # 2023: Add natural bonus, then rating at the end
+            # Format natural bonus to 2 decimal places
+            natural_bonus_value = row_dict.get('natural_bonus', 0.0)
+            display_natural_bonus = f"{float(natural_bonus_value):.2f}" if natural_bonus_value is not None else "0.00"
+            row_content.extend([display_natural_bonus, display_energy_rating])
+        else:
+            # Non-2023: Add rating at the end
+            row_content.append(display_energy_rating)
+
+        table_content.append(row_content)
 
     if current_group_key is not None and raw_table_data:
         num_rows_in_last_group = len(raw_table_data) - group_start_pdf_row_index_in_table_content
         if num_rows_in_last_group > 1:
             start_span_pdf_row = pdf_data_start_row + group_start_pdf_row_index_in_table_content
             end_span_pdf_row = pdf_data_start_row + len(raw_table_data) - 1
-            columns_to_span = [0, 1] + list(range(8, 13))
+            # Dynamic column spans based on model year
+            if model_year == 2023:
+                columns_to_span = [0] + list(range(7, 13))  # 13 columns for 2023 (removed redundant final rating)
+            else:
+                columns_to_span = [0] + list(range(7, 12))  # 12 columns for non-2023
             for col_idx in columns_to_span:
                 span_commands.append(('SPAN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row)))
                 span_commands.append(('VALIGN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row), 'MIDDLE'))
 
-    table = Table(table_content)
-    style = _get_table_style()
+    # Define column widths to fit landscape A4 page better
+    # Total landscape A4 width ≈ 29.7cm, minus margins ≈ 27cm available
+    
+    # Dynamic column widths based on model year
+    if model_year == 2023:
+        # 2023: 13 columns with natural bonus (removed redundant final rating)
+        col_widths = [
+            1.5*cm,  # Floor
+            3.0*cm,  # Zone id (increased from 2.0cm for long zone names)
+            1.8*cm,  # Zone area
+            1.2*cm,  # Zone multiplier
+            1.8*cm,  # Lighting
+            1.8*cm,  # Cooling
+            1.8*cm,  # Heating
+            1.8*cm,  # Sum
+            2.2*cm,  # Energy consumption
+            2.0*cm,  # Improve by %
+            1.5*cm,  # Area score
+            1.3*cm,  # Natural bonus
+            1.8*cm   # Energy rating (moved to end)
+        ]
+    else:
+        # Non-2023: 12 columns without natural bonus
+        col_widths = [
+            1.5*cm,  # Floor
+            3.0*cm,  # Zone id (increased from 2.0cm for long zone names)
+            1.8*cm,  # Zone area
+            1.2*cm,  # Zone multiplier
+            1.8*cm,  # Lighting
+            1.8*cm,  # Cooling
+            1.8*cm,  # Heating
+            1.8*cm,  # Sum
+            2.2*cm,  # Energy consumption
+            2.0*cm,  # Improve by %
+            1.5*cm,  # Area score
+            1.8*cm   # Energy rating (moved to end)
+        ]
+    
+    table = Table(table_content, colWidths=col_widths)
+    style = _get_table_style(model_year=model_year)
     for cmd in span_commands:
         style.add(*cmd)
     table.setStyle(style)
@@ -953,13 +1125,18 @@ class EnergyRatingReportGenerator:
         """
         Generate energy rating report PDF using ReportLab.
         """
+        logger.info(f"EnergyRatingReportGenerator.generate_report called with filename: {output_filename}")
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
         output_path = os.path.join(self.output_dir, output_filename)
+        logger.info(f"EnergyRatingReportGenerator output path: {output_path}")
 
         try:
+            logger.info(f"EnergyRatingReportGenerator: energy_rating_parser.processed = {self.energy_rating_parser.processed}")
             if not self.energy_rating_parser.processed:
+                logger.info("EnergyRatingReportGenerator: Processing energy rating parser output")
                 self.energy_rating_parser.process_output()
+                logger.info(f"EnergyRatingReportGenerator: After processing, energy_rating_parser.processed = {self.energy_rating_parser.processed}")
 
             doc = SimpleDocTemplate(output_path, pagesize=landscape(A4),
                                     leftMargin=self.margin, rightMargin=self.margin,
@@ -982,6 +1159,7 @@ class EnergyRatingReportGenerator:
             story.append(Paragraph(f"{report_title} Report", title_style))
             story.append(Spacer(1, 0.7*cm))
 
+            logger.info("EnergyRatingReportGenerator: Calling _energy_rating_table")
             energy_table = _energy_rating_table(
                 self.energy_rating_parser,
                 self.model_year,
@@ -989,8 +1167,13 @@ class EnergyRatingReportGenerator:
                 self.selected_city_name
             )
             if energy_table:
+                logger.info("EnergyRatingReportGenerator: Energy table generated successfully")
+                # Enable table splitting for large tables
+                energy_table.splitByRow = True
+                energy_table.repeatRows = 2  # Repeat header rows on each page
                 story.append(energy_table)
             else:
+                logger.warning("EnergyRatingReportGenerator: No energy table generated")
                 no_data_style = self.styles['Normal']
                 no_data_style.alignment = TA_CENTER
                 no_data_style.fontName = FONTS['body']
@@ -999,9 +1182,11 @@ class EnergyRatingReportGenerator:
                 story.append(Paragraph("No energy rating data available.", no_data_style))
 
             doc.build(story)
+            logger.info(f"EnergyRatingReportGenerator: Successfully generated report at {output_path}")
             return output_path
 
         except Exception as e:
+            logger.error(f"EnergyRatingReportGenerator: Error generating energy rating report: {e}", exc_info=True)
             raise RuntimeError(f"Error generating energy rating report: {e}")
 
     def generate_total_energy_rating_report(self, output_filename="total-energy-rating.pdf", settings_extractor=None):
@@ -1076,11 +1261,17 @@ class EnergyRatingReportGenerator:
             
             grouped_data = {}
             for row in raw_table_data:
-                # For office ISO: group by zone_id, for others: group by floor/area
+                # For office ISO: group by zone_id, for others: use parser group key
                 if is_office_iso:
                     group_key = str(row.get('zone_id', 'N/A'))
                 else:
-                    group_key = (str(row.get('floor_id_report', 'N/A')), str(row.get('area_id_report', 'N/A')))
+                    # Use the group key from parser if available, otherwise use zone name as fallback
+                    parser_group_key = row.get('group_key')
+                    if parser_group_key:
+                        group_key = str(parser_group_key)
+                    else:
+                        # Fallback for individual zones not in any group
+                        group_key = str(row.get('zone_name_report', 'N/A'))
                 if group_key not in grouped_data:
                     grouped_data[group_key] = {
                         'sum_energy_components': 0.0,

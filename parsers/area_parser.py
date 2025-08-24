@@ -975,14 +975,16 @@ class AreaParser:
 
     def _extract_base_zone_id(self, zone_id: str) -> str:
         """
-        Extract the base zone identifier for grouping related zones.
-        For zones like '25:A338XLIV' and '25:A338XMMD', returns '25:A338'
-        This groups zones that share the same floor, area, and zone number.
+        Use standardized zone grouping logic from data_loader.
         """
-        if ":" not in zone_id:
-            return zone_id
-        
         try:
+            from utils.data_loader import get_zone_grouping_key
+            return get_zone_grouping_key(zone_id)
+        except Exception as e:
+            # Fallback to original logic if import fails
+            if ":" not in zone_id:
+                return zone_id
+            
             parts = zone_id.split(":", 1)
             if len(parts) < 2:
                 return zone_id
@@ -996,9 +998,6 @@ class AreaParser:
                 base_zone_part = zone_part[:x_index]
                 return f"{floor_part}:{base_zone_part}"
             
-            return zone_id
-        except Exception as e:
-            pass
             return zone_id
 
     def _extract_area_id_enhanced(self, zone_id: str) -> str:
