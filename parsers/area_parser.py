@@ -1003,13 +1003,25 @@ class AreaParser:
 
     def _extract_area_id_enhanced(self, zone_id: str) -> str:
         """
-        Enhanced area_id extraction that handles various zone naming patterns.
-        For zones like '25:A338XLIV', extracts 'A338' as the area_id.
+        Enhanced area_id extraction using new generalized grouping rules.
+        Uses the DataLoader's zone grouping logic for consistency.
         """
-        if ":" not in zone_id:
-            return "unknown"
-        
         try:
+            # Use the new zone group key logic from DataLoader
+            group_key = self.data_loader.get_zone_group_key(zone_id)
+            
+            # If it's a single zone (no grouping), use the full zone_id as area_id
+            if group_key.endswith('_single'):
+                return group_key[:-7]  # Remove '_single' suffix
+            else:
+                # For grouped zones, use the group key as area_id
+                return group_key
+                
+        except Exception as e:
+            # Fallback to original logic if there's any error
+            if ":" not in zone_id:
+                return "unknown"
+            
             parts = zone_id.split(":", 1)
             if len(parts) < 2 or not parts[1]:
                 return "unknown"
@@ -1030,30 +1042,27 @@ class AreaParser:
                 return zone_part
                 
             return "unknown"
-        except Exception as e:
-            pass
-            return "unknown"
 
     def get_area_groupings_by_base_zone(self) -> Dict[str, List[str]]:
         """
-        Get groupings of zones by their base zone identifier.
-        Returns a dictionary where keys are base zone IDs and values are lists of full zone IDs.
-        This ensures zones like '25:A338XLIV' and '25:A338XMMD' are grouped together under '25:A338'.
+        Get groupings of zones using new generalized grouping rules.
+        Returns a dictionary where keys are group keys and values are lists of full zone IDs.
+        Uses the new zone grouping logic from DataLoader.
         """
         if not self.processed:
-            pass
             return {}
         
         try:
             base_zone_groupings = {}
             
             for zone_id, zone_data in self.areas_by_zone.items():
-                base_zone_id = zone_data.get("base_zone_id", zone_id)
+                # Use the new zone group key logic
+                group_key = self.data_loader.get_zone_group_key(zone_id)
                 
-                if base_zone_id not in base_zone_groupings:
-                    base_zone_groupings[base_zone_id] = []
+                if group_key not in base_zone_groupings:
+                    base_zone_groupings[group_key] = []
                 
-                base_zone_groupings[base_zone_id].append(zone_id)
+                base_zone_groupings[group_key].append(zone_id)
             
             pass
             

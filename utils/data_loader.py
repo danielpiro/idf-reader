@@ -1354,13 +1354,70 @@ class DataLoader:
         return settings
 
     def _extract_area_id(self, zone_id: str) -> Optional[str]:
-        """Extract area_id from a zone_id string."""
+        """Extract area_id from a zone_id string using legacy logic for backward compatibility."""
         split = zone_id.split(":", 1)
         if len(split) > 1 and split[1]:
             if AREA_ID_REGEX.match(split[1]):
                 return split[1][:2]
             return split[1]
         return None
+    
+    def get_zone_group_key(self, zone_id: str) -> str:
+        """
+        Get a group key for zone grouping based on new generalized rules.
+        
+        Rules:
+        1. A:BXC or A:B_C - group by A part and B part (before X or _)
+        2. A:B or A - no grouping (each zone is its own group)
+        
+        Examples:
+        - '01:324_mgnsdsd' and '01:324_asdasfa' -> both get group key '01:324'
+        - '01:324Xnsadn' and '01:324_knsad' -> no grouping (different patterns)
+        - '02:322Xasdasd' and '02:321Xasedasd' -> no grouping (different B parts)
+        - '02:123' -> group key '02:123_single' (no grouping)
+        - '02' -> group key '02_single' (no grouping)
+        """
+        if not zone_id:
+            return "unknown"
+        
+        # Split by colon
+        parts = zone_id.split(":", 1)
+        
+        if len(parts) == 1:
+            # Case: A - no grouping
+            return f"{parts[0]}_single"
+        
+        a_part = parts[0]
+        b_full = parts[1]
+        
+        if not b_full:
+            return f"{a_part}_single"
+        
+        # Check if this is a pattern that should be grouped
+        has_x = 'X' in b_full
+        has_underscore = '_' in b_full
+        
+        if has_x or has_underscore:
+            # Case: A:BXC or A:B_C - extract B part for grouping
+            # But keep pattern type separate so X and _ patterns don't group together
+            if has_x:
+                separator_index = b_full.find('X')
+                b_part = b_full[:separator_index]
+                pattern_type = 'X'
+            else:  # has_underscore
+                separator_index = b_full.find('_')
+                b_part = b_full[:separator_index]
+                pattern_type = '_'
+            
+            if b_part:
+                # This can be grouped - return A:B with pattern type to separate X from _
+                return f"{a_part}:{b_part}{pattern_type}"
+            else:
+                # Edge case: no B part before separator
+                return f"{zone_id}_single"
+        else:
+            # Case: A:B - no grouping
+            return f"{zone_id}_single"
 
     def _is_hvac_indicator(self, schedule_id: str, schedule_type: str) -> bool:
         """Determine if a schedule indicates an HVAC zone."""
