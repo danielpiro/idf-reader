@@ -648,12 +648,18 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
             largest_ext_wall_area = 0.0
             largest_ext_wall_construction = None
 
+            logger.info(f"[WALL_MASS_DEBUG] Starting wall mass calculation for area '{area_id}'")
+            logger.info(f"[WALL_MASS_DEBUG] Found {len(merged_rows)} construction rows to analyze")
+
             external_wall_candidates = []
             for row in merged_rows:
                 raw_element_type = row.get('element_type', '')
                 cleaned_type_str = _clean_element_type(raw_element_type).lower()
                 current_area = row.get('area', 0.0)
                 construction_name = row.get('construction', '')
+
+                logger.info(f"[WALL_MASS_DEBUG] Analyzing construction '{construction_name}': "
+                           f"type='{cleaned_type_str}', area={current_area}")
 
                 if 'external wall' in cleaned_type_str:
                     external_wall_candidates.append({
@@ -664,18 +670,33 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                     })
                     
                     if current_area > largest_ext_wall_area:
+                        logger.info(f"[WALL_MASS_DEBUG] New largest external wall found: "
+                                   f"'{construction_name}' with area {current_area} > {largest_ext_wall_area}")
                         largest_ext_wall_area = current_area
                         largest_ext_wall_construction = construction_name
 
+            logger.info(f"[WALL_MASS_DEBUG] External wall analysis complete:")
+            logger.info(f"[WALL_MASS_DEBUG] - Found {len(external_wall_candidates)} external wall constructions")
+            logger.info(f"[WALL_MASS_DEBUG] - Largest external wall: '{largest_ext_wall_construction}' with area {largest_ext_wall_area}")
+            
+            if external_wall_candidates:
+                logger.info("[WALL_MASS_DEBUG] All external wall candidates:")
+                for candidate in sorted(external_wall_candidates, key=lambda x: x['area'], reverse=True):
+                    logger.info(f"[WALL_MASS_DEBUG]   - {candidate['construction']}: {candidate['area']} m² in zone {candidate['zone']}")
+
             if largest_ext_wall_construction and materials_parser:
                 try:
+                    logger.info(f"[WALL_MASS_DEBUG] Calculating mass for construction '{largest_ext_wall_construction}'")
                     wall_mass_per_area = materials_parser.calculate_construction_mass_per_area(largest_ext_wall_construction)
+                    logger.info(f"[WALL_MASS_DEBUG] Calculated wall mass: {wall_mass_per_area} kg/m²")
                 except Exception as e_mass:
                     logger.warning(f"Error calculating wall mass for area '{area_id}', construction '{largest_ext_wall_construction}': {e_mass}", exc_info=True)
+                    logger.info(f"[WALL_MASS_DEBUG] Mass calculation failed: {e_mass}")
             elif largest_ext_wall_construction:
                 logger.warning(f"Materials parser not available to calculate wall mass for construction '{largest_ext_wall_construction}'")
+                logger.info("[WALL_MASS_DEBUG] No materials parser available for mass calculation")
             else:
-                pass
+                logger.info("[WALL_MASS_DEBUG] No external wall construction found for mass calculation")
 
             location = area_locations.get(area_id, "Unknown")
 
@@ -828,6 +849,8 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
             largest_ext_wall_area = 0.0
             largest_ext_wall_construction = None
 
+            logger.info(f"[WALL_MASS_DEBUG] Starting wall mass calculation for base zone '{base_zone_id}'")
+            logger.info(f"[WALL_MASS_DEBUG] Found {len(merged_rows)} construction rows to analyze")
 
             external_wall_candidates = []
             for row in merged_rows:
@@ -836,6 +859,8 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
                 current_area = row.get('area', 0.0)
                 construction_name = row.get('construction', '')
 
+                logger.info(f"[WALL_MASS_DEBUG] Analyzing construction '{construction_name}': "
+                           f"type='{cleaned_type_str}', area={current_area}")
 
                 if 'external wall' in cleaned_type_str:
                     external_wall_candidates.append({
@@ -846,15 +871,33 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
                     })
                     
                     if current_area > largest_ext_wall_area:
+                        logger.info(f"[WALL_MASS_DEBUG] New largest external wall found: "
+                                   f"'{construction_name}' with area {current_area} > {largest_ext_wall_area}")
                         largest_ext_wall_area = current_area
                         largest_ext_wall_construction = construction_name
 
+            logger.info(f"[WALL_MASS_DEBUG] External wall analysis complete:")
+            logger.info(f"[WALL_MASS_DEBUG] - Found {len(external_wall_candidates)} external wall constructions")
+            logger.info(f"[WALL_MASS_DEBUG] - Largest external wall: '{largest_ext_wall_construction}' with area {largest_ext_wall_area}")
+            
+            if external_wall_candidates:
+                logger.info("[WALL_MASS_DEBUG] All external wall candidates:")
+                for candidate in sorted(external_wall_candidates, key=lambda x: x['area'], reverse=True):
+                    logger.info(f"[WALL_MASS_DEBUG]   - {candidate['construction']}: {candidate['area']} m² in zone {candidate['zone']}")
+
             if largest_ext_wall_construction and materials_parser:
                 try:
+                    logger.info(f"[WALL_MASS_DEBUG] Calculating mass for construction '{largest_ext_wall_construction}'")
                     wall_mass_per_area = materials_parser.calculate_construction_mass_per_area(largest_ext_wall_construction)
+                    logger.info(f"[WALL_MASS_DEBUG] Calculated wall mass: {wall_mass_per_area} kg/m²")
                 except Exception as e_mass:
                     logger.warning(f"Error calculating mass per area for construction '{largest_ext_wall_construction}' in base zone '{base_zone_id}': {e_mass}")
+                    logger.info(f"[WALL_MASS_DEBUG] Mass calculation failed: {e_mass}")
                     wall_mass_per_area = 0.0
+            elif largest_ext_wall_construction:
+                logger.info("[WALL_MASS_DEBUG] No materials parser available for mass calculation")
+            else:
+                logger.info("[WALL_MASS_DEBUG] No external wall construction found for mass calculation")
 
             # Determine location (use first area_id from zones in this base zone)
             location = "Unknown"

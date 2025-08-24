@@ -248,131 +248,6 @@ class ScheduleCompatibilityWrapper(IDFObjectCompatibilityWrapper):
 
 AREA_ID_REGEX = re.compile(r"^\d{2}")
 
-def get_zone_grouping_info(zone_id: str) -> dict:
-    """Get zone grouping information with strict pattern matching.
-    
-    STRICT Rules:
-    - Format a*:bX* -> Must have ALL: a (non-empty), :, b (non-empty), X
-    - Format a*:b_* -> Must have ALL: a (non-empty), :, b (non-empty), _
-    
-    If ANY component is missing, no grouping occurs.
-    
-    Examples:
-    - OFFICE:PARTX1 -> a=OFFICE, b=PART (has a,:,b,X ✓)
-    - BUILDING:ZONE_A -> a=BUILDING, b=ZONE (has a,:,b,_ ✓) 
-    - GRXEX:W -> No grouping (missing X or _ in zone part ✗)
-    - BLOCK80:ZONE1 -> No grouping (missing X or _ in zone part ✗)
-    
-    Returns dict with:
-    - 'a_part': The 'a' component for matching  
-    - 'b_part': The 'b' component for grouping
-    - 'can_group': Whether this zone can potentially be grouped
-    - 'full_zone_id': Original zone ID
-    """
-    # Must have colon
-    if ":" not in zone_id:
-        return {
-            'a_part': None,
-            'b_part': None, 
-            'can_group': False,
-            'full_zone_id': zone_id
-        }
-        
-    parts = zone_id.split(":", 1)
-    if len(parts) != 2:
-        return {
-            'a_part': None,
-            'b_part': None,
-            'can_group': False,
-            'full_zone_id': zone_id
-        }
-        
-    a_part = parts[0]    # 'a*' part (entire prefix)
-    zone_part = parts[1] # Part after colon
-    
-    # a_part must be non-empty
-    if not a_part:
-        return {
-            'a_part': None,
-            'b_part': None,
-            'can_group': False,
-            'full_zone_id': zone_id
-        }
-    
-    # Check for STRICT a*:bX* pattern (must have a, :, b, X)
-    if "X" in zone_part:
-        x_index = zone_part.find("X")
-        b_part = zone_part[:x_index]  # Part before X
-        
-        # b_part must be non-empty for valid pattern
-        if b_part:
-            return {
-                'a_part': a_part,
-                'b_part': b_part,
-                'can_group': True,
-                'full_zone_id': zone_id
-            }
-    
-    # Check for STRICT a*:b_* pattern (must have a, :, b, _)
-    if "_" in zone_part:
-        underscore_index = zone_part.find("_")
-        b_part = zone_part[:underscore_index]  # Part before underscore
-        
-        # b_part must be non-empty for valid pattern
-        if b_part:
-            return {
-                'a_part': a_part,
-                'b_part': b_part,
-                'can_group': True,
-                'full_zone_id': zone_id
-            }
-    
-    # No valid groupable pattern found
-    # Missing required components (no X or _ in zone_part, or empty b_part)
-    return {
-        'a_part': None,
-        'b_part': None,
-        'can_group': False,
-        'full_zone_id': zone_id
-    }
-
-def determine_zone_groupings(all_zones: dict) -> dict:
-    """Determine which zones should actually be grouped based on matching a and b parts.
-    
-    Returns dict where:
-    - Key: b_part (grouping key) 
-    - Value: list of zone_ids that belong to this group
-    """
-    # First, analyze all zones
-    zone_info = {}
-    potential_groups = {}
-    
-    for zone_id in all_zones.keys():
-        info = get_zone_grouping_info(zone_id)
-        zone_info[zone_id] = info
-        
-        if info['can_group']:
-            # Create key from a+b parts to find matches
-            ab_key = f"{info['a_part']}:{info['b_part']}"
-            if ab_key not in potential_groups:
-                potential_groups[ab_key] = []
-            potential_groups[ab_key].append(zone_id)
-    
-    # Only create groups where we have 2+ zones with matching a and b
-    actual_groups = {}
-    for ab_key, zone_list in potential_groups.items():
-        if len(zone_list) >= 2:
-            # Multiple zones with same a and b -> use ab_key as group identifier
-            # This ensures each unique a:b combination gets its own group
-            actual_groups[ab_key] = zone_list
-    
-    return actual_groups
-
-def get_zone_grouping_key(zone_id: str) -> str:
-    """DEPRECATED: For backward compatibility. Use get_zone_grouping_info instead."""
-    info = get_zone_grouping_info(zone_id)
-    return info['b_part'] if info['can_group'] and info['b_part'] else zone_id
-
 SETTINGS_OBJECT_TYPES = [
     "Version",
     "RunPeriod",
@@ -629,13 +504,9 @@ class DataLoader:
                     break
             
             area_id = self._extract_area_id(zone_id)
-            # Add grouping key for new zone structure rules
-            grouping_key = get_zone_grouping_key(zone_id)
-            
             self._zones_cache[zone_id] = {
                 'id': zone_id,
                 'name': zone_id,
-                'grouping_key': grouping_key,
                 'area_id': area_id,
                 'floor_area': safe_float(zone_data.get("floor_area", 0.0)),
                 'volume': safe_float(zone_data.get("volume", 0.0)),
@@ -1483,24 +1354,12 @@ class DataLoader:
         return settings
 
     def _extract_area_id(self, zone_id: str) -> Optional[str]:
-        """Extract area_id from a zone_id string using new grouping rules."""
+        """Extract area_id from a zone_id string."""
         split = zone_id.split(":", 1)
         if len(split) > 1 and split[1]:
-            zone_part = split[1]
-            
-            # New format: a*:bX* -> extract 'b' part for grouping
-            if "X" in zone_part:
-                x_index = zone_part.find("X")
-                area_candidate = zone_part[:x_index]
-                if area_candidate:
-                    return area_candidate
-            
-            # Format a*:b_* -> return full part (no grouping)
-            # Legacy numeric format: still supported
-            if AREA_ID_REGEX.match(zone_part):
-                return zone_part[:2]
-                
-            return zone_part
+            if AREA_ID_REGEX.match(split[1]):
+                return split[1][:2]
+            return split[1]
         return None
 
     def _is_hvac_indicator(self, schedule_id: str, schedule_type: str) -> bool:

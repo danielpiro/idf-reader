@@ -167,16 +167,10 @@ class ProcessingManager:
             A dictionary of initialized parser instances.
         """
         self.update_status("מאתחל מנתחים...")
-        # Create load parser first as it's needed by energy rating parser
-        load_parser = LoadExtractor(data_loader)
-        logger.info(f"=== Load parser initialization ===")
-        logger.info(f"LoadExtractor created: {load_parser is not None}")
-        logger.info(f"LoadExtractor type: {type(load_parser)}")
-        
         parsers = {
             "settings": SettingsExtractor(data_loader),
             "schedule": ScheduleExtractor(data_loader),
-            "load": load_parser,
+            "load": LoadExtractor(data_loader),
             "materials": MaterialsParser(data_loader),
             "glazing": GlazingParser(
                 constructions_glazing_cache=data_loader._constructions_glazing_cache,
@@ -192,15 +186,9 @@ class ProcessingManager:
             "area": area_parser_for_loss,
             "lighting": LightingParser(data_loader),
             "area_loss": AreaLossParser(area_parser_for_loss, city_area_name),
-            "energy_rating": EnergyRatingParser(data_loader, area_parser_for_loss, load_parser),
+            "energy_rating": EnergyRatingParser(data_loader, area_parser_for_loss),
             "automatic_error_detection": AutomaticErrorDetectionParser(data_loader, self._get_climate_zone_from_city_info(), area_parser_for_loss)
         }
-        
-        logger.info(f"=== Energy rating parser initialization ===")
-        logger.info(f"Passing load_parser to EnergyRatingParser: {load_parser is not None}")
-        energy_rating_parser = parsers["energy_rating"]
-        logger.info(f"EnergyRatingParser created: {energy_rating_parser is not None}")
-        logger.info(f"EnergyRatingParser.load_parser: {hasattr(energy_rating_parser, 'load_parser') and energy_rating_parser.load_parser is not None}")
         return parsers
 
     def _process_data_sources(self, parsers: dict, data_loader: DataLoader, simulation_output_csv: str):

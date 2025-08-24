@@ -1574,24 +1574,11 @@ class AutomaticErrorDetectionParser:
             logger.error(f"Exception in window direction validation: {e}", exc_info=True)
     
     def _extract_area_id_from_zone(self, zone_id):
-        """Extract area ID from zone name using standardized logic from data_loader."""
+        """Extract area ID from zone name using same logic as AreaParser."""
+        if ":" not in zone_id:
+            return "unknown"
+        
         try:
-            from utils.data_loader import get_zone_grouping_key
-            # Use standardized zone grouping key as area identifier
-            grouping_key = get_zone_grouping_key(zone_id)
-            if grouping_key and grouping_key != zone_id:
-                # If we have a valid grouping key that's different from zone_id, 
-                # extract area_id from it
-                if ":" in grouping_key:
-                    parts = grouping_key.split(":", 1)
-                    if len(parts) >= 2 and parts[1]:
-                        return parts[1]  # Return the 'b' part as area_id
-                return grouping_key
-            
-            # Fallback: extract area_id directly from zone_id for non-groupable zones
-            if ":" not in zone_id:
-                return "unknown"
-            
             parts = zone_id.split(":", 1)
             if len(parts) < 2 or not parts[1]:
                 return "unknown"
@@ -1605,35 +1592,14 @@ class AutomaticErrorDetectionParser:
                 if area_candidate and len(area_candidate) >= 2:
                     return area_candidate
             
-            # Additional fallback logic
+            # Fallback to original logic
             if len(zone_part) >= 2 and zone_part[:2].isdigit():
                 return zone_part[:2]
             elif zone_part:
                 return zone_part
                 
             return "unknown"
-        except Exception as e:
-            logger.debug(f"Error extracting area ID from zone {zone_id}: {e}")
-            # Final fallback - use original logic
-            if ":" not in zone_id:
-                return "unknown"
-            
-            try:
-                parts = zone_id.split(":", 1)
-                if len(parts) >= 2 and parts[1]:
-                    zone_part = parts[1]
-                    if "X" in zone_part:
-                        x_index = zone_part.find("X")
-                        area_candidate = zone_part[:x_index]
-                        if area_candidate and len(area_candidate) >= 2:
-                            return area_candidate
-                    if len(zone_part) >= 2 and zone_part[:2].isdigit():
-                        return zone_part[:2]
-                    elif zone_part:
-                        return zone_part
-            except Exception:
-                pass
-                
+        except Exception:
             return "unknown"
     
     def _extract_area_id_from_surface_name(self, surface_name):
