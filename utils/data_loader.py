@@ -83,10 +83,31 @@ def get_energy_consumption(iso_type_input: str, area_location_input: str, area_d
     except Exception as e:
         raise ValueError(f"Error reading or parsing CSV file {file_path}: {e}")
 
-    if area_location_input not in df.index:
+    # Use containment check for area_location_input - find index that contains the input
+    matched_index = None
+    if area_location_input in df.index:
+        # Exact match found
+        matched_index = area_location_input
+    else:
+        # Try containment check - find index that contains the area_location_input
+        for index_value in df.index:
+            if area_location_input in str(index_value):
+                matched_index = index_value
+                logger.info(f"CSV lookup: Found containment match '{matched_index}' for input '{area_location_input}'")
+                break
+        
+        # If no containment match, try reverse containment - find if input contains any index value
+        if not matched_index:
+            for index_value in df.index:
+                if str(index_value) in area_location_input:
+                    matched_index = index_value
+                    logger.info(f"CSV lookup: Found reverse containment match '{matched_index}' for input '{area_location_input}'")
+                    break
+    
+    if not matched_index:
         available_indices = list(df.index)
         if len(available_indices) > 20: available_indices = available_indices[:20] + ['...']
-        raise KeyError(f"Area location '{area_location_input}' not found in index of {file_path}. Available index values (sample): {available_indices}")
+        raise KeyError(f"Area location '{area_location_input}' not found in index of {file_path} (tried exact match and containment). Available index values (sample): {available_indices}")
 
     # Set target column based on year
     if year == 2023:
@@ -98,11 +119,12 @@ def get_energy_consumption(iso_type_input: str, area_location_input: str, area_d
         raise KeyError(f"Area definition column '{target_column}' not found in columns of {file_path}. Available columns: {list(df.columns)}")
 
     try:
-        value_str = df.loc[area_location_input, target_column]
+        value_str = df.loc[matched_index, target_column]
+        logger.info(f"CSV lookup successful: {matched_index}[{target_column}] = {value_str}")
     except KeyError as e:
-        raise KeyError(f"Data not found for location '{area_location_input}' and definition '{target_column}' in {file_path}. Original error: {e}")
+        raise KeyError(f"Data not found for location '{matched_index}' and definition '{target_column}' in {file_path}. Original error: {e}")
     except Exception as e:
-        raise RuntimeError(f"Unexpected error during data lookup in {file_path} for loc='{area_location_input}', col='{target_column}'. Error: {e}")
+        raise RuntimeError(f"Unexpected error during data lookup in {file_path} for loc='{matched_index}', col='{target_column}'. Error: {e}")
 
     try:
         result = float(value_str)
@@ -462,10 +484,11 @@ class DataLoader:
             self._cache_schedules()
             self._cache_zones()
             self._cache_surfaces()
+            self._calculate_zone_areas_and_volumes()  # Calculate after surfaces are cached
             self._cache_materials()
             self._build_all_materials_cache()
             self._cache_constructions()
-            self._cache_loads()
+            self._cache_loads()  # Cache loads after zone areas are calculated
             self._cache_window_shading_controls()
             self._cache_frame_dividers()
             self._cache_daylighting()
@@ -489,44 +512,160 @@ class DataLoader:
     def _cache_zones(self) -> None:
         """Cache raw zone data from EPJSON."""
         if not self._epjson_data:
+            logger.info("No EPJSON data available for zone caching")
             return
         
         self._zones_cache.clear()
         self._hvac_zones_cache.clear()
         
         zones = self._epjson_data.get('Zone', {})
+        logger.info(f"Caching zones: Found {len(zones)} zones in EPJSON data")
         
         for zone_id, zone_data in zones.items():
+            logger.info(f"Processing zone: {zone_id}")
+            
             # Check if this is an HVAC zone
+            hvac_found = False
             for schedule_id, schedule_data in self._schedules_cache.items():
                 if schedule_data['is_hvac_indicator'] and zone_id in schedule_id:
                     self._hvac_zones_cache.append(zone_id)
+                    logger.info(f"Zone {zone_id} identified as HVAC zone via schedule '{schedule_id}'")
+                    hvac_found = True
                     break
+                    
+            # Alternative: Check for direct HVAC equipment references
+            if not hvac_found:
+                hvac_equipment = self._epjson_data.get('ZoneHVAC:EquipmentConnections', {})
+                for equip_id, equip_data in hvac_equipment.items():
+                    if equip_data.get('zone_name') == zone_id:
+                        self._hvac_zones_cache.append(zone_id)
+                        logger.info(f"Zone {zone_id} identified as HVAC zone via equipment connection '{equip_id}'")
+                        hvac_found = True
+                        break
+                        
+            if not hvac_found:
+                logger.info(f"Zone {zone_id} not identified as HVAC zone")
             
+            # Extract area_id using legacy method for backward compatibility
             area_id = self._extract_area_id(zone_id)
+            
+            # Also get the new group key for debugging
+            group_key = self.get_zone_group_key(zone_id)
+            
+            logger.info(f"Zone {zone_id}: legacy area_id='{area_id}', new group_key='{group_key}'")
+            
+            # Get floor area directly from Zone object if available
+            zone_floor_area = safe_float(zone_data.get("floor_area", 0.0), 0.0)
+            zone_volume = safe_float(zone_data.get("volume", 0.0), 0.0)
+            
+            logger.info(f"Zone {zone_id}: Direct values from zone object - floor_area={zone_floor_area}, volume={zone_volume}")
+            
             self._zones_cache[zone_id] = {
                 'id': zone_id,
                 'name': zone_id,
                 'area_id': area_id,
-                'floor_area': safe_float(zone_data.get("floor_area", 0.0)),
-                'volume': safe_float(zone_data.get("volume", 0.0)),
+                'floor_area': zone_floor_area,  # Use direct zone floor area
+                'volume': zone_volume,          # Use direct zone volume
                 'multiplier': int(safe_float(zone_data.get("multiplier", 1))),
                 'raw_object': IDFObjectCompatibilityWrapper(zone_id, zone_data)
             }
+            
+        logger.info(f"Zone caching complete: {len(self._zones_cache)} zones cached, {len(self._hvac_zones_cache)} HVAC zones")
+
+    def _calculate_zone_areas_and_volumes(self) -> None:
+        """Calculate zone floor areas and volumes from surface data for zones that don't have direct values."""
+        if not self._surfaces_cache or not self._zones_cache:
+            return
+        
+        zones_to_calculate = []
+        zones_with_direct_values = []
+        
+        # Check which zones need calculation vs have direct values
+        for zone_id, zone_data in self._zones_cache.items():
+            if zone_data.get('floor_area', 0.0) > 0.0 or zone_data.get('volume', 0.0) > 0.0:
+                zones_with_direct_values.append(zone_id)
+            else:
+                zones_to_calculate.append(zone_id)
+        
+        logger.info(f"Zone area analysis: {len(zones_with_direct_values)} zones have direct values, {len(zones_to_calculate)} zones need calculation")
+        
+        if zones_to_calculate:
+            logger.info("Calculating zone floor areas and volumes from surfaces for zones without direct values")
+        
+        for zone_id in zones_to_calculate:
+            zone_data = self._zones_cache[zone_id]
+            floor_area = 0.0
+            ceiling_area = 0.0
+            floor_z_min = float('inf')
+            ceiling_z_max = float('-inf')
+            
+            # Find all surfaces belonging to this zone
+            zone_surfaces = []
+            for surface_id, surface_data in self._surfaces_cache.items():
+                if surface_data.get('zone_name') == zone_id:
+                    zone_surfaces.append(surface_data)
+            
+            # Calculate floor area and ceiling heights
+            for surface in zone_surfaces:
+                surface_type = surface.get('surface_type', '').lower()
+                surface_area = surface.get('area', 0.0)
+                
+                if surface_type == 'floor':
+                    floor_area += surface_area
+                    # Get minimum Z coordinate for floor level
+                    if 'raw_object' in surface and hasattr(surface['raw_object'], 'vertices'):
+                        vertices = surface['raw_object'].vertices
+                        for vertex in vertices:
+                            if isinstance(vertex, dict) and 'vertex_z_coordinate' in vertex:
+                                floor_z_min = min(floor_z_min, safe_float(vertex['vertex_z_coordinate']))
+                
+                elif surface_type in ['ceiling', 'roof']:
+                    ceiling_area += surface_area
+                    # Get maximum Z coordinate for ceiling level
+                    if 'raw_object' in surface and hasattr(surface['raw_object'], 'vertices'):
+                        vertices = surface['raw_object'].vertices
+                        for vertex in vertices:
+                            if isinstance(vertex, dict) and 'vertex_z_coordinate' in vertex:
+                                ceiling_z_max = max(ceiling_z_max, safe_float(vertex['vertex_z_coordinate']))
+            
+            # Calculate volume (floor area × height)
+            volume = 0.0
+            if floor_area > 0 and floor_z_min != float('inf') and ceiling_z_max != float('-inf'):
+                height = ceiling_z_max - floor_z_min
+                if height > 0:
+                    volume = floor_area * height
+            
+            # Update zone data
+            zone_data['floor_area'] = floor_area
+            zone_data['volume'] = volume
+            
+            if floor_area > 0 or volume > 0:
+                logger.info(f"Zone {zone_id}: calculated floor_area={floor_area:.2f}m², volume={volume:.2f}m³")
 
     def _cache_surfaces(self) -> None:
         """Cache raw surface data from EPJSON"""
         if not self._epjson_data:
+            logger.info("_cache_surfaces: No EPJSON data available")
             return
 
+        logger.info("Starting _cache_surfaces method")
         self._surfaces_cache.clear()
         self._windows_cache = {}
 
         # Cache building surfaces
         building_surfaces = self._epjson_data.get('BuildingSurface:Detailed', {})
+        logger.info(f"Found {len(building_surfaces)} BuildingSurface:Detailed objects in EPJSON")
+        surfaces_processed = 0
         for surface_id, surface_data in building_surfaces.items():
+            surfaces_processed += 1
             # Calculate area from vertices since EPJSON doesn't store area directly
             calculated_area = self._calculate_surface_area_from_vertices(surface_data.get("vertices", []))
+            
+            if surfaces_processed <= 3:  # Log first 3 surfaces for debugging
+                zone_name = surface_data.get("zone_name", "")
+                construction_name = surface_data.get("construction_name", "")
+                surface_type = surface_data.get("surface_type", "")
+                logger.info(f"Surface {surfaces_processed}: ID='{surface_id}', zone='{zone_name}', construction='{construction_name}', type='{surface_type}', area={calculated_area}")
             
             self._surfaces_cache[surface_id] = {
                 'id': surface_id,
@@ -571,6 +710,8 @@ class DataLoader:
 
             self._windows_cache[window_id] = window_cache_data
             self._surfaces_cache[window_id] = window_cache_data
+            
+        logger.info(f"Surface caching complete: {len(self._surfaces_cache)} total surfaces cached ({surfaces_processed} building surfaces + windows)")
 
     def _cache_materials(self) -> None:
         """Cache raw material data from EPJSON"""
@@ -770,6 +911,24 @@ class DataLoader:
 
             self._schedule_rules_cache[schedule_id] = rule_fields
 
+    def _normalize_zone_name_for_loads(self, load_zone_name: str) -> str:
+        """
+        Normalize zone names from load objects to match actual zone names.
+        Handles cases where load objects reference zones without TZ suffix.
+        """
+        # If the zone name already exists in our zones cache, use it as-is
+        if load_zone_name in self._zones_cache:
+            return load_zone_name
+        
+        # Try appending TZ suffix for A-pattern zones
+        if load_zone_name and not load_zone_name.endswith('TZ'):
+            normalized_name = load_zone_name + 'TZ'
+            if normalized_name in self._zones_cache:
+                return normalized_name
+        
+        # Return original name if no normalization needed
+        return load_zone_name
+
     def _cache_loads(self) -> None:
         """Cache raw load data (people, lights, equipment, etc.) from EPJSON"""
         if not self._epjson_data:
@@ -779,16 +938,34 @@ class DataLoader:
         self._people_cache.clear()
         people_objects = self._epjson_data.get('People', {})
         for people_id, people_data in people_objects.items():
-            zone_name = people_data.get("zone_or_zonelist_name", "")
-            if not zone_name:
+            # EPJSON uses zone_or_zonelist_or_space_or_spacelist_name
+            raw_zone_name = people_data.get("zone_or_zonelist_or_space_or_spacelist_name", "")
+            if not raw_zone_name:
+                # Fallback to older field names
+                raw_zone_name = people_data.get("zone_or_zonelist_name", "")
+            if not raw_zone_name:
                 continue
+            
+            # Normalize zone name to match actual zone names
+            zone_name = self._normalize_zone_name_for_loads(raw_zone_name)
 
             if zone_name not in self._people_cache:
                 self._people_cache[zone_name] = []
 
+            # Calculate people_per_area from number_of_people if needed
+            people_per_area = safe_float(people_data.get("people_per_zone_floor_area", 0.0))
+            number_of_people = safe_float(people_data.get("number_of_people", 0.0))
+            
+            # If people_per_area is 0 but number_of_people > 0, calculate from zone floor area
+            if people_per_area == 0.0 and number_of_people > 0.0:
+                zone_data = self._zones_cache.get(zone_name, {})
+                zone_floor_area = zone_data.get('floor_area', 0.0)
+                if zone_floor_area > 0.0:
+                    people_per_area = number_of_people / zone_floor_area
+
             self._people_cache[zone_name].append({
-                'people_per_area': safe_float(people_data.get("people_per_zone_floor_area", 0.0)),
-                'number_of_people': safe_float(people_data.get("number_of_people", 0.0)),
+                'people_per_area': people_per_area,
+                'number_of_people': number_of_people,
                 'schedule': people_data.get("number_of_people_schedule_name", ""),
                 'activity_schedule': people_data.get("activity_level_schedule_name", ""),
                 'clothing_schedule': people_data.get("clothing_insulation_schedule_name", ""),
@@ -800,12 +977,15 @@ class DataLoader:
         lights_objects = self._epjson_data.get('Lights', {})
         for lights_id, lights_data in lights_objects.items():
             # EPJSON uses zone_or_zonelist_or_space_or_spacelist_name
-            zone_name = lights_data.get("zone_or_zonelist_or_space_or_spacelist_name", "")
-            if not zone_name:
+            raw_zone_name = lights_data.get("zone_or_zonelist_or_space_or_spacelist_name", "")
+            if not raw_zone_name:
                 # Fallback to older field names
-                zone_name = lights_data.get("zone_or_zonelist_name", "")
-            if not zone_name:
+                raw_zone_name = lights_data.get("zone_or_zonelist_name", "")
+            if not raw_zone_name:
                 continue
+            
+            # Normalize zone name to match actual zone names
+            zone_name = self._normalize_zone_name_for_loads(raw_zone_name)
 
             if zone_name not in self._lights_cache:
                 self._lights_cache[zone_name] = []
@@ -835,9 +1015,16 @@ class DataLoader:
         for equip_type in ['ElectricEquipment', 'OtherEquipment']:
             equipment_objects = self._epjson_data.get(equip_type, {})
             for equip_id, equip_data in equipment_objects.items():
-                zone_name = equip_data.get("zone_or_zonelist_name", "")
-                if not zone_name:
+                # EPJSON uses zone_or_zonelist_or_space_or_spacelist_name
+                raw_zone_name = equip_data.get("zone_or_zonelist_or_space_or_spacelist_name", "")
+                if not raw_zone_name:
+                    # Fallback to older field names
+                    raw_zone_name = equip_data.get("zone_or_zonelist_name", "")
+                if not raw_zone_name:
                     continue
+                
+                # Normalize zone name to match actual zone names
+                zone_name = self._normalize_zone_name_for_loads(raw_zone_name)
 
                 if zone_name not in self._equipment_cache:
                     self._equipment_cache[zone_name] = []
@@ -856,9 +1043,16 @@ class DataLoader:
         self._infiltration_cache.clear()
         infiltration_objects = self._epjson_data.get('ZoneInfiltration:DesignFlowRate', {})
         for infil_id, infil_data in infiltration_objects.items():
-            zone_name = infil_data.get("zone_or_zonelist_name", "")
-            if not zone_name:
+            # EPJSON uses zone_or_zonelist_or_space_or_spacelist_name
+            raw_zone_name = infil_data.get("zone_or_zonelist_or_space_or_spacelist_name", "")
+            if not raw_zone_name:
+                # Fallback to older field names
+                raw_zone_name = infil_data.get("zone_or_zonelist_name", "")
+            if not raw_zone_name:
                 continue
+            
+            # Normalize zone name to match actual zone names
+            zone_name = self._normalize_zone_name_for_loads(raw_zone_name)
 
             if zone_name not in self._infiltration_cache:
                 self._infiltration_cache[zone_name] = []
@@ -878,9 +1072,16 @@ class DataLoader:
         ventilation_objects = self._epjson_data.get('ZoneVentilation:DesignFlowRate', {})
         
         for vent_id, vent_data in ventilation_objects.items():
-            zone_name = vent_data.get("zone_or_zonelist_name", "")
-            if not zone_name:
+            # EPJSON uses zone_or_zonelist_or_space_or_spacelist_name
+            raw_zone_name = vent_data.get("zone_or_zonelist_or_space_or_spacelist_name", "")
+            if not raw_zone_name:
+                # Fallback to older field names
+                raw_zone_name = vent_data.get("zone_or_zonelist_name", "")
+            if not raw_zone_name:
                 continue
+            
+            # Normalize zone name to match actual zone names
+            zone_name = self._normalize_zone_name_for_loads(raw_zone_name)
 
             if zone_name not in self._ventilation_cache:
                 self._ventilation_cache[zone_name] = []
@@ -1098,15 +1299,29 @@ class DataLoader:
 
     # Getter methods (same as original, maintaining API compatibility)
     def get_zones(self) -> Dict[str, Dict[str, Any]]:
-        """Get cached zone data."""
+        """Get cached zone data filtered to only include HVAC zones."""
+        # Filter zones to only include HVAC zones
+        hvac_zone_names = set(self.get_hvac_zones())
+        filtered_zones = {
+            zone_id: zone_data 
+            for zone_id, zone_data in self._zones_cache.items() 
+            if zone_id in hvac_zone_names
+        }
+        
         if self._should_log_details('get_zones'):
-            logger.info(f"Retrieved zones data: {len(self._zones_cache)} zones found")
+            logger.info(f"Retrieved zones data: {len(filtered_zones)} HVAC zones found (filtered from {len(self._zones_cache)} total zones)")
             # Log sample of first few zones
-            sample_count = min(3, len(self._zones_cache))
-            for i, (zone_id, zone_data) in enumerate(self._zones_cache.items()):
+            sample_count = min(3, len(filtered_zones))
+            for i, (zone_id, zone_data) in enumerate(filtered_zones.items()):
                 if i >= sample_count:
                     break
-                logger.info(f"Zone sample {i+1}: {zone_id} - Floor Area: {zone_data.get('floor_area', 0)}, Volume: {zone_data.get('volume', 0)}, Area ID: {zone_data.get('area_id', 'N/A')}")
+                logger.info(f"HVAC zone sample {i+1}: {zone_id} - Floor Area: {zone_data.get('floor_area', 0)}, Volume: {zone_data.get('volume', 0)}, Area ID: {zone_data.get('area_id', 'N/A')}")
+        return filtered_zones
+
+    def get_all_zones(self) -> Dict[str, Dict[str, Any]]:
+        """Get cached zone data for ALL zones (including non-HVAC zones)."""
+        if self._should_log_details('get_all_zones'):
+            logger.info(f"Retrieved ALL zones data: {len(self._zones_cache)} zones found")
         return self._zones_cache
 
     def get_hvac_zones(self) -> List[str]:
@@ -1364,18 +1579,20 @@ class DataLoader:
     
     def get_zone_group_key(self, zone_id: str) -> str:
         """
-        Get a group key for zone grouping based on new generalized rules.
+        Get a group key for zone grouping based on simple rules:
         
         Rules:
-        1. A:BXC or A:B_C - group by A part and B part (before X or _)
-        2. A:B or A - no grouping (each zone is its own group)
+        - Only zones with same A and B parts from A:BXC or A:B_C patterns get grouped
+        - All other zones (A:B, A) remain individual (return original zone_id)
         
         Examples:
-        - '01:324_mgnsdsd' and '01:324_asdasfa' -> both get group key '01:324'
-        - '01:324Xnsadn' and '01:324_knsad' -> no grouping (different patterns)
-        - '02:322Xasdasd' and '02:321Xasedasd' -> no grouping (different B parts)
-        - '02:123' -> group key '02:123_single' (no grouping)
-        - '02' -> group key '02_single' (no grouping)
+        - '01:324_living' and '01:324_bedroom' -> both get group key '01:324' (grouped)
+        - '01:324Xliving' and '01:324Xkitchen' -> both get group key '01:324' (grouped)  
+        - '01:324Xliving' and '02:324Xliving' -> different A parts, not grouped
+        - '01:324Xliving' and '01:325Xliving' -> different B parts, not grouped
+        - '01:324_living' and '01:324Xliving' -> both get group key '01:324' (grouped - same A:B)
+        - '01:123' -> group key '01:123' (individual)
+        - 'HALL' -> group key 'HALL' (individual)
         """
         if not zone_id:
             return "unknown"
@@ -1384,40 +1601,37 @@ class DataLoader:
         parts = zone_id.split(":", 1)
         
         if len(parts) == 1:
-            # Case: A - no grouping
-            return f"{parts[0]}_single"
+            # Case: A pattern - individual zone
+            return zone_id
         
         a_part = parts[0]
         b_full = parts[1]
         
         if not b_full:
-            return f"{a_part}_single"
+            return zone_id
         
-        # Check if this is a pattern that should be grouped
+        # Check if this is A:BXC or A:B_C pattern (groupable)
         has_x = 'X' in b_full
         has_underscore = '_' in b_full
         
         if has_x or has_underscore:
             # Case: A:BXC or A:B_C - extract B part for grouping
-            # But keep pattern type separate so X and _ patterns don't group together
             if has_x:
                 separator_index = b_full.find('X')
-                b_part = b_full[:separator_index]
-                pattern_type = 'X'
             else:  # has_underscore
                 separator_index = b_full.find('_')
-                b_part = b_full[:separator_index]
-                pattern_type = '_'
+            
+            b_part = b_full[:separator_index]
             
             if b_part:
-                # This can be grouped - return A:B with pattern type to separate X from _
-                return f"{a_part}:{b_part}{pattern_type}"
+                # Group zones with same A:B combination
+                return f"{a_part}:{b_part}"
             else:
                 # Edge case: no B part before separator
-                return f"{zone_id}_single"
+                return zone_id
         else:
-            # Case: A:B - no grouping
-            return f"{zone_id}_single"
+            # Case: A:B - individual zone (no grouping)
+            return zone_id
 
     def _is_hvac_indicator(self, schedule_id: str, schedule_type: str) -> bool:
         """Determine if a schedule indicates an HVAC zone."""

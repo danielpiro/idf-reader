@@ -4,7 +4,7 @@ Extracts and processes natural ventilation data from ZoneVentilation:DesignFlowR
 from typing import Dict, Any, Optional
 from utils.data_loader import DataLoader
 
-class NaturalVentilationExtractor:
+class NaturalVentilationParser:
     """
     Extracts natural ventilation data from ZoneVentilation:DesignFlowRate objects.
     """

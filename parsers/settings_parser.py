@@ -47,7 +47,7 @@ class EPJSONObjectWrapper:
         # Raise AttributeError if not found (so hasattr() works correctly)
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
-class SettingsExtractor:
+class SettingsParser:
     """
     Extracts settings and simulation parameters from IDF files using a DataLoader instance.
     """

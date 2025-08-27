@@ -102,45 +102,24 @@ class MaterialsParser(BaseParser):
             
         Returns:
             float: Adjusted mass value
-        """
-        from utils.logging_config import get_logger
-        logger = get_logger(__name__)
-        
+        """        
         density = material_data.density or 0.0
         thickness = material_data.thickness or 0.0
         mass = density * thickness
         conductivity = material_data.conductivity
         
-        logger.info(f"[LOW_COND_DEBUG] Calculating mass with low conductivity adjustment:")
-        logger.info(f"[LOW_COND_DEBUG]   - Material: {getattr(material_data, 'name', 'unknown')}")
-        logger.info(f"[LOW_COND_DEBUG]   - Base mass: {mass} kg/m² (density {density} × thickness {thickness})")
-        logger.info(f"[LOW_COND_DEBUG]   - Conductivity: {conductivity} W/m·K")
-        
         # Apply low conductivity adjustment
         if conductivity is not None and conductivity < 0.2 and conductivity != 0:
-            logger.info(f"[LOW_COND_DEBUG] Conductivity {conductivity} < 0.2, checking adjustment conditions:")
-            
             # For element data processing: only apply to external walls and track by construction
             if element_type and low_conductivity_found is not None:
-                logger.info(f"[LOW_COND_DEBUG] Element data processing mode:")
-                logger.info(f"[LOW_COND_DEBUG]   - Element type: {element_type}")
-                logger.info(f"[LOW_COND_DEBUG]   - Construction ID: {construction_id}")
-                
                 if element_type.lower() == "external wall" and construction_id not in low_conductivity_found.get(element_type, set()):
                     mass = mass / 2
                     if element_type not in low_conductivity_found:
                         low_conductivity_found[element_type] = set()
                     low_conductivity_found[element_type].add(construction_id)
-                    logger.info(f"[LOW_COND_DEBUG] Applied 50% reduction for external wall: {mass} kg/m²")
-                else:
-                    logger.info(f"[LOW_COND_DEBUG] No reduction applied (not external wall or already processed)")
             else:
                 # For mass calculation: apply to first low conductivity material found
-                logger.info(f"[LOW_COND_DEBUG] Mass calculation mode: applying 50% reduction")
                 mass = mass / 2
-                logger.info(f"[LOW_COND_DEBUG] Reduced mass: {mass} kg/m²")
-        else:
-            logger.info(f"[LOW_COND_DEBUG] No low conductivity adjustment needed")
                 
         return mass
 
@@ -372,7 +351,6 @@ class MaterialsParser(BaseParser):
         """
         Determine element type based on construction usage - simplified version.
         """
-        
         construction_surfaces = self._find_construction_surfaces(construction_id, surfaces, construction_mapping)
         
         if not construction_surfaces:
@@ -385,7 +363,6 @@ class MaterialsParser(BaseParser):
         surfaces_without_hvac_zones = 0
         
         for surface in construction_surfaces:
-            
             if surface.get('is_glazing', False):
                 element_types.add("Glazing")
                 continue
@@ -428,13 +405,11 @@ class MaterialsParser(BaseParser):
         hvac_zones_lower = [zone.lower() for zone in hvac_zones] if hvac_zones else []
         
         if boundary != "surface":
-            raw_object = surface.get('raw_object')
-            if not raw_object:
-                return False, False
-            zone_name = raw_object.Name.split("_")[0].strip().lower()
+            # Use the surface's zone_name directly instead of parsing from surface ID
+            zone_name = surface.get('zone_name', '').lower()
             if zone_name in hvac_zones_lower:
                 return True, False
-            return False, False  # Non-surface boundaries automatically have HVAC zones
+            return False, False
         
         try:
             raw_object = surface.get('raw_object')
@@ -545,38 +520,21 @@ class MaterialsParser(BaseParser):
         Returns:
             float: The total mass per square meter (kg/m²).
         """
-        from utils.logging_config import get_logger
-        logger = get_logger(__name__)
-        
-        logger.info(f"[MASS_CALC_DEBUG] Starting mass calculation for construction '{construction_id}'")
-        
         construction = self.constructions.get(construction_id)
         if not construction:
-            logger.info(f"[MASS_CALC_DEBUG] Construction '{construction_id}' not found in constructions cache")
             return 0.0
-        
-        logger.info(f"[MASS_CALC_DEBUG] Construction found with {len(construction.material_layers)} material layers")
-        logger.info(f"[MASS_CALC_DEBUG] Material layers: {construction.material_layers}")
         
         total_mass_per_area = 0.0
         found_low_conductivity = False
         
-        for i, layer_id in enumerate(construction.material_layers):
-            logger.info(f"[MASS_CALC_DEBUG] Processing layer {i+1}/{len(construction.material_layers)}: '{layer_id}'")
-            
+        for layer_id in construction.material_layers:
             material = self.materials.get(layer_id)
             if not material:
-                logger.info(f"[MASS_CALC_DEBUG] Material '{layer_id}' not found in materials cache")
                 continue
                 
             density = material.density or 0.0
             thickness = material.thickness or 0.0
             conductivity = material.conductivity
-            
-            logger.info(f"[MASS_CALC_DEBUG] Material properties:")
-            logger.info(f"[MASS_CALC_DEBUG]   - Density: {density} kg/m³")
-            logger.info(f"[MASS_CALC_DEBUG]   - Thickness: {thickness} m")
-            logger.info(f"[MASS_CALC_DEBUG]   - Conductivity: {conductivity} W/m·K")
             
             # Check for low conductivity adjustment
             applies_low_conductivity = (not found_low_conductivity and 
@@ -585,19 +543,12 @@ class MaterialsParser(BaseParser):
                                       conductivity != 0)
             
             if applies_low_conductivity:
-                logger.info(f"[MASS_CALC_DEBUG] Applying low conductivity adjustment (conductivity {conductivity} < 0.2)")
                 layer_mass = self._calculate_material_mass_with_low_conductivity_adjustment(material)
                 found_low_conductivity = True
-                logger.info(f"[MASS_CALC_DEBUG] Layer mass with low conductivity adjustment: {layer_mass} kg/m²")
             else:
                 layer_mass = density * thickness
-                logger.info(f"[MASS_CALC_DEBUG] Layer mass (standard calculation): {layer_mass} kg/m²")
                 
             total_mass_per_area += layer_mass
-            logger.info(f"[MASS_CALC_DEBUG] Running total mass: {total_mass_per_area} kg/m²")
-        
-        logger.info(f"[MASS_CALC_DEBUG] Final total mass for construction '{construction_id}': {total_mass_per_area} kg/m²")
-        logger.info(f"[MASS_CALC_DEBUG] Low conductivity adjustment was {'applied' if found_low_conductivity else 'not applied'}")
         
         return total_mass_per_area
 

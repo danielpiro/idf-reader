@@ -19,8 +19,6 @@ from generators.shared_design_system import (
     create_multi_header_table_style, create_title_style, 
     create_header_info_style, create_standardized_header
 )
-
-from reportlab.lib.enums import TA_CENTER
 from reportlab.graphics.shapes import Drawing, Rect, Polygon, String
 
 logger = get_logger(__name__)
@@ -652,7 +650,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
     Creates the energy rating table as a ReportLab Table object.
     Returns Table object or None if no data.
     """
-    raw_table_data = energy_rating_parser.get_energy_rating_table_data(model_year)
+    raw_table_data = energy_rating_parser.get_energy_rating_table_data(model_year, model_area_definition)
 
     if not raw_table_data:
         return None
@@ -1019,7 +1017,7 @@ class EnergyRatingReportGenerator:
             if not self.energy_rating_parser.processed:
                 self.energy_rating_parser.process_output()
 
-            raw_table_data = self.energy_rating_parser.get_energy_rating_table_data(self.model_year)
+            raw_table_data = self.energy_rating_parser.get_energy_rating_table_data(self.model_year, self.model_area_definition)
             total_score, letter_grade = _calculate_total_energy_rating(
                 raw_table_data,
                 self.model_year,
@@ -1192,7 +1190,7 @@ class EnergyRatingReportGenerator:
         # Format calculation result - need to get the raw_average from the calculation
         if total_score is not None and letter_grade and letter_grade != "N/A":
             # Get the raw_average by recalculating just for display purposes
-            raw_table_data = self.energy_rating_parser.get_energy_rating_table_data(self.model_year)
+            raw_table_data = self.energy_rating_parser.get_energy_rating_table_data(self.model_year, self.model_area_definition)
             raw_average = self._get_raw_average_for_display(raw_table_data)
             if raw_average is not None:
                 calc_result = f"{raw_average:.3f}"

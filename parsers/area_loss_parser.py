@@ -150,7 +150,17 @@ class AreaLossParser:
     
     def _get_location_3_h_value(self, wall_mass_per_area: float, area_id: str, col_idx: int) -> float:
         """Calculate H-value for external ceiling locations."""
-        level = area_id[:2] if len(area_id) >= 2 and area_id[:2].isdigit() else None
+        # Extract floor level from area_id (handle both old and new formats)
+        level = None
+        if ":" in area_id:
+            # New format: A:B -> extract A part as level
+            parts = area_id.split(":", 1)
+            if parts[0].isdigit():
+                level = parts[0]
+        else:
+            # Old individual format or simple patterns
+            if len(area_id) >= 2 and area_id[:2].isdigit():
+                level = area_id[:2]
         apts_per_level = self.apartments_per_level.get(level, 0) if level else 0
         is_single_apt = apts_per_level <= 1
         

@@ -269,6 +269,131 @@ class BaseParser(ABC):
             else:
                 return default
         return current
+    
+    def _ensure_not_processed(self) -> bool:
+        """
+        Check if parser has already been processed.
+        
+        Returns:
+            True if already processed (should skip), False if should continue
+        """
+        if self.processed:
+            self.logger.info(f"{self.parser_name} already processed, skipping")
+            return True
+        return False
+    
+    def _safe_get_zones(self) -> Dict[str, Any]:
+        """Safely get zones with error handling."""
+        return self._safe_get_data("zones")
+    
+    def _safe_get_surfaces(self) -> Dict[str, Any]:
+        """Safely get surfaces with error handling."""
+        return self._safe_get_data("surfaces")
+    
+    def _safe_get_constructions(self) -> Dict[str, Any]:
+        """Safely get constructions with error handling."""
+        return self._safe_get_data("constructions")
+    
+    def _safe_get_materials(self) -> Dict[str, Any]:
+        """Safely get materials with error handling."""
+        return self._safe_get_data("materials")
+
+class ZoneDataParser(BaseParser):
+    """
+    Base class for parsers that primarily process zone data.
+    Provides common zone processing patterns.
+    """
+    
+    def __init__(self, data_loader=None, parser_name: str = None):
+        super().__init__(data_loader, parser_name)
+        self.zone_data = {}
+    
+    def _process_zones_safely(self, process_func) -> bool:
+        """
+        Process zones with error handling and logging.
+        
+        Args:
+            process_func: Function to call for each zone (zone_id, zone_data)
+            
+        Returns:
+            True if processing completed successfully
+        """
+        zones = self._safe_get_zones()
+        if not zones:
+            self.logger.warning(f"{self.parser_name}: No zones found")
+            return False
+        
+        return self._process_items_safely(zones, process_func, "zones")
+
+class SurfaceDataParser(BaseParser):
+    """
+    Base class for parsers that primarily process surface data.
+    Provides common surface processing patterns.
+    """
+    
+    def __init__(self, data_loader=None, parser_name: str = None):
+        super().__init__(data_loader, parser_name)
+        self.surface_data = {}
+    
+    def _process_surfaces_safely(self, process_func) -> bool:
+        """
+        Process surfaces with error handling and logging.
+        
+        Args:
+            process_func: Function to call for each surface (surface_id, surface_data)
+            
+        Returns:
+            True if processing completed successfully
+        """
+        surfaces = self._safe_get_surfaces()
+        if not surfaces:
+            self.logger.warning(f"{self.parser_name}: No surfaces found")
+            return False
+        
+        return self._process_items_safely(surfaces, process_func, "surfaces")
+
+class CSVOutputParser(BaseParser):
+    """
+    Base class for parsers that process EnergyPlus CSV output files.
+    Provides common CSV processing patterns.
+    """
+    
+    def __init__(self, data_loader=None, csv_path: str = None, parser_name: str = None):
+        super().__init__(data_loader, parser_name)
+        self.csv_path = csv_path
+        self.csv_data = {}
+    
+    def _safe_read_csv(self, csv_path: str = None) -> Optional[Any]:
+        """
+        Safely read CSV file with error handling.
+        
+        Args:
+            csv_path: Path to CSV file (optional, uses instance csv_path if not provided)
+            
+        Returns:
+            CSV reader object or None if error
+        """
+        path_to_use = csv_path or self.csv_path
+        if not path_to_use:
+            self.logger.error(f"{self.parser_name}: No CSV path provided")
+            return None
+        
+        try:
+            import csv
+            import os
+            
+            if not os.path.exists(path_to_use):
+                self.logger.error(f"{self.parser_name}: CSV file not found: {path_to_use}")
+                return None
+            
+            csvfile = open(path_to_use, 'r', encoding='utf-8')
+            reader = csv.reader(csvfile)
+            self.logger.debug(f"{self.parser_name}: Successfully opened CSV file: {path_to_use}")
+            return reader
+            
+        except Exception as e:
+            self.logger.error(f"{self.parser_name}: Error reading CSV file {path_to_use}: {e}")
+            return None
 
 class SimpleParser(BaseParser):
     """

@@ -47,48 +47,55 @@ def safe_int(value: Union[str, int, float, None], default: int = 0) -> int:
 
 def extract_zone_id_parts(zone_id: str) -> Dict[str, str]:
     """
-    Extract standard parts from zone ID using common patterns.
-    Consolidates zone ID parsing logic from multiple parsers.
+    Extract standard parts from zone ID using consistent grouping logic.
     
     Args:
         zone_id: Zone identifier string
         
     Returns:
-        Dict with extracted parts: floor, area_id, zone_name, etc.
+        Dict with extracted parts: floor, area_id, zone_name, base_zone_id, original
     """
     if not zone_id or not isinstance(zone_id, str):
-        return {"floor": "unknown", "area_id": "unknown", "zone_name": "unknown", "original": zone_id}
+        return {"floor": "unknown", "area_id": "unknown", "zone_name": "unknown", "base_zone_id": "unknown", "original": zone_id}
     
-    # Pattern: "25:A338XLIV" -> floor=25, area_id=A338, zone_name=LIV
     if ":" in zone_id:
         parts = zone_id.split(":", 1)
         if len(parts) >= 2:
             floor = parts[0]
             zone_part = parts[1]
             
-            # Handle patterns like A338X... where A338 is area_id
-            if "X" in zone_part:
-                x_index = zone_part.find("X")
-                area_id = zone_part[:x_index]
-                zone_name = zone_part[x_index+1:] if x_index+1 < len(zone_part) else ""
+            # Check if this is A:BXC or A:B_C pattern (groupable)
+            has_x = 'X' in zone_part
+            has_underscore = '_' in zone_part
+            
+            if has_x or has_underscore:
+                # Extract B part and C part
+                if has_x:
+                    separator_index = zone_part.find('X')
+                    area_id = zone_part[:separator_index]  # B part
+                    zone_name = zone_part[separator_index+1:]  # C part
+                else:  # has_underscore
+                    separator_index = zone_part.find('_')
+                    area_id = zone_part[:separator_index]  # B part
+                    zone_name = zone_part[separator_index+1:]  # C part
+                
+                # For groupable zones, base_zone_id is A:B (the grouping key)
+                base_zone_id = f"{floor}:{area_id}" if area_id else zone_id
             else:
-                # Fallback: first 2-3 chars as area_id, rest as zone_name
-                if len(zone_part) >= 2 and zone_part[:2].isdigit():
-                    area_id = zone_part[:2]
-                    zone_name = zone_part[2:]
-                else:
-                    area_id = zone_part[:3] if len(zone_part) >= 3 else zone_part
-                    zone_name = zone_part[3:] if len(zone_part) > 3 else ""
+                # A:B pattern - individual zone
+                area_id = zone_part
+                zone_name = ""
+                base_zone_id = zone_id  # Individual zones use full zone_id as base
             
             return {
                 "floor": floor,
                 "area_id": area_id,
                 "zone_name": zone_name,
-                "base_zone_id": f"{floor}:{area_id}",
+                "base_zone_id": base_zone_id,
                 "original": zone_id
             }
     
-    # Simple fallback for non-colon patterns
+    # A pattern - individual zone
     return {
         "floor": zone_id[:2] if len(zone_id) >= 2 else zone_id,
         "area_id": zone_id,

@@ -38,8 +38,8 @@ class AutomaticErrorDetectionParser:
         
         # Initialize settings extractor to get actual IDF values
         if self.data_loader:
-            from parsers.settings_parser import SettingsExtractor
-            self.settings_extractor = SettingsExtractor(self.data_loader)
+            from parsers.settings_parser import SettingsParser
+            self.settings_extractor = SettingsParser(self.data_loader)
             self.settings_extractor.process_idf()
         
         self._process_error_detection_data(iso_type, idf)
@@ -517,13 +517,19 @@ class AutomaticErrorDetectionParser:
                 
             # Extract floor number (e.g., "00:01XLIVING" -> "01")
             if ':' in zone_id:
-                parts = zone_id.split(':')
-                if len(parts) > 1 and len(parts[1]) >= 2:
-                    floor_prefix = parts[1][:2]  # Get first 2 digits after colon
+                # Use DataLoader's floor extraction for consistency
+                if hasattr(self, 'data_loader') and self.data_loader:
+                    floor_prefix = self.data_loader.get_floor_id(zone_id) or zone_id
                 else:
-                    floor_prefix = zone_id[:2]  # Fallback
+                    # Fallback to original logic
+                    parts = zone_id.split(':')
+                    if len(parts) > 1 and len(parts[1]) >= 2:
+                        floor_prefix = parts[1][:2]
+                    else:
+                        floor_prefix = zone_id[:2]
             else:
-                floor_prefix = zone_id[:2]  # Fallback
+                # Fallback to original logic for non-colon patterns
+                floor_prefix = zone_id[:2] if len(zone_id) >= 2 else zone_id
             
             if floor_prefix not in floors_data:
                 floors_data[floor_prefix] = {
@@ -1574,44 +1580,72 @@ class AutomaticErrorDetectionParser:
             logger.error(f"Exception in window direction validation: {e}", exc_info=True)
     
     def _extract_area_id_from_zone(self, zone_id):
-        """Extract area ID from zone name using same logic as AreaParser."""
-        if ":" not in zone_id:
-            return "unknown"
-        
+        """Extract area ID from zone name using consistent grouping logic."""
         try:
-            parts = zone_id.split(":", 1)
-            if len(parts) < 2 or not parts[1]:
-                return "unknown"
+            # Use DataLoader's grouping logic for consistency
+            if hasattr(self, 'data_loader') and self.data_loader:
+                return self.data_loader.get_zone_group_key(zone_id)
+            else:
+                # Fallback logic for consistency with new grouping rules
+                if ":" not in zone_id:
+                    return zone_id
                 
-            zone_part = parts[1]
-            
-            # Handle patterns like A338X... where A338 should be the area_id
-            if "X" in zone_part:
-                x_index = zone_part.find("X")
-                area_candidate = zone_part[:x_index]
-                if area_candidate and len(area_candidate) >= 2:
-                    return area_candidate
-            
-            # Fallback to original logic
-            if len(zone_part) >= 2 and zone_part[:2].isdigit():
-                return zone_part[:2]
-            elif zone_part:
-                return zone_part
+                parts = zone_id.split(":", 1)
+                if len(parts) < 2 or not parts[1]:
+                    return zone_id
+                    
+                a_part = parts[0]
+                b_full = parts[1]
                 
-            return "unknown"
+                # Check if this is A:BXC or A:B_C pattern (groupable)
+                has_x = 'X' in b_full
+                has_underscore = '_' in b_full
+                
+                if has_x or has_underscore:
+                    # Extract B part for grouping
+                    if has_x:
+                        separator_index = b_full.find('X')
+                    else:
+                        separator_index = b_full.find('_')
+                    
+                    b_part = b_full[:separator_index]
+                    if b_part:
+                        return f"{a_part}:{b_part}"
+                
+                # A:B pattern - individual
+                return zone_id
+                
         except Exception:
             return "unknown"
     
     def _extract_area_id_from_surface_name(self, surface_name):
-        """Extract area ID from surface name - same logic as area report generator."""
+        """Extract area ID from surface name using consistent grouping logic."""
         try:
-            # Extract area ID from surface name (e.g., "00:01XLIVING_WALL_4_0_0_0_0_0_WIN" -> "01")
+            # Extract zone-like part from surface name and use grouping logic
             if ":" in surface_name:
                 parts = surface_name.split(":")
                 if len(parts) > 1:
                     zone_part = parts[1]
-                    if len(zone_part) >= 2 and zone_part[:2].isdigit():
-                        return zone_part[:2]
+                    # Reconstruct zone-like ID and apply grouping logic
+                    zone_like = f"{parts[0]}:{zone_part}"
+                    
+                    # Use consistent grouping logic
+                    has_x = 'X' in zone_part
+                    has_underscore = '_' in zone_part
+                    
+                    if has_x or has_underscore:
+                        # Extract B part for consistency with new grouping
+                        if has_x:
+                            separator_index = zone_part.find('X')
+                        else:
+                            separator_index = zone_part.find('_')
+                        
+                        b_part = zone_part[:separator_index]
+                        if b_part:
+                            return f"{parts[0]}:{b_part}"
+                    
+                    # Individual pattern - return as-is
+                    return zone_like
             
             return "unknown"
         except Exception:

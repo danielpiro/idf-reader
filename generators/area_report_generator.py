@@ -5,9 +5,7 @@ from typing import Dict, Any, List
 from utils.logging_config import get_logger
 from collections import defaultdict
 from pathlib import Path
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import cm
-from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+from generators.reportlab_commons import ParagraphStyle, getSampleStyleSheet, cm, Paragraph, Spacer, Table, TableStyle
 from generators.base_report_generator import BaseReportGenerator, handle_report_errors, StandardPageSizes
 from generators.shared_design_system import (
     COLORS, FONTS, FONT_SIZES, LAYOUT,
@@ -83,19 +81,55 @@ class AreaReportGenerator(BaseReportGenerator):
             if hasattr(areas_data, 'glazing_data_from_csv'):
                 glazing_data_from_csv = areas_data.glazing_data_from_csv
                 if glazing_data_from_csv:
-                    # Extract area ID from the current area_id
+                    # Extract area ID from the current area_id using consistent logic
                     current_area_id = area_id
                     if ":" in current_area_id:
-                        current_area_id = current_area_id.split(":")[1]
+                        parts = current_area_id.split(":")
+                        if len(parts) > 1:
+                            zone_part = parts[1]
+                            # Use same logic as new grouping system for consistency  
+                            has_x = 'X' in zone_part
+                            has_underscore = '_' in zone_part
+                            
+                            if has_x or has_underscore:
+                                # Extract the B part from A:BXC or A:B_C patterns
+                                if has_x:
+                                    separator_index = zone_part.find('X')
+                                else:
+                                    separator_index = zone_part.find('_')
+                                
+                                b_part = zone_part[:separator_index]
+                                if b_part:
+                                    current_area_id = b_part
+                            else:
+                                # For A:B pattern, use the whole zone part
+                                current_area_id = zone_part
                     
                     # Only include directions for surfaces in this area
                     for surface_name, data in glazing_data_from_csv.items():
-                        # Extract area ID from surface name (e.g., "00:01XLIVING_WALL_4_0_0_0_0_0_WIN" -> "01")
+                        # Extract area ID from surface name using new generalized logic
                         surface_area_id = None
                         if ":" in surface_name:
                             parts = surface_name.split(":")
-                            if len(parts) > 1 and parts[1][:2].isdigit():
-                                surface_area_id = parts[1][:2]
+                            if len(parts) > 1:
+                                zone_part = parts[1]
+                                # Use same logic as the new grouping system for consistency
+                                has_x = 'X' in zone_part
+                                has_underscore = '_' in zone_part
+                                
+                                if has_x or has_underscore:
+                                    # Extract the B part from A:BXC or A:B_C patterns
+                                    if has_x:
+                                        separator_index = zone_part.find('X')
+                                    else:
+                                        separator_index = zone_part.find('_')
+                                    
+                                    b_part = zone_part[:separator_index]
+                                    if b_part:
+                                        surface_area_id = b_part
+                                else:
+                                    # For A:B pattern, use the whole zone part
+                                    surface_area_id = zone_part
                         
                         if surface_area_id == current_area_id and 'CardinalDirection' in data:
                             direction = data['CardinalDirection']
@@ -648,18 +682,12 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
             largest_ext_wall_area = 0.0
             largest_ext_wall_construction = None
 
-            logger.info(f"[WALL_MASS_DEBUG] Starting wall mass calculation for area '{area_id}'")
-            logger.info(f"[WALL_MASS_DEBUG] Found {len(merged_rows)} construction rows to analyze")
-
             external_wall_candidates = []
             for row in merged_rows:
                 raw_element_type = row.get('element_type', '')
                 cleaned_type_str = _clean_element_type(raw_element_type).lower()
                 current_area = row.get('area', 0.0)
                 construction_name = row.get('construction', '')
-
-                logger.info(f"[WALL_MASS_DEBUG] Analyzing construction '{construction_name}': "
-                           f"type='{cleaned_type_str}', area={current_area}")
 
                 if 'external wall' in cleaned_type_str:
                     external_wall_candidates.append({
@@ -670,33 +698,16 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                     })
                     
                     if current_area > largest_ext_wall_area:
-                        logger.info(f"[WALL_MASS_DEBUG] New largest external wall found: "
-                                   f"'{construction_name}' with area {current_area} > {largest_ext_wall_area}")
                         largest_ext_wall_area = current_area
                         largest_ext_wall_construction = construction_name
 
-            logger.info(f"[WALL_MASS_DEBUG] External wall analysis complete:")
-            logger.info(f"[WALL_MASS_DEBUG] - Found {len(external_wall_candidates)} external wall constructions")
-            logger.info(f"[WALL_MASS_DEBUG] - Largest external wall: '{largest_ext_wall_construction}' with area {largest_ext_wall_area}")
-            
-            if external_wall_candidates:
-                logger.info("[WALL_MASS_DEBUG] All external wall candidates:")
-                for candidate in sorted(external_wall_candidates, key=lambda x: x['area'], reverse=True):
-                    logger.info(f"[WALL_MASS_DEBUG]   - {candidate['construction']}: {candidate['area']} m² in zone {candidate['zone']}")
-
             if largest_ext_wall_construction and materials_parser:
                 try:
-                    logger.info(f"[WALL_MASS_DEBUG] Calculating mass for construction '{largest_ext_wall_construction}'")
                     wall_mass_per_area = materials_parser.calculate_construction_mass_per_area(largest_ext_wall_construction)
-                    logger.info(f"[WALL_MASS_DEBUG] Calculated wall mass: {wall_mass_per_area} kg/m²")
                 except Exception as e_mass:
                     logger.warning(f"Error calculating wall mass for area '{area_id}', construction '{largest_ext_wall_construction}': {e_mass}", exc_info=True)
-                    logger.info(f"[WALL_MASS_DEBUG] Mass calculation failed: {e_mass}")
             elif largest_ext_wall_construction:
                 logger.warning(f"Materials parser not available to calculate wall mass for construction '{largest_ext_wall_construction}'")
-                logger.info("[WALL_MASS_DEBUG] No materials parser available for mass calculation")
-            else:
-                logger.info("[WALL_MASS_DEBUG] No external wall construction found for mass calculation")
 
             location = area_locations.get(area_id, "Unknown")
 
@@ -816,6 +827,10 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
         base_zone_table_data = {}
         if hasattr(areas_data, 'get_area_table_data_by_base_zone'):
             base_zone_table_data = areas_data.get_area_table_data_by_base_zone(materials_parser)
+            logger.info(f"Retrieved area table data for {len(base_zone_table_data)} base zones")
+            # Log first few base zone keys for debugging
+            sample_keys = list(base_zone_table_data.keys())[:3]
+            logger.info(f"Sample base zone keys from area table data: {sample_keys}")
         else:
             logger.warning("AreaParser does not have get_area_table_data_by_base_zone method.")
             return False
@@ -842,6 +857,11 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
 
         # Generate reports for each base zone
         for base_zone_id, merged_rows in base_zone_table_data.items():
+            # Skip zones without construction data (non-HVAC zones)
+            if not merged_rows:
+                logger.info(f"Skipping area report for base zone '{base_zone_id}': No construction data (likely non-HVAC zone)")
+                continue
+                
             total_floor_area = base_zone_floor_totals.get(base_zone_id, 0.0)
 
             # Calculate wall mass per area (using same logic as original function)
@@ -849,18 +869,12 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
             largest_ext_wall_area = 0.0
             largest_ext_wall_construction = None
 
-            logger.info(f"[WALL_MASS_DEBUG] Starting wall mass calculation for base zone '{base_zone_id}'")
-            logger.info(f"[WALL_MASS_DEBUG] Found {len(merged_rows)} construction rows to analyze")
-
             external_wall_candidates = []
             for row in merged_rows:
                 raw_element_type = row.get('element_type', '')
                 cleaned_type_str = _clean_element_type(raw_element_type).lower()
                 current_area = row.get('area', 0.0)
                 construction_name = row.get('construction', '')
-
-                logger.info(f"[WALL_MASS_DEBUG] Analyzing construction '{construction_name}': "
-                           f"type='{cleaned_type_str}', area={current_area}")
 
                 if 'external wall' in cleaned_type_str:
                     external_wall_candidates.append({
@@ -871,33 +885,15 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
                     })
                     
                     if current_area > largest_ext_wall_area:
-                        logger.info(f"[WALL_MASS_DEBUG] New largest external wall found: "
-                                   f"'{construction_name}' with area {current_area} > {largest_ext_wall_area}")
                         largest_ext_wall_area = current_area
                         largest_ext_wall_construction = construction_name
 
-            logger.info(f"[WALL_MASS_DEBUG] External wall analysis complete:")
-            logger.info(f"[WALL_MASS_DEBUG] - Found {len(external_wall_candidates)} external wall constructions")
-            logger.info(f"[WALL_MASS_DEBUG] - Largest external wall: '{largest_ext_wall_construction}' with area {largest_ext_wall_area}")
-            
-            if external_wall_candidates:
-                logger.info("[WALL_MASS_DEBUG] All external wall candidates:")
-                for candidate in sorted(external_wall_candidates, key=lambda x: x['area'], reverse=True):
-                    logger.info(f"[WALL_MASS_DEBUG]   - {candidate['construction']}: {candidate['area']} m² in zone {candidate['zone']}")
-
             if largest_ext_wall_construction and materials_parser:
                 try:
-                    logger.info(f"[WALL_MASS_DEBUG] Calculating mass for construction '{largest_ext_wall_construction}'")
                     wall_mass_per_area = materials_parser.calculate_construction_mass_per_area(largest_ext_wall_construction)
-                    logger.info(f"[WALL_MASS_DEBUG] Calculated wall mass: {wall_mass_per_area} kg/m²")
                 except Exception as e_mass:
                     logger.warning(f"Error calculating mass per area for construction '{largest_ext_wall_construction}' in base zone '{base_zone_id}': {e_mass}")
-                    logger.info(f"[WALL_MASS_DEBUG] Mass calculation failed: {e_mass}")
                     wall_mass_per_area = 0.0
-            elif largest_ext_wall_construction:
-                logger.info("[WALL_MASS_DEBUG] No materials parser available for mass calculation")
-            else:
-                logger.info("[WALL_MASS_DEBUG] No external wall construction found for mass calculation")
 
             # Determine location (use first area_id from zones in this base zone)
             location = "Unknown"
@@ -929,7 +925,11 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
                         zone_glazing = [g for g in area_glazing if g.get('zone') == zone_id]
                         base_zone_glazing_data.extend(zone_glazing)
 
-            logger.info(f"Generating base zone area report for: {base_zone_id} (includes {len(base_zone_groupings.get(base_zone_id, []))} zones)")
+            zones_in_group = base_zone_groupings.get(base_zone_id, [])
+            logger.info(f"Generating base zone area report for: {base_zone_id} (includes {len(zones_in_group)} zones)")
+            logger.info(f"  Zones in group '{base_zone_id}': {zones_in_group}")
+            logger.info(f"  Merged rows count: {len(merged_rows)}")
+            logger.info(f"  Total floor area: {total_floor_area}")
 
             success = generate_area_report_pdf(
                 area_id=base_zone_id,

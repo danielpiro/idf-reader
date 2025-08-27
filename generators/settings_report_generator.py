@@ -1,12 +1,8 @@
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import cm
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib import colors
-from reportlab.lib.colors import Color
-from reportlab.lib.enums import TA_LEFT, TA_CENTER
+from generators.reportlab_commons import (
+    Paragraph, Spacer, Table, TableStyle, A4, landscape, colors, Color, 
+    TA_LEFT, TA_CENTER, cm
+)
 import datetime
-from utils.logging_config import get_logger
 from pathlib import Path
 from utils.hebrew_text_utils import get_hebrew_font_name
 from utils.logo_utils import create_logo_image
@@ -15,8 +11,73 @@ from generators.shared_design_system import (
     create_standard_table_style, create_title_style, create_section_title_style,
     create_standardized_header
 )
+from generators.base_report_generator import BaseReportGenerator, handle_report_errors
+from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
+
+
+class SettingsReportGenerator(BaseReportGenerator):
+    """
+    Class-based settings report generator using BaseReportGenerator.
+    """
+    
+    @handle_report_errors("Settings")
+    def generate_report(self, settings_data, output_filename="output/settings.pdf"):
+        """
+        Generate settings report PDF.
+        
+        Args:
+            settings_data (dict): Dictionary of settings organized by category
+            output_filename (str): Output PDF file path
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        doc = self.create_document(output_filename, page_size=A4)
+        story = self.create_standard_story()
+        
+        # Add header
+        header_elements = create_standardized_header(
+            doc=doc,
+            project_name=self.project_name,
+            run_id=self.run_id,
+            city_name=self.city_name,
+            area_name=self.area_name,
+            timestamp=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        )
+        story.extend(header_elements)
+        
+        # Add title
+        title_style = create_title_style()
+        story.append(Paragraph("Settings Report", title_style))
+        story.append(Spacer(1, 12))
+        
+        # Process settings data
+        for category_name, category_data in settings_data.items():
+            if not category_data:
+                continue
+                
+            # Add section title
+            section_title_style = create_section_title_style()
+            story.append(Paragraph(category_name, section_title_style))
+            story.append(Spacer(1, 6))
+            
+            # Create table data
+            table_data = [["Setting", "Value"]]
+            for setting_name, setting_value in category_data.items():
+                formatted_value = format_dict_value(setting_value)
+                table_data.append([setting_name, formatted_value])
+            
+            # Create and style table
+            col_widths = [doc.width * 0.4, doc.width * 0.6]
+            table = Table(table_data, colWidths=col_widths)
+            table.setStyle(create_standard_table_style())
+            
+            story.append(table)
+            story.append(Spacer(1, 12))
+        
+        return self.build_document(doc, story)
 
 def format_dict_value(value_dict):
     """Format dictionary values for display in the report"""

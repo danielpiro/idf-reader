@@ -18,9 +18,9 @@ from parsers.area_loss_parser import AreaLossParser
 from parsers.automatic_error_detection_parser import AutomaticErrorDetectionParser
 from generators.energy_rating_report_generator import EnergyRatingReportGenerator
 from parsers.energy_rating_parser import EnergyRatingParser
-from parsers.schedule_parser import ScheduleExtractor
-from parsers.settings_parser import SettingsExtractor
-from parsers.load_parser import LoadExtractor
+from parsers.schedule_parser import ScheduleParser
+from parsers.settings_parser import SettingsParser
+from parsers.load_parser import LoadParser
 from parsers.materials_parser import MaterialsParser
 from parsers.area_parser import AreaParser
 from parsers.glazing_parser import GlazingParser
@@ -168,9 +168,9 @@ class ProcessingManager:
         """
         self.update_status("מאתחל מנתחים...")
         parsers = {
-            "settings": SettingsExtractor(data_loader),
-            "schedule": ScheduleExtractor(data_loader),
-            "load": LoadExtractor(data_loader),
+            "settings": SettingsParser(data_loader),
+            "schedule": ScheduleParser(data_loader),
+            "load": LoadParser(data_loader),
             "materials": MaterialsParser(data_loader),
             "glazing": GlazingParser(
                 constructions_glazing_cache=data_loader._constructions_glazing_cache,
@@ -208,7 +208,7 @@ class ProcessingManager:
         parsers["load"].process_idf(data_loader.get_idf())
         parsers["materials"].process_idf(data_loader.get_idf())
         parsers["area"].process_idf(data_loader.get_idf())
-        parsers["lighting"].parse()
+        parsers["lighting"].process_idf(data_loader.get_idf())
         parsers["glazing"].parse_glazing_data()
 
         if self.is_cancelled: return
@@ -253,7 +253,7 @@ class ProcessingManager:
             "loads": parsers["load"].get_parsed_zone_loads(),
             "materials": parsers["materials"].get_element_data(),
             "glazing": parsers["glazing"].parsed_glazing_data,
-            "lighting": parsers["lighting"].parse(), # Ensure this returns data
+            "lighting": parsers["lighting"].get_parsed_data(), # Ensure this returns data
             "area_loss": parsers["area_loss"].parse(), # Ensure this returns data
             "automatic_error_detection": parsers["automatic_error_detection"].get_error_detection_data(),
         }

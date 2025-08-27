@@ -202,7 +202,7 @@ def _parse_compact_rule_blocks(rule_fields: List[str]) -> List[Dict[str, Any]]:
 
     return rule_blocks
 
-class ScheduleExtractor:
+class ScheduleParser:
     """
     Extracts Schedule:Compact objects, ignoring setpoint schedules 
     and grouping unique schedule patterns by type.

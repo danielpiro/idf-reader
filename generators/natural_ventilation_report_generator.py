@@ -105,13 +105,39 @@ def create_natural_ventilation_table_style():
     return TableStyle(style)
 
 def _extract_area_id(zone_id: str) -> str:
-    """Extract area_id from a zone_id string."""
-    split = zone_id.split(":", 1)
-    if len(split) > 1 and split[1]:
-        if AREA_ID_REGEX.match(split[1]):
-            return split[1][:2]
-        return split[1]
-    return ""
+    """Extract area_id from a zone_id string using consistent grouping logic."""
+    if not zone_id:
+        return ""
+    
+    # Use consistent grouping logic
+    parts = zone_id.split(":", 1)
+    if len(parts) == 1:
+        # A pattern - individual zone
+        return zone_id
+    
+    a_part = parts[0]
+    b_full = parts[1]
+    
+    if not b_full:
+        return ""
+    
+    # Check if this is A:BXC or A:B_C pattern (groupable)
+    has_x = 'X' in b_full
+    has_underscore = '_' in b_full
+    
+    if has_x or has_underscore:
+        # Extract B part for grouping
+        if has_x:
+            separator_index = b_full.find('X')
+        else:
+            separator_index = b_full.find('_')
+        
+        b_part = b_full[:separator_index]
+        if b_part:
+            return f"{a_part}:{b_part}"  # Return group key A:B
+    
+    # A:B pattern - individual zone
+    return zone_id
 
 def _extract_zone_prefix(zone_id: str) -> str:
     """Extract the prefix (part before colon) from a zone_id string."""

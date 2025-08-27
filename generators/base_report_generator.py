@@ -146,6 +146,34 @@ class BaseReportGenerator:
         
         return doc
     
+    def create_standard_story(self):
+        """
+        Create a standard story list for PDF content.
+        
+        Returns:
+            list: Empty story list ready for content
+        """
+        return []
+    
+    def build_document(self, doc, story):
+        """
+        Build PDF document with error handling.
+        
+        Args:
+            doc: SimpleDocTemplate instance
+            story: List of PDF elements
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            doc.build(story)
+            logger.info(f"Successfully generated PDF: {doc.filename}")
+            return True
+        except Exception as e:
+            logger.error(f"Error building PDF document {doc.filename}: {e}", exc_info=True)
+            return False
+    
     def add_standardized_header(self, doc, report_title, timestamp=None):
         """
         Add standardized header with logo and metadata.

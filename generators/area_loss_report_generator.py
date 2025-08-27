@@ -3,10 +3,7 @@ Generates reports for area loss information extracted from IDF files.
 """
 from typing import Dict, Any, List
 from utils.logging_config import get_logger
-from reportlab.lib import colors
-from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.units import cm
-from reportlab.platypus import Paragraph, Table
+from generators.reportlab_commons import colors, ParagraphStyle, cm, Paragraph, Table
 from generators.base_report_generator import BaseReportGenerator, handle_report_errors, StandardPageSizes
 from generators.shared_design_system import (
     COLORS, FONTS, create_standard_table_style, create_title_style

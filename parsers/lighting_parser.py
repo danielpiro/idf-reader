@@ -4,8 +4,9 @@ Parser for Daylighting:Controls and Daylighting:ReferencePoint objects.
 from typing import Dict, List, Any
 from utils.data_loader import DataLoader
 from .utils import safe_float
+from .base_parser import ZoneDataParser
 
-class LightingParser:
+class LightingParser(ZoneDataParser):
     """
     Parses Daylighting:Controls, Daylighting:ReferencePoint, Exterior:Lights, and Lights (for task lighting) data.
     """
@@ -17,30 +18,51 @@ class LightingParser:
         Args:
             data_loader: An instance of DataLoader containing cached IDF data.
         """
-        self._data_loader = data_loader
+        super().__init__(data_loader, "LightingParser")
         self._controls_data = []
         self._reference_point_data = []
         self._exterior_lights_data = []
         self._task_lights_data = []
 
-    def parse(self) -> Dict[str, List[Dict[str, Any]]]:
+    def process_idf(self, idf=None) -> None:
         """
-        Parses Daylighting:Controls, Daylighting:ReferencePoint, Exterior:Lights, and Lights (for task lighting) data.
+        Process IDF data to extract lighting information.
+        
+        Args:
+            idf: IDF data object (optional, uses DataLoader)
+        """
+        if not self._validate_initialization():
+            return
+        if self._ensure_not_processed():
+            return
+        
+        try:
+            controls_raw = self.data_loader.get_daylighting_controls()
+            ref_points_raw = self.data_loader.get_daylighting_reference_points()
+            exterior_lights_raw = self.data_loader.get_exterior_lights_loads()
+            lights_raw = self.data_loader.get_lights_loads()
+
+            self._controls_data = self._parse_controls(controls_raw)
+            self._reference_point_data = self._parse_reference_points(ref_points_raw, controls_raw)
+            self._exterior_lights_data = self._parse_exterior_lights(exterior_lights_raw)
+            self._task_lights_data = self._parse_task_lights(lights_raw)
+            
+            self.processed = True
+        except Exception as e:
+            self._log_item_error(f"Error processing lighting data: {e}")
+    
+    def get_parsed_data(self) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Get the parsed lighting data.
 
         Returns:
             A dictionary containing lists for: 'controls', 'reference_points',
             'exterior_lights', and 'task_lights'.
         """
-        controls_raw = self._data_loader.get_daylighting_controls()
-        ref_points_raw = self._data_loader.get_daylighting_reference_points()
-        exterior_lights_raw = self._data_loader.get_exterior_lights_loads()
-        lights_raw = self._data_loader.get_lights_loads()
-
-        self._controls_data = self._parse_controls(controls_raw)
-        self._reference_point_data = self._parse_reference_points(ref_points_raw, controls_raw)
-        self._exterior_lights_data = self._parse_exterior_lights(exterior_lights_raw)
-        self._task_lights_data = self._parse_task_lights(lights_raw)
-
+        if not self.processed:
+            self.logger.warning(f"{self.parser_name}: Data not processed yet. Call process_idf() first.")
+            return {}
+        
         return {
             "controls": self._controls_data,
             "reference_points": self._reference_point_data,

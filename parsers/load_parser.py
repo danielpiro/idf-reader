@@ -5,7 +5,7 @@ from typing import Dict, Any, Optional
 from utils.data_loader import DataLoader
 from .utils import safe_float
 
-class LoadExtractor:
+class LoadParser:
     """
     Extracts zone loads and their associated schedules using cached data from DataLoader.
     """
