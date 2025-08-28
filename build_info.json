@@ -1,14 +1,14 @@
 {
-  "build_timestamp": 1756040742,
-  "build_type": "auto-release",
-  "previous_version": "1.1.12",
-  "version": "1.1.13",
   "platform": "win32",
-  "commit_message": "fix grouping for now",
-  "build_date": "2025-08-24T13:05:41Z",
-  "commit_sha": "35152695833df12447e700bb793c7ae38a177b43",
-  "increment_type": "patch",
-  "triggered_by": "push",
+  "previous_version": "1.1.13",
+  "commit_sha": "92da41888917f2ba9ade9727420a916bfdd801e9",
+  "build_type": "auto-release",
   "repository": "danielpiro/idf-reader",
+  "commit_message": "Merge branch 'main' of https://github.com/danielpiro/idf-reader",
+  "increment_type": "patch",
+  "build_timestamp": 1756298857,
+  "build_date": "2025-08-27T12:47:36Z",
+  "triggered_by": "push",
+  "version": "1.1.14",
   "python_version": "Python 3.11.9"
 }
