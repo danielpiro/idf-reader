@@ -56,6 +56,15 @@ class EnergyRatingParser(CSVOutputParser):
         """
         Process EnergyPlus output file (eplusout.csv) to extract energy consumption data.
         """
+        self.logger.info("ENERGY RATING DEBUG - Starting process_output")
+        
+        # Log available zones from area_parser for comparison
+        if self.area_parser and self.area_parser.processed and self.area_parser.areas_by_zone:
+            area_parser_zones = list(self.area_parser.areas_by_zone.keys())
+            self.logger.info(f"ENERGY RATING DEBUG - Area parser has {len(area_parser_zones)} zones available")
+            self.logger.info(f"ENERGY RATING DEBUG - Sample area parser zones: {area_parser_zones[:5]}")
+        else:
+            self.logger.warning("ENERGY RATING DEBUG - Area parser not available or not processed")
         
         if self.processed:
             return
@@ -160,11 +169,17 @@ class EnergyRatingParser(CSVOutputParser):
         """
         Process headers to extract zone information and corresponding values.
         """
+        self.logger.info(f"ENERGY RATING DEBUG - Processing {len(headers)} headers and {len(values)} values")
         
         self.energy_data_by_area = {}
         if not headers or not values:
             self.logger.warning("Headers or values list is empty in _process_headers_and_values. Skipping.")
             return
+        
+        # Track which zones we find in the CSV headers
+        found_zones = set()
+        processed_zones = set()
+        skipped_headers = []
         # No pattern validation needed for containment-based approach
 
         all_zones_data_from_loader = self.data_loader.get_zones()
@@ -191,6 +206,7 @@ class EnergyRatingParser(CSVOutputParser):
                 for zone_name in zones.keys():
                     if zone_name in header:
                         matched_zone_key = zone_name
+                        found_zones.add(zone_name)
                         break
                 
                 # Check for energy type in header
@@ -230,11 +246,27 @@ class EnergyRatingParser(CSVOutputParser):
                     individual_zone_floor_area = 0.0
 
                     
-                    # If we found a matching zone, get its data directly
-                    if matched_zone_key and isinstance(all_zones_data_from_loader, dict) and matched_zone_key in all_zones_data_from_loader:
+                    # If we found a matching zone, get its data from area_parser (which has CSV-corrected values)
+                    if matched_zone_key and self.area_parser and self.area_parser.processed:
+                        # Try to get from area_parser first (has CSV-corrected values)
+                        area_parser_zones = self.area_parser.areas_by_zone
+                        if matched_zone_key in area_parser_zones:
+                            ap_zone_data = area_parser_zones[matched_zone_key]
+                            zone_multiplier = int(ap_zone_data.get('multiplier', 1))
+                            individual_zone_floor_area = safe_float(ap_zone_data.get('floor_area', 0.0), 0.0)
+                            self.logger.debug(f"Using area_parser zone data for '{matched_zone_key}': floor_area={individual_zone_floor_area}")
+                        elif matched_zone_key in all_zones_data_from_loader:
+                            # Fallback to data_loader if not in area_parser
+                            dl_zone_data = all_zones_data_from_loader[matched_zone_key]
+                            zone_multiplier = int(dl_zone_data.get('multiplier', 1))
+                            individual_zone_floor_area = safe_float(dl_zone_data.get('floor_area', 0.0), 0.0)
+                            self.logger.warning(f"Using data_loader zone data for '{matched_zone_key}' (not found in area_parser): floor_area={individual_zone_floor_area}")
+                    elif matched_zone_key and isinstance(all_zones_data_from_loader, dict) and matched_zone_key in all_zones_data_from_loader:
+                        # Fallback when area_parser not available
                         dl_zone_data = all_zones_data_from_loader[matched_zone_key]
                         zone_multiplier = int(dl_zone_data.get('multiplier', 1))
                         individual_zone_floor_area = safe_float(dl_zone_data.get('floor_area', 0.0), 0.0)
+                        self.logger.warning(f"Using data_loader zone data for '{matched_zone_key}' (area_parser not processed): floor_area={individual_zone_floor_area}")
                     else:
                         # No matching zone found from CSV parsing, try direct DataLoader lookup
                         direct_zone_lookup = None
@@ -259,9 +291,17 @@ class EnergyRatingParser(CSVOutputParser):
                                     break
                         
                         if direct_zone_lookup:
-                            dl_zone_data = all_zones_data_from_loader[direct_zone_lookup]
-                            zone_multiplier = int(dl_zone_data.get('multiplier', 1))
-                            individual_zone_floor_area = safe_float(dl_zone_data.get('floor_area', 0.0), 0.0)
+                            # Try area_parser first, then fallback to data_loader
+                            if self.area_parser and self.area_parser.processed and direct_zone_lookup in self.area_parser.areas_by_zone:
+                                ap_zone_data = self.area_parser.areas_by_zone[direct_zone_lookup]
+                                zone_multiplier = int(ap_zone_data.get('multiplier', 1))
+                                individual_zone_floor_area = safe_float(ap_zone_data.get('floor_area', 0.0), 0.0)
+                                self.logger.debug(f"Using area_parser zone data for direct lookup '{direct_zone_lookup}': floor_area={individual_zone_floor_area}")
+                            else:
+                                dl_zone_data = all_zones_data_from_loader[direct_zone_lookup]
+                                zone_multiplier = int(dl_zone_data.get('multiplier', 1))
+                                individual_zone_floor_area = safe_float(dl_zone_data.get('floor_area', 0.0), 0.0)
+                                self.logger.warning(f"Using data_loader zone data for direct lookup '{direct_zone_lookup}': floor_area={individual_zone_floor_area}")
                         else:
                             # Try fuzzy matching by looking for zones that contain parts of the key
                             fuzzy_match = None
@@ -271,9 +311,17 @@ class EnergyRatingParser(CSVOutputParser):
                                     break
                             
                             if fuzzy_match:
-                                dl_zone_data = all_zones_data_from_loader[fuzzy_match]
-                                zone_multiplier = int(dl_zone_data.get('multiplier', 1))
-                                individual_zone_floor_area = safe_float(dl_zone_data.get('floor_area', 0.0), 0.0)
+                                # Try area_parser first, then fallback to data_loader
+                                if self.area_parser and self.area_parser.processed and fuzzy_match in self.area_parser.areas_by_zone:
+                                    ap_zone_data = self.area_parser.areas_by_zone[fuzzy_match]
+                                    zone_multiplier = int(ap_zone_data.get('multiplier', 1))
+                                    individual_zone_floor_area = safe_float(ap_zone_data.get('floor_area', 0.0), 0.0)
+                                    self.logger.debug(f"Using area_parser zone data for fuzzy match '{fuzzy_match}': floor_area={individual_zone_floor_area}")
+                                else:
+                                    dl_zone_data = all_zones_data_from_loader[fuzzy_match]
+                                    zone_multiplier = int(dl_zone_data.get('multiplier', 1))
+                                    individual_zone_floor_area = safe_float(dl_zone_data.get('floor_area', 0.0), 0.0)
+                                    self.logger.warning(f"Using data_loader zone data for fuzzy match '{fuzzy_match}': floor_area={individual_zone_floor_area}")
                             else:
                                 # Still no match, use defaults
                                 zone_keys_missing.add(full_zone_id_key)
@@ -293,6 +341,9 @@ class EnergyRatingParser(CSVOutputParser):
                         'total_area_of_legacy_grouping': total_area_for_legacy_grouping
                     }
                     
+                    # Track successful zone processing
+                    if matched_zone_key:
+                        processed_zones.add(matched_zone_key)
 
                 # Determine energy category from header
                 if 'light' in header_lower: 
@@ -322,7 +373,26 @@ class EnergyRatingParser(CSVOutputParser):
                 self.logger.error(f"Unexpected error processing header '{header}': {e}. Skipping this header.", exc_info=True)
                 continue
         
-        # Report processing results
+        # Report comprehensive processing results
+        self.logger.info(f"ENERGY RATING DEBUG - Zone processing summary:")
+        self.logger.info(f"  - Found {len(found_zones)} unique zones in CSV headers")
+        self.logger.info(f"  - Processed {len(processed_zones)} zones successfully") 
+        self.logger.info(f"  - Created energy data for {len(self.energy_data_by_area)} zone entries")
+        self.logger.info(f"  - Skipped {len(skipped_headers)} headers")
+        
+        if found_zones:
+            self.logger.info(f"ENERGY RATING DEBUG - Found zones: {sorted(list(found_zones))[:10]}...")
+            
+        # Compare with area_parser zones
+        if self.area_parser and self.area_parser.processed and self.area_parser.areas_by_zone:
+            area_parser_zones = set(self.area_parser.areas_by_zone.keys())
+            missing_from_energy = area_parser_zones - found_zones
+            extra_in_energy = found_zones - area_parser_zones
+            
+            if missing_from_energy:
+                self.logger.warning(f"ENERGY RATING DEBUG - {len(missing_from_energy)} zones in area_parser but NOT found in energy CSV: {sorted(list(missing_from_energy))[:10]}...")
+            if extra_in_energy:
+                self.logger.info(f"ENERGY RATING DEBUG - {len(extra_in_energy)} zones found in energy CSV but not in area_parser: {sorted(list(extra_in_energy))[:5]}...")
         
         if zone_keys_missing:
             self.logger.warning(f"Zone keys found in eplusout.csv but missing from IDF: {len(zone_keys_missing)} zones")
@@ -435,7 +505,7 @@ class EnergyRatingParser(CSVOutputParser):
         """
         Extract floor and zone based on zone ID format.
         Rules (for energy report columns only):
-        - A:BXC → floor = A:B, zone = C
+        - A:BXC → floor = A, zone = BXC
         - A:B → floor = A, zone = B  
         - A → floor = A, zone = A
         """
@@ -443,20 +513,17 @@ class EnergyRatingParser(CSVOutputParser):
             return 'Unknown', 'Unknown'
         
         try:
-            # Check for A:BXC pattern (contains both : and X)
-            if ':' in zone_id and 'X' in zone_id:
-                # Find the X to split between floor and zone
-                x_index = zone_id.find('X')
-                floor = zone_id[:x_index]  # Everything before X (A:B)
-                zone = zone_id[x_index+1:]  # Everything after X (C)
-                return floor, zone
-            
-            # Check for A:B pattern (contains : but no X)
-            elif ':' in zone_id and 'X' not in zone_id:
-                parts = zone_id.split(':', 1)  # Split on first : only
-                floor = parts[0]  # A
-                zone = parts[1]   # B
-                return floor, zone
+            # Check for patterns with colon
+            if ':' in zone_id:
+                # Split on colon: A:BXC becomes ['A', 'BXC']
+                colon_parts = zone_id.split(':', 1)  # Split on first colon only
+                if len(colon_parts) >= 2:
+                    floor = colon_parts[0]  # A (floor)
+                    zone = colon_parts[1]   # BXC (zone - everything after colon)
+                    self.logger.debug(f"Parsed colon format '{zone_id}': floor='{floor}', zone='{zone}'")
+                    return floor, zone
+                # Fallback if parsing fails
+                return zone_id, zone_id
             
             # Check for A pattern (no : and no X)
             else:
@@ -631,7 +698,39 @@ class EnergyRatingParser(CSVOutputParser):
             # For office ISO: each zone is individual, for others: group by floor/area
             if is_office_iso:
                 # Office ISO: no grouping needed, each zone is individual
-                pass
+                # For office mode, we can use area_parser zones directly if available
+                if self.area_parser and self.area_parser.processed and self.area_parser.areas_by_zone:
+                    self.logger.info(f"OFFICE MODE DEBUG - Using area_parser zones directly for office ISO mode")
+                    # Process zones directly from area_parser for office mode
+                    for zone_id, area_zone_data in self.area_parser.areas_by_zone.items():
+                        if zone_id not in self.energy_data_by_area:
+                            # Create energy data entry for zone if it doesn't exist from CSV parsing
+                            floor_area = safe_float(area_zone_data.get('floor_area', 0.0), 0.0)
+                            multiplier = safe_float(area_zone_data.get('multiplier', 1.0), 1.0)
+                            
+                            # Extract floor and zone using correct parsing
+                            floor_id, zone_name = self._extract_floor_and_zone(zone_id)
+                            
+                            # Create a basic entry with zero energy values - will be updated if CSV data exists
+                            self.energy_data_by_area[zone_id] = {
+                                'individual_zone_floor_area': floor_area,
+                                'multiplier': multiplier,
+                                'abs_lighting': 0.0,
+                                'abs_heating': 0.0, 
+                                'abs_cooling': 0.0,
+                                'floor_id_report': floor_id,
+                                'area_id_report': zone_name,  # Use the extracted zone (B from A:BXC)
+                            }
+                            self.logger.info(f"OFFICE MODE DEBUG - Added zone '{zone_id}' from area_parser: floor_area={floor_area}, multiplier={multiplier}")
+                        else:
+                            # Update existing entry with correct area_parser values
+                            floor_area = safe_float(area_zone_data.get('floor_area', 0.0), 0.0)
+                            multiplier = safe_float(area_zone_data.get('multiplier', 1.0), 1.0)
+                            self.energy_data_by_area[zone_id]['individual_zone_floor_area'] = floor_area
+                            self.energy_data_by_area[zone_id]['multiplier'] = multiplier
+                            self.logger.info(f"OFFICE MODE DEBUG - Updated zone '{zone_id}' with area_parser values: floor_area={floor_area}, multiplier={multiplier}")
+                else:
+                    self.logger.warning("OFFICE MODE DEBUG - area_parser not available, using CSV-parsed zones for office mode")
             else:
                 # Non-office: group by floor/area as before
                 floor_area_id_sums: Dict[tuple[str, str], float] = {}

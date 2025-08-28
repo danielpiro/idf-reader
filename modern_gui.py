@@ -373,7 +373,33 @@ class ModernIDFProcessorGUI:
             
             # Generate run ID
             run_id = datetime.now().strftime('%d-%m-%Y-%H-%M-%S')
-            reports_dir = os.path.join(job['output_dir'], f"reports-{run_id}")
+            
+            # Get project name for folder naming - use consultant data to match processing manager
+            from pathlib import Path
+            # First try to get project name from job data, then fall back to file name
+            job_consultant_data = job.get('consultant_data', {})
+            job_project_data = job.get('project_data', {})
+            project_name = (job_consultant_data.get('project_name', '') or 
+                          job_project_data.get('project_name', '') or 
+                          Path(job['input_file']).stem).strip()
+            
+            # Debug logging to see what project name is being used
+            logger.info(f"GUI FOLDER DEBUG - job_consultant_data: {job_consultant_data}")
+            logger.info(f"GUI FOLDER DEBUG - job_project_data: {job_project_data}")
+            logger.info(f"GUI FOLDER DEBUG - extracted project_name: '{project_name}'")
+            
+            safe_project_name = "unknown-project"
+            if project_name and project_name.strip() and project_name.strip() != "N/A":
+                safe_project_name = project_name.strip()
+                # Replace invalid characters for folder names
+                safe_project_name = "".join(c for c in safe_project_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+                safe_project_name = safe_project_name.replace(' ', '-')
+            else:
+                safe_project_name = Path(job['input_file']).stem
+            
+            logger.info(f"GUI FOLDER DEBUG - final safe_project_name: '{safe_project_name}'")
+            
+            reports_dir = os.path.join(job['output_dir'], f"{safe_project_name}-{run_id}")
             simulation_dir = os.path.join(reports_dir, "simulation")
             
             os.makedirs(simulation_dir, exist_ok=True)
@@ -396,6 +422,9 @@ class ModernIDFProcessorGUI:
                 progress_callback=self.update_progress,
                 simulation_output_csv=simulation_output_csv
             )
+            
+            # Set consultant data to ensure same project name is used
+            self.processing_manager.consultant_data = getattr(self, 'consultant_data', {})
             
             # Set city info
             self.processing_manager.city_info = {
@@ -1777,7 +1806,21 @@ class ModernIDFProcessorGUI:
         try:
             # Generate run ID
             run_id = datetime.now().strftime('%d-%m-%Y-%H-%M-%S')
-            reports_dir = os.path.join(self.output_dir, f"reports-{run_id}")
+            
+            # Get project name for folder naming - use consultant data to match processing manager
+            from pathlib import Path
+            consultant_data = getattr(self, 'consultant_data', {})
+            project_name = consultant_data.get('project_name', '').strip() or Path(self.input_file).stem
+            safe_project_name = "unknown-project"
+            if project_name and project_name.strip() and project_name.strip() != "N/A":
+                safe_project_name = project_name.strip()
+                # Replace invalid characters for folder names
+                safe_project_name = "".join(c for c in safe_project_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+                safe_project_name = safe_project_name.replace(' ', '-')
+            else:
+                safe_project_name = Path(self.input_file).stem
+            
+            reports_dir = os.path.join(self.output_dir, f"{safe_project_name}-{run_id}")
             simulation_dir = os.path.join(reports_dir, "simulation")
             
             os.makedirs(simulation_dir, exist_ok=True)
@@ -1790,8 +1833,24 @@ class ModernIDFProcessorGUI:
                 self.reset_gui_state()
                 return
             
+            # Debug: Check simulation directory before running EnergyPlus
+            logger.info(f"SIMULATION DEBUG - Simulation directory created at: {simulation_dir}")
+            logger.info(f"SIMULATION DEBUG - Directory exists: {os.path.exists(simulation_dir)}")
+            if os.path.exists(simulation_dir):
+                logger.info(f"SIMULATION DEBUG - Directory contents before simulation: {os.listdir(simulation_dir)}")
+            
             # Run EnergyPlus simulation
             simulation_output_csv = self.run_energyplus_simulation(epw_file, simulation_dir)
+            
+            # Debug: Check simulation directory after running EnergyPlus
+            if os.path.exists(simulation_dir):
+                logger.info(f"SIMULATION DEBUG - Directory contents after simulation: {os.listdir(simulation_dir)}")
+                logger.info(f"SIMULATION DEBUG - CSV file path returned: {simulation_output_csv}")
+                if simulation_output_csv and os.path.exists(simulation_output_csv):
+                    logger.info(f"SIMULATION DEBUG - CSV file exists and size: {os.path.getsize(simulation_output_csv)} bytes")
+                else:
+                    logger.warning(f"SIMULATION DEBUG - CSV file does not exist at returned path: {simulation_output_csv}")
+            
             if not simulation_output_csv:
                 self.show_status("סימולציית EnergyPlus נכשלה או שקבצי הפלט לא נמצאו. הדוחות יופקו בלי נתוני סימולציה.", "warning")
             
@@ -1962,6 +2021,12 @@ OUTPUT:VARIABLE,
         output_csv_path = os.path.join(simulation_dir, "eplustbl.csv")
         simulation_successful = False
         
+        # Debug logging
+        logger.info(f"ENERGYPLUS DEBUG - Starting simulation in directory: {simulation_dir}")
+        logger.info(f"ENERGYPLUS DEBUG - Expected output CSV path: {output_csv_path}")
+        logger.info(f"ENERGYPLUS DEBUG - EPW file: {epw_file}")
+        logger.info(f"ENERGYPLUS DEBUG - Input IDF file: {self.input_file}")
+        
         # Variables for cleanup
         safe_idf_path = self.input_file
         idf_cleanup = None
@@ -2042,20 +2107,42 @@ OUTPUT:VARIABLE,
                 if self.page:
                     self._safe_page_update()
 
+            # Debug: Check what files were created by EnergyPlus
+            logger.info(f"ENERGYPLUS DEBUG - Checking output directory after execution: {safe_output_dir}")
+            if os.path.exists(safe_output_dir):
+                created_files = os.listdir(safe_output_dir)
+                logger.info(f"ENERGYPLUS DEBUG - Files created by EnergyPlus: {created_files}")
+                for file in created_files:
+                    file_path = os.path.join(safe_output_dir, file)
+                    if os.path.isfile(file_path):
+                        logger.info(f"ENERGYPLUS DEBUG - File '{file}' size: {os.path.getsize(file_path)} bytes")
+            else:
+                logger.warning(f"ENERGYPLUS DEBUG - Output directory does not exist: {safe_output_dir}")
+            
             # Check if simulation produced output in the temporary location
             if os.path.exists(temp_output_csv_path):
                 # Check if CSV is empty or too small (basic check)
                 if os.path.getsize(temp_output_csv_path) > 100:  # Arbitrary small size
                     simulation_successful = True
+                    logger.info(f"ENERGYPLUS DEBUG - Simulation successful! CSV file size: {os.path.getsize(temp_output_csv_path)} bytes")
                     
                     # If we used a temporary directory, move files back to the original location
                     if needs_move_back:
                         self.show_status("מעביר קבצי פלט של סימולציה בחזרה לתיקיית Unicode המקורית...")
+                        logger.info(f"ENERGYPLUS DEBUG - Moving files from {safe_output_dir} to {simulation_dir}")
                         from utils.path_utils import move_simulation_files_back
                         if move_simulation_files_back(safe_output_dir, simulation_dir):
                             self.show_status("העברת קבצי סימולציה לתיקייה המקורית הושלמה בהצלחה")
+                            logger.info(f"ENERGYPLUS DEBUG - Successfully moved files to final directory")
+                            # Check what files are now in the final directory
+                            if os.path.exists(simulation_dir):
+                                final_files = os.listdir(simulation_dir)
+                                logger.info(f"ENERGYPLUS DEBUG - Files in final directory: {final_files}")
                         else:
                             self.show_status("אזהרה: חלו בעיות בהעברת קבצי סימולציה", "warning")
+                            logger.error(f"ENERGYPLUS DEBUG - Failed to move files from {safe_output_dir} to {simulation_dir}")
+                    else:
+                        logger.info(f"ENERGYPLUS DEBUG - No file move needed, files should already be in: {simulation_dir}")
                     
                     # Stop animation and set final progress
                     self.stop_progress_animation()

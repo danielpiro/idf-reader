@@ -7,12 +7,10 @@ import os
 import json
 import time
 import hashlib
-import requests
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
-import uuid
 
 from utils.logging_config import get_logger
 

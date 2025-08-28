@@ -4,7 +4,7 @@ Extracts and processes area information including floor areas and material prope
 from typing import Dict, Any, List, Optional
 from parsers.materials_parser import MaterialsParser
 from .utils import safe_float
-from parsers.eplustbl_reader import read_glazing_data_from_csv
+from parsers.eplustbl_reader import read_glazing_data_from_csv, read_zone_areas_from_csv
 from .base_parser import SurfaceDataParser
 
 class AreaParser(SurfaceDataParser):
@@ -25,6 +25,20 @@ class AreaParser(SurfaceDataParser):
             self.construction_areas_from_csv = read_construction_areas_from_csv(csv_path)
         except Exception as e:
             self.construction_areas_from_csv = {}
+            
+        # Load zone areas from eplustbl.csv Zone Summary table
+        try:
+            self.zone_areas_from_csv = read_zone_areas_from_csv(csv_path)
+            if self.zone_areas_from_csv:
+                self.logger.info(f"Loaded zone areas from CSV: {len(self.zone_areas_from_csv)} zones found")
+                # Log first few zone names for debugging
+                sample_zones = list(self.zone_areas_from_csv.keys())[:3]
+                self.logger.debug(f"Sample CSV zone names: {sample_zones}")
+            else:
+                self.logger.warning(f"No zone areas loaded from CSV path: {csv_path}")
+        except Exception as e:
+            self.logger.error(f"Error loading zone areas from CSV: {e}")
+            self.zone_areas_from_csv = {}
             
         self.materials_parser = materials_parser
         self.areas_by_zone = {}
@@ -50,6 +64,29 @@ class AreaParser(SurfaceDataParser):
             if self.materials_parser:
                 self._merge_reverse_constructions(self.materials_parser)
 
+            # Log summary of processed zone areas
+            if self.areas_by_zone:
+                total_zones = len(self.areas_by_zone)
+                csv_used_count = 0
+                calculated_used_count = 0
+                
+                for zone_id, zone_data in self.areas_by_zone.items():
+                    floor_area = zone_data.get("floor_area", 0)
+                    # Try to determine if CSV was used by checking if this area matches CSV
+                    csv_area = self._get_zone_area_from_csv(zone_id)
+                    if csv_area is not None and abs(floor_area - csv_area) < 0.01:
+                        csv_used_count += 1
+                    else:
+                        calculated_used_count += 1
+                
+                self.logger.info(f"Zone area processing summary: {total_zones} zones processed")
+                self.logger.info(f"Zone area sources: {csv_used_count} from CSV, {calculated_used_count} from calculations")
+                
+                # Log a few sample zones for verification
+                sample_zones = list(self.areas_by_zone.items())[:3]
+                for zone_id, zone_data in sample_zones:
+                    self.logger.info(f"Sample zone '{zone_id}': floor_area={zone_data.get('floor_area')}, multiplier={zone_data.get('multiplier')}")
+            
             self.processed = True
         except (ValueError, KeyError, Exception):
             raise
@@ -68,7 +105,6 @@ class AreaParser(SurfaceDataParser):
                     if not zone_id:
                         continue
 
-
                     # Use enhanced area_id extraction for better grouping
                     area_id = self._extract_area_id_enhanced(zone_id)
                     
@@ -78,10 +114,27 @@ class AreaParser(SurfaceDataParser):
                     # Get group key for debugging
                     group_key = self.data_loader.get_zone_group_key(zone_id)
 
-
-                    floor_area = safe_float(zone_data.get("floor_area"))
-                    multiplier = int(safe_float(zone_data.get("multiplier"), 1))
+                    # Try to get floor area from eplustbl.csv first, fallback to calculated value
+                    csv_floor_area = self._get_zone_area_from_csv(zone_id)
+                    calculated_floor_area = safe_float(zone_data.get("floor_area"))
                     
+                    if csv_floor_area is not None and csv_floor_area > 0:
+                        floor_area = csv_floor_area
+                        self.logger.info(f"Using CSV zone area for '{zone_id}': {csv_floor_area} m² (calculated was: {calculated_floor_area})")
+                    else:
+                        floor_area = calculated_floor_area
+                        self.logger.warning(f"Using calculated zone area for '{zone_id}': {calculated_floor_area} m² (CSV not found or invalid)")
+                    
+                    # Try to get multiplier from eplustbl.csv first, fallback to IDF value
+                    csv_multiplier = self._get_zone_multiplier_from_csv(zone_id)
+                    calculated_multiplier = int(safe_float(zone_data.get("multiplier"), 1))
+                    
+                    if csv_multiplier is not None and csv_multiplier > 0:
+                        multiplier = csv_multiplier
+                        if csv_multiplier != calculated_multiplier:
+                            self.logger.info(f"Using CSV zone multiplier for '{zone_id}': {csv_multiplier} (calculated was: {calculated_multiplier})")
+                    else:
+                        multiplier = calculated_multiplier
 
                     self.areas_by_zone[zone_id] = {
                         "area_id": area_id,
@@ -721,10 +774,12 @@ class AreaParser(SurfaceDataParser):
                     continue
                 found_area = True
 
-                result["total_floor_area"] += (
-                    safe_float(zone_data.get("floor_area", 0.0), 0.0) *
-                    int(safe_float(zone_data.get("multiplier", 1), 1))
-                )
+                zone_floor_area = safe_float(zone_data.get("floor_area", 0.0), 0.0)
+                zone_multiplier = int(safe_float(zone_data.get("multiplier", 1), 1))
+                zone_contribution = zone_floor_area * zone_multiplier
+                result["total_floor_area"] += zone_contribution
+                
+                self.logger.debug(f"AREA TOTALS DEBUG - Zone {zone_id} (area {area_id}): floor_area={zone_floor_area}, multiplier={zone_multiplier}, contribution={zone_contribution}")
 
                 for construction_name, construction_data in zone_data.get("constructions", {}).items():
                     try:
@@ -772,19 +827,40 @@ class AreaParser(SurfaceDataParser):
         """
         result_by_zone: Dict[str, List[Dict[str, Any]]] = {}
         try:
+            self.logger.info(f"INDIVIDUAL ZONES DEBUG - Starting get_area_table_data_by_individual_zones")
             parser_to_use = materials_parser if materials_parser else self.materials_parser
             if not parser_to_use:
+                self.logger.warning(f"INDIVIDUAL ZONES DEBUG - No materials parser available")
                 return result_by_zone
             if not self.processed:
+                self.logger.warning(f"INDIVIDUAL ZONES DEBUG - Area parser not processed yet")
                 return result_by_zone
             surfaces = self.data_loader.get_surfaces()
             if not self.areas_by_zone:
+                self.logger.warning(f"INDIVIDUAL ZONES DEBUG - No areas_by_zone data available")
                 return result_by_zone
-                
+            
+            total_zones_to_process = len(self.areas_by_zone)
+            self.logger.info(f"INDIVIDUAL ZONES DEBUG - Processing {total_zones_to_process} zones")
+            
+            zones_with_core = 0
+            zones_without_constructions = 0
+            zones_with_glazing_only = 0
+            zones_with_zero_area = 0
+            zones_successfully_processed = 0
+            
+            # Get HVAC zones from data loader for proper filtering
+            hvac_zones = set(self.data_loader.get_hvac_zones())
+            self.logger.info(f"INDIVIDUAL ZONES DEBUG - Found {len(hvac_zones)} HVAC zones for filtering")
+            
             for zone_id, zone_data in self.areas_by_zone.items():
                 try:
-                    area_id = zone_data.get("area_id", "unknown")
-                    if "core" in area_id.lower():
+                    # Use proper HVAC zone filtering instead of name-based filtering
+                    if zone_id not in hvac_zones:
+                        zones_with_core += 1  # Reusing this counter for non-HVAC zones
+                        # Check if it's one of our problematic zones
+                        if zone_id in ["02XED:17XCR", "02XED:11XCR", "02XED:10XCR"]:
+                            self.logger.error(f"INDIVIDUAL ZONES DEBUG - Problematic zone '{zone_id}' skipped - not in HVAC zones")
                         continue
                     
                     # For office ISO: each zone gets its own report
@@ -795,7 +871,14 @@ class AreaParser(SurfaceDataParser):
                     constructions_in_zone = zone_data.get("constructions", {})
                     
                     if not constructions_in_zone:
+                        zones_without_constructions += 1
+                        if zone_id in ["02XED:17XCR", "02XED:11XCR", "02XED:10XCR"]:
+                            self.logger.error(f"INDIVIDUAL ZONES DEBUG - Problematic zone '{zone_id}' skipped due to no constructions")
                         continue
+
+                    # Special debugging for problematic zones
+                    if zone_id in ["02XED:17XCR", "02XED:11XCR", "02XED:10XCR"]:
+                        self.logger.info(f"INDIVIDUAL ZONES DEBUG - Processing problematic zone '{zone_id}' with {len(constructions_in_zone)} constructions: {list(constructions_in_zone.keys())}")
 
                     for construction_name, construction_data in constructions_in_zone.items():
                         try:
@@ -867,13 +950,31 @@ class AreaParser(SurfaceDataParser):
                             continue
 
                     filtered_results = [entry for entry in zone_constructions_aggregated.values() if entry.get("area", 0.0) > 0.0]
-                    result_by_zone[zone_id].extend(filtered_results)
+                    if filtered_results:
+                        result_by_zone[zone_id].extend(filtered_results)
+                        zones_successfully_processed += 1
+                    else:
+                        zones_with_zero_area += 1
+                        if zone_id in ["02XED:17XCR", "02XED:11XCR", "02XED:10XCR"]:
+                            self.logger.error(f"INDIVIDUAL ZONES DEBUG - Problematic zone '{zone_id}' had zero area after processing")
 
                 except (TypeError, ValueError, AttributeError, KeyError) as e_zone_proc:
+                    self.logger.warning(f"INDIVIDUAL ZONES DEBUG - Error processing zone '{zone_id}': {e_zone_proc}")
                     continue
 
+            # Final statistics logging
+            self.logger.info(f"INDIVIDUAL ZONES DEBUG - Processing summary:")
+            self.logger.info(f"INDIVIDUAL ZONES DEBUG - Total zones: {total_zones_to_process}")
+            self.logger.info(f"INDIVIDUAL ZONES DEBUG - Non-HVAC zones (skipped): {zones_with_core}")
+            self.logger.info(f"INDIVIDUAL ZONES DEBUG - Zones without constructions: {zones_without_constructions}")
+            self.logger.info(f"INDIVIDUAL ZONES DEBUG - Zones with glazing only: {zones_with_glazing_only}")
+            self.logger.info(f"INDIVIDUAL ZONES DEBUG - Zones with zero area: {zones_with_zero_area}")
+            self.logger.info(f"INDIVIDUAL ZONES DEBUG - Zones successfully processed: {zones_successfully_processed}")
+            self.logger.info(f"INDIVIDUAL ZONES DEBUG - Final result count: {len(result_by_zone)}")
+            
             return result_by_zone
         except Exception as e:
+            self.logger.error(f"INDIVIDUAL ZONES DEBUG - Exception in get_area_table_data_by_individual_zones: {e}", exc_info=True)
             return result_by_zone
 
     def get_area_table_data(self, materials_parser: Optional[MaterialsParser] = None) -> Dict[str, List[Dict[str, Any]]]:
@@ -896,11 +997,16 @@ class AreaParser(SurfaceDataParser):
             if not self.areas_by_zone:
                 return result_by_area
 
+            # Get HVAC zones for proper filtering
+            hvac_zones = set(self.data_loader.get_hvac_zones())
+
             for zone_id, zone_data in self.areas_by_zone.items():
                 try:
-                    area_id = zone_data.get("area_id", "unknown")
-                    if "core" in area_id.lower():
+                    # Use proper HVAC zone filtering instead of name-based filtering
+                    if zone_id not in hvac_zones:
                         continue
+                    
+                    area_id = zone_data.get("area_id", "unknown")
 
                     if area_id not in result_by_area:
                         result_by_area[area_id] = []
@@ -1013,11 +1119,16 @@ class AreaParser(SurfaceDataParser):
                 return h_values_by_area
 
             area_floor_totals = {}
+            # Get HVAC zones for proper filtering
+            hvac_zones = set(self.data_loader.get_hvac_zones())
+            
             for zone_id, zone_data in self.areas_by_zone.items():
                 try:
-                    area_id = zone_data.get("area_id", "unknown")
-                    if "core" in area_id.lower():
+                    # Use proper HVAC zone filtering instead of name-based filtering
+                    if zone_id not in hvac_zones:
                         continue
+                        
+                    area_id = zone_data.get("area_id", "unknown")
                     if area_id not in area_floor_totals:
                         area_floor_totals[area_id] = 0.0
                     area_floor_totals[area_id] += (
@@ -1258,6 +1369,9 @@ class AreaParser(SurfaceDataParser):
                 return result_by_base_zone
 
             zones_processed = 0
+            # Get HVAC zones for proper filtering
+            hvac_zones = set(self.data_loader.get_hvac_zones())
+            
             for zone_id, zone_data in self.areas_by_zone.items():
                 try:
                     zones_processed += 1
@@ -1267,7 +1381,8 @@ class AreaParser(SurfaceDataParser):
                     if zones_processed <= 3:
                         pass
                     
-                    if "core" in area_id.lower():
+                    # Use proper HVAC zone filtering instead of name-based filtering
+                    if zone_id not in hvac_zones:
                         if zones_processed <= 3:
                             pass
                         continue
@@ -1444,6 +1559,118 @@ class AreaParser(SurfaceDataParser):
             pass
             return "-"
 
+    def _get_zone_area_from_csv(self, zone_id: str) -> Optional[float]:
+        """
+        Get zone floor area from eplustbl.csv Zone Summary table.
+        Handles zone name matching with spaces and different formats.
+        
+        Args:
+            zone_id: The zone ID from IDF (e.g., "F01U01TZ", "01:10XOFFICE")
+            
+        Returns:
+            Zone area in m2 or None if not found
+        """
+        if not self.zone_areas_from_csv:
+            self.logger.debug(f"No CSV zone areas loaded for zone '{zone_id}'")
+            return None
+            
+        self.logger.debug(f"Searching for zone '{zone_id}' in CSV data with {len(self.zone_areas_from_csv)} entries")
+        
+        # Log first few CSV zone names for comparison
+        csv_zone_samples = list(self.zone_areas_from_csv.keys())[:5]
+        self.logger.debug(f"Sample CSV zone names: {csv_zone_samples}")
+        
+        # Check if this specific zone exists in CSV (for debugging problematic cases)
+        if zone_id == "02XED:17XCR":
+            self.logger.info(f"SPECIFIC DEBUG - Looking for '{zone_id}' in CSV")
+            if zone_id in self.zone_areas_from_csv:
+                self.logger.info(f"SPECIFIC DEBUG - Found '{zone_id}' in CSV with area: {self.zone_areas_from_csv[zone_id]}")
+            else:
+                # Check if any similar zone exists
+                similar_zones = [z for z in self.zone_areas_from_csv.keys() if "17XCR" in z]
+                self.logger.info(f"SPECIFIC DEBUG - '{zone_id}' NOT found in CSV. Similar zones with '17XCR': {similar_zones}")
+        
+        try:
+            # Try exact match first
+            if zone_id in self.zone_areas_from_csv:
+                area_data = self.zone_areas_from_csv[zone_id]
+                area_value = safe_float(area_data.get('Area'))
+                self.logger.debug(f"Found exact match for zone '{zone_id}': area = {area_value}")
+                return area_value
+            
+            # Try case-insensitive match
+            zone_id_lower = zone_id.lower()
+            for csv_zone_name, area_data in self.zone_areas_from_csv.items():
+                if csv_zone_name.lower() == zone_id_lower:
+                    area_value = safe_float(area_data.get('Area'))
+                    self.logger.debug(f"Found case-insensitive match for zone '{zone_id}' -> '{csv_zone_name}': area = {area_value}")
+                    return area_value
+            
+            # Try containment matching (CSV zone contains IDF zone or vice versa)
+            for csv_zone_name, area_data in self.zone_areas_from_csv.items():
+                csv_zone_lower = csv_zone_name.lower().replace(' ', '').replace('_', '').replace('-', '')
+                idf_zone_lower = zone_id.lower().replace(' ', '').replace('_', '').replace('-', '').replace(':', '')
+                
+                # Check if the cleaned names match
+                if csv_zone_lower == idf_zone_lower:
+                    area_value = safe_float(area_data.get('Area'))
+                    self.logger.debug(f"Found cleaned name match for zone '{zone_id}' -> '{csv_zone_name}': area = {area_value}")
+                    return area_value
+                
+                # Check containment in both directions
+                if csv_zone_lower in idf_zone_lower or idf_zone_lower in csv_zone_lower:
+                    area_value = safe_float(area_data.get('Area'))
+                    self.logger.debug(f"Found containment match for zone '{zone_id}' -> '{csv_zone_name}': area = {area_value}")
+                    return area_value
+            
+            self.logger.warning(f"No zone area match found for '{zone_id}' in CSV data. Available zones: {list(self.zone_areas_from_csv.keys())[:5]}...")
+            return None
+        except Exception as e:
+            self.logger.warning(f"Error getting zone area from CSV for zone {zone_id}: {e}")
+            return None
+    
+    def _get_zone_multiplier_from_csv(self, zone_id: str) -> Optional[float]:
+        """
+        Get zone multiplier from eplustbl.csv Zone Summary table.
+        
+        Args:
+            zone_id: The zone ID from IDF
+            
+        Returns:
+            Zone multiplier or None if not found
+        """
+        if not self.zone_areas_from_csv:
+            return None
+            
+        try:
+            # Use same matching logic as _get_zone_area_from_csv
+            # Try exact match first
+            if zone_id in self.zone_areas_from_csv:
+                area_data = self.zone_areas_from_csv[zone_id]
+                return safe_float(area_data.get('Multiplier'), 1.0)
+            
+            # Try case-insensitive match
+            zone_id_lower = zone_id.lower()
+            for csv_zone_name, area_data in self.zone_areas_from_csv.items():
+                if csv_zone_name.lower() == zone_id_lower:
+                    return safe_float(area_data.get('Multiplier'), 1.0)
+            
+            # Try containment matching
+            for csv_zone_name, area_data in self.zone_areas_from_csv.items():
+                csv_zone_lower = csv_zone_name.lower().replace(' ', '').replace('_', '').replace('-', '')
+                idf_zone_lower = zone_id.lower().replace(' ', '').replace('_', '').replace('-', '').replace(':', '')
+                
+                if csv_zone_lower == idf_zone_lower:
+                    return safe_float(area_data.get('Multiplier'), 1.0)
+                
+                if csv_zone_lower in idf_zone_lower or idf_zone_lower in csv_zone_lower:
+                    return safe_float(area_data.get('Multiplier'), 1.0)
+            
+            return None
+        except Exception as e:
+            self.logger.warning(f"Error getting zone multiplier from CSV for zone {zone_id}: {e}")
+            return None
+
     def _is_window_for_wall(self, window_name_upper: str, wall_name_upper: str) -> bool:
         """
         Check if a window belongs to a wall based on naming patterns.
@@ -1498,11 +1725,16 @@ class AreaParser(SurfaceDataParser):
             if not self.areas_by_zone:
                 return result_by_area
 
+            # Get HVAC zones for proper filtering
+            hvac_zones = set(self.data_loader.get_hvac_zones())
+
             for zone_id, zone_data in self.areas_by_zone.items():
                 try:
-                    area_id = zone_data.get("area_id", "unknown")
-                    if "core" in area_id.lower():
+                    # Use proper HVAC zone filtering instead of name-based filtering
+                    if zone_id not in hvac_zones:
                         continue
+                        
+                    area_id = zone_data.get("area_id", "unknown")
 
                     if area_id not in result_by_area:
                         result_by_area[area_id] = []

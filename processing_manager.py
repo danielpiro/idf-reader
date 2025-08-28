@@ -79,7 +79,7 @@ class ProcessingManager:
             logger.error(error_message)
             raise OSError(error_message)
 
-    def _setup_output_paths(self, output_dir: str, run_id: str = None) -> dict:
+    def _setup_output_paths(self, output_dir: str, run_id: str = None, project_name: str = None, input_file: str = None) -> dict:
         """
         Sets up and returns a dictionary of output paths for reports.
         Creates a unique reports folder for each run to prevent overriding.
@@ -87,17 +87,33 @@ class ProcessingManager:
         Args:
             output_dir: The base directory for output.
             run_id: Unique identifier for this run (timestamp-based).
+            project_name: Name of the project for folder naming.
+            input_file: Path to IDF file for fallback naming.
 
         Returns:
             A dictionary mapping report names to their full output paths.
         """
+        # Clean project name for use in folder names, with IDF filename fallback
+        safe_project_name = "unknown-project"
+        
+        if project_name and project_name.strip() and project_name.strip() != "N/A":
+            safe_project_name = project_name.strip()
+        elif input_file:
+            # Use IDF filename as fallback
+            from pathlib import Path
+            safe_project_name = Path(input_file).stem
+        
+        # Replace invalid characters for folder names
+        safe_project_name = "".join(c for c in safe_project_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        safe_project_name = safe_project_name.replace(' ', '-')
+        
         if run_id:
-            base_output = os.path.join(output_dir, f"reports-{run_id}")
+            base_output = os.path.join(output_dir, f"{safe_project_name}-{run_id}")
         else:
             # Fallback to timestamped folder if no run_id provided
             from datetime import datetime
             timestamp = datetime.now().strftime('%d-%m-%Y-%H-%M-%S')
-            base_output = os.path.join(output_dir, f"reports-{timestamp}")
+            base_output = os.path.join(output_dir, f"{safe_project_name}-{timestamp}")
         paths = {
             "settings": os.path.join(base_output, "settings.pdf"),
             "schedules": os.path.join(base_output, "schedules.pdf"),
@@ -109,11 +125,26 @@ class ProcessingManager:
             "energy_rating": os.path.join(base_output, "energy-rating.pdf"),
             "natural_ventilation": os.path.join(base_output, "natural-ventilation.pdf"),
             "automatic_error_detection": os.path.join(base_output, "automatic-validation.pdf"),
-            "zones_dir": os.path.join(base_output, "zones")
+            "zones_dir": os.path.join(base_output, "zones"),
+            "simulation_dir": os.path.join(base_output, "simulation")
         }
         for path_key, path_value in paths.items():
             dir_to_check = path_value if path_key.endswith("_dir") else os.path.dirname(path_value)
             self._ensure_directory_exists(os.path.join(dir_to_check, "dummy.txt")) # Create dir with a dummy file
+        
+        # Copy the input IDF file to the simulation folder for traceability
+        if input_file and os.path.exists(input_file):
+            try:
+                import shutil
+                from pathlib import Path
+                input_filename = Path(input_file).name
+                simulation_folder = os.path.join(base_output, "simulation")
+                destination_path = os.path.join(simulation_folder, f"input-{input_filename}")
+                shutil.copy2(input_file, destination_path)
+                logger.info(f"Copied input file '{input_file}' to simulation folder: '{destination_path}'")
+            except Exception as e:
+                logger.warning(f"Failed to copy input file to simulation folder: {e}")
+        
         return paths
 
     def _initialize_core_components(self, input_file: str, idd_path: str = None, energyplus_path: str = None):
@@ -539,6 +570,10 @@ class ProcessingManager:
         try:
             # Use project name from consultant data if provided, otherwise default to IDF filename
             project_name = self.consultant_data.get('project_name', '').strip() or Path(input_file).stem
+            
+            # Debug logging to see what project name is being used
+            logger.info(f"PROCESSING MANAGER FOLDER DEBUG - consultant_data: {self.consultant_data}")
+            logger.info(f"PROCESSING MANAGER FOLDER DEBUG - extracted project_name: '{project_name}'")
             if run_id is None:
                 run_id = datetime.now().strftime('%d-%m-%Y-%H-%M-%S')
 
@@ -548,8 +583,21 @@ class ProcessingManager:
             self.update_progress(0.0)
             self.update_status("מאתחל...")
 
-            report_paths = self._setup_output_paths(output_dir, run_id)
-            base_reports_dir = os.path.join(output_dir, f"reports-{run_id}") # Used by EnergyRatingGenerator
+            report_paths = self._setup_output_paths(output_dir, run_id, project_name, input_file)
+            # Create base reports directory name matching the new naming convention
+            safe_project_name = "unknown-project"
+            
+            if project_name and project_name.strip() and project_name.strip() != "N/A":
+                safe_project_name = project_name.strip()
+            else:
+                # Use IDF filename as fallback
+                from pathlib import Path
+                safe_project_name = Path(input_file).stem
+                
+            # Replace invalid characters for folder names
+            safe_project_name = "".join(c for c in safe_project_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+            safe_project_name = safe_project_name.replace(' ', '-')
+            base_reports_dir = os.path.join(output_dir, f"{safe_project_name}-{run_id}") # Used by EnergyRatingGenerator
 
             if self.is_cancelled: return False
             self.update_progress(0.1)

@@ -32,6 +32,18 @@ class AreaReportGenerator(BaseReportGenerator):
         logger.info(f"AREA CLASS DEBUG - AreaReportGenerator.generate_report called for area '{area_id}'")
         logger.info(f"AREA CLASS DEBUG - Output filename: {output_filename}")
         
+        # Check if there's actual data to generate a report with
+        has_area_data = area_data and len(area_data) > 0
+        has_glazing_data = glazing_data and len(glazing_data) > 0
+        has_floor_area = total_floor_area > 0.0
+        
+        if not has_area_data and not has_glazing_data and not has_floor_area:
+            logger.warning(f"AREA CLASS DEBUG - Skipping report generation for area '{area_id}' - no data available")
+            logger.info(f"AREA CLASS DEBUG - area_data: {len(area_data) if area_data else 0} items")
+            logger.info(f"AREA CLASS DEBUG - glazing_data: {len(glazing_data) if glazing_data else 0} items") 
+            logger.info(f"AREA CLASS DEBUG - total_floor_area: {total_floor_area}")
+            return True  # Return True to indicate successful handling (just skipped)
+        
         # Get standard page configuration
         page_config = StandardPageSizes.get_config('area')
         
@@ -81,6 +93,7 @@ class AreaReportGenerator(BaseReportGenerator):
     def _create_area_summary(self, area_id: str, total_floor_area: float, location: str,
                            wall_mass_per_area: float, areas_data, doc) -> Table:
         """Create area summary table with standardized styling."""
+        logger.info(f"AREA SUMMARY DEBUG - Creating summary for area '{area_id}' with total_floor_area={total_floor_area}")
         # Collect window directions from CSV data
         window_directions = set()
         if areas_data:
@@ -607,18 +620,30 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
         area_floor_totals = {}
 
         if hasattr(areas_data, 'areas_by_zone'):
+            logger.info(f"AREA REPORT DEBUG - Processing {len(areas_data.areas_by_zone)} zones from area_parser")
+            logger.info(f"AREA REPORT DEBUG - Sample zone IDs: {list(areas_data.areas_by_zone.keys())[:10]}")
+            logger.info(f"AREA REPORT DEBUG - Is office ISO: {is_office_iso}")
             for zone_id, zone_data in areas_data.areas_by_zone.items():
                 if is_office_iso:
                     # For office ISO: each zone gets its individual floor area
                     floor_area = zone_data.get("floor_area", 0.0)
                     multiplier = zone_data.get("multiplier", 1)
-                    area_floor_totals[zone_id] = floor_area * multiplier
+                    total_area = floor_area * multiplier
+                    area_floor_totals[zone_id] = total_area
+                    logger.info(f"AREA REPORT DEBUG - Zone {zone_id}: floor_area={floor_area}, multiplier={multiplier}, total={total_area}")
                 else:
                     # For non-office ISO: group by area_id as before
                     area_id = zone_data.get("area_id", "unknown")
                     if area_id not in area_floor_totals:
                         area_totals = areas_data.get_area_totals(area_id)
-                        area_floor_totals[area_id] = area_totals.get("total_floor_area", 0.0)
+                        calculated_total = area_totals.get("total_floor_area", 0.0)
+                        area_floor_totals[area_id] = calculated_total
+                        logger.info(f"AREA REPORT DEBUG - Area {area_id} total from get_area_totals(): {calculated_total}")
+                        
+                        # Also log individual zone contributions for debugging
+                        zone_floor_area = zone_data.get("floor_area", 0.0)
+                        zone_multiplier = zone_data.get("multiplier", 1)
+                        logger.info(f"AREA REPORT DEBUG - Zone {zone_id} contributes: floor_area={zone_floor_area}, multiplier={zone_multiplier}")
         else:
             for zone_id, zone_data in zones.items():
                 if is_office_iso:
@@ -765,6 +790,33 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
         entity_label = "individual zones" if is_office_iso else "areas"
         logger.info(f"AREA GENERATOR DEBUG - Processing {len(area_table_data)} {entity_label} for PDF generation")
         
+        # Debug zone filtering comparison
+        if hasattr(areas_data, 'areas_by_zone'):
+            total_zones_in_area_parser = len(areas_data.areas_by_zone)
+            zones_in_table_data = len(area_table_data)
+            logger.info(f"ZONE FILTERING DEBUG - Total zones in area_parser: {total_zones_in_area_parser}")
+            logger.info(f"ZONE FILTERING DEBUG - Zones in table data: {zones_in_table_data}")
+            logger.info(f"ZONE FILTERING DEBUG - Missing zones: {total_zones_in_area_parser - zones_in_table_data}")
+            
+            # Sample the missing zones
+            area_parser_zone_ids = set(areas_data.areas_by_zone.keys())
+            table_data_zone_ids = set(area_table_data.keys())
+            missing_zones = area_parser_zone_ids - table_data_zone_ids
+            logger.info(f"ZONE FILTERING DEBUG - Sample missing zone IDs (first 10): {list(missing_zones)[:10]}")
+            
+            # Check if any of the problematic zones are missing
+            problematic_zones = ["02XED:17XCR", "02XED:11XCR", "02XED:10XCR"]
+            for zone_id in problematic_zones:
+                if zone_id in missing_zones:
+                    logger.error(f"ZONE FILTERING DEBUG - Problematic zone '{zone_id}' is missing from table data!")
+                    if zone_id in areas_data.areas_by_zone:
+                        zone_data = areas_data.areas_by_zone[zone_id]
+                        logger.info(f"ZONE FILTERING DEBUG - Missing zone '{zone_id}' data in area_parser: {zone_data}")
+                elif zone_id in table_data_zone_ids:
+                    logger.info(f"ZONE FILTERING DEBUG - Problematic zone '{zone_id}' found in table data")
+                else:
+                    logger.warning(f"ZONE FILTERING DEBUG - Problematic zone '{zone_id}' not found in either area_parser or table data")
+        
         for entity_id, merged_rows in area_table_data.items():
             logger.info(f"AREA GENERATOR DEBUG - Processing {entity_label[:-1]} '{entity_id}' with {len(merged_rows)} rows")
             total_floor_area = area_floor_totals.get(entity_id, 0.0)
@@ -832,6 +884,18 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
             else:
                 entity_glazing_data = glazing_table_data.get(entity_id, [])
 
+            # Check if there's actual data to generate a report with
+            has_construction_data = merged_rows and len(merged_rows) > 0
+            has_glazing_data = entity_glazing_data and len(entity_glazing_data) > 0
+            has_floor_area = total_floor_area > 0.0
+            
+            if not has_construction_data and not has_glazing_data and not has_floor_area:
+                logger.warning(f"AREA GENERATOR DEBUG - Skipping report generation for {entity_label[:-1]} '{entity_id}' - no data available")
+                logger.info(f"AREA GENERATOR DEBUG - Construction data: {len(merged_rows) if merged_rows else 0} rows")
+                logger.info(f"AREA GENERATOR DEBUG - Glazing data: {len(entity_glazing_data) if entity_glazing_data else 0} rows")
+                logger.info(f"AREA GENERATOR DEBUG - Total floor area: {total_floor_area}")
+                continue  # Skip this entity and move to the next one
+            
             logger.info(f"AREA GENERATOR DEBUG - Generating PDF for {entity_label[:-1]} '{entity_id}' (safe filename: '{safe_entity_id}') at: {output_file}")
             logger.info(f"AREA GENERATOR DEBUG - Entity data rows: {len(merged_rows)}, Glazing data: {len(entity_glazing_data) if entity_glazing_data else 0}")
             

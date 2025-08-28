@@ -48,8 +48,10 @@ class MaterialsParser(BaseParser):
             
             # Process materials
             material_cache = self.data_loader.get_materials()
+            self.logger.info(f"Processing {len(material_cache)} materials from DataLoader")
             
             for material_id, raw_material_data in material_cache.items():
+                self.logger.info(f"Processing material: {material_id}")
                 
                 self.materials[material_id] = MaterialData(
                     id=material_id,
@@ -62,10 +64,12 @@ class MaterialsParser(BaseParser):
                 )
             
             construction_cache = self.data_loader.get_constructions()
-            
+            self.logger.info(f"Processing {len(construction_cache)} constructions from DataLoader")
             
             for construction_id, raw_construction_data in construction_cache.items():
                 material_layers = raw_construction_data['material_layers']
+                self.logger.info(f"Processing construction: {construction_id} with {len(material_layers)} material layers: {material_layers}")
+                
                 # Check for missing materials
                 missing_materials = []
                 total_thickness = 0.0
@@ -77,7 +81,10 @@ class MaterialsParser(BaseParser):
                             total_thickness += material_thickness
                     else:
                         missing_materials.append(layer_id)
+                        self.logger.warning(f"Missing material '{layer_id}' for construction '{construction_id}'")
                 
+                if missing_materials:
+                    self.logger.warning(f"Construction '{construction_id}' has missing materials: {missing_materials}")
                 
                 self.constructions[construction_id] = ConstructionData(
                     id=construction_id,
@@ -144,11 +151,13 @@ class MaterialsParser(BaseParser):
         """
         # We only need surfaces for element type detection - get all surfaces once
         surfaces = self.data_loader.get_surfaces()
-        
+        self.logger.info(f"Processing element data for {len(construction_cache)} constructions")
         
         # Create mapping for _rev constructions to their base versions
         construction_mapping = {}
         low_conductivity_found = {}
+        processed_constructions = 0
+        skipped_constructions = 0
 
         for construction_id in construction_cache.keys():
             construction_data = self.constructions[construction_id]
@@ -156,7 +165,12 @@ class MaterialsParser(BaseParser):
             element_types, dont_use = self._get_element_type(construction_id, surfaces, construction_mapping)
             
             if dont_use or not element_types:
+                skipped_constructions += 1
+                self.logger.info(f"Skipping construction '{construction_id}': dont_use={dont_use}, element_types={element_types}")
                 continue
+            
+            processed_constructions += 1
+            self.logger.info(f"Processing construction '{construction_id}' with element types: {element_types}")
             
             s_type, boundary = self._get_surface_type_and_boundary(construction_id, surfaces, construction_mapping)
             
@@ -164,11 +178,20 @@ class MaterialsParser(BaseParser):
             # Process each element type separately, grouping all materials under each element type
             for element_type in element_types:
                 film_resistance = self._get_surface_film_resistance(element_type)
+                self.logger.info(f"Processing {len(construction_data.material_layers)} materials for construction '{construction_id}', element type '{element_type}'")
+                
+                materials_processed = 0
+                materials_skipped = 0
                 
                 for layer_id in construction_data.material_layers:
                     material_data = self.materials.get(layer_id)
                     if not material_data:
+                        materials_skipped += 1
+                        self.logger.warning(f"Material '{layer_id}' not found in processed materials for construction '{construction_id}'")
                         continue
+                    
+                    materials_processed += 1
+                    self.logger.info(f"Adding material '{layer_id}' to element data for construction '{construction_id}', element type '{element_type}'")
                     
                     thermal_resistance = self._calculate_thermal_resistance(material_data)
                     mass = self._calculate_material_mass_with_low_conductivity_adjustment(
@@ -192,6 +215,10 @@ class MaterialsParser(BaseParser):
                     }
                     
                     self.element_data.append(element_entry)
+                
+                self.logger.info(f"Construction '{construction_id}', element type '{element_type}': processed {materials_processed} materials, skipped {materials_skipped}")
+        
+        self.logger.info(f"Element data processing complete: processed {processed_constructions} constructions, skipped {skipped_constructions}")
         
         # Filter the final element data after all processing is complete
         self._filter_element_data(construction_cache)
@@ -204,6 +231,10 @@ class MaterialsParser(BaseParser):
         Args:
             construction_cache: Dictionary of construction data from DataLoader
         """
+        initial_element_count = len(self.element_data)
+        initial_construction_count = len(self.constructions)
+        self.logger.info(f"Starting filter: {initial_element_count} element entries, {initial_construction_count} constructions")
+        
         # Filter constructions: remove duplicates with different suffixes
         constructions_to_remove = []
         processed_pairs = set()
@@ -315,10 +346,20 @@ class MaterialsParser(BaseParser):
                         constructions_to_remove.append(to_remove)
         
         # Remove the identified constructions
+        self.logger.info(f"Removing {len(constructions_to_remove)} duplicate constructions: {constructions_to_remove}")
+        
         for construction_id in constructions_to_remove:
+            # Count elements that will be removed
+            elements_to_remove = [element for element in self.element_data if element.get('element_name') == construction_id]
+            self.logger.info(f"Removing construction '{construction_id}' and {len(elements_to_remove)} associated element entries")
+            
             del self.constructions[construction_id]
             # Also remove from element_data
             self.element_data = [element for element in self.element_data if element.get('element_name') != construction_id]
+        
+        final_element_count = len(self.element_data)
+        final_construction_count = len(self.constructions)
+        self.logger.info(f"Filter complete: {final_element_count} element entries (removed {initial_element_count - final_element_count}), {final_construction_count} constructions (removed {initial_construction_count - final_construction_count})")
 
     def _get_surface_type_and_boundary(self, construction_id: str, surfaces: Dict[str, Dict[str, Any]], construction_mapping: Dict[str, str] = None):
         """
@@ -489,6 +530,16 @@ class MaterialsParser(BaseParser):
         Returns:
             list: List of dictionaries containing element data and calculated properties
         """
+        self.logger.info(f"Returning {len(self.element_data)} element data entries for report generation")
+        
+        # Log unique materials and constructions
+        unique_materials = set(elem.get('material_name') for elem in self.element_data)
+        unique_constructions = set(elem.get('element_name') for elem in self.element_data)
+        unique_element_types = set(elem.get('element_type') for elem in self.element_data)
+        
+        self.logger.info(f"Final element data contains: {len(unique_materials)} unique materials, {len(unique_constructions)} unique constructions, {len(unique_element_types)} unique element types")
+        self.logger.info(f"Unique element types: {sorted(unique_element_types)}")
+        
         return self.element_data
 
     def get_all_materials(self) -> Dict[str, MaterialData]:

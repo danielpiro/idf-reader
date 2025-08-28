@@ -231,6 +231,93 @@ def read_construction_areas_from_csv(csv_path: Optional[str] = None) -> Dict[str
         logger.warning(f"Error reading construction areas from CSV: {e}")
         return result
 
+def _parse_zone_summary_table(reader) -> Dict[str, Dict[str, Any]]:
+    """Parse the Zone Summary table to extract zone areas."""
+    result = {}
+    in_zone_summary = False
+    headers_found = False
+    col_indices = {}
+    
+    for row in reader:
+        if not row or not any(field.strip() for field in row):
+            continue
+            
+        # Look for Zone Summary table
+        if not in_zone_summary and row[0].strip() == "Zone Summary":
+            in_zone_summary = True
+            headers_found = False
+            col_indices = {}
+            continue
+            
+        if in_zone_summary:
+            if not headers_found:
+                # Look for the headers row
+                current_headers_norm = [h.strip().lower() for h in row]
+                if "area [m2]" in current_headers_norm:
+                    try:
+                        col_indices["area"] = current_headers_norm.index("area [m2]")
+                        col_indices["volume"] = current_headers_norm.index("volume [m3]") if "volume [m3]" in current_headers_norm else None
+                        col_indices["multipliers"] = current_headers_norm.index("multipliers") if "multipliers" in current_headers_norm else None
+                        headers_found = True
+                        logger.debug(f"Found Zone Summary headers: {col_indices}")
+                    except ValueError as e:
+                        logger.warning(f"Error parsing Zone Summary headers: {e}")
+                continue
+            else:
+                # Process data rows
+                if len(row) > 1 and row[1].strip():  # Zone name is in column 1
+                    zone_name = row[1].strip()
+                    
+                    # Skip if this is another table (like "Zone Information")
+                    if zone_name.lower() in ["zone information", "number of zones"]:
+                        break
+                        
+                    if "area" in col_indices and len(row) > col_indices["area"]:
+                        try:
+                            area = safe_float(row[col_indices["area"]])
+                            multiplier = 1.0
+                            if col_indices["multipliers"] and len(row) > col_indices["multipliers"]:
+                                multiplier = safe_float(row[col_indices["multipliers"]], 1.0)
+                            
+                            volume = None
+                            if col_indices["volume"] and len(row) > col_indices["volume"]:
+                                volume = safe_float(row[col_indices["volume"]])
+                            
+                            result[zone_name] = {
+                                'Area': area,
+                                'Volume': volume,
+                                'Multiplier': multiplier
+                            }
+                            logger.debug(f"Parsed zone {zone_name}: area={area}, multiplier={multiplier}")
+                        except (ValueError, IndexError) as e:
+                            logger.warning(f"Error parsing zone data for {zone_name}: {e}")
+                            continue
+    
+    return result
+
+def read_zone_areas_from_csv(csv_path: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
+    """
+    Read zone area data from the eplustbl.csv file Zone Summary table.
+    Returns a dictionary mapping zone names to their area data.
+    """
+    result = {}
+    resolved_path = _find_csv_path(csv_path)
+    if not resolved_path:
+        logger.warning("eplustbl.csv not found - zone areas will use calculated values")
+        return result
+        
+    try:
+        with open(resolved_path, 'r', encoding='utf-8', errors='ignore') as csvfile:
+            reader = csv.reader(csvfile)
+            result = _parse_zone_summary_table(reader)
+        
+        logger.info(f"Read zone areas for {len(result)} zones from eplustbl.csv")
+        return result
+        
+    except Exception as e:
+        logger.warning(f"Error reading zone areas from CSV: {e}")
+        return result
+
 def read_glazing_data_from_csv(csv_path: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
     """
     Read glazing data from the eplustbl.csv file.
