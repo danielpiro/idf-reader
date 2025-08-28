@@ -205,24 +205,6 @@ class BaseReportGenerator:
         """
         return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
-    def build_document(self, doc, story):
-        """
-        Build document with error handling.
-        
-        Args:
-            doc: ReportLab document object
-            story: List of ReportLab elements
-            
-        Returns:
-            bool: True if successful
-        """
-        try:
-            doc.build(story)
-            logger.info(f"Successfully built document")
-            return True
-        except Exception as e:
-            logger.error(f"Error building document: {e}", exc_info=True)
-            raise
     
     def generate_report(self, *args, **kwargs):
         """

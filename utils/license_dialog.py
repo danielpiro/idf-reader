@@ -26,15 +26,10 @@ class LicenseDialog:
         
     def show_license_dialog(self, show_activation: bool = True):
         """Show the license management dialog."""
-        logger.info(f"=== SHOW LICENSE DIALOG CALLED (show_activation={show_activation}) ===")
-        logger.info(f"Page object: {self.page}")
         
         try:
-            logger.info("Creating dialog content...")
             dialog_content = self._create_dialog_content(show_activation)
-            logger.info(f"Dialog content created: {type(dialog_content)}")
             
-            logger.info("Creating AlertDialog...")
             self.dialog = ft.AlertDialog(
                 modal=True,
                 title=ft.Container(
@@ -74,31 +69,19 @@ class LicenseDialog:
                 content_padding=ft.padding.all(20),
                 title_padding=ft.padding.all(20),
             )
-            logger.info(f"AlertDialog created: {self.dialog}")
             
-            logger.info("Closing any existing dialogs...")
             # Close any existing dialog first using overlay
             for control in self.page.overlay[:]:
                 if isinstance(control, ft.AlertDialog):
                     control.open = False
                     self.page.overlay.remove(control)
             
-            logger.info("Adding dialog to overlay...")
             self.page.overlay.append(self.dialog)
-            logger.info("Opening dialog...")
             self.dialog.open = True
-            logger.info(f"Dialog open status: {self.dialog.open}")
-            logger.info("Updating page...")
             self.page.update()
-            logger.info("Page updated successfully")
-            logger.info(f"Dialog in overlay: {self.dialog in self.page.overlay}")
-            logger.info(f"Final dialog.open: {self.dialog.open}")
-            logger.info("Dialog should now be visible!")
             
             # Update status
-            logger.info("Updating license status...")
             self._update_license_status()
-            logger.info("License status updated")
             
         except Exception as e:
             logger.error(f"Error showing license dialog: {e}")
@@ -300,7 +283,6 @@ class LicenseDialog:
     def _activate_license(self, e):
         """Activate license with entered serial key and detailed user feedback."""
         try:
-            logger.info("=== LICENSE ACTIVATION STARTED ===")
             
             if not self.serial_key_field or not self.serial_key_field.value:
                 logger.warning("No serial key entered")
@@ -337,11 +319,9 @@ class LicenseDialog:
             # Activate license
             logger.info("Calling license_manager.activate_license...")
             success, message = license_manager.activate_license(serial_key)
-            logger.info(f"License activation result: success={success}, message={message}")
             
             if success:
                 logger.info("=" * 50)
-                logger.info("LICENSE ACTIVATION SUCCESSFUL!")
                 logger.info("=" * 50)
                 
                 # Show success with animated feedback
@@ -352,7 +332,6 @@ class LicenseDialog:
                 self.activate_button.style.bgcolor = ft.Colors.GREEN_500
                 self.page.update()
                 
-                logger.info("Updating license status display...")
                 self._update_license_status()
                 
                 logger.info("Clearing input field...")
@@ -364,11 +343,9 @@ class LicenseDialog:
                 time.sleep(1)
                 self._show_info(f"{message}")
                 
-                logger.info("License activation UI updates completed")
                 
                 # Automatically refresh UI without asking user
                 self._auto_refresh_after_activation()
-                logger.info("Auto-refresh after activation completed")
                 
             else:
                 logger.warning(f"License activation failed: {message}")
@@ -406,12 +383,10 @@ class LicenseDialog:
             # Reset button after delay
             import time
             time.sleep(1)
-            logger.info("Resetting activation button")
             self.activate_button.text = "הפעל רישיון"
             self.activate_button.style.bgcolor = ft.Colors.GREEN_600
             self.activate_button.disabled = False
             self.page.update()
-            logger.info("=== LICENSE ACTIVATION COMPLETED ===")
     
     def _deactivate_license(self, e):
         """Deactivate current license."""
@@ -696,7 +671,6 @@ class LicenseDialog:
     def _show_activation_success_dialog(self):
         """Show success dialog with restart/refresh options after license activation."""
         try:
-            logger.info("=== SHOWING ACTIVATION SUCCESS DIALOG ===")
             
             def refresh_ui(e):
                 """Refresh UI without restart."""
@@ -856,7 +830,6 @@ class LicenseDialog:
             self.page.overlay.append(success_dialog)
             success_dialog.open = True
             self.page.update()
-            logger.info("Activation success dialog displayed")
             
         except Exception as ex:
             logger.error(f"Error showing activation success dialog: {ex}")
@@ -866,7 +839,6 @@ class LicenseDialog:
     def _auto_refresh_after_activation(self):
         """Automatically refresh UI after license activation without user interaction."""
         try:
-            logger.info("=== AUTO-REFRESHING UI AFTER ACTIVATION ===")
             
             # Close license dialog
             self.dialog.open = False
@@ -895,12 +867,10 @@ class LicenseDialog:
     def _refresh_main_ui(self):
         """Refresh the main UI to reflect new license status."""
         try:
-            logger.info("=== REFRESHING MAIN UI FOR NEW LICENSE ===")
             
             # Find and update license button if possible
             # This is a simple refresh - more complex updates can be added
             if hasattr(self.page, 'controls'):
-                logger.info("Triggering page update to refresh license-dependent UI elements")
                 self.page.update()
                 
                 # Additional refresh logic can be added here:
@@ -915,12 +885,9 @@ class LicenseDialog:
     
     def _close_dialog(self, e):
         """Close the dialog - using same approach as working update dialog."""
-        logger.info("=== DIALOG CLOSE BUTTON CLICKED ===")
         if self.dialog:
-            logger.info("Closing dialog using simple approach...")
             self.dialog.open = False
             self.page.update()
-            logger.info("Dialog closed successfully")
 
 
 def show_trial_expired_dialog(page: ft.Page, on_license_activated: Optional[Callable] = None):
@@ -1027,17 +994,11 @@ def show_trial_expired_dialog(page: ft.Page, on_license_activated: Optional[Call
 def show_startup_license_check(page: ft.Page, on_continue: Optional[Callable] = None):
     """Show license check dialog on startup if needed."""
     logger.info("=" * 80)
-    logger.info("=== STARTUP LICENSE CHECK FUNCTION CALLED ===")
-    logger.info(f"Page object: {page}")
-    logger.info(f"Page controls count: {len(page.controls) if page.controls else 0}")
-    logger.info(f"Page overlay count: {len(page.overlay) if page.overlay else 0}")
     logger.info(f"on_continue callback: {on_continue}")
     logger.info(f"on_continue callback type: {type(on_continue)}")
     
     try:
-        logger.info("Getting license status...")
         status = license_manager.get_license_status()
-        logger.info(f"License status received: {status}")
         
         # If license is valid, continue without dialog
         if status["status"] == LicenseManager.STATUS_VALID:
@@ -1054,14 +1015,11 @@ def show_startup_license_check(page: ft.Page, on_continue: Optional[Callable] = 
         
         # No valid license - show license dialog for activation (mandatory)
         logger.info("=" * 50)
-        logger.info(f"LICENSE STATUS '{status['status']}' - SHOWING MANDATORY LICENSE DIALOG")
         logger.info("=" * 50)
         
         # Create a wrapper callback that only continues after successful activation
         def license_activation_callback():
             logger.info("=" * 40)
-            logger.info("LICENSE ACTIVATION CALLBACK CALLED")
-            logger.info("Checking license status after activation...")
             
             # Re-check license status
             new_status = license_manager.get_license_status()
@@ -1078,10 +1036,7 @@ def show_startup_license_check(page: ft.Page, on_continue: Optional[Callable] = 
             logger.info("=" * 40)
         
         dialog = LicenseDialog(page, license_activation_callback)
-        logger.info("LicenseDialog created for mandatory activation")
-        logger.info("Calling show_license_dialog...")
         dialog.show_license_dialog(show_activation=True)
-        logger.info("show_license_dialog call completed")
                 
     except Exception as e:
         logger.error(f"Startup license check error: {e}")
@@ -1089,10 +1044,8 @@ def show_startup_license_check(page: ft.Page, on_continue: Optional[Callable] = 
         logger.error(traceback.format_exc())
         # On error, show license dialog for activation
         try:
-            logger.info("Exception occurred - showing license dialog as fallback")
             # Create a wrapper callback that always ensures the main UI is built
             def ensure_ui_callback():
-                logger.info("Fallback license dialog closed - ensuring main UI is built")
                 if on_continue:
                     on_continue()
             

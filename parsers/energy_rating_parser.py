@@ -27,42 +27,7 @@ class EnergyRatingParser(CSVOutputParser):
 
             self.area_parser = area_parser
             self.energy_data_by_area: Dict[str, Dict[str, Any]] = {}
-            # Primary pattern for standard format (with colons)
-            self.zone_pattern = re.compile(
-                r'(\d{2}):(\d{2})X([A-Za-z0-9_]+)'
-                r'(?:\s+([A-Za-z0-9_ ]+))?:'
-                r'([A-Za-z0-9_ ]+(?:\s+[A-Za-z0-9_ ]+)*)\s+'
-                r'\[([A-Za-z0-9/]+)\]'
-                r'\(([A-Za-z0-9]+)\)'
-            )
-            
-            # Pattern for energy output format with spaces (e.g., "25 E342 Heating:Zone Ideal Loads Zone Air Temperature [C](TimeStep)")
-            self.zone_pattern_space = re.compile(
-                r'(\d{2})\s+([A-Za-z]\d+)'
-                r'(?:\s+([A-Za-z0-9_ ]+))?:'
-                r'([A-Za-z0-9_ ]+(?:\s+[A-Za-z0-9_ ]+)*)\s+'
-                r'\[([A-Za-z0-9/]+)\]'
-                r'\(([A-Za-z0-9]+)\)'
-            )
-            
-            # Fallback pattern for variations (more flexible zone names)
-            self.zone_pattern_fallback = re.compile(
-                r'(\d{2}):([A-Za-z0-9]+)X([A-Za-z0-9_]*)'
-                r'(?:\s+([A-Za-z0-9_ ]+))?:'
-                r'([A-Za-z0-9_ ]+(?:\s+[A-Za-z0-9_ ]+)*)\s+'
-                r'\[([A-Za-z0-9/]+)\]'
-                r'\(([A-Za-z0-9]+)\)'
-            )
-            
-            # Pattern for A-pattern zones (e.g., "F06U11 RES5282 LIGHTS:Lights Electricity Energy [J](RunPeriod)")
-            self.zone_pattern_a = re.compile(
-                r'([A-Za-z]\d{2}[A-Za-z0-9_]+)\s+'
-                r'([A-Za-z0-9_]+)\s+'
-                r'([A-Za-z0-9_]+):'
-                r'([A-Za-z0-9_ ]+(?:\s+[A-Za-z0-9_ ]+)*)\s+'
-                r'\[([A-Za-z0-9/]+)\]'
-                r'\(([A-Za-z0-9]+)\)'
-            )
+            # No complex regex patterns needed - using simple containment checks
         except ValueError as ve:
             self.logger.error(f"Initialization error in EnergyRatingParser: {ve}", exc_info=True)
             raise
@@ -70,7 +35,6 @@ class EnergyRatingParser(CSVOutputParser):
             self.logger.error(f"Unexpected error during EnergyRatingParser initialization: {e}", exc_info=True)
             self.energy_data_by_area = {}
             self.processed = False
-            self.zone_pattern = None
             raise
 
     def process_idf(self, idf=None) -> None:
@@ -82,7 +46,6 @@ class EnergyRatingParser(CSVOutputParser):
             idf: Optional IDF object (not used for CSV output processing)
         """
         try:
-            self.logger.info("EnergyRatingParser process_idf called - delegating to process_output")
             self.process_output()
         except Exception as e:
             self.logger.error(f"Error in EnergyRatingParser process_idf: {e}", exc_info=True)
@@ -93,15 +56,10 @@ class EnergyRatingParser(CSVOutputParser):
         """
         Process EnergyPlus output file (eplusout.csv) to extract energy consumption data.
         """
-        self.logger.info(f"Energy rating parser process_output called with path: {output_file_path}")
         
         if self.processed:
-            self.logger.info("Energy rating parser already processed, skipping")
             return
-        if not self.zone_pattern:
-            self.logger.error("Zone pattern regex not compiled. Cannot process output.")
-            self.processed = False
-            return
+        # No pattern validation needed for containment-based approach
 
         final_output_file_path = None
         try:
@@ -138,21 +96,22 @@ class EnergyRatingParser(CSVOutputParser):
                     self.logger.warning(f"eplustbl.csv provided, but eplusout.csv not found in the same directory ({os.path.dirname(final_output_file_path)}).")
 
             if not final_output_file_path or not os.path.exists(final_output_file_path):
-                self.logger.error(f"EnergyPlus output file (eplusout.csv) not found. Tried path: {final_output_file_path if final_output_file_path else 'auto-detection failed'}.")
+                self.logger.error(f"PROCESS_OUTPUT DEBUG - EnergyPlus output file (eplusout.csv) not found. Tried path: {final_output_file_path if final_output_file_path else 'auto-detection failed'}.")
+                # Log all candidate paths that were tried
+                if 'candidate_paths' in locals():
+                    for i, path in enumerate(candidate_paths):
+                        exists = os.path.exists(path)
                 self.processed = False
                 return
             
-            self.logger.info(f"Found EnergyPlus output file: {final_output_file_path}")
 
             if not self.area_parser.processed:
-                self.logger.info("Area parser not processed, processing now...")
                 try:
                     self.area_parser.process_idf(None)
-                    self.logger.info("Area parser processing completed")
                 except Exception as ap_e:
                     self.logger.error(f"Error processing area data via AreaParser: {ap_e}. Energy processing may be incomplete.", exc_info=True)
             else:
-                self.logger.info("Area parser already processed")
+                pass
 
             with open(final_output_file_path, 'r', encoding='utf-8') as csvfile:
                 reader = csv.reader(csvfile)
@@ -162,10 +121,8 @@ class EnergyRatingParser(CSVOutputParser):
                     self.processed = False
                     return
 
-                self.logger.info(f"CSV has {len(headers)} headers")
                 # Log a sample of headers to see what we're working with
                 sample_headers = headers[:5] + (['...'] if len(headers) > 5 else [])
-                self.logger.info(f"Sample headers: {sample_headers}")
 
                 last_row = None
                 for row in reader:
@@ -176,7 +133,6 @@ class EnergyRatingParser(CSVOutputParser):
                     self.processed = False
                     return
 
-                self.logger.info(f"Processing headers and values from CSV with {len(last_row)} data columns")
                 self._process_headers_and_values(headers, last_row)
             self._calculate_totals()
             self.processed = True
@@ -204,22 +160,17 @@ class EnergyRatingParser(CSVOutputParser):
         """
         Process headers to extract zone information and corresponding values.
         """
-        self.logger.info(f"Starting _process_headers_and_values with {len(headers)} headers and {len(values)} values")
         
         self.energy_data_by_area = {}
         if not headers or not values:
             self.logger.warning("Headers or values list is empty in _process_headers_and_values. Skipping.")
             return
-        if not self.zone_pattern:
-            self.logger.error("Zone pattern regex not compiled in _process_headers_and_values. Skipping.")
-            return
+        # No pattern validation needed for containment-based approach
 
         all_zones_data_from_loader = self.data_loader.get_zones()
-        self.logger.info(f"Retrieved {len(all_zones_data_from_loader)} zones from data loader")
         
         # Log a few zone names for debugging
         sample_zone_names = list(all_zones_data_from_loader.keys())[:3]
-        self.logger.info(f"Sample zone names from data loader: {sample_zone_names}")
         
         
         # Track processing stats for debugging
@@ -235,158 +186,46 @@ class EnergyRatingParser(CSVOutputParser):
                     continue
                 # Log all headers to see what we're filtering out
                 if i <= 10:  # Log first 10 headers for debugging
-                    self.logger.info(f"Header {i}: '{header}', contains X: {'X' in header}")
-                # Check if header contains zone information (either X-pattern or A-pattern)
-                has_x_pattern = "X" in header
+                    pass
+                # Simple containment check - zone_id + energy type
+                zones = self.data_loader.get_zones() if hasattr(self.data_loader, 'get_zones') else {}
+                matched_zone_key = None
                 
-                # Check if any A-pattern zone names are in the header
-                has_a_pattern = False
-                if not has_x_pattern:
-                    zones = self.data_loader.get_zones() if hasattr(self.data_loader, 'get_zones') else {}
-                    for zone_name in zones.keys():
-                        if zone_name in header:
-                            has_a_pattern = True
-                            break
+                # Find zone that appears in the header
+                for zone_name in zones.keys():
+                    if zone_name in header:
+                        matched_zone_key = zone_name
+                        break
                 
-                if not has_x_pattern and not has_a_pattern:
+                # Check for energy type in header
+                header_lower = header.lower()
+                has_energy_type = ('light' in header_lower or 
+                                 'heating' in header_lower or 
+                                 'cooling' in header_lower)
+                
+                # Skip if no zone found or no energy type
+                if not matched_zone_key or not has_energy_type:
+                    continue
+                
+                # Check if this is a RunPeriod measurement
+                if "(RunPeriod)" not in header:
                     continue
                 
                 total_headers_with_X += 1
-
-                match = self.zone_pattern.search(header)
-                pattern_used = "standard"
-                
-                if not match and hasattr(self, 'zone_pattern_space'):
-                    # Try space pattern (e.g., "25 E342 Heating:...")
-                    match = self.zone_pattern_space.search(header)
-                    pattern_used = "space"
-                
-                if not match and hasattr(self, 'zone_pattern_fallback'):
-                    # Try fallback pattern for non-standard formats
-                    match = self.zone_pattern_fallback.search(header)
-                    pattern_used = "fallback"
-                
-                if not match and has_a_pattern:
-                    # For A-pattern headers, extract zone name and energy type
-                    zones = self.data_loader.get_zones() if hasattr(self.data_loader, 'get_zones') else {}
-                    matched_zone = None
-                    energy_type = "unknown"
-                    
-                    # Find the zone name
-                    for zone_name in zones.keys():
-                        if zone_name in header:
-                            matched_zone = zone_name
-                            break
-                    
-                    # Determine energy type based on header content
-                    if "LIGHTS" in header.upper() or "LIGHT" in header.upper():
-                        energy_type = "Lighting"
-                    elif "HEATING" in header.upper() or "HEAT" in header.upper():
-                        energy_type = "Heating"
-                    elif "COOLING" in header.upper() or "COOL" in header.upper():
-                        energy_type = "Cooling"
-                    elif "EQUIPMENT" in header.upper():
-                        energy_type = "Equipment"
-                    
-                    if matched_zone:
-                        # Extract unit and period from header
-                        unit_match = re.search(r'\[([A-Za-z0-9/]+)\]', header)
-                        period_match = re.search(r'\(([A-Za-z0-9]+)\)', header)
-                        
-                        unit = unit_match.group(1) if unit_match else "J"
-                        period = period_match.group(1) if period_match else "RunPeriod"
-                        
-                        # Create match groups for A-pattern
-                        class PseudoMatch:
-                            def groups(self):
-                                return (matched_zone, "RES", "EQUIPMENT", energy_type, unit, period)
-                        
-                        match = PseudoMatch()
-                        pattern_used = "a_pattern"
-                    
-                if not match:
-                    unmatched_headers.append(header)
-                    continue
-                
                 matched_headers += 1
-
-                groups = match.groups()
-                min_groups = 5 if pattern_used == "a_pattern" else 6
-                if len(groups) < min_groups:
-                    self.logger.warning(f"Regex match for header '{header}' yielded insufficient groups ({len(groups)}). Groups: {groups}. Pattern: {pattern_used}. Skipping.")
-                    continue
-
-                # Handle different pattern formats
-                if pattern_used == "space":
-                    # For space pattern: floor, area_zone_id, equipment_type, metric, unit, period
-                    if len(groups) == 6:
-                        floor, area_zone_id, equipment_type, metric, unit, period = groups
-                        zone_name_from_header = ""  # Will be set later
-                        area_id_from_header = area_zone_id
-                    else:
-                        self.logger.warning(f"Space pattern match for header '{header}' has unexpected group count ({len(groups)}). Skipping.")
-                        continue
-                elif pattern_used == "a_pattern":
-                    # For A-pattern: zone_id, resource_type, equipment_type, metric, unit, period
-                    if len(groups) >= 6:
-                        zone_id, resource_type, equipment_type, metric, unit, period = groups[:6]
-                        # For A-pattern zones, the zone_id IS the complete identifier
-                        # Use DataLoader's zone parsing for consistent floor extraction
-                        if hasattr(self, 'data_loader') and self.data_loader:
-                            floor = self.data_loader.get_floor_id(zone_id) or zone_id
-                        else:
-                            floor = zone_id[:3] if len(zone_id) >= 3 else zone_id  # Fallback
-                        area_id_from_header = zone_id  # Use full zone_id as area_id
-                        zone_name_from_header = zone_id  # Use full zone_id as zone_name
-                    else:
-                        self.logger.warning(f"A-pattern match for header '{header}' has unexpected group count ({len(groups)}). Skipping.")
-                        continue
-                else:
-                    # For standard/fallback patterns: floor, area_id, zone_name, equipment_type, metric, unit, period
-                    if len(groups) >= 7:
-                        floor, area_id_from_header, zone_name_from_header, equipment_type, metric, unit, period = groups[:7]
-                    else:
-                        self.logger.warning(f"Standard pattern match for header '{header}' has unexpected group count ({len(groups)}). Skipping.")
-                        continue
-
-                if period != "RunPeriod":
-                    continue
+                
+                # Extract zone details from DataLoader
+                zone_data = zones[matched_zone_key]
+                floor = self.data_loader.get_floor_id(matched_zone_key) or "01"
+                area_id_from_header = zone_data.get('area_id', matched_zone_key)
+                zone_name_from_header = matched_zone_key
 
                 value_str = values[i] if i < len(values) else "0.0"
                 value = safe_float(value_str, 0.0)
                 processed_value = self._process_value(value, header.lower())
 
-                # Find the matching zone from DataLoader instead of constructing the key
-                matched_zone_key = None
-                if isinstance(all_zones_data_from_loader, dict):
-                    # Search for zones that match the area_id and zone_name from the header
-                    if pattern_used == "space":
-                        # For space format, we have floor and area_zone_id
-                        target_area_id = area_zone_id
-                        zone_name_from_header = "LIV"  # Default for space format
-                    else:
-                        # For standard format, we have area_id_from_header and zone_name_from_header
-                        target_area_id = area_id_from_header
-                    
-                    # Look for zones with matching area_id and zone name
-                    for zone_key, zone_data in all_zones_data_from_loader.items():
-                        zone_area_id = zone_data.get('area_id', '')
-                        if (zone_area_id == target_area_id and 
-                            zone_name_from_header in zone_key):
-                            matched_zone_key = zone_key
-                            break
-                
-                if matched_zone_key:
-                    full_zone_id_key = matched_zone_key
-                else:
-                    # Fallback: use a constructed key for energy data storage
-                    if pattern_used == "space":
-                        full_zone_id_key = f"ENERGY_{floor}_{area_zone_id}_LIV"
-                        area_id_from_header = area_zone_id
-                        zone_name_from_header = "LIV"
-                    else:
-                        full_zone_id_key = f"ENERGY_{floor}_{area_id_from_header}_{zone_name_from_header}"
-                    self.logger.warning(f"No matching zone found for area_id='{area_id_from_header if pattern_used != 'space' else area_zone_id}', zone_name='{zone_name_from_header}'. Using fallback key '{full_zone_id_key}'")
+                # Use the matched zone key directly
+                full_zone_id_key = matched_zone_key
                 zone_keys_found.add(full_zone_id_key)
 
                 if full_zone_id_key not in self.energy_data_by_area:
@@ -421,14 +260,12 @@ class EnergyRatingParser(CSVOutputParser):
                                 
                                 if floor_matches and area_matches:
                                     direct_zone_lookup = zone_name
-                                    self.logger.info(f"EnergyRatingParser: Found zone '{zone_name}' matching floor='{floor}' and area='{area_id_from_header}'")
                                     break
                         
                         if direct_zone_lookup:
                             dl_zone_data = all_zones_data_from_loader[direct_zone_lookup]
                             zone_multiplier = int(dl_zone_data.get('multiplier', 1))
                             individual_zone_floor_area = safe_float(dl_zone_data.get('floor_area', 0.0), 0.0)
-                            self.logger.info(f"EnergyRatingParser: Found zone '{direct_zone_lookup}' directly in DataLoader. floor_area={individual_zone_floor_area}")
                         else:
                             # Try fuzzy matching by looking for zones that contain parts of the key
                             fuzzy_match = None
@@ -443,7 +280,6 @@ class EnergyRatingParser(CSVOutputParser):
                                 dl_zone_data = all_zones_data_from_loader[fuzzy_match]
                                 zone_multiplier = int(dl_zone_data.get('multiplier', 1))
                                 individual_zone_floor_area = safe_float(dl_zone_data.get('floor_area', 0.0), 0.0)
-                                self.logger.info(f"EnergyRatingParser: Found fuzzy match '{fuzzy_match}' for key '{full_zone_id_key}'. floor_area={individual_zone_floor_area}")
                             else:
                                 # Still no match, use defaults
                                 zone_keys_missing.add(full_zone_id_key)
@@ -451,7 +287,6 @@ class EnergyRatingParser(CSVOutputParser):
 
                     total_area_for_legacy_grouping = self._get_area_total_for_area_id(area_id_from_header)
                     location_for_grouping = self._determine_location(area_id_from_header)
-                    self.logger.info(f"DEBUG: Zone '{full_zone_id_key}' - area_id='{area_id_from_header}' -> location='{location_for_grouping}'")
 
                     self.energy_data_by_area[full_zone_id_key] = {
                         'floor_id_report': floor,
@@ -465,22 +300,23 @@ class EnergyRatingParser(CSVOutputParser):
                     }
                     
 
-                category = None
-                header_lower = header.lower()
-                if 'light' in header_lower: category = 'lighting'
-                elif 'heating' in header_lower: category = 'heating'
-                elif 'cooling' in header_lower: category = 'cooling'
+                # Determine energy category from header
+                if 'light' in header_lower: 
+                    category = 'lighting'
+                elif 'heating' in header_lower: 
+                    category = 'heating'
+                elif 'cooling' in header_lower: 
+                    category = 'cooling'
+                else:
+                    continue  # Skip if not a recognized energy type
 
-                if category and category in self.energy_data_by_area[full_zone_id_key]:
+                # Add energy value to the appropriate category
+                if category in self.energy_data_by_area[full_zone_id_key]:
                     # Divide by zone multiplier to get per-zone energy consumption
                     # EnergyPlus output shows total energy for all multiplied zones
                     zone_multiplier = self.energy_data_by_area[full_zone_id_key].get('multiplier', 1)
                     per_zone_value = processed_value / zone_multiplier if zone_multiplier > 0 else processed_value
                     self.energy_data_by_area[full_zone_id_key][category] += per_zone_value
-                    
-                    # Apply zone multiplier for repeated zones
-                elif category:
-                    self.logger.warning(f"Category '{category}' derived from header '{header}' not pre-defined in energy_data_by_area structure for key '{full_zone_id_key}'. Value not added.")
 
             except IndexError:
                 self.logger.error(f"IndexError while processing header '{header}' at index {i}. Values list length: {len(values)}. Skipping.", exc_info=True)
@@ -493,12 +329,6 @@ class EnergyRatingParser(CSVOutputParser):
                 continue
         
         # Report processing results
-        self.logger.info(f"Energy rating CSV processing summary:")
-        self.logger.info(f"  - Total headers: {len(headers)}")
-        self.logger.info(f"  - Headers with 'X': {total_headers_with_X}")
-        self.logger.info(f"  - Headers matched by regex: {matched_headers}")
-        self.logger.info(f"  - Zones found in energy data: {len(self.energy_data_by_area)}")
-        self.logger.info(f"  - Zone keys found: {len(zone_keys_found)}")
         
         if zone_keys_missing:
             self.logger.warning(f"Zone keys found in eplusout.csv but missing from IDF: {len(zone_keys_missing)} zones")
@@ -507,7 +337,6 @@ class EnergyRatingParser(CSVOutputParser):
             self.logger.warning(f"Headers with 'X' that didn't match regex pattern: {len(unmatched_headers)} headers")
             # Show first few unmatched headers for debugging
             sample_unmatched = unmatched_headers[:3]
-            self.logger.info(f"Sample unmatched headers: {sample_unmatched}")
 
     def _process_value(self, value: float, header_lower: str) -> float:
         """
@@ -614,7 +443,6 @@ class EnergyRatingParser(CSVOutputParser):
         Falls back to intelligent floor detection based on the building structure.
         For the CSV model lookup, we need to map to valid location types.
         """
-        self.logger.info(f"LOCATION DEBUG - _determine_location called with area_id: '{area_id}'")
         
         if not area_id:
             self.logger.warning("_determine_location called with empty area_id. Returning default location.")
@@ -623,127 +451,99 @@ class EnergyRatingParser(CSVOutputParser):
         try:
             # First try to get location from AreaParser H-values
             if self.area_parser and self.area_parser.processed:
-                self.logger.info(f"LOCATION DEBUG - Checking AreaParser H-values for area_id: '{area_id}'")
                 area_h_values = self.area_parser.get_area_h_values()
                 if area_h_values:
-                    self.logger.info(f"LOCATION DEBUG - Found {len(area_h_values)} H-value entries")
                     
                     # Debug: log all area_ids in H-values
                     h_value_area_ids = [area_data.get('area_id', 'None') for area_data in area_h_values]
-                    self.logger.info(f"LOCATION DEBUG - H-value area_ids: {h_value_area_ids[:10]}...")  # Show first 10
                     
                     # Try direct match first
                     for area_data in area_h_values:
                         h_area_id = area_data.get('area_id', '')
                         if h_area_id == area_id:
                             location = area_data.get('location', '')
-                            self.logger.info(f"LOCATION DEBUG - Found H-value direct match for area_id '{area_id}': location='{location}'")
                             if location and location != 'Unknown':
-                                self.logger.info(f"LOCATION DEBUG - Using H-value location: '{location}'")
                                 return location
                     
                     # Try flexible matching - handle different area_id formats
                     # area_id from header might be '01', but H-value might have '00:01'  
                     for area_data in area_h_values:
                         h_area_id = area_data.get('area_id', '')
-                        self.logger.info(f"LOCATION DEBUG - Checking H-value area_id '{h_area_id}' against header area_id '{area_id}'")
                         
                         # Check if header area_id matches the end of H-value area_id 
                         # Handle formats like '01' matching '00X01:01' or '00:01'
                         if ':' in h_area_id and h_area_id.endswith(f':{area_id}'):
                             location = area_data.get('location', '')
-                            self.logger.info(f"LOCATION DEBUG - Found H-value suffix match: '{area_id}' matches '{h_area_id}' -> location='{location}'")
                             if location and location != 'Unknown':
-                                self.logger.info(f"LOCATION DEBUG - Using H-value location: '{location}'")
                                 return location
                                 
                         # Also check if header area_id contains H-value area_id (e.g., '00:01XLIVING' contains '00:01')
                         if h_area_id in area_id:
                             location = area_data.get('location', '')
-                            self.logger.info(f"LOCATION DEBUG - Found H-value substring match: '{h_area_id}' in '{area_id}' -> location='{location}'")
                             if location and location != 'Unknown':
-                                self.logger.info(f"LOCATION DEBUG - Using H-value location: '{location}'")
                                 return location
                 else:
-                    self.logger.info(f"LOCATION DEBUG - No H-values available from AreaParser")
+                    pass
 
             # Enhanced fallback logic using floor information
             # Try to get floor information from the data loader or area parser
-            self.logger.info(f"LOCATION DEBUG - Using fallback logic for area_id: '{area_id}'")
             floor_info = None
             
             # Try to get floor information from the data loader zone data
             if self.data_loader:
                 zones = self.data_loader.get_zones()
-                self.logger.info(f"LOCATION DEBUG - Checking {len(zones)} zones for area_id match")
                 # Look for zones that contain this area_id
                 for zone_name, zone_data in zones.items():
                     zone_area_id = zone_data.get('area_id', '')
                     if zone_area_id == area_id:
-                        self.logger.info(f"LOCATION DEBUG - Found matching zone: '{zone_name}' for area_id: '{area_id}'")
                         # Try to extract floor from zone name or data
                         if ':' in zone_name:
                             floor_part = zone_name.split(':')[0]
                             if floor_part.isdigit():
                                 floor_info = int(floor_part)
-                                self.logger.info(f"LOCATION DEBUG - Extracted floor_info: {floor_info} from zone: '{zone_name}'")
                                 break
             
             # Determine location based on floor information
             if floor_info is not None:
-                self.logger.info(f"LOCATION DEBUG - Using floor_info: {floor_info} to determine location")
                 if floor_info == 0:  # Ground floor
                     result = "Ground Floor & Intermediate ceiling"
-                    self.logger.info(f"LOCATION DEBUG - Floor {floor_info} -> '{result}'")
                     return result
                 elif floor_info >= 1 and floor_info <= 4:  # Middle floors
                     result = "Intermediate Floor & Intermediate ceiling"
-                    self.logger.info(f"LOCATION DEBUG - Floor {floor_info} -> '{result}'")
                     return result
                 elif floor_info >= 5:  # Upper floors
                     result = "External Floor & External ceiling"
-                    self.logger.info(f"LOCATION DEBUG - Floor {floor_info} -> '{result}'")
                     return result
             
             # Fallback: try to infer from area_id pattern
-            self.logger.info(f"LOCATION DEBUG - No floor_info found, trying area_id pattern matching for: '{area_id}'")
             if area_id and len(area_id) >= 2:
                 # For patterns like "01", "02", etc.
                 if area_id.isdigit():
                     area_num = int(area_id)
-                    self.logger.info(f"LOCATION DEBUG - Numeric area_id: {area_num}")
                     if area_num <= 5:
                         result = "Ground Floor & Intermediate ceiling"
-                        self.logger.info(f"LOCATION DEBUG - Numeric pattern {area_num} -> '{result}'")
                         return result
                     elif area_num <= 15:
                         result = "Intermediate Floor & Intermediate ceiling"
-                        self.logger.info(f"LOCATION DEBUG - Numeric pattern {area_num} -> '{result}'")
                         return result
                     else:
                         result = "External Floor & External ceiling"
-                        self.logger.info(f"LOCATION DEBUG - Numeric pattern {area_num} -> '{result}'")
                         return result
                 
                 # For patterns like "E342", "A338", etc.
                 first_char = area_id[0].upper()
-                self.logger.info(f"LOCATION DEBUG - Alpha area_id first char: '{first_char}'")
                 if first_char in ['A', 'B', '0', '1']:
                     result = "Ground Floor & Intermediate ceiling"
-                    self.logger.info(f"LOCATION DEBUG - Alpha pattern '{first_char}' -> '{result}'")
                     return result
                 elif first_char in ['C', 'D', 'E', 'F']:
                     result = "Intermediate Floor & Intermediate ceiling"
-                    self.logger.info(f"LOCATION DEBUG - Alpha pattern '{first_char}' -> '{result}'")
                     return result
                 elif first_char in ['G', 'H']:
                     result = "External Floor & External ceiling"
-                    self.logger.info(f"LOCATION DEBUG - Alpha pattern '{first_char}' -> '{result}'")
                     return result
             
             # Default fallback
             result = "Intermediate Floor & Intermediate ceiling"
-            self.logger.info(f"LOCATION DEBUG - Using default location for area_id '{area_id}' - no specific pattern matched: '{result}'")
             return result
             
         except Exception as e:
@@ -781,17 +581,18 @@ class EnergyRatingParser(CSVOutputParser):
         and extracts/calculates values for the rating table.
         Returns an empty list if not processed or if errors occur.
         """
-        self.logger.info(f"Energy rating parser get_energy_rating_table_data called with model_year: {model_year}")
         
         table_data: List[Dict[str, Any]] = []
         if not self.processed:
-            self.logger.warning("Energy data not processed. Call process_output() first. Returning empty list for rating table.")
+            self.logger.warning("GET_ENERGY_RATING_TABLE_DATA DEBUG - Energy data not processed. Call process_output() first. Returning empty list for rating table.")
             return table_data
         if not self.energy_data_by_area:
-            self.logger.info(f"No energy data available. energy_data_by_area is empty")
+            self.logger.warning(f"GET_ENERGY_RATING_TABLE_DATA DEBUG - No energy data available. energy_data_by_area is empty")
             return table_data
         
-        self.logger.info(f"Energy data found for {len(self.energy_data_by_area)} zones")
+        # Log first few zone keys and their data for debugging
+        for i, (zone_key, zone_data) in enumerate(list(self.energy_data_by_area.items())[:3]):
+            pass
 
         try:
             # Check if this is office ISO
@@ -800,7 +601,7 @@ class EnergyRatingParser(CSVOutputParser):
             # For office ISO: each zone is individual, for others: group by floor/area
             if is_office_iso:
                 # Office ISO: no grouping needed, each zone is individual
-                self.logger.info("Office ISO detected - using individual zone calculations")
+                pass
             else:
                 # Non-office: group by floor/area as before
                 floor_area_id_sums: Dict[tuple[str, str], float] = {}
@@ -875,10 +676,6 @@ class EnergyRatingParser(CSVOutputParser):
                             else:
                                 iso_type_for_lookup = f"ISO_TYPE_{model_year}_{model_area_definition}"
                             
-                            self.logger.info(f"CSV LOOKUP DEBUG - Zone '{full_zone_id_key}':")
-                            self.logger.info(f"  - ISO type: '{iso_type_for_lookup}'")
-                            self.logger.info(f"  - Location: '{area_location_for_csv}'") 
-                            self.logger.info(f"  - Area definition: '{model_area_definition}'")
                             
                             # Get energy consumption from CSV model
                             energy_consumption_model_value = get_energy_consumption(
@@ -887,18 +684,12 @@ class EnergyRatingParser(CSVOutputParser):
                                 area_definition_input=model_area_definition
                             )
                             
-                            self.logger.info(f"CSV LOOKUP RESULT - Zone '{full_zone_id_key}': model_value={energy_consumption_model_value}")
-                            self.logger.info(f"CALCULATED ENERGY VALUES - Zone '{full_zone_id_key}': total={val_total:.3f} kWh/m²")
                             
                             # Calculate improvement percentage if we have the model value
                             if energy_consumption_model_value > 0 and val_total > 0:
                                 improvement_percent = ((energy_consumption_model_value - val_total) / energy_consumption_model_value) * 100
                                 better_percent_value = f"{improvement_percent:.1f}%"
                                 
-                                self.logger.info(f"CALCULATION DEBUG - Zone '{full_zone_id_key}':")
-                                self.logger.info(f"  - Model value: {energy_consumption_model_value}")
-                                self.logger.info(f"  - Calculated total: {val_total:.3f}")
-                                self.logger.info(f"  - Improvement %: {improvement_percent:.1f}%")
                                 
                                 # Determine energy rating based on improvement percentage
                                 # Using standard rating thresholds
@@ -917,7 +708,6 @@ class EnergyRatingParser(CSVOutputParser):
                                 else:
                                     energy_rating_value = "F"
                                     
-                                self.logger.info(f"  - Energy rating: {energy_rating_value}")
                             
                         except Exception as e:
                             self.logger.warning(f"Could not get CSV model values for location '{area_location_for_csv}': {e}")
@@ -940,6 +730,9 @@ class EnergyRatingParser(CSVOutputParser):
                         'energy_rating': energy_rating_value,
                     }
                     table_data.append(row)
+                    # Log first few rows for debugging
+                    if len(table_data) <= 3:
+                        pass
                 except (TypeError, KeyError) as e_row:
                     self.logger.error(f"Error creating table row for full_zone_id_key '{full_zone_id_key}': {e_row}. Skipping this zone.", exc_info=True)
                     continue

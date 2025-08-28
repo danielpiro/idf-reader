@@ -4,6 +4,9 @@ Extracts and processes zone loads and their associated schedules using cached da
 from typing import Dict, Any, Optional
 from utils.data_loader import DataLoader
 from .utils import safe_float
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 class LoadParser:
     """
@@ -126,12 +129,23 @@ class LoadParser:
             zone_load_data = self.loads_by_zone[zone_name]["loads"]["ventilation"]
             zone_volume = zones[zone_name]['volume']
             for load in loads:
-                design_flow_rate = safe_float(getattr(load['raw_object'], "Design_Flow_Rate", 0.0))
-                if zone_volume > 0:
-                    ach = (design_flow_rate * 3600) / zone_volume
-                    if zone_load_data["rate_ach"] is None:
-                        zone_load_data["rate_ach"] = 0.0
-                    zone_load_data["rate_ach"] += ach
+                calculation_method = getattr(load['raw_object'], "design_flow_rate_calculation_method", "").strip()
+                
+                ach = 0.0
+                if calculation_method == "AirChanges/Hour":
+                    # Read Air Changes per Hour field directly
+                    ach = safe_float(getattr(load['raw_object'], "air_changes_per_hour", 0.0))
+                else:
+                    # Fallback to Design Flow Rate calculation
+                    design_flow_rate = safe_float(getattr(load['raw_object'], "design_flow_rate", 0.0))
+                    if zone_volume > 0:
+                        ach = (design_flow_rate * 3600) / zone_volume
+                    else:
+                        logger.warning(f"LOAD PARSER DEBUG - Zone '{zone_name}': zone_volume is 0, cannot calculate ACH")
+                
+                if zone_load_data["rate_ach"] is None:
+                    zone_load_data["rate_ach"] = 0.0
+                zone_load_data["rate_ach"] += ach
                 if zone_load_data["schedule"] is None:
                     zone_load_data["schedule"] = load.get('schedule_name', '')
 

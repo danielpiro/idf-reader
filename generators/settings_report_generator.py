@@ -2,6 +2,8 @@ from generators.reportlab_commons import (
     Paragraph, Spacer, Table, TableStyle, A4, landscape, colors, Color, 
     TA_LEFT, TA_CENTER, cm
 )
+from reportlab.platypus import SimpleDocTemplate
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 import datetime
 from pathlib import Path
 from utils.hebrew_text_utils import get_hebrew_font_name

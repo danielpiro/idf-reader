@@ -204,10 +204,8 @@ class LicenseManager:
             
             # Try database validation first
             if force_online or self._should_validate_online():
-                logger.info("Attempting database validation...")
                 db_result = self._validate_database(formatted_key)
                 if db_result[0]:
-                    logger.info("Database validation successful")
                     self._cache_license(formatted_key, db_result[1])
                     return db_result
                 else:
@@ -215,19 +213,15 @@ class LicenseManager:
                     # Continue to try other validation methods
             
             # Try cached validation
-            logger.info("Attempting cached validation...")
             cached_result = self._validate_cached(formatted_key)
             if cached_result[0]:
-                logger.info("Cached validation successful")
                 return cached_result
             else:
                 logger.warning(f"Cached validation failed: {cached_result[1].get('error', 'No cache or invalid')}")
             
             # Last resort: try local validation for test keys
-            logger.info("Attempting local validation for test key...")
             local_result = self._validate_local_key(formatted_key)
             if local_result[0]:
-                logger.info("Local key validation successful")
                 # Cache the local validation result too
                 self._cache_license(formatted_key, local_result[1])
                 return local_result
@@ -365,7 +359,6 @@ class LicenseManager:
                     "current_activations": 1
                 }
                 
-                logger.info(f"Local key validation successful (cached): {serial_key} -> {key_data['type']}")
                 return True, license_info
             
             # Try to reverse-validate the key by testing different combinations
@@ -429,7 +422,6 @@ class LicenseManager:
                                     "current_activations": 1
                                 }
                                 
-                                logger.info(f"Local key validation successful (reverse): {serial_key} -> {license_type}")
                                 return True, license_info
             
             # Check for development keys (only specific prefixes)
@@ -536,7 +528,6 @@ class LicenseManager:
     
     def get_license_status(self) -> Dict[str, Any]:
         """Get current license status."""
-        logger.info(f"=== GET LICENSE STATUS CALLED ===")
         logger.info(f"License file path: {self.license_file}")
         logger.info(f"License file exists: {self.license_file.exists()}")
         
@@ -597,7 +588,6 @@ class LicenseManager:
             Tuple of (success, message)
         """
         try:
-            logger.info(f"=== LICENSE ACTIVATION STARTED ===")
             logger.info(f"Attempting to activate key: {serial_key[:8] if serial_key else 'None'}...")
             
             # Basic validation
@@ -606,7 +596,6 @@ class LicenseManager:
                 return False, "Please enter a license key"
             
             # Validate the key
-            logger.info("Starting key validation...")
             is_valid, license_info = self.validate_serial_key(serial_key, force_online=True)
             
             if is_valid:

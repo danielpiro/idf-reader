@@ -1,5 +1,5 @@
 import os
-from utils.logging_config import get_logger
+from utils.logger import get_module_logger
 from utils.sentry_config import capture_exception_with_context, add_breadcrumb, start_transaction
 from pathlib import Path
 from datetime import datetime
@@ -26,7 +26,7 @@ from parsers.area_parser import AreaParser
 from parsers.glazing_parser import GlazingParser
 from parsers.lighting_parser import LightingParser
 
-logger = get_logger(__name__)
+logger = get_module_logger(__name__)
 
 
 class ProcessingManager:
@@ -151,7 +151,6 @@ class ProcessingManager:
         area_name_map_to_latin = {"א": "A", "ב": "B", "ג": "C", "ד": "D"}
         climate_zone = area_name_map_to_latin.get(area_name, 'A')
         
-        logger.info(f"Climate zone mapping: area_name='{area_name}' -> climate_zone='{climate_zone}'")
         return climate_zone
     
     def _initialize_parsers(self, data_loader: DataLoader, area_parser_for_loss: 'AreaParser', city_area_name: str) -> dict:
@@ -233,7 +232,6 @@ class ProcessingManager:
                 current_iso_type = "2023"
             else:
                 current_iso_type = "Office"
-            logger.info(f"Automatic validation: Raw ISO type '{raw_iso_type}' -> Mapped to '{current_iso_type}'")
             parsers["automatic_error_detection"].process_idf(data_loader.get_idf(), current_iso_type)
             self.update_status("נתוני בדיקה אוטומטית עובדו בהצלחה")
         except Exception as e:
@@ -305,7 +303,8 @@ class ProcessingManager:
                               base_output_dir_for_reports: str,
                               iso_type_selection: str,
                               city_area_name_selection: str,
-                              data_loader: 'DataLoader'  # Add data_loader parameter
+                              data_loader: 'DataLoader',  # Add data_loader parameter
+                              load_parser_instance: 'LoadParser' = None  # Add load parser parameter
                               ) -> None:
         """
         Generates all PDF reports.
@@ -379,8 +378,7 @@ class ProcessingManager:
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
         
-        # TODO: Re-enable area-loss report generation later
-        # Area Loss
+        # Area Loss - temporarily disabled
         # self._generate_report_item("Area Loss", generate_area_loss_report_pdf, extracted_data["area_loss"], report_paths["area_loss"], project_name, run_id, city_name_hebrew, area_name_for_reports)
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
@@ -435,7 +433,8 @@ class ProcessingManager:
                     project_name=project_name,
                     run_id=run_id,
                     area_name=area_name_for_reports,
-                    consultant_data=self.consultant_data
+                    consultant_data=self.consultant_data,
+                    load_parser=load_parser_instance  # Add load parser for ventilation bonus calculation
                 )
                 # The output_filename is relative to output_dir in the generator
                 success_er = energy_rating_gen.generate_report(output_filename=os.path.basename(report_paths["energy_rating"]))
@@ -560,7 +559,8 @@ class ProcessingManager:
                 base_reports_dir,
                 iso_type_selection=current_iso_type,
                 city_area_name_selection=current_city_area_name,
-                data_loader=data_loader  # Pass data_loader to _generate_all_reports
+                data_loader=data_loader,  # Pass data_loader to _generate_all_reports
+                load_parser_instance=parsers["load"]  # Pass load parser for ventilation bonus calculation
             )
 
             if self.is_cancelled:

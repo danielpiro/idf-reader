@@ -42,7 +42,6 @@ class LicenseDatabase:
             
             # Test connection
             self.client.admin.command('ping')
-            logger.info(f"Connected to MongoDB: {self.db_name}")
             
         except Exception as e:
             logger.error(f"Failed to connect to MongoDB: {e}")
@@ -67,7 +66,6 @@ class LicenseDatabase:
             # Insert default license types if not exist
             self.setup_default_data()
             
-            logger.info("Database collections and indexes set up successfully")
             
         except Exception as e:
             logger.error(f"Failed to setup collections: {e}")
@@ -176,7 +174,6 @@ class LicenseDatabase:
         }
         
         result = self.db.customers.insert_one(customer)
-        logger.info(f"Created customer: {email}")
         return str(result.inserted_id)
     
     def get_customer_by_email(self, email: str) -> Optional[Dict]:
@@ -222,7 +219,6 @@ class LicenseDatabase:
         }
         
         result = self.db.licenses.insert_one(license_doc)
-        logger.info(f"Created license: {serial_key} for {customer_email}")
         return str(result.inserted_id)
     
     def get_license_by_key(self, serial_key: str) -> Optional[Dict]:
@@ -313,7 +309,6 @@ class LicenseDatabase:
         }
         
         result = self.db.activations.insert_one(activation)
-        logger.info(f"Created activation for machine {machine_id}")
         return str(result.inserted_id)
     
     def get_activation(self, license_id: ObjectId, machine_id: str) -> Optional[Dict]:
@@ -346,7 +341,6 @@ class LicenseDatabase:
                 {"_id": license_id},
                 {"$inc": {"current_activations": -1}}
             )
-            logger.info(f"Deactivated machine {machine_id}")
             return True
         return False
     
@@ -455,7 +449,6 @@ class LicenseDatabase:
         )
         
         if result.modified_count > 0:
-            logger.info(f"Revoked license: {serial_key}")
             return True
         return False
     
@@ -463,7 +456,6 @@ class LicenseDatabase:
         """Close database connection."""
         if self.client:
             self.client.close()
-            logger.info("Database connection closed")
 
 
 # Global database instance

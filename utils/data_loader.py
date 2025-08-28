@@ -93,7 +93,6 @@ def get_energy_consumption(iso_type_input: str, area_location_input: str, area_d
         for index_value in df.index:
             if area_location_input in str(index_value):
                 matched_index = index_value
-                logger.info(f"CSV lookup: Found containment match '{matched_index}' for input '{area_location_input}'")
                 break
         
         # If no containment match, try reverse containment - find if input contains any index value
@@ -101,7 +100,6 @@ def get_energy_consumption(iso_type_input: str, area_location_input: str, area_d
             for index_value in df.index:
                 if str(index_value) in area_location_input:
                     matched_index = index_value
-                    logger.info(f"CSV lookup: Found reverse containment match '{matched_index}' for input '{area_location_input}'")
                     break
     
     if not matched_index:
@@ -120,7 +118,6 @@ def get_energy_consumption(iso_type_input: str, area_location_input: str, area_d
 
     try:
         value_str = df.loc[matched_index, target_column]
-        logger.info(f"CSV lookup successful: {matched_index}[{target_column}] = {value_str}")
     except KeyError as e:
         raise KeyError(f"Data not found for location '{matched_index}' and definition '{target_column}' in {file_path}. Original error: {e}")
     except Exception as e:
@@ -512,24 +509,20 @@ class DataLoader:
     def _cache_zones(self) -> None:
         """Cache raw zone data from EPJSON."""
         if not self._epjson_data:
-            logger.info("No EPJSON data available for zone caching")
             return
         
         self._zones_cache.clear()
         self._hvac_zones_cache.clear()
         
         zones = self._epjson_data.get('Zone', {})
-        logger.info(f"Caching zones: Found {len(zones)} zones in EPJSON data")
         
         for zone_id, zone_data in zones.items():
-            logger.info(f"Processing zone: {zone_id}")
             
             # Check if this is an HVAC zone
             hvac_found = False
             for schedule_id, schedule_data in self._schedules_cache.items():
                 if schedule_data['is_hvac_indicator'] and zone_id in schedule_id:
                     self._hvac_zones_cache.append(zone_id)
-                    logger.info(f"Zone {zone_id} identified as HVAC zone via schedule '{schedule_id}'")
                     hvac_found = True
                     break
                     
@@ -539,12 +532,11 @@ class DataLoader:
                 for equip_id, equip_data in hvac_equipment.items():
                     if equip_data.get('zone_name') == zone_id:
                         self._hvac_zones_cache.append(zone_id)
-                        logger.info(f"Zone {zone_id} identified as HVAC zone via equipment connection '{equip_id}'")
                         hvac_found = True
                         break
                         
             if not hvac_found:
-                logger.info(f"Zone {zone_id} not identified as HVAC zone")
+                pass
             
             # Extract area_id using legacy method for backward compatibility
             area_id = self._extract_area_id(zone_id)
@@ -552,13 +544,11 @@ class DataLoader:
             # Also get the new group key for debugging
             group_key = self.get_zone_group_key(zone_id)
             
-            logger.info(f"Zone {zone_id}: legacy area_id='{area_id}', new group_key='{group_key}'")
             
             # Get floor area directly from Zone object if available
             zone_floor_area = safe_float(zone_data.get("floor_area", 0.0), 0.0)
             zone_volume = safe_float(zone_data.get("volume", 0.0), 0.0)
             
-            logger.info(f"Zone {zone_id}: Direct values from zone object - floor_area={zone_floor_area}, volume={zone_volume}")
             
             self._zones_cache[zone_id] = {
                 'id': zone_id,
@@ -570,7 +560,6 @@ class DataLoader:
                 'raw_object': IDFObjectCompatibilityWrapper(zone_id, zone_data)
             }
             
-        logger.info(f"Zone caching complete: {len(self._zones_cache)} zones cached, {len(self._hvac_zones_cache)} HVAC zones")
 
     def _calculate_zone_areas_and_volumes(self) -> None:
         """Calculate zone floor areas and volumes from surface data for zones that don't have direct values."""
@@ -587,10 +576,9 @@ class DataLoader:
             else:
                 zones_to_calculate.append(zone_id)
         
-        logger.info(f"Zone area analysis: {len(zones_with_direct_values)} zones have direct values, {len(zones_to_calculate)} zones need calculation")
         
         if zones_to_calculate:
-            logger.info("Calculating zone floor areas and volumes from surfaces for zones without direct values")
+            pass
         
         for zone_id in zones_to_calculate:
             zone_data = self._zones_cache[zone_id]
@@ -640,21 +628,18 @@ class DataLoader:
             zone_data['volume'] = volume
             
             if floor_area > 0 or volume > 0:
-                logger.info(f"Zone {zone_id}: calculated floor_area={floor_area:.2f}m², volume={volume:.2f}m³")
+                pass
 
     def _cache_surfaces(self) -> None:
         """Cache raw surface data from EPJSON"""
         if not self._epjson_data:
-            logger.info("_cache_surfaces: No EPJSON data available")
             return
 
-        logger.info("Starting _cache_surfaces method")
         self._surfaces_cache.clear()
         self._windows_cache = {}
 
         # Cache building surfaces
         building_surfaces = self._epjson_data.get('BuildingSurface:Detailed', {})
-        logger.info(f"Found {len(building_surfaces)} BuildingSurface:Detailed objects in EPJSON")
         surfaces_processed = 0
         for surface_id, surface_data in building_surfaces.items():
             surfaces_processed += 1
@@ -665,7 +650,6 @@ class DataLoader:
                 zone_name = surface_data.get("zone_name", "")
                 construction_name = surface_data.get("construction_name", "")
                 surface_type = surface_data.get("surface_type", "")
-                logger.info(f"Surface {surfaces_processed}: ID='{surface_id}', zone='{zone_name}', construction='{construction_name}', type='{surface_type}', area={calculated_area}")
             
             self._surfaces_cache[surface_id] = {
                 'id': surface_id,
@@ -711,7 +695,6 @@ class DataLoader:
             self._windows_cache[window_id] = window_cache_data
             self._surfaces_cache[window_id] = window_cache_data
             
-        logger.info(f"Surface caching complete: {len(self._surfaces_cache)} total surfaces cached ({surfaces_processed} building surfaces + windows)")
 
     def _cache_materials(self) -> None:
         """Cache raw material data from EPJSON"""
@@ -1309,75 +1292,64 @@ class DataLoader:
         }
         
         if self._should_log_details('get_zones'):
-            logger.info(f"Retrieved zones data: {len(filtered_zones)} HVAC zones found (filtered from {len(self._zones_cache)} total zones)")
             # Log sample of first few zones
             sample_count = min(3, len(filtered_zones))
             for i, (zone_id, zone_data) in enumerate(filtered_zones.items()):
                 if i >= sample_count:
                     break
-                logger.info(f"HVAC zone sample {i+1}: {zone_id} - Floor Area: {zone_data.get('floor_area', 0)}, Volume: {zone_data.get('volume', 0)}, Area ID: {zone_data.get('area_id', 'N/A')}")
         return filtered_zones
 
     def get_all_zones(self) -> Dict[str, Dict[str, Any]]:
         """Get cached zone data for ALL zones (including non-HVAC zones)."""
         if self._should_log_details('get_all_zones'):
-            logger.info(f"Retrieved ALL zones data: {len(self._zones_cache)} zones found")
+            pass
         return self._zones_cache
 
     def get_hvac_zones(self) -> List[str]:
         """Get cached HVAC zone names."""
         if self._should_log_details('get_hvac_zones'):
-            logger.info(f"Retrieved HVAC zones: {len(self._hvac_zones_cache)} HVAC zones found")
-            logger.info(f"HVAC zones list: {self._hvac_zones_cache}")
+            pass
         return self._hvac_zones_cache
 
     def get_surfaces(self) -> Dict[str, Dict[str, Any]]:
         """Get cached surface data."""
         if self._should_log_details('get_surfaces'):
-            logger.info(f"Retrieved surfaces data: {len(self._surfaces_cache)} surfaces found")
             # Log sample of first few surfaces
             sample_count = min(3, len(self._surfaces_cache))
             for i, (surface_id, surface_data) in enumerate(self._surfaces_cache.items()):
                 if i >= sample_count:
                     break
-                logger.info(f"Surface sample {i+1}: {surface_id} - Type: {surface_data.get('surface_type', 'N/A')}, Area: {surface_data.get('area', 0)}, Zone: {surface_data.get('zone_name', 'N/A')}")
         return self._surfaces_cache
 
     def get_materials(self) -> Dict[str, Dict[str, Any]]:
         """Get the fully processed and cached material data, merging all material types."""
         if self._should_log_details('get_materials'):
-            logger.info(f"Retrieved materials data: {len(self._all_materials_cache_complete)} materials found")
             # Log sample of first few materials
             sample_count = min(3, len(self._all_materials_cache_complete))
             for i, (material_id, material_data) in enumerate(self._all_materials_cache_complete.items()):
                 if i >= sample_count:
                     break
-                logger.info(f"Material sample {i+1}: {material_id} - Type: {material_data.get('type', 'N/A')}, Conductivity: {material_data.get('conductivity', 'N/A')}, Thickness: {material_data.get('thickness', 'N/A')}")
         return self._all_materials_cache_complete
 
     def get_constructions(self) -> Dict[str, Dict[str, Any]]:
         """Get cached construction data"""
         if self._should_log_details('get_constructions'):
-            logger.info(f"Retrieved constructions data: {len(self._constructions_cache)} constructions found")
             # Log sample of first few constructions
             sample_count = min(3, len(self._constructions_cache))
             for i, (construction_id, construction_data) in enumerate(self._constructions_cache.items()):
                 if i >= sample_count:
                     break
                 layers = construction_data.get('material_layers', [])
-                logger.info(f"Construction sample {i+1}: {construction_id} - Layers: {len(layers)} ({', '.join(layers[:2])}{'...' if len(layers) > 2 else ''})")
         return self._constructions_cache
 
     def get_schedules(self) -> Dict[str, Dict[str, Any]]:
         """Get cached schedule data"""
         if self._should_log_details('get_schedules'):
-            logger.info(f"Retrieved schedules data: {len(self._schedules_cache)} schedules found")
             # Log sample of first few schedules
             sample_count = min(3, len(self._schedules_cache))
             for i, (schedule_id, schedule_data) in enumerate(self._schedules_cache.items()):
                 if i >= sample_count:
                     break
-                logger.info(f"Schedule sample {i+1}: {schedule_id} - Type: {schedule_data.get('type', 'N/A')}, HVAC Indicator: {schedule_data.get('is_hvac_indicator', False)}")
         return self._schedules_cache
 
     def get_schedule_rules(self, schedule_id: str) -> List[str]:
@@ -1546,17 +1518,15 @@ class DataLoader:
                     settings[object_type] = objects
                     # Log details for each settings category
                     if objects:
-                        logger.info(f"Settings {object_type}: {len(objects)} objects found")
                         # Log first object details
                         first_obj_name = next(iter(objects.keys()), None)
                         if first_obj_name:
-                            logger.info(f"  Sample: {first_obj_name}")
+                            pass
                 except Exception as e:
                     logger.error(f"Error retrieving objects of type '{object_type}': {e}")
                     settings[object_type] = {}
             
             total_settings = sum(len(objects) for objects in settings.values())
-            logger.info(f"Retrieved settings objects: {total_settings} total settings across {len(SETTINGS_OBJECT_TYPES)} categories")
         else:
             # Just collect the data without detailed logging
             for object_type in SETTINGS_OBJECT_TYPES:
@@ -1632,6 +1602,42 @@ class DataLoader:
         else:
             # Case: A:B - individual zone (no grouping)
             return zone_id
+
+    def get_floor_id(self, zone_id: str) -> str:
+        """
+        Extract floor identifier from zone_id.
+        
+        For zone patterns like:
+        - "F01U01TZ" -> "F01" (floor 01)
+        - "F02U03TZ" -> "F02" (floor 02)
+        - "01:324Xliving" -> "01" (floor 01)
+        - "05:123_bedroom" -> "05" (floor 05)
+        
+        Args:
+            zone_id: The zone identifier
+            
+        Returns:
+            Floor identifier as string
+        """
+        if not zone_id:
+            return ""
+            
+        # Handle colon-separated patterns (01:324Xliving -> 01)
+        if ":" in zone_id:
+            return zone_id.split(":")[0]
+        
+        # Handle F-patterns (F01U01TZ -> F01, F02U03TZ -> F02)
+        if zone_id.startswith("F") and len(zone_id) >= 3:
+            return zone_id[:3]  # F01, F02, etc.
+        
+        # Handle numeric patterns at the start (extract first numeric part)
+        import re
+        numeric_match = re.match(r'^(\d+)', zone_id)
+        if numeric_match:
+            return numeric_match.group(1)
+        
+        # Fallback: return first 2-3 characters
+        return zone_id[:3] if len(zone_id) >= 3 else zone_id
 
     def _is_hvac_indicator(self, schedule_id: str, schedule_type: str) -> bool:
         """Determine if a schedule indicates an HVAC zone."""

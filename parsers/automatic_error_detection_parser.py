@@ -428,7 +428,6 @@ class AutomaticErrorDetectionParser:
         
         # Summary
         settings_issues = [item for item in self.error_detection_data if 'Site' in item.get('zone_name', '') or 'Global' in item.get('zone_name', '')]
-        logger.info(f"Settings validation completed. Found {len(settings_issues)} issues")
         
     def _validate_loads(self, iso_type: str, idf) -> None:
         """Validate loads using the loads table for specific ISO type."""
@@ -1541,7 +1540,6 @@ class AutomaticErrorDetectionParser:
                 # Processed surfaces for direction validation
                 
             else:
-                logger.info("No glazing CSV data available - skipping window direction validation")
                 # Skip validation entirely when no glazing data is available
                 return
             

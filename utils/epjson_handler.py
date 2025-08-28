@@ -136,12 +136,20 @@ class EPJSONHandler:
             # Run EnergyPlus converter
             logger.info(f"Converting IDF to EPJSON: {final_idf_path} -> {output_path}")
             
+            # Hide command window on Windows
+            import sys
+            kwargs = {
+                'cwd': os.path.dirname(final_idf_path),
+                'capture_output': True,
+                'text': True,
+                'timeout': 300  # 5 minute timeout
+            }
+            if sys.platform.startswith('win'):
+                kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+            
             result = subprocess.run(
                 [energyplus_exe, '--convert-only', final_idf_path],
-                cwd=os.path.dirname(final_idf_path),
-                capture_output=True,
-                text=True,
-                timeout=300  # 5 minute timeout
+                **kwargs
             )
             
             if result.returncode != 0:
@@ -187,62 +195,6 @@ class EPJSONHandler:
                 version_cleanup_func()
                 logger.debug("Cleaned up version-updated IDF file after conversion")
     
-    def convert_epjson_to_idf(self, epjson_path: str, output_path: Optional[str] = None) -> str:
-        """
-        Convert EPJSON file to IDF using EnergyPlus converter.
-        
-        Args:
-            epjson_path: Path to the EPJSON file
-            output_path: Path for the output IDF file (optional)
-            
-        Returns:
-            Path to the converted IDF file
-        """
-        if not os.path.exists(epjson_path):
-            raise FileNotFoundError(f"EPJSON file not found at '{epjson_path}'")
-        
-        # Find EnergyPlus executable
-        energyplus_exe = self._find_energyplus_executable()
-        if not energyplus_exe:
-            raise RuntimeError("Could not find EnergyPlus executable")
-        
-        # Determine output path
-        if output_path is None:
-            output_path = os.path.splitext(epjson_path)[0] + '.idf'
-        
-        try:
-            # Run EnergyPlus converter
-            logger.info(f"Converting EPJSON to IDF: {epjson_path} -> {output_path}")
-            
-            result = subprocess.run(
-                [energyplus_exe, '--convert-only', epjson_path],
-                cwd=os.path.dirname(epjson_path),
-                capture_output=True,
-                text=True,
-                timeout=300
-            )
-            
-            if result.returncode != 0:
-                error_msg = f"EnergyPlus conversion failed: {result.stderr}"
-                logger.error(error_msg)
-                raise RuntimeError(error_msg)
-            
-            # Find the generated IDF file
-            generated_idf = os.path.splitext(epjson_path)[0] + '.idf'
-            if os.path.exists(generated_idf):
-                # Move to desired output location if different
-                if os.path.abspath(generated_idf) != os.path.abspath(output_path):
-                    import shutil
-                    shutil.move(generated_idf, output_path)
-                    
-                logger.info(f"Successfully converted EPJSON to IDF: {output_path}")
-                return output_path
-            else:
-                raise RuntimeError(f"Expected IDF file not found: {generated_idf}")
-                
-        except subprocess.TimeoutExpired:
-            raise RuntimeError("EnergyPlus conversion timed out")
-    
     def _find_energyplus_executable(self) -> Optional[str]:
         """
         Find EnergyPlus executable using user-specified path or common locations.
@@ -281,8 +233,17 @@ class EPJSONHandler:
         
         # Try to find energyplus in PATH
         try:
-            result = subprocess.run(['where', 'energyplus'], 
-                                  capture_output=True, text=True, shell=True)
+            # Hide command window on Windows
+            import sys
+            kwargs = {
+                'capture_output': True, 
+                'text': True, 
+                'shell': True
+            }
+            if sys.platform.startswith('win'):
+                kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+            
+            result = subprocess.run(['where', 'energyplus'], **kwargs)
             if result.returncode == 0 and result.stdout.strip():
                 exe_path = result.stdout.strip().split('\n')[0]
                 logger.info(f"Found EnergyPlus in PATH: {exe_path}")
@@ -508,12 +469,20 @@ OUTPUT:VARIABLE,
             # Run EnergyPlus version update
             logger.info(f"Updating IDF version: {abs_idf_path} -> {temp_path}")
             
+            # Hide command window on Windows
+            import sys
+            kwargs = {
+                'cwd': os.path.dirname(abs_idf_path),
+                'capture_output': True,
+                'text': True,
+                'timeout': 120  # 2 minute timeout for version update
+            }
+            if sys.platform.startswith('win'):
+                kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+            
             result = subprocess.run(
                 [energyplus_exe, '--version-only', abs_idf_path],
-                cwd=os.path.dirname(abs_idf_path),
-                capture_output=True,
-                text=True,
-                timeout=120  # 2 minute timeout for version update
+                **kwargs
             )
             
             if result.returncode != 0:

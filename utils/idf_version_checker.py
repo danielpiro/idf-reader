@@ -211,12 +211,20 @@ class IDFVersionChecker:
             
             # Run the version updater
             logger.info(f"Updating {idf_path} from version {current_version} to {self.target_version}")
+            # Hide command window on Windows
+            import sys
+            kwargs = {
+                'cwd': updater_path,
+                'capture_output': True,
+                'text': True,
+                'timeout': 300  # 5 minute timeout
+            }
+            if sys.platform.startswith('win'):
+                kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+            
             result = subprocess.run(
                 [transition_exe, idf_path],
-                cwd=updater_path,
-                capture_output=True,
-                text=True,
-                timeout=300  # 5 minute timeout
+                **kwargs
             )
             
             if result.returncode == 0:

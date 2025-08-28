@@ -60,18 +60,14 @@ class AreaParser(SurfaceDataParser):
         """
         try:
             zones = self.data_loader.get_zones()
-            self.logger.info(f"Area parser _process_zones: Retrieved {len(zones)} zones from data loader")
             if not zones:
-                self.logger.info("No zones found, skipping zone processing")
                 return
 
             for zone_id, zone_data in zones.items():
                 try:
                     if not zone_id:
-                        self.logger.info(f"Skipping empty zone_id")
                         continue
 
-                    self.logger.info(f"Area parser processing zone: {zone_id}")
 
                     # Use enhanced area_id extraction for better grouping
                     area_id = self._extract_area_id_enhanced(zone_id)
@@ -82,12 +78,10 @@ class AreaParser(SurfaceDataParser):
                     # Get group key for debugging
                     group_key = self.data_loader.get_zone_group_key(zone_id)
 
-                    self.logger.info(f"Zone {zone_id}: enhanced_area_id='{area_id}', base_zone_id='{base_zone_id}', group_key='{group_key}'")
 
                     floor_area = safe_float(zone_data.get("floor_area"))
                     multiplier = int(safe_float(zone_data.get("multiplier"), 1))
                     
-                    self.logger.info(f"Zone {zone_id}: floor_area={floor_area}, multiplier={multiplier}")
 
                     self.areas_by_zone[zone_id] = {
                         "area_id": area_id,
@@ -106,12 +100,9 @@ class AreaParser(SurfaceDataParser):
         Process surfaces to extract construction and area information.
         """
         try:
-            self.logger.info("Starting _process_surfaces method")
             surfaces = self.data_loader.get_surfaces()
-            self.logger.info(f"DataLoader returned {len(surfaces) if surfaces else 0} surfaces")
             
             if not surfaces:
-                self.logger.info("No surfaces found from DataLoader, exiting _process_surfaces")
                 return
 
             windows_by_base_surface = {}
@@ -171,7 +162,6 @@ class AreaParser(SurfaceDataParser):
                 except (TypeError, AttributeError) as e_win:
                     pass
 
-            self.logger.info(f"Processing {len(surfaces)} surfaces for construction data")
             processed_surfaces = 0
             surfaces_with_constructions = 0
             
@@ -181,16 +171,16 @@ class AreaParser(SurfaceDataParser):
                     zone_name = surface.get("zone_name")
                     
                     if processed_surfaces <= 5:  # Log first 5 surfaces for debugging
-                        self.logger.info(f"Surface {processed_surfaces}: ID='{surface_id}', zone_name='{zone_name}', available_keys={list(surface.keys())}")
+                        pass
                     
                     if not zone_name:
                         if processed_surfaces <= 5:
-                            self.logger.info(f"Surface {surface_id}: No zone_name found, skipping")
+                            pass
                         continue
                         
                     if zone_name not in self.areas_by_zone:
                         if processed_surfaces <= 5:
-                            self.logger.info(f"Surface {surface_id}: zone_name '{zone_name}' not in areas_by_zone, skipping")
+                            pass
                         continue
                         
                     # Check if this is a window/glazing surface
@@ -199,11 +189,11 @@ class AreaParser(SurfaceDataParser):
                     construction_name = surface.get("construction_name")
                     if not construction_name:
                         if processed_surfaces <= 5:
-                            self.logger.info(f"Surface {surface_id}: No construction_name found, skipping")
+                            pass
                         continue
                         
                     if processed_surfaces <= 5:
-                        self.logger.info(f"Surface {surface_id}: Processing with construction='{construction_name}', zone='{zone_name}'")
+                        pass
 
                     # Get area from eplustbl.csv if available, using containment checks
                     csv_area = None
@@ -324,7 +314,7 @@ class AreaParser(SurfaceDataParser):
                             "elements": [], "total_area": 0.0, "total_u_value": 0.0
                         }
                         if processed_surfaces <= 5:
-                            self.logger.info(f"Created new construction entry for zone '{zone_name}', construction '{construction_name}'")
+                            pass
 
                     element_type_str = surface_type.capitalize()
                     if is_glazing:
@@ -360,21 +350,19 @@ class AreaParser(SurfaceDataParser):
                     constr_group["total_u_value"] += final_area * u_value
                     
                     if processed_surfaces <= 5:
-                        self.logger.info(f"Added element to construction: zone='{zone_name}', construction='{construction_name}', area={final_area}, u_value={u_value}")
+                        pass
 
                 except (TypeError, ValueError, AttributeError, KeyError) as e_surf:
                     if processed_surfaces <= 5:
-                        self.logger.info(f"Error processing surface {surface_id}: {e_surf}")
+                        pass
                     continue
                     
-            self.logger.info(f"Surface processing complete: {processed_surfaces} total surfaces, {surfaces_with_constructions} processed with constructions")
             
             # Log construction summary for first few zones
             zones_logged = 0
             for zone_id, zone_data in self.areas_by_zone.items():
                 if zones_logged < 3:
                     constructions = zone_data.get("constructions", {})
-                    self.logger.info(f"Zone '{zone_id}' has {len(constructions)} construction types: {list(constructions.keys())}")
                     zones_logged += 1
                     
         except Exception as e:
@@ -1117,26 +1105,22 @@ class AreaParser(SurfaceDataParser):
         Uses the new zone grouping logic from DataLoader.
         """
         if not self.processed:
-            self.logger.info("Area parser not processed yet, returning empty groupings")
             return {}
         
         try:
             base_zone_groupings = {}
-            self.logger.info(f"Creating area groupings for {len(self.areas_by_zone)} zones")
             
             for zone_id, zone_data in self.areas_by_zone.items():
                 # Use the new zone group key logic
                 group_key = self.data_loader.get_zone_group_key(zone_id)
-                self.logger.info(f"Zone {zone_id} -> group_key '{group_key}'")
                 
                 if group_key not in base_zone_groupings:
                     base_zone_groupings[group_key] = []
                 
                 base_zone_groupings[group_key].append(zone_id)
             
-            self.logger.info(f"Area groupings created: {len(base_zone_groupings)} groups")
             for group_key, zone_list in base_zone_groupings.items():
-                self.logger.info(f"Group '{group_key}': {zone_list}")
+                pass
             
             return base_zone_groupings
         except Exception as e:
@@ -1148,7 +1132,6 @@ class AreaParser(SurfaceDataParser):
         Get data for area reports grouped by base zone ID instead of area_id.
         Constructions are now merged per zone (not per area) using zone-specific merge keys.
         """
-        self.logger.info("Starting get_area_table_data_by_base_zone method")
         result_by_base_zone: Dict[str, List[Dict[str, Any]]] = {}
         try:
             parser_to_use = materials_parser if materials_parser else self.materials_parser
@@ -1171,11 +1154,11 @@ class AreaParser(SurfaceDataParser):
                     base_zone_id = zone_data.get("base_zone_id", zone_id)
                     
                     if zones_processed <= 3:
-                        self.logger.info(f"Zone {zones_processed}: ID='{zone_id}', area_id='{area_id}', base_zone_id='{base_zone_id}'")
+                        pass
                     
                     if "core" in area_id.lower():
                         if zones_processed <= 3:
-                            self.logger.info(f"Zone {zone_id}: Skipping due to 'core' in area_id")
+                            pass
                         continue
 
                     if base_zone_id not in result_by_base_zone:
@@ -1185,11 +1168,11 @@ class AreaParser(SurfaceDataParser):
                     constructions_in_zone = zone_data.get("constructions", {})
                     
                     if zones_processed <= 3:
-                        self.logger.info(f"Zone {zone_id}: Found {len(constructions_in_zone)} constructions: {list(constructions_in_zone.keys())}")
+                        pass
                     
                     if not constructions_in_zone:
                         if zones_processed <= 3:
-                            self.logger.info(f"Zone {zone_id}: No constructions found, skipping")
+                            pass
                         continue
 
                     for construction_name, construction_data in constructions_in_zone.items():
@@ -1305,7 +1288,6 @@ class AreaParser(SurfaceDataParser):
                                 existing_row["area"] = total_area
                                 existing_row["weighted_u_value"] = total_area_loss / total_area if total_area > 0 else 0.0
                                 
-                                self.logger.info(f"Merged construction '{final_row['construction']}' element '{final_row['element_type']}': {old_area:.2f} + {new_area:.2f} = {total_area:.2f} m²")
                             else:
                                 # Add new row
                                 result_by_base_zone[base_zone_id].append(final_row)

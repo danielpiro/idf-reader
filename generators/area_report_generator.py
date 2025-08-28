@@ -807,7 +807,6 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
         
         if hasattr(areas_data, 'get_area_groupings_by_base_zone'):
             base_zone_groupings = areas_data.get_area_groupings_by_base_zone()
-            logger.info(f"Found {len(base_zone_groupings)} base zone groups")
         else:
             logger.warning("AreaParser does not have get_area_groupings_by_base_zone method. Falling back to regular area grouping.")
             return generate_area_reports(areas_data, output_dir, project_name, run_id, city_name, area_name)
@@ -827,10 +826,8 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
         base_zone_table_data = {}
         if hasattr(areas_data, 'get_area_table_data_by_base_zone'):
             base_zone_table_data = areas_data.get_area_table_data_by_base_zone(materials_parser)
-            logger.info(f"Retrieved area table data for {len(base_zone_table_data)} base zones")
             # Log first few base zone keys for debugging
             sample_keys = list(base_zone_table_data.keys())[:3]
-            logger.info(f"Sample base zone keys from area table data: {sample_keys}")
         else:
             logger.warning("AreaParser does not have get_area_table_data_by_base_zone method.")
             return False
@@ -926,10 +923,6 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
                         base_zone_glazing_data.extend(zone_glazing)
 
             zones_in_group = base_zone_groupings.get(base_zone_id, [])
-            logger.info(f"Generating base zone area report for: {base_zone_id} (includes {len(zones_in_group)} zones)")
-            logger.info(f"  Zones in group '{base_zone_id}': {zones_in_group}")
-            logger.info(f"  Merged rows count: {len(merged_rows)}")
-            logger.info(f"  Total floor area: {total_floor_area}")
 
             success = generate_area_report_pdf(
                 area_id=base_zone_id,

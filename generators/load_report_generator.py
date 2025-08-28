@@ -296,11 +296,9 @@ def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", pro
     from utils.logging_config import get_logger
     logger = get_logger(__name__)
     
-    logger.info(f"Load report generation called with {len(zone_data)} zones")
     for zone_name, zone_info in zone_data.items():
-        logger.info(f"Zone '{zone_name}': {len(zone_info.get('loads', {}))} load types")
         for load_type, load_data in zone_info.get('loads', {}).items():
-            logger.info(f"  {load_type}: {len(load_data) if isinstance(load_data, list) else 'single item'}")
+            pass
     # Use standardized layout settings
     margins = LAYOUT['margins']['default']
     page_size = landscape(A4)

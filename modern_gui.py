@@ -1402,12 +1402,9 @@ class ModernIDFProcessorGUI:
         license_status = license_manager.get_license_status()
         is_licensed = license_status["status"] == license_manager.STATUS_VALID
         
-        logger.info(f"UPDATE_FORM_VALIDATION: License status = {license_status}")
-        logger.info(f"UPDATE_FORM_VALIDATION: Is licensed = {is_licensed}")
         
         if not is_licensed:
             # No valid license - show activation message
-            logger.info("UPDATE_FORM_VALIDATION: Setting button to activation mode")
             self.process_button.disabled = False  # Keep button clickable
             self.process_button.text = "הפעל רישיון - לחץ על מקש הנעילה"
             self.process_button.icon = ft.Icons.LOCK
@@ -1424,7 +1421,6 @@ class ModernIDFProcessorGUI:
             self.selected_iso and self.selected_iso not in self.disabled_iso_types
         ])
         
-        logger.info(f"UPDATE_FORM_VALIDATION: Licensed user - form valid = {is_valid}")
         self.process_button.disabled = not is_valid
         
         # Update button text based on queue status
@@ -1439,7 +1435,6 @@ class ModernIDFProcessorGUI:
             self.process_button.text = f"הוסף לתור ({len(self.job_queue)}/{self.max_queue_size})"
             self.process_button.icon = ft.Icons.ADD_TO_QUEUE
         
-        logger.info(f"UPDATE_FORM_VALIDATION: Button text set to: {self.process_button.text}")
         
         self._safe_page_update()
 
@@ -1599,10 +1594,6 @@ class ModernIDFProcessorGUI:
     
     def show_license_dialog(self):
         """Show license management dialog."""
-        logger.info("=" * 80)
-        logger.info("=== SHOW_LICENSE_DIALOG CALLED FROM MAIN UI ===")
-        logger.info(f"Page controls before dialog: {len(self.page.controls)}")
-        logger.info(f"Page overlay before dialog: {len(self.page.overlay)}")
         
         try:
             if not self.page:
@@ -1613,18 +1604,12 @@ class ModernIDFProcessorGUI:
             for i, control in enumerate(self.page.controls):
                 logger.info(f"  Control {i}: {type(control).__name__} visible={getattr(control, 'visible', True)}")
             
-            logger.info("Creating LicenseDialog instance")
             # Use safe callback for UI refresh after license activation
             logger.info("Using safe callback for license UI updates")
             self.license_dialog = LicenseDialog(self.page, self.on_license_changed)
-            logger.info("Calling show_license_dialog method")
             self.license_dialog.show_license_dialog()
             
-            logger.info("License dialog creation completed")
-            logger.info(f"Page controls after dialog creation: {len(self.page.controls)}")
-            logger.info(f"Page overlay after dialog creation: {len(self.page.overlay)}")
-            logger.info("=" * 80)
-            
+                
         except Exception as e:
             logger.error(f"Error showing license dialog: {e}")
             import traceback
@@ -1634,17 +1619,11 @@ class ModernIDFProcessorGUI:
     def on_license_changed(self):
         """Called when license status changes."""
         try:
-            logger.info("=" * 60)
-            logger.info("=== MODERN_GUI ON_LICENSE_CHANGED CALLED ===")
-            logger.info(f"Page controls count BEFORE: {len(self.page.controls) if self.page and self.page.controls else 0}")
-            logger.info(f"Page overlay count BEFORE: {len(self.page.overlay) if self.page and self.page.overlay else 0}")
             
             # Track if page controls exist before processing
             had_controls_before = self.page and self.page.controls and len(self.page.controls) > 0
-            logger.info(f"Had controls before: {had_controls_before}")
             
             # Refresh license status (read-only operation)
-            logger.info("Refreshing license status...")
             
             # Force a completely fresh check - clear any cache if needed
             if hasattr(license_manager, '_cached_status'):
@@ -1657,12 +1636,9 @@ class ModernIDFProcessorGUI:
             # Force re-read of license file
             old_status = self.license_status
             self.license_status = license_manager.get_license_status()
-            logger.info(f"Old license status: {old_status}")
-            logger.info(f"New license status: {self.license_status}")
             
             # Also store it in instance for debugging
             self._last_license_check = self.license_status
-            logger.info(f"Stored license status in instance: {self._last_license_check}")
             
             # Verify license file exists
             license_file_exists = license_manager.license_file.exists()
@@ -1672,15 +1648,12 @@ class ModernIDFProcessorGUI:
                 logger.info(f"License file size: {license_manager.license_file.stat().st_size} bytes")
             
             # Update UI elements for new license status
-            logger.info("Updating UI elements for new license status")
             self.update_ui_for_license()
             
             # Update button state after license change
-            logger.info("Updating form validation after license change")
             self.update_form_validation()
             
             # Force UI update
-            logger.info("Forcing page update after license change")
             if self.page:
                 self._safe_page_update()
             
@@ -1690,7 +1663,6 @@ class ModernIDFProcessorGUI:
                 final_status = license_manager.get_license_status()
                 final_licensed = final_status["status"] == license_manager.STATUS_VALID
                 logger.info(f"Final button update - licensed: {final_licensed}")
-                logger.info(f"Final button update - status: {final_status}")
                 
                 if final_licensed:
                     # Force button to normal state
@@ -1705,7 +1677,6 @@ class ModernIDFProcessorGUI:
                 
                 if self.page:
                     self._safe_page_update()
-                    logger.info("Final page update completed")
             
             # Refresh license button if it exists
             logger.info("Refreshing license-dependent UI elements")
@@ -1716,27 +1687,20 @@ class ModernIDFProcessorGUI:
                 
                 # Find and replace the button in the UI
                 # This is a simple approach - you can make it more sophisticated
-                logger.info("Updated license button with new status")
             
             # Only show status if page is stable
             if had_controls_before and self.page and self.page.controls:
-                logger.info("Page appears stable - showing status update")
                 self.show_status("סטטוס הרישיון עודכן")
             else:
                 logger.warning("Page unstable - skipping status update")
             
-            logger.info(f"Page controls count AFTER: {len(self.page.controls) if self.page and self.page.controls else 0}")
-            logger.info(f"Page overlay count AFTER: {len(self.page.overlay) if self.page and self.page.overlay else 0}")
             
             # Verify page integrity
             if had_controls_before and (not self.page.controls or len(self.page.controls) == 0):
                 logger.error("*** BUG DETECTED: PAGE CONTROLS DISAPPEARED IN ON_LICENSE_CHANGED! ***")
                 logger.error("This should not happen - the callback should not clear page controls")
             else:
-                logger.info("Page integrity maintained")
-            
-            logger.info("=== MODERN_GUI ON_LICENSE_CHANGED COMPLETED ===")
-            logger.info("=" * 60)
+                pass
             
         except Exception as e:
             logger.error(f"License change handling error: {e}")
@@ -2051,14 +2015,22 @@ OUTPUT:VARIABLE,
                     self._safe_page_update()
             
             import subprocess
-            process = subprocess.run(
-                cmd, 
-                check=True, 
-                capture_output=True, 
-                text=True, 
-                encoding='utf-8', 
-                errors='ignore'
-            )
+            import sys
+            
+            # Hide command window on Windows to avoid scaring clients
+            kwargs = {
+                'check': True,
+                'capture_output': True,
+                'text': True,
+                'encoding': 'utf-8',
+                'errors': 'ignore'
+            }
+            
+            # On Windows, hide the command prompt window
+            if sys.platform.startswith('win'):
+                kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+            
+            process = subprocess.run(cmd, **kwargs)
             
             if process.stdout: 
                 logger.info(f"E+ STDOUT:\n{process.stdout}")
@@ -2285,8 +2257,8 @@ OUTPUT:VARIABLE,
                     expand=True),
                     ft.Column([
                         ft.Row([
-                            (logger.info("Creating license button..."), self.create_license_button())[1],
-                            (logger.info("Creating update button..."), self.create_update_menu_button())[1],
+                            self.create_license_button(),
+                            self.create_update_menu_button(),
                         ], spacing=10, alignment=ft.MainAxisAlignment.CENTER),
                         ft.Text(f"v{self.current_version}", size=10, color=ft.Colors.ON_SURFACE_VARIANT)
                     ], spacing=2, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
@@ -2916,23 +2888,15 @@ OUTPUT:VARIABLE,
             tooltip = "ניהול רישיון"
         
         def license_button_clicked(e):
-            logger.info("=" * 80)
-            logger.info("=== LICENSE BUTTON CLICKED FROM MAIN UI ===")
             logger.info(f"Event: {e}")
-            logger.info(f"Page: {self.page}")
-            logger.info(f"Page controls count: {len(self.page.controls) if self.page and self.page.controls else 0}")
-            logger.info(f"Page overlay count: {len(self.page.overlay) if self.page and self.page.overlay else 0}")
             logger.info(f"Button: {e.control if hasattr(e, 'control') else 'No control'}")
-            logger.info("=" * 80)
-            
+                
             # Show immediate feedback
             self.show_status("פותח חלון ניהול רישיונות...", "info")
             
             try:
                 # Show the license dialog
-                logger.info("Calling show_license_dialog from main UI...")
                 self.show_license_dialog()
-                logger.info("show_license_dialog from main UI completed")
                 self.show_status("חלון רישיונות נפתח", "success")
                 self.show_snackbar("חלון ניהול רישיונות נפתח")
             except Exception as ex:
@@ -3078,7 +3042,6 @@ OUTPUT:VARIABLE,
                 self.page.overlay.append(menu_dialog)
                 menu_dialog.open = True
                 self._safe_page_update()
-                logger.info("Update menu dialog should now be visible")
                 self.show_status("תפריט עדכונים נפתח", "success")
                 self.show_snackbar("תפריט עדכונים נפתח")
             
@@ -3090,9 +3053,7 @@ OUTPUT:VARIABLE,
                     self.show_status(f"שגיאה בהצגת תפריט עדכונים: {e}")
         
         def update_button_clicked(e):
-            logger.info(f"=== UPDATE BUTTON CLICKED ===")
             logger.info(f"Event: {e}")
-            logger.info(f"Page: {self.page}")
             show_update_menu(e)
         
         button = ft.IconButton(
@@ -3113,7 +3074,6 @@ OUTPUT:VARIABLE,
                     control.open = False
                     self.page.overlay.remove(control)
             self._safe_page_update()
-            logger.info("Test dialog closed")
     
     def show_github_config_dialog(self):
         """Show GitHub token configuration dialog."""
@@ -3223,8 +3183,6 @@ OUTPUT:VARIABLE,
         self._safe_page_update()
 
 def main(page: ft.Page):
-    logger.info("=== MAIN FUNCTION STARTED ===")
-    logger.info(f"Page object: {page}")
     
     app = ModernIDFProcessorGUI()
     logger.info("ModernIDFProcessorGUI instance created")

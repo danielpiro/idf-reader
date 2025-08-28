@@ -76,7 +76,10 @@ CLIMATE_ZONE_MAP = {
     "d": "Zone D", "D": "Zone D", "אזור ד": "Zone D",
 }
 
-def _get_table_style():
+def _get_table_style(model_year=None):
+    is_2023_iso = model_year == 2023
+    last_summary_column = 12 if is_2023_iso else 11
+    
     return TableStyle([
         ('BACKGROUND', (0,0), (-1,0), COLORS['primary_blue']),
         ('TEXTCOLOR', (0,0), (-1,0), COLORS['white']),
@@ -92,9 +95,9 @@ def _get_table_style():
         ('FONTNAME', (0,1), (-1,1), FONTS['table_header']),
         ('FONTSIZE', (0,1), (-1,1), FONT_SIZES['table_body']),
 
-        ('SPAN', (0,0), (4,0)),
-        ('SPAN', (5,0), (8,0)),
-        ('SPAN', (9,0), (12,0)),
+        ('SPAN', (0,0), (3,0)),
+        ('SPAN', (4,0), (7,0)),
+        ('SPAN', (8,0), (last_summary_column,0)),
 
         ('FONTNAME', (0,2), (-1,-1), FONTS['table_body']),
         ('FONTSIZE', (0,2), (-1,-1), FONT_SIZES['table_body']),
@@ -138,6 +141,41 @@ def _format_number(value):
         return str(value)
     except Exception:
         return str(value)
+
+def _calculate_ventilation_bonus(rate_ach):
+    """
+    Calculate ventilation bonus based on air changes per hour (N_ac).
+    
+    Bonus table (2023 ISO):
+    - 0.0  → N_ac < 1
+    - 0.1  → 1 ≤ N_ac < 3  
+    - 0.12 → 3 ≤ N_ac < 5
+    - 0.16 → 5 ≤ N_ac < 10
+    - 0.20 → 10 ≤ N_ac
+    
+    Args:
+        rate_ach: Air changes per hour value
+        
+    Returns:
+        float: Bonus value
+    """
+    if rate_ach is None:
+        return 0.0
+    
+    # Round values close to 1 up to 1 (e.g., 0.9992 → 1.0)
+    if rate_ach >= 0.95 and rate_ach < 1.0:
+        rate_ach = 1.0
+    
+    if rate_ach < 1:
+        return 0.0
+    elif rate_ach < 3:
+        return 0.1
+    elif rate_ach < 5:
+        return 0.12
+    elif rate_ach < 10:
+        return 0.16
+    else:  # rate_ach >= 10
+        return 0.20
 
 def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_total_area, group_model_csv_area_desc, model_year, model_area_definition):
     """
@@ -353,7 +391,6 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
         raw_average = weighted_score_sum_numerator / total_raw_area_sum_denominator
         
         # Debug logging to understand the calculation
-        logger.info(f"_calculate_total_energy_rating: weighted_sum_numerator={weighted_score_sum_numerator:.2f}, denominator={total_raw_area_sum_denominator:.2f}, raw_average={raw_average:.2f}")
 
         # For 2023: If any area gets E (0) or F (-1), cap the total rating accordingly
         if model_year == 2023:
@@ -382,7 +419,6 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
             final_score = 5
 
         letter_grade = _get_letter_grade_for_score(final_score)
-        logger.info(f"_calculate_total_energy_rating: Calculated final_score = {final_score}, letter_grade = {letter_grade}")
         return final_score, letter_grade
 
     logger.warning("_calculate_total_energy_rating: total_raw_area_sum_denominator is 0 or less. Cannot calculate average.")
@@ -645,14 +681,16 @@ def _create_total_energy_rating_table(total_score, letter_grade):
 
     return elements
 
-def _energy_rating_table(energy_rating_parser, model_year: int, model_area_definition: str, selected_city_name: str):
+def _energy_rating_table(energy_rating_parser, model_year: int, model_area_definition: str, selected_city_name: str, load_parser=None):
     """
     Creates the energy rating table as a ReportLab Table object.
     Returns Table object or None if no data.
     """
+    
     raw_table_data = energy_rating_parser.get_energy_rating_table_data(model_year, model_area_definition)
 
     if not raw_table_data:
+        logger.warning(f"_ENERGY_RATING_TABLE DEBUG - No raw table data available, returning None")
         return None
 
     def sort_key(item):
@@ -684,15 +722,29 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
 
     raw_table_data.sort(key=sort_key)
 
-    header_row1 = [
-        "Building Details", None, None, None, None,
-        "Energy Consumption per Meter", None, None, None,
-        "Summary and Calculation by 5282", None, None, None
-    ]
-    header_row2 = [
-        "Floor", "Area id", "Zone id", "Zone area", "Zone multiplier",
-        "Lighting", "Cooling", "Heating", "Sum",
-        "Energy consumption", "Improve by %", "Energy rating", "Area score"    ]
+    # Determine if this is 2023 ISO (add Bonus column)
+    is_2023_iso = model_year == 2023
+    
+    if is_2023_iso:
+        header_row1 = [
+            "Building Details", None, None, None,
+            "Energy Consumption per Meter", None, None, None,
+            "Summary and Calculation by 5282", None, None, None, None
+        ]
+        header_row2 = [
+            "Floor", "Zone", "Area", "Mult",
+            "Lighting", "Cooling", "Heating", "Sum",
+            "Energy consumption", "Improve %", "Score", "Bonus", "Rating"    ]
+    else:
+        header_row1 = [
+            "Building Details", None, None, None,
+            "Energy Consumption per Meter", None, None, None,
+            "Summary and Calculation by 5282", None, None, None
+        ]
+        header_row2 = [
+            "Floor", "Zone", "Area", "Mult",
+            "Lighting", "Cooling", "Heating", "Sum",
+            "Energy consumption", "Improve %", "Score", "Rating"    ]
     table_content = [header_row1, header_row2]
 
     span_commands = []
@@ -751,7 +803,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
                 if num_rows_in_prev_group > 1:
                     start_span_pdf_row = pdf_data_start_row + group_start_pdf_row_index_in_table_content
                     end_span_pdf_row = pdf_data_start_row + i - 1
-                    columns_to_span = [0, 1] + list(range(8, 13))
+                    columns_to_span = [0] + list(range(7, 13 if is_2023_iso else 12))
                     for col_idx in columns_to_span:
                         span_commands.append(('SPAN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row)))
                         span_commands.append(('VALIGN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row), 'MIDDLE'))
@@ -838,13 +890,29 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
             current_display_area_score = "N/A"
 
             if calculated_improve_by_value is not None:
+                # Calculate the final score with bonus for 2023 ISO
+                final_score_for_rating = calculated_improve_by_value
+                if model_year == 2023 and is_2023_iso and load_parser:
+                    zone_name = row_dict.get('zone_name_report', '')
+                    if zone_name and hasattr(load_parser, 'loads_by_zone') and zone_name in load_parser.loads_by_zone:
+                        zone_loads = load_parser.loads_by_zone[zone_name]['loads']
+                        ventilation_data = zone_loads.get('ventilation', {})
+                        rate_ach = ventilation_data.get('rate_ach', 0)
+                        if rate_ach is not None:
+                            bonus_value = _calculate_ventilation_bonus(rate_ach)
+                            final_score_for_rating = calculated_improve_by_value + bonus_value
+                        else:
+                            logger.warning(f"RATING DEBUG - rate_ach is None, no bonus added")
+                    else:
+                        logger.warning(f"RATING DEBUG - Zone '{zone_name}' not found for bonus calculation")
+                
                 if model_year == 2017:
                     climate_zone_lookup_key = CLIMATE_ZONE_MAP.get(model_area_definition)
 
                     if climate_zone_lookup_key and climate_zone_lookup_key in ENERGY_RATING_DATA_2017:
                         thresholds = ENERGY_RATING_DATA_2017[climate_zone_lookup_key]
                         for min_ip, rating_letter, rating_score_val in thresholds:
-                            if calculated_improve_by_value >= min_ip:
+                            if final_score_for_rating >= min_ip:
                                 current_display_energy_rating = rating_letter
                                 current_display_area_score = str(rating_score_val)
                                 break
@@ -853,9 +921,10 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
                     else:                        logger.warning(f"ReportGen _energy_rating_table: Climate zone '{climate_zone_lookup_key}' (from model_area_definition '{model_area_definition}') not found in ENERGY_RATING_DATA_2017 for year {model_year}. Rating/Score will be N/A.")
                 elif model_year == 2023:
                     # 2023 uses universal thresholds, no climate zone mapping needed
+                    # Use final_score_for_rating which includes the bonus
                     thresholds = ENERGY_RATING_DATA_2023
                     for min_ip, rating_letter, rating_score_val in thresholds:
-                        if calculated_improve_by_value >= min_ip:
+                        if final_score_for_rating >= min_ip:
                             current_display_energy_rating = rating_letter
                             current_display_area_score = str(rating_score_val)
                             break
@@ -865,7 +934,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
                     if climate_zone_lookup_key and climate_zone_lookup_key in ENERGY_RATING_DATA_OFFICE:
                         thresholds = ENERGY_RATING_DATA_OFFICE[climate_zone_lookup_key]
                         for min_ip, rating_letter, rating_score_val in thresholds:
-                            if calculated_improve_by_value >= min_ip:
+                            if final_score_for_rating >= min_ip:
                                 current_display_energy_rating = rating_letter
                                 current_display_area_score = str(rating_score_val)
                                 break
@@ -891,34 +960,77 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
             display_energy_rating = ""
             display_area_rating = ""
 
-        table_content.append([
-            display_floor_id,
-            display_area_id,
-            str(row_dict.get('zone_name_report', '')),
-            _format_number(row_dict.get('total_area', 0)),
-            str(row_dict.get('multiplier', '')),
-            "-" if model_year == 2023 else _format_number(row_dict.get('lighting', 0)),
-            _format_number(row_dict.get('cooling', 0)),
-            _format_number(row_dict.get('heating', 0)),
-            display_sum_for_row,
-            display_energy_consump,
-            display_improve_by,
-            display_energy_rating,
-            display_area_rating
-        ])
+        # Calculate bonus for 2023 ISO based on ventilation rate_ach
+        display_bonus = ""
+        if is_2023_iso and load_parser:
+            zone_name = row_dict.get('zone_name_report', '')
+            if zone_name and hasattr(load_parser, 'loads_by_zone') and zone_name in load_parser.loads_by_zone:
+                zone_loads = load_parser.loads_by_zone[zone_name]['loads']
+                ventilation_data = zone_loads.get('ventilation', {})
+                rate_ach = ventilation_data.get('rate_ach', 0)
+                if rate_ach is not None:
+                    bonus_value = _calculate_ventilation_bonus(rate_ach)
+                    display_bonus = "{:.2f}".format(bonus_value) if bonus_value is not None else "0.00"
+                else:
+                    logger.warning(f"BONUS DEBUG - rate_ach is None for zone '{zone_name}'")
+            else:
+                if not zone_name:
+                    logger.warning(f"BONUS DEBUG - zone_name is empty or None")
+                elif not hasattr(load_parser, 'loads_by_zone'):
+                    logger.warning(f"BONUS DEBUG - load_parser doesn't have loads_by_zone attribute")
+                elif zone_name not in load_parser.loads_by_zone:
+                    logger.warning(f"BONUS DEBUG - Zone '{zone_name}' not found in load_parser.loads_by_zone")
+        else:
+            if not is_2023_iso:
+                pass
+            if not load_parser:
+                logger.warning(f"BONUS DEBUG - load_parser is None, cannot calculate bonus")
+
+        # Prepare the row data based on whether this is 2023 ISO or not
+        if is_2023_iso:
+            table_content.append([
+                display_floor_id,
+                str(row_dict.get('zone_name_report', '')),
+                _format_number(row_dict.get('total_area', 0)),
+                str(row_dict.get('multiplier', '')),
+                "-" if model_year == 2023 else _format_number(row_dict.get('lighting', 0)),
+                _format_number(row_dict.get('cooling', 0)),
+                _format_number(row_dict.get('heating', 0)),
+                display_sum_for_row,
+                display_energy_consump,
+                display_improve_by,
+                display_area_rating,
+                display_bonus,
+                display_energy_rating
+            ])
+        else:
+            table_content.append([
+                display_floor_id,
+                str(row_dict.get('zone_name_report', '')),
+                _format_number(row_dict.get('total_area', 0)),
+                str(row_dict.get('multiplier', '')),
+                "-" if model_year == 2023 else _format_number(row_dict.get('lighting', 0)),
+                _format_number(row_dict.get('cooling', 0)),
+                _format_number(row_dict.get('heating', 0)),
+                display_sum_for_row,
+                display_energy_consump,
+                display_improve_by,
+                display_area_rating,
+                display_energy_rating
+            ])
 
     if current_group_key is not None and raw_table_data:
         num_rows_in_last_group = len(raw_table_data) - group_start_pdf_row_index_in_table_content
         if num_rows_in_last_group > 1:
             start_span_pdf_row = pdf_data_start_row + group_start_pdf_row_index_in_table_content
             end_span_pdf_row = pdf_data_start_row + len(raw_table_data) - 1
-            columns_to_span = [0, 1] + list(range(8, 13))
+            columns_to_span = [0] + list(range(7, 13 if is_2023_iso else 12))
             for col_idx in columns_to_span:
                 span_commands.append(('SPAN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row)))
                 span_commands.append(('VALIGN', (col_idx, start_span_pdf_row), (col_idx, end_span_pdf_row), 'MIDDLE'))
 
     table = Table(table_content)
-    style = _get_table_style()
+    style = _get_table_style(model_year)
     for cmd in span_commands:
         style.add(*cmd)
     table.setStyle(style)
@@ -930,7 +1042,8 @@ class EnergyRatingReportGenerator:
     def __init__(self, energy_rating_parser, output_dir="output/reports",
                  model_year: int = None, model_area_definition: str = None,
                  selected_city_name: str = None, project_name: str = "N/A", 
-                 run_id: str = "N/A", area_name: str = "N/A", consultant_data: dict = None):
+                 run_id: str = "N/A", area_name: str = "N/A", consultant_data: dict = None,
+                 load_parser=None):
         self.energy_rating_parser = energy_rating_parser
         self.output_dir = output_dir
         self.model_year = model_year
@@ -940,6 +1053,7 @@ class EnergyRatingReportGenerator:
         self.run_id = run_id
         self.area_name = area_name
         self.consultant_data = consultant_data or {}
+        self.load_parser = load_parser  # Add load parser for ventilation bonus calculation
         self.styles = getSampleStyleSheet()
         self.margin = 1 * cm
         if self.selected_city_name:
@@ -951,6 +1065,7 @@ class EnergyRatingReportGenerator:
         """
         Generate energy rating report PDF using ReportLab.
         """
+        
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
         output_path = os.path.join(self.output_dir, output_filename)
@@ -984,11 +1099,13 @@ class EnergyRatingReportGenerator:
                 self.energy_rating_parser,
                 self.model_year,
                 self.model_area_definition,
-                self.selected_city_name
+                self.selected_city_name,
+                self.load_parser
             )
             if energy_table:
                 story.append(energy_table)
             else:
+                logger.warning(f"ENERGY RATING GENERATOR DEBUG - No energy table data available")
                 no_data_style = self.styles['Normal']
                 no_data_style.alignment = TA_CENTER
                 no_data_style.fontName = FONTS['body']
@@ -1054,7 +1171,6 @@ class EnergyRatingReportGenerator:
             story.extend(self._create_consultant_info_section(hebrew_font))
 
             doc.build(story)
-            logger.info(f"Generated Hebrew total energy rating report: {output_path}")
             return output_path
 
         except Exception as e:
