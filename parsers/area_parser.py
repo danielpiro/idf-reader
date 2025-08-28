@@ -765,6 +765,117 @@ class AreaParser(SurfaceDataParser):
             pass
             return result
 
+    def get_area_table_data_by_individual_zones(self, materials_parser: Optional[MaterialsParser] = None) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Get data for area reports with each zone as individual report (for office ISO).
+        Returns data grouped by zone_id instead of area_id.
+        """
+        result_by_zone: Dict[str, List[Dict[str, Any]]] = {}
+        try:
+            parser_to_use = materials_parser if materials_parser else self.materials_parser
+            if not parser_to_use:
+                return result_by_zone
+            if not self.processed:
+                return result_by_zone
+            surfaces = self.data_loader.get_surfaces()
+            if not self.areas_by_zone:
+                return result_by_zone
+                
+            for zone_id, zone_data in self.areas_by_zone.items():
+                try:
+                    area_id = zone_data.get("area_id", "unknown")
+                    if "core" in area_id.lower():
+                        continue
+                    
+                    # For office ISO: each zone gets its own report
+                    if zone_id not in result_by_zone:
+                        result_by_zone[zone_id] = []
+                        
+                    zone_constructions_aggregated = {}
+                    constructions_in_zone = zone_data.get("constructions", {})
+                    
+                    if not constructions_in_zone:
+                        continue
+
+                    for construction_name, construction_data in constructions_in_zone.items():
+                        try:
+                            # Filter surfaces to only include those from current zone for accurate element type detection
+                            zone_surfaces = {k: v for k, v in surfaces.items() 
+                                           if v.get('zone_name', '').lower() == zone_id.lower()}
+                            determined_element_types, dont_use = parser_to_use._get_element_type(construction_name, zone_surfaces)
+                            if dont_use or not determined_element_types:
+                                continue
+
+                            # Check if this construction is entirely glazing - if so, skip it completely
+                            elements = construction_data.get("elements", [])
+                            if not elements:
+                                continue
+                            
+                            is_glazing_construction = True
+                            for element in elements:
+                                element_specific_type = element.get("element_type", "Unknown")
+                                if not element_specific_type.endswith("Glazing"):
+                                    is_glazing_construction = False
+                                    break
+                            
+                            if is_glazing_construction:
+                                continue
+
+                            total_area_constr = safe_float(construction_data.get("total_area", 0.0), 0.0)
+                            total_area_u_value_constr = safe_float(construction_data.get("total_u_value", 0.0), 0.0)
+
+                            if total_area_constr <= 0.0:
+                                continue
+
+                            construction_u_value_avg = total_area_u_value_constr / total_area_constr if total_area_constr > 0 else 0.0
+                            cleaned_construction_name = construction_name
+
+                            primary_non_glazing_type = next((t for t in determined_element_types if t and "Glazing" not in t), "Unknown")
+
+                            for element in elements:
+                                try:
+                                    element_area = safe_float(element.get("area", 0.0), 0.0)
+                                    if element_area <= 0.0:
+                                        continue
+
+                                    element_specific_type = element.get("element_type", "Unknown")
+                                    is_glazing_element = element_specific_type.endswith("Glazing")
+
+                                    if is_glazing_element:
+                                        continue
+
+                                    display_element_type = primary_non_glazing_type
+                                    zone_constr_key = f"{zone_id}_{cleaned_construction_name}_{display_element_type}"
+                                    reported_u_value = construction_u_value_avg
+
+                                    if zone_constr_key not in zone_constructions_aggregated:
+                                        zone_constructions_aggregated[zone_constr_key] = {
+                                            "zone": zone_id, "construction": cleaned_construction_name,
+                                            "element_type": display_element_type, "area": 0.0,
+                                            "u_value": reported_u_value,
+                                            "area_loss": 0.0,
+                                        }
+
+                                    constr_agg = zone_constructions_aggregated[zone_constr_key]
+                                    constr_agg["area"] += element_area
+                                    constr_agg["area_loss"] += element_area * constr_agg["u_value"]
+
+                                except (TypeError, ValueError, AttributeError, KeyError) as e_elem:
+                                    continue
+
+                        except (TypeError, ValueError, AttributeError, KeyError) as e_constr_proc:
+                            continue
+
+                    filtered_results = [entry for entry in zone_constructions_aggregated.values() if entry.get("area", 0.0) > 0.0]
+                    result_by_zone[zone_id].extend(filtered_results)
+
+                except (TypeError, ValueError, AttributeError, KeyError) as e_zone_proc:
+                    continue
+
+            return result_by_zone
+        except Exception as e:
+            return result_by_zone
+
     def get_area_table_data(self, materials_parser: Optional[MaterialsParser] = None) -> Dict[str, List[Dict[str, Any]]]:
         """
         Get data for area reports in table format.

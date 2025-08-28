@@ -35,3 +35,4 @@ ENV/
 # Project specific
 output/
 *.pdf
+*.log

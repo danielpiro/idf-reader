@@ -310,6 +310,7 @@ class DataLoader:
         self._schedules_cache = {}
         self._schedule_rules_cache = {}
         self._people_cache = {}
+        self._iso_type = None  # Store the ISO type for zone grouping decisions
         self._lights_cache = {}
         self._exterior_lights_cache = []
         self._equipment_cache = {}
@@ -1547,25 +1548,74 @@ class DataLoader:
             return split[1]
         return None
     
-    def get_zone_group_key(self, zone_id: str) -> str:
+    def _is_office_iso(self, iso_type: str = None) -> bool:
+        """
+        Check if this is office ISO based on the actual ISO type parameter.
+        Office ISO should disable all zone grouping regardless of zone naming patterns.
+        
+        Args:
+            iso_type: The ISO type string (e.g., "OFFICE", "RESIDENTIAL_2017", "RESIDENTIAL_2023")
+        
+        Returns:
+            bool: True if this is office ISO, False otherwise
+        """
+        if iso_type is None:
+            return False
+        
+        # Check if ISO type indicates office buildings
+        iso_upper = iso_type.upper()
+        is_office = 'OFFICE' in iso_upper
+        
+        if is_office:
+            from utils.logging_config import get_logger
+            logger = get_logger(__name__)
+            logger.info(f"OFFICE ISO DETECTED: ISO type '{iso_type}' - disabling zone grouping")
+        
+        return is_office
+    
+    def set_iso_type(self, iso_type: str):
+        """
+        Set the ISO type for this data loader session.
+        This will be used to determine zone grouping behavior.
+        
+        Args:
+            iso_type: The ISO type (e.g., "OFFICE", "RESIDENTIAL_2017", "RESIDENTIAL_2023")
+        """
+        self._iso_type = iso_type
+        from utils.logging_config import get_logger
+        logger = get_logger(__name__)
+        logger.info(f"DataLoader ISO type set to: '{iso_type}'")
+    
+    def get_zone_group_key(self, zone_id: str, disable_grouping: bool = False, iso_type: str = None) -> str:
         """
         Get a group key for zone grouping based on simple rules:
         
         Rules:
-        - Only zones with same A and B parts from A:BXC or A:B_C patterns get grouped
+        - For office ISO: NO GROUPING - every zone is individual (based on iso_type parameter)
+        - For other models: Only zones with same A and B parts from A:BXC or A:B_C patterns get grouped
         - All other zones (A:B, A) remain individual (return original zone_id)
         
+        Args:
+            zone_id: The zone identifier
+            disable_grouping: Explicit flag to disable grouping
+            iso_type: The ISO type (e.g., "OFFICE", "RESIDENTIAL_2017") - used to detect office ISO
+        
         Examples:
-        - '01:324_living' and '01:324_bedroom' -> both get group key '01:324' (grouped)
-        - '01:324Xliving' and '01:324Xkitchen' -> both get group key '01:324' (grouped)  
-        - '01:324Xliving' and '02:324Xliving' -> different A parts, not grouped
-        - '01:324Xliving' and '01:325Xliving' -> different B parts, not grouped
-        - '01:324_living' and '01:324Xliving' -> both get group key '01:324' (grouped - same A:B)
-        - '01:123' -> group key '01:123' (individual)
-        - 'HALL' -> group key 'HALL' (individual)
+        - Office ISO: ALL zones return zone_id (no grouping)
+        - Non-office: '01:324_living' and '01:324_bedroom' -> both get group key '01:324' (grouped)
+        - Non-office: '01:324Xliving' and '01:324Xkitchen' -> both get group key '01:324' (grouped)
         """
         if not zone_id:
             return "unknown"
+        
+        # Check if this is office ISO based on actual ISO type parameter
+        # Use provided iso_type or fall back to stored iso_type
+        effective_iso_type = iso_type or self._iso_type
+        is_office_iso = disable_grouping or self._is_office_iso(effective_iso_type)
+        
+        # Office ISO: No grouping at all - every zone is individual
+        if is_office_iso:
+            return zone_id
         
         # Split by colon
         parts = zone_id.split(":", 1)

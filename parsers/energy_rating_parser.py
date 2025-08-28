@@ -169,10 +169,6 @@ class EnergyRatingParser(CSVOutputParser):
 
         all_zones_data_from_loader = self.data_loader.get_zones()
         
-        # Log a few zone names for debugging
-        sample_zone_names = list(all_zones_data_from_loader.keys())[:3]
-        
-        
         # Track processing stats for debugging
         total_headers_with_X = 0
         matched_headers = 0
@@ -216,9 +212,10 @@ class EnergyRatingParser(CSVOutputParser):
                 
                 # Extract zone details from DataLoader
                 zone_data = zones[matched_zone_key]
-                floor = self.data_loader.get_floor_id(matched_zone_key) or "01"
+                
+                # Apply correct floor and zone extraction rules
+                floor, zone_name_from_header = self._extract_floor_and_zone(matched_zone_key)
                 area_id_from_header = zone_data.get('area_id', matched_zone_key)
-                zone_name_from_header = matched_zone_key
 
                 value_str = values[i] if i < len(values) else "0.0"
                 value = safe_float(value_str, 0.0)
@@ -240,9 +237,8 @@ class EnergyRatingParser(CSVOutputParser):
                         individual_zone_floor_area = safe_float(dl_zone_data.get('floor_area', 0.0), 0.0)
                     else:
                         # No matching zone found from CSV parsing, try direct DataLoader lookup
-                        # For A-pattern zones, the area_id_from_header should be the zone name
                         direct_zone_lookup = None
-                        if pattern_used == "a_pattern" and area_id_from_header in all_zones_data_from_loader:
+                        if area_id_from_header in all_zones_data_from_loader:
                             direct_zone_lookup = area_id_from_header
                         
                         # For standard patterns, try simple containment check
@@ -269,12 +265,10 @@ class EnergyRatingParser(CSVOutputParser):
                         else:
                             # Try fuzzy matching by looking for zones that contain parts of the key
                             fuzzy_match = None
-                            if pattern_used == "a_pattern":
-                                # For A-pattern, try to match the zone name
-                                for zone_name in all_zones_data_from_loader.keys():
-                                    if area_id_from_header in zone_name or zone_name in area_id_from_header:
-                                        fuzzy_match = zone_name
-                                        break
+                            for zone_name in all_zones_data_from_loader.keys():
+                                if area_id_from_header in zone_name or zone_name in area_id_from_header:
+                                    fuzzy_match = zone_name
+                                    break
                             
                             if fuzzy_match:
                                 dl_zone_data = all_zones_data_from_loader[fuzzy_match]
@@ -436,6 +430,42 @@ class EnergyRatingParser(CSVOutputParser):
         except Exception as e:
             self.logger.error(f"Error getting total area for area_id '{area_id}': {e}. Returning 0.0.", exc_info=True)
             return 0.0
+
+    def _extract_floor_and_zone(self, zone_id: str) -> tuple[str, str]:
+        """
+        Extract floor and zone based on zone ID format.
+        Rules (for energy report columns only):
+        - A:BXC → floor = A:B, zone = C
+        - A:B → floor = A, zone = B  
+        - A → floor = A, zone = A
+        """
+        if not zone_id:
+            return 'Unknown', 'Unknown'
+        
+        try:
+            # Check for A:BXC pattern (contains both : and X)
+            if ':' in zone_id and 'X' in zone_id:
+                # Find the X to split between floor and zone
+                x_index = zone_id.find('X')
+                floor = zone_id[:x_index]  # Everything before X (A:B)
+                zone = zone_id[x_index+1:]  # Everything after X (C)
+                return floor, zone
+            
+            # Check for A:B pattern (contains : but no X)
+            elif ':' in zone_id and 'X' not in zone_id:
+                parts = zone_id.split(':', 1)  # Split on first : only
+                floor = parts[0]  # A
+                zone = parts[1]   # B
+                return floor, zone
+            
+            # Check for A pattern (no : and no X)
+            else:
+                # Both floor and zone are the same
+                return zone_id, zone_id
+                
+        except Exception as e:
+            self.logger.error(f"Error extracting floor and zone from '{zone_id}': {e}")
+            return 'Unknown', 'Unknown'
 
     def _determine_location(self, area_id: str) -> str:
         """
@@ -729,6 +759,13 @@ class EnergyRatingParser(CSVOutputParser):
                         'better_percent': better_percent_value,
                         'energy_rating': energy_rating_value,
                     }
+                    
+                    # Filter out zones with zero energy sum - exclude from both display and calculations
+                    energy_sum = val_lighting + val_heating + val_cooling
+                    if energy_sum <= 0:
+                        self.logger.info(f"ZERO ENERGY FILTER: Excluding zone '{full_zone_id_key}' with zero energy sum ({energy_sum}) from energy rating")
+                        continue  # Skip this zone entirely
+                    
                     table_data.append(row)
                     # Log first few rows for debugging
                     if len(table_data) <= 3:

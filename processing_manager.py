@@ -355,16 +355,55 @@ class ProcessingManager:
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
-        # Area (Zones) - Use base zone grouping to ensure related zones are in same file
-        self.update_status("יוצר דוחות אזורים (איזורים) עם קיבוץ אזור בסיס...")
-        try:
-            from generators.area_report_generator import generate_area_reports_by_base_zone
-            generate_area_reports_by_base_zone(area_parser_instance, output_dir=report_paths["zones_dir"], project_name=project_name, run_id=run_id, city_name=city_name_hebrew, area_name=area_name_for_reports)
-            self.update_status("ניסה ליצור דוחות אזורים עם קיבוץ אזור בסיס.")
-        except Exception as e:
-            error_message = f"Error generating Area (Zones) reports with base zone grouping: {type(e).__name__} - {str(e)}"
-            self.update_status(error_message)
-            logger.error(f"Exception in generate_area_reports_by_base_zone: {e}", exc_info=True)
+        # Area (Zones) - Use different approach based on ISO type
+        # Office ISO: Individual zone reports (no grouping)
+        # Residential: Base zone grouping (zones grouped together)
+        is_office_iso = isinstance(derived_model_year, str) and 'office' in derived_model_year.lower()
+        
+        # Check if area parser has data before generating reports
+        if area_parser_instance and area_parser_instance.processed:
+            # Check if area parser has any processed areas
+            has_area_data = (hasattr(area_parser_instance, 'areas_by_zone') and 
+                           area_parser_instance.areas_by_zone and 
+                           len(area_parser_instance.areas_by_zone) > 0)
+            
+            logger.info(f"AREA REPORTS DEBUG - Area parser processed: {area_parser_instance.processed}")
+            logger.info(f"AREA REPORTS DEBUG - Has areas_by_zone: {hasattr(area_parser_instance, 'areas_by_zone')}")
+            if hasattr(area_parser_instance, 'areas_by_zone'):
+                logger.info(f"AREA REPORTS DEBUG - Number of zones: {len(area_parser_instance.areas_by_zone)}")
+                # Log first few zone IDs for debugging
+                zone_sample = list(area_parser_instance.areas_by_zone.keys())[:5]
+                logger.info(f"AREA REPORTS DEBUG - Sample zone IDs: {zone_sample}")
+            logger.info(f"AREA REPORTS DEBUG - Has area data: {has_area_data}")
+            logger.info(f"AREA REPORTS DEBUG - Is office ISO: {is_office_iso}")
+            
+            if has_area_data:
+                if is_office_iso:
+                    self.update_status("יוצר דוחות אזורים אינדיבידואליים (Office ISO - ללא קיבוץ)...")
+                    try:
+                        from generators.area_report_generator import generate_area_reports
+                        generate_area_reports(area_parser_instance, output_dir=report_paths["zones_dir"], project_name=project_name, run_id=run_id, city_name=city_name_hebrew, area_name=area_name_for_reports, is_office_iso=True)
+                        self.update_status("ניסה ליצור דוחות אזורים אינדיבידואליים.")
+                    except Exception as e:
+                        error_message = f"Error generating individual Area (Zones) reports for Office ISO: {type(e).__name__} - {str(e)}"
+                        self.update_status(error_message)
+                        logger.error(f"Exception in generate_area_reports: {e}", exc_info=True)
+                else:
+                    self.update_status("יוצר דוחות אזורים (איזורים) עם קיבוץ אזור בסיס...")
+                    try:
+                        from generators.area_report_generator import generate_area_reports_by_base_zone
+                        generate_area_reports_by_base_zone(area_parser_instance, output_dir=report_paths["zones_dir"], project_name=project_name, run_id=run_id, city_name=city_name_hebrew, area_name=area_name_for_reports)
+                        self.update_status("ניסה ליצור דוחות אזורים עם קיבוץ אזור בסיס.")
+                    except Exception as e:
+                        error_message = f"Error generating Area (Zones) reports with base zone grouping: {type(e).__name__} - {str(e)}"
+                        self.update_status(error_message)
+                        logger.error(f"Exception in generate_area_reports_by_base_zone: {e}", exc_info=True)
+            else:
+                self.update_status("דוחות אזורים דולגו - אין נתוני אזור מספיקים")
+                logger.info("Skipping area reports - no area data available")
+        else:
+            self.update_status("דוחות אזורים דולגו - אין מנתח אזור זמין")
+            logger.info("Skipping area reports - area parser not available or not processed")
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
@@ -395,76 +434,82 @@ class ProcessingManager:
         if self.is_cancelled: return
 
         # Energy Rating
-        self.update_status("יוצר דוח דירוג אנרגיה (PDF)...")
-        try:
-            derived_model_year = None
-            derived_model_area_definition = None
+        # Check if energy rating parser has sufficient data
+        energy_rating_data = energy_rating_parser_instance.get_energy_rating_table_data() if energy_rating_parser_instance.processed else []
+        if not energy_rating_data or len(energy_rating_data) == 0:
+            self.update_status("דוח דירוג אנרגיה דולג - אין נתוני אנרגיה מספיקים")
+            logger.info("Skipping energy rating report - no energy data available")
+        else:
+            self.update_status("יוצר דוח דירוג אנרגיה (PDF)...")
+            try:
+                derived_model_year = None
+                derived_model_area_definition = None
 
-            if "2017" in iso_type_selection:
-                derived_model_year = 2017
-            elif "2023" in iso_type_selection: # Assuming "RESIDNTIAL 2023" implies 2023
-                derived_model_year = 2023
-            elif "OFFICE" in iso_type_selection.upper():
-                derived_model_year = "office"  # Special case for office buildings
-            
-            # For 2023, use numeric area code; for others, use Latin letters (for model calculations)
-            if derived_model_year == 2023:
-                # For 2023 models, use the numeric area code directly
-                area_code = self.city_info.get('area_code', '') if hasattr(self, 'city_info') and self.city_info else ''
-                derived_model_area_definition = area_code
-                self.update_status(f"דירוג אנרגיה: משתמש בקוד אזור מספרי '{area_code}' למודל 2023")
-            else:
-                # For 2017 and office models, map Hebrew area name to Latin letter (for model calculations only)
-                area_name_map_to_letter = {"א": "A", "ב": "B", "ג": "C", "ד": "D"}
-                derived_model_area_definition = area_name_map_to_letter.get(city_area_name_selection)
-                self.update_status(f"דירוג אנרגיה: משתמש באות אזור לטינית '{derived_model_area_definition}' למודל {derived_model_year}")
-
-            if derived_model_year and derived_model_area_definition:
-                actual_selected_city_name = self.city_info.get('city', None) # This is the Hebrew city name from GUI
-
-                self.update_status(f"דוח דירוג אנרגיה: משתמש בעיר='{actual_selected_city_name}', שנה={derived_model_year}, הגדרת אזור='{derived_model_area_definition}'")
+                if "2017" in iso_type_selection:
+                    derived_model_year = 2017
+                elif "2023" in iso_type_selection: # Assuming "RESIDNTIAL 2023" implies 2023
+                    derived_model_year = 2023
+                elif "OFFICE" in iso_type_selection.upper():
+                    derived_model_year = "office"  # Special case for office buildings
                 
-                energy_rating_gen = EnergyRatingReportGenerator(
-                    energy_rating_parser=energy_rating_parser_instance,
-                    output_dir=base_output_dir_for_reports,
-                    model_year=derived_model_year,
-                    model_area_definition=derived_model_area_definition,
-                    selected_city_name=actual_selected_city_name,
-                    project_name=project_name,
-                    run_id=run_id,
-                    area_name=area_name_for_reports,
-                    consultant_data=self.consultant_data,
-                    load_parser=load_parser_instance  # Add load parser for ventilation bonus calculation
-                )
-                # The output_filename is relative to output_dir in the generator
-                success_er = energy_rating_gen.generate_report(output_filename=os.path.basename(report_paths["energy_rating"]))
-                if success_er:
-                    self.update_status(f"דוח דירוג אנרגיה נוצר בהצלחה ב-{report_paths['energy_rating']}")
+                # For 2023, use numeric area code; for others, use Latin letters (for model calculations)
+                if derived_model_year == 2023:
+                    # For 2023 models, use the numeric area code directly
+                    area_code = self.city_info.get('area_code', '') if hasattr(self, 'city_info') and self.city_info else ''
+                    derived_model_area_definition = area_code
+                    self.update_status(f"דירוג אנרגיה: משתמש בקוד אזור מספרי '{area_code}' למודל 2023")
                 else:
-                    self.update_status("יצירת דוח דירוג אנרגיה נכשלה (בדוק את הקונסול לפרטים).")
+                    # For 2017 and office models, map Hebrew area name to Latin letter (for model calculations only)
+                    area_name_map_to_letter = {"א": "A", "ב": "B", "ג": "C", "ד": "D"}
+                    derived_model_area_definition = area_name_map_to_letter.get(city_area_name_selection)
+                    self.update_status(f"דירוג אנרגיה: משתמש באות אזור לטינית '{derived_model_area_definition}' למודל {derived_model_year}")
 
-                # Generate total energy rating report
-                try:
-                    total_rating_path = energy_rating_gen.generate_total_energy_rating_report(output_filename="total-energy-rating.pdf")
-                    if total_rating_path:
-                        self.update_status(f"דוח דירוג אנרגיה כולל נוצר בהצלחה ב-{total_rating_path}")
+                if derived_model_year and derived_model_area_definition:
+                    actual_selected_city_name = self.city_info.get('city', None) # This is the Hebrew city name from GUI
+
+                    self.update_status(f"דוח דירוג אנרגיה: משתמש בעיר='{actual_selected_city_name}', שנה={derived_model_year}, הגדרת אזור='{derived_model_area_definition}'")
+                    
+                    energy_rating_gen = EnergyRatingReportGenerator(
+                        energy_rating_parser=energy_rating_parser_instance,
+                        output_dir=base_output_dir_for_reports,
+                        model_year=derived_model_year,
+                        model_area_definition=derived_model_area_definition,
+                        selected_city_name=actual_selected_city_name,
+                        project_name=project_name,
+                        run_id=run_id,
+                        area_name=area_name_for_reports,
+                        consultant_data=self.consultant_data,
+                        load_parser=load_parser_instance  # Add load parser for ventilation bonus calculation
+                    )
+                    # The output_filename is relative to output_dir in the generator
+                    success_er = energy_rating_gen.generate_report(output_filename=os.path.basename(report_paths["energy_rating"]))
+                    if success_er:
+                        self.update_status(f"דוח דירוג אנרגיה נוצר בהצלחה ב-{report_paths['energy_rating']}")
                     else:
-                        self.update_status("יצירת דוח דירוג אנרגיה כולל נכשלה (בדוק את הקונסול לפרטים).")
-                except Exception as e_total:
-                    error_message = f"Error generating Total Energy Rating PDF report: {type(e_total).__name__} - {str(e_total)}"
-                    self.update_status(error_message)
-                    logger.error(f"Exception in Total Energy Rating report generation: {e_total}", exc_info=True)
+                        self.update_status("יצירת דוח דירוג אנרגיה נכשלה (בדוק את הקונסול לפרטים).")
 
-            else:
-                msg = (f"Energy Rating Report: Could not determine model_year ('{derived_model_year}') "
-                       f"or model_area_definition ('{derived_model_area_definition}') from ISO type "
-                       f"'{iso_type_selection}' and city area '{city_area_name_selection}'. Skipping report.")
-                self.update_status(msg) # Removed "warning" tag to avoid GUI coloring issues if not a real warning
-                logger.warning(msg)
-        except Exception as e:
-            error_message = f"Error generating Energy Rating PDF report: {type(e).__name__} - {str(e)}"
-            self.update_status(error_message)
-            logger.error(f"Exception in EnergyRatingReportGenerator: {e}", exc_info=True)
+                    # Generate total energy rating report
+                    try:
+                        total_rating_path = energy_rating_gen.generate_total_energy_rating_report(output_filename="total-energy-rating.pdf")
+                        if total_rating_path:
+                            self.update_status(f"דוח דירוג אנרגיה כולל נוצר בהצלחה ב-{total_rating_path}")
+                        else:
+                            self.update_status("יצירת דוח דירוג אנרגיה כולל נכשלה (בדוק את הקונסול לפרטים).")
+                    except Exception as e_total:
+                        error_message = f"Error generating Total Energy Rating PDF report: {type(e_total).__name__} - {str(e_total)}"
+                        self.update_status(error_message)
+                        logger.error(f"Exception in Total Energy Rating report generation: {e_total}", exc_info=True)
+
+                else:
+                    msg = (f"Energy Rating Report: Could not determine model_year ('{derived_model_year}') "
+                           f"or model_area_definition ('{derived_model_area_definition}') from ISO type "
+                           f"'{iso_type_selection}' and city area '{city_area_name_selection}'. Skipping report.")
+                    self.update_status(msg) # Removed "warning" tag to avoid GUI coloring issues if not a real warning
+                    logger.warning(msg)
+            except Exception as e:
+                error_message = f"Error generating Energy Rating PDF report: {type(e).__name__} - {str(e)}"
+                self.update_status(error_message)
+                logger.error(f"Exception in EnergyRatingReportGenerator: {e}", exc_info=True)
         
         self.update_progress(1.0)
 
@@ -510,6 +555,14 @@ class ProcessingManager:
             self.update_progress(0.1)
 
             data_loader = self._initialize_core_components(input_file, idd_path, energyplus_path)
+            
+            # Set ISO type in DataLoader for zone grouping decisions
+            # Extract ISO type from the run_id or determine from other sources
+            current_iso_type = "UNKNOWN"
+            if hasattr(self, 'city_info') and self.city_info:
+                current_iso_type = self.city_info.get('iso_type', 'UNKNOWN')
+            
+            data_loader.set_iso_type(current_iso_type)
 
             if self.is_cancelled: return False
             self.update_progress(0.2)

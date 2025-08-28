@@ -893,18 +893,22 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
                 # Calculate the final score with bonus for 2023 ISO
                 final_score_for_rating = calculated_improve_by_value
                 if model_year == 2023 and is_2023_iso and load_parser:
-                    zone_name = row_dict.get('zone_name_report', '')
-                    if zone_name and hasattr(load_parser, 'loads_by_zone') and zone_name in load_parser.loads_by_zone:
-                        zone_loads = load_parser.loads_by_zone[zone_name]['loads']
+                    logger.info(f"RATING DEBUG - Calculating final score with bonus for zone: {row_dict.get('zone_id', 'None')}")
+                    # Use the original full zone ID, not the extracted zone part
+                    original_zone_id = row_dict.get('zone_id', '')
+                    if original_zone_id and hasattr(load_parser, 'loads_by_zone') and original_zone_id in load_parser.loads_by_zone:
+                        zone_loads = load_parser.loads_by_zone[original_zone_id]['loads']
                         ventilation_data = zone_loads.get('ventilation', {})
                         rate_ach = ventilation_data.get('rate_ach', 0)
                         if rate_ach is not None:
                             bonus_value = _calculate_ventilation_bonus(rate_ach)
+                            logger.info(f"RATING DEBUG - Adding bonus {bonus_value} to base score {calculated_improve_by_value}")
                             final_score_for_rating = calculated_improve_by_value + bonus_value
+                            logger.info(f"RATING DEBUG - Final score with bonus: {final_score_for_rating}")
                         else:
                             logger.warning(f"RATING DEBUG - rate_ach is None, no bonus added")
                     else:
-                        logger.warning(f"RATING DEBUG - Zone '{zone_name}' not found for bonus calculation")
+                        logger.warning(f"RATING DEBUG - Zone '{original_zone_id}' not found for bonus calculation")
                 
                 if model_year == 2017:
                     climate_zone_lookup_key = CLIMATE_ZONE_MAP.get(model_area_definition)
@@ -962,24 +966,41 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
 
         # Calculate bonus for 2023 ISO based on ventilation rate_ach
         display_bonus = ""
+        logger.info(f"BONUS DEBUG - Starting bonus calculation for row with zone_id: {row_dict.get('zone_id', 'None')}")
+        logger.info(f"BONUS DEBUG - model_year: {model_year}, is_2023_iso: {is_2023_iso}, load_parser exists: {load_parser is not None}")
+        
         if is_2023_iso and load_parser:
-            zone_name = row_dict.get('zone_name_report', '')
-            if zone_name and hasattr(load_parser, 'loads_by_zone') and zone_name in load_parser.loads_by_zone:
-                zone_loads = load_parser.loads_by_zone[zone_name]['loads']
+            # Use the original full zone ID, not the extracted zone part
+            original_zone_id = row_dict.get('zone_id', '')
+            logger.info(f"BONUS DEBUG - Original zone ID: '{original_zone_id}'")
+            logger.info(f"BONUS DEBUG - Has loads_by_zone attribute: {hasattr(load_parser, 'loads_by_zone')}")
+            
+            if hasattr(load_parser, 'loads_by_zone'):
+                logger.info(f"BONUS DEBUG - Available zone keys in load_parser: {list(load_parser.loads_by_zone.keys())[:5]}...")
+            
+            if original_zone_id and hasattr(load_parser, 'loads_by_zone') and original_zone_id in load_parser.loads_by_zone:
+                logger.info(f"BONUS DEBUG - Found zone '{original_zone_id}' in load_parser")
+                zone_loads = load_parser.loads_by_zone[original_zone_id]['loads']
+                logger.info(f"BONUS DEBUG - Zone loads keys: {list(zone_loads.keys())}")
                 ventilation_data = zone_loads.get('ventilation', {})
+                logger.info(f"BONUS DEBUG - Ventilation data: {ventilation_data}")
                 rate_ach = ventilation_data.get('rate_ach', 0)
+                logger.info(f"BONUS DEBUG - Rate ACH value: {rate_ach} (type: {type(rate_ach)})")
+                
                 if rate_ach is not None:
                     bonus_value = _calculate_ventilation_bonus(rate_ach)
+                    logger.info(f"BONUS DEBUG - Calculated bonus value: {bonus_value}")
                     display_bonus = "{:.2f}".format(bonus_value) if bonus_value is not None else "0.00"
+                    logger.info(f"BONUS DEBUG - Display bonus: '{display_bonus}'")
                 else:
-                    logger.warning(f"BONUS DEBUG - rate_ach is None for zone '{zone_name}'")
+                    logger.warning(f"BONUS DEBUG - rate_ach is None for zone '{original_zone_id}'")
             else:
-                if not zone_name:
-                    logger.warning(f"BONUS DEBUG - zone_name is empty or None")
+                if not original_zone_id:
+                    logger.warning(f"BONUS DEBUG - original_zone_id is empty or None")
                 elif not hasattr(load_parser, 'loads_by_zone'):
                     logger.warning(f"BONUS DEBUG - load_parser doesn't have loads_by_zone attribute")
-                elif zone_name not in load_parser.loads_by_zone:
-                    logger.warning(f"BONUS DEBUG - Zone '{zone_name}' not found in load_parser.loads_by_zone")
+                elif original_zone_id not in load_parser.loads_by_zone:
+                    logger.warning(f"BONUS DEBUG - Zone '{original_zone_id}' not found in load_parser.loads_by_zone")
         else:
             if not is_2023_iso:
                 pass
