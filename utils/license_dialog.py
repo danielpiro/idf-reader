@@ -23,6 +23,17 @@ class LicenseDialog:
         self.status_text = None
         self.activate_button = None
         self.deactivate_button = None
+
+    def create_rtl_button(self, text, icon, on_click=None, **kwargs):
+        """Create a button with Hebrew text and icon positioned correctly for RTL (icon on left)."""
+        return ft.ElevatedButton(
+            content=ft.Row([
+                ft.Icon(icon, size=16),  # Icon first (appears on left in RTL)
+                ft.Text(text, rtl=True)  # Hebrew text second
+            ], tight=True, spacing=8),
+            on_click=on_click,
+            **kwargs
+        )
         
     def show_license_dialog(self, show_activation: bool = True):
         """Show the license management dialog."""
@@ -173,9 +184,9 @@ class LicenseDialog:
             rtl=False  # License keys should be LTR for consistency
         )
         
-        self.activate_button = ft.ElevatedButton(
-            text="הפעל רישיון",
-            icon=ft.Icons.CHECK_CIRCLE,
+        self.activate_button = self.create_rtl_button(
+            "הפעל רישיון",
+            ft.Icons.CHECK_CIRCLE,
             on_click=self._activate_license,
             style=ft.ButtonStyle(
                 bgcolor=ft.Colors.GREEN_600,
@@ -187,9 +198,9 @@ class LicenseDialog:
             height=45
         )
         
-        self.deactivate_button = ft.ElevatedButton(
-            text="בטל רישיון",
-            icon=ft.Icons.CANCEL_OUTLINED,
+        self.deactivate_button = self.create_rtl_button(
+            "בטל רישיון",
+            ft.Icons.CANCEL_OUTLINED,
             on_click=self._deactivate_license,
             style=ft.ButtonStyle(
                 bgcolor=ft.Colors.RED_600,

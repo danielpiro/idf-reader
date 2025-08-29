@@ -10,16 +10,12 @@ from pathlib import Path
 from utils.logging_config import get_logger
 from utils.sentry_config import capture_exception_with_context, add_breadcrumb, set_user_context
 from utils.path_utils import (
-    get_data_file_path, get_data_directory, list_data_files,
-    contains_non_ascii, create_safe_path_for_energyplus,
-    create_safe_output_dir_for_energyplus, move_simulation_files_back,
-    normalize_path_for_energyplus
+    get_data_file_path,contains_non_ascii, create_safe_path_for_energyplus,
 )
 from processing_manager import ProcessingManager
-from utils.data_loader import DataLoader
 from utils.update_manager import UpdateManager
-from utils.license_manager import license_manager, check_license_on_startup
-from utils.license_dialog import LicenseDialog, show_startup_license_check
+from utils.license_manager import license_manager
+from utils.license_dialog import LicenseDialog
 from version import get_version
 
 logger = get_logger(__name__)

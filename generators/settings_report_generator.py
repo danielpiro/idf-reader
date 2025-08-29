@@ -1,15 +1,13 @@
 from generators.reportlab_commons import (
-    Paragraph, Spacer, Table, TableStyle, A4, landscape, colors, Color, 
+    Paragraph, Spacer, Table, A4, landscape, colors,
     TA_LEFT, TA_CENTER, cm
 )
 from reportlab.platypus import SimpleDocTemplate
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 import datetime
 from pathlib import Path
-from utils.hebrew_text_utils import get_hebrew_font_name
-from utils.logo_utils import create_logo_image
 from generators.shared_design_system import (
-    COLORS, FONTS, FONT_SIZES, LAYOUT,
+    COLORS, LAYOUT,
     create_standard_table_style, create_title_style, create_section_title_style,
     create_standardized_header
 )

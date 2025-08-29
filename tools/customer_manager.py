@@ -135,7 +135,7 @@ def list_customers(db, args):
             
         else:
             # Table format
-            print(f"\n👥 Customers ({len(customers)} found):")
+            print(f"\nCustomers ({len(customers)} found):")
             print("=" * 100)
             print(f"{'Email':<30} {'Name':<20} {'Company':<20} {'Created':<12}")
             print("-" * 100)
@@ -161,7 +161,7 @@ def view_customer(db, args):
             print(f" Customer not found: {args.email}")
             return
         
-        print(f"\n👤 Customer Details:")
+        print(f"\nCustomer Details:")
         print("=" * 60)
         print(f"Email:    {customer['email']}")
         print(f"Name:     {customer.get('name', 'Not provided')}")
@@ -178,12 +178,12 @@ def view_customer(db, args):
             # Show customer licenses
             licenses = list(db.db.licenses.find({"customer_id": customer["_id"]}))
             
-            print(f"\n🔑 Licenses ({len(licenses)} found):")
+            print(f"\nLicenses ({len(licenses)} found):")
             print("-" * 60)
             
             if licenses:
                 for license_doc in licenses:
-                    status_icon = "" if license_doc["status"] == "active" else ""
+                    status_icon = "[ACTIVE]" if license_doc["status"] == "active" else "[INACTIVE]"
                     expires = license_doc["expires_at"].strftime('%d/%m/%Y') if license_doc["expires_at"] else "Never"
                     
                     print(f"{status_icon} {license_doc['serial_key']} ({license_doc['license_type']}) - Expires: {expires}")
@@ -265,7 +265,7 @@ def search_customers(db, args):
             print(f" No customers found matching: {args.query}")
             return
         
-        print(f"\n Search Results for '{args.query}' ({len(customers)} found):")
+        print(f"\nSearch Results for '{args.query}' ({len(customers)} found):")
         print("=" * 100)
         print(f"{'Email':<30} {'Name':<20} {'Company':<20} {'Created':<12}")
         print("-" * 100)
@@ -318,7 +318,7 @@ def show_stats(db, args):
         ]
         countries = list(db.db.customers.aggregate(countries_pipeline))
         
-        print(f"\n Customer Statistics:")
+        print(f"\nCustomer Statistics:")
         print("=" * 50)
         print(f"Total Customers:        {total_customers}")
         print(f"With Licenses:          {customers_with_licenses}")
@@ -326,13 +326,13 @@ def show_stats(db, args):
         print(f"Without Licenses:       {total_customers - customers_with_licenses}")
         
         if top_companies:
-            print(f"\n🏢 Top Companies:")
+            print(f"\nTop Companies:")
             print("-" * 30)
             for company in top_companies:
                 print(f"  {company['_id']}: {company['count']} customers")
         
         if countries:
-            print(f"\n🌍 Countries:")
+            print(f"\nCountries:")
             print("-" * 30)
             for country in countries:
                 country_name = country['_id'] or 'Not specified'

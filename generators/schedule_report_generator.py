@@ -10,7 +10,7 @@ from pathlib import Path
 from utils.hebrew_text_utils import safe_format_header_text,get_hebrew_font_name
 from utils.logo_utils import create_logo_image
 from generators.shared_design_system import (
-    COLORS, FONTS, FONT_SIZES, create_standardized_header
+    COLORS, FONTS, FONT_SIZES
 )
 
 logger = get_logger(__name__)

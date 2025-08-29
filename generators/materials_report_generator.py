@@ -4,13 +4,10 @@ Generates PDF reports showing materials and their thermal properties within cons
 from typing import Dict, Any, List
 from utils.logging_config import get_logger
 from reportlab.lib.colors import lightgrey
-from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, Table
 from generators.base_report_generator import BaseReportGenerator, handle_report_errors, StandardPageSizes
 from generators.shared_design_system import (
-    COLORS, FONTS, FONT_SIZES, LAYOUT,
-    create_standard_table_style, create_cell_style, 
+    FONT_SIZES, create_standard_table_style, create_cell_style, 
     create_title_style, wrap_text
 )
 from generators.utils.formatting_utils import ValueFormatter

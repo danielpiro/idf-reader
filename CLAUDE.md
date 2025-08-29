@@ -27,7 +27,7 @@ python main.py path/to/file.idf --idd "C:\EnergyPlusV9-4-0\Energy+.idd" -o outpu
 
 ### Build and Distribution
 ```bash
-# Build executable with version management
+# Build executable with version management (if exists)
 python build_with_version.py
 
 # Generate license keys
@@ -40,7 +40,8 @@ python generate_license_key.py
 python main.py tests/in-office.idf --idd "C:\EnergyPlusV9-4-0\Energy+.idd" -o test_output
 
 # The tests/ directory contains various sample IDF files:
-# - in-office.idf, in-24.idf, in-8.9.idf, lights.idf
+# - BGU.idf, in-office.idf, in-24.idf, in-megurim.idf, in-mesradim.idf, lights.idf
+# Also contains EPJSON formats and simulation output files
 ```
 
 ## Architecture Overview
@@ -74,8 +75,11 @@ EnergyPlus Simulation → eplustbl.csv → EnergyRatingParser → Energy Rating 
    - `epjson_handler.py` - EnergyPlus EPJSON file handling
    - `idf_version_checker.py` - Version compatibility checking
    - `hebrew_text_utils.py` - Hebrew RTL text processing
-   - `auth_manager.py` - License management
-   - `sentry_config.py` - Error monitoring
+   - `license_manager.py` - License validation and management
+   - `sentry_config.py` - Error monitoring and crash reporting
+   - `logging_config.py` - Centralized logging configuration
+   - `update_manager.py` - Application update management
+   - `path_utils.py` - File path utilities
 
 ### Data Models and Patterns
 
@@ -116,6 +120,7 @@ iso_2023_mapping = {"א": "1", "ב": "2", "ג": "3", "ד": "4"}
 8. Natural Ventilation Report - Ventilation analysis
 9. Energy Rating Report - Energy consumption and rating
 10. Zone Reports - Individual zone analysis (multiple PDFs)
+11. Automatic Error Detection Report - Building model validation
 
 ### File Structure Notes
 - `settings.json` - Persists user settings (last used paths, city, ISO type)
@@ -139,9 +144,10 @@ iso_2023_mapping = {"א": "1", "ב": "2", "ג": "3", "ד": "4"}
 
 ### Error Handling
 - Use structured logging via `utils/logging_config.py`  
-- Sentry integration for production error monitoring
+- Sentry integration for production error monitoring via `utils/sentry_config.py`
 - Graceful degradation when EnergyPlus simulation fails
 - User-friendly error messages in Hebrew where appropriate
+- Comprehensive data validation via `utils/report_data_validator.py`
 
 ## Dependencies and External Requirements
 
@@ -152,6 +158,11 @@ flet>=0.24.1          # Modern GUI framework
 numpy>=1.24.0         # Numerical computations
 pandas>=2.0.0         # Data manipulation
 pyinstaller>=6.3.0    # Executable packaging
+cryptography>=41.0.0  # License encryption
+pymongo>=4.5.0        # MongoDB for license management
+sentry-sdk>=1.32.0    # Error monitoring
+python-dotenv>=1.0.0  # Environment configuration
+openpyxl>=3.1.0       # Excel file support
 ```
 
 ### External Requirements
@@ -174,7 +185,10 @@ pyinstaller>=6.3.0    # Executable packaging
 
 ## Security and Licensing
 
-- MongoDB-based license validation system
-- License keys tied to hardware fingerprinting
+- MongoDB-based license validation system via `database/mongo_license_db.py`
+- License keys tied to hardware fingerprinting via `utils/license_manager.py`
+- Customer management tools in `tools/` directory
+- License key generation via `generate_license_key.py`
 - Secure storage of customer data and license information
 - No sensitive data logged or persisted in reports
+- Version management and update checking via `version.py` and `utils/update_manager.py`

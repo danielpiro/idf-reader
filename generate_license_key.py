@@ -4,7 +4,6 @@ License Key Generator for IDF Reader
 Run this script to generate license keys for customers.
 """
 
-import sys
 import argparse
 from datetime import datetime, timedelta
 from utils.license_manager import LicenseManager

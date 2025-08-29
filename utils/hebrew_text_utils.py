@@ -146,13 +146,21 @@ def safe_format_header_text(project_name, run_id, timestamp, city_name, area_nam
     """
     safe_city_name = encode_hebrew_text(city_name)
     safe_area_name = encode_hebrew_text(area_name)
+    safe_project_name = encode_hebrew_text(str(project_name))
+    
+    # Import version here to avoid circular imports
+    try:
+        from version import get_version
+        app_version = get_version()
+    except ImportError:
+        app_version = version
     
     return f"""
-    Project: {html.escape(str(project_name), quote=False)}<br/>
-    Date: {timestamp}<br/>
-    Version: {html.escape(str(version), quote=False)}<br/>
-    City: {safe_city_name}<br/>
-    Area: {safe_area_name}<br/>
+    {safe_project_name} :<b>{encode_hebrew_text("פרויקט")}</b><br/>
+    {timestamp} :<b>{encode_hebrew_text("תאריך")}</b><br/>
+    {safe_city_name} :<b>{encode_hebrew_text("עיר")}</b><br/>
+    {safe_area_name} :<b>{encode_hebrew_text("אזור אקלים")}</b><br/>
+    v{app_version} :<b>{encode_hebrew_text("גרסת תוכנה")}</b><br/>
     """
 
 def reverse_hebrew_text(text):

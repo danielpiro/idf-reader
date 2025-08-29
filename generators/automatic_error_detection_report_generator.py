@@ -8,12 +8,9 @@ from reportlab.platypus import SimpleDocTemplate, Table, Paragraph, Spacer, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib.enums import TA_CENTER
-from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name
-from utils.logo_utils import create_logo_image
 from generators.shared_design_system import (
     COLORS, FONTS, FONT_SIZES, LAYOUT,
-    create_standard_table_style, create_title_style, 
-    create_header_info_style, create_cell_style, wrap_text,
+    create_standard_table_style, create_title_style, create_cell_style, wrap_text,
     create_standardized_header
 )
 from utils.logging_config import get_logger

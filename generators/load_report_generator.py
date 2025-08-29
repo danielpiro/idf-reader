@@ -3,13 +3,9 @@ Generates PDF reports showing zone loads and their associated schedules.
 """
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, Spacer, TableStyle
 from reportlab.lib.pagesizes import landscape, A4
-from reportlab.lib.units import cm
 from reportlab.lib.styles import getSampleStyleSheet
-import datetime
-from utils.hebrew_text_utils import safe_format_header_text
-from utils.logo_utils import create_logo_image
 from generators.shared_design_system import (
-    COLORS, FONTS, FONT_SIZES, LAYOUT,
+    FONT_SIZES, LAYOUT,
     create_multi_header_table_style, create_cell_style, 
     create_title_style, create_header_info_style, wrap_text,
     create_standardized_header

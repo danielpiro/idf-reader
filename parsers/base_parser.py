@@ -5,7 +5,7 @@ Reduces code duplication and provides consistent error handling.
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, List
 from utils.logging_config import get_logger
-from .utils import handle_parser_errors, log_processing_stats, validate_required_fields
+from .utils import log_processing_stats, validate_required_fields
 
 class BaseParser(ABC):
     """

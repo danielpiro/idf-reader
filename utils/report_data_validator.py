@@ -2,7 +2,7 @@
 Utility functions for validating report data before generation.
 Used to determine if a report should be created based on data availability.
 """
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 from utils.logging_config import get_logger
 
 logger = get_logger(__name__)

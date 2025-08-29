@@ -4,7 +4,6 @@ Provides consistent logo handling across GUI and PDF reports.
 """
 import os
 from utils.logging_config import get_logger
-from pathlib import Path
 from reportlab.platypus import Image
 from reportlab.lib.units import cm
 from utils.path_utils import get_data_file_path

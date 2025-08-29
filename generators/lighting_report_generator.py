@@ -10,11 +10,10 @@ from reportlab.lib.units import cm
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib import colors
-from generators.base_report_generator import BaseReportGenerator, handle_report_errors, StandardPageSizes
+from generators.base_report_generator import BaseReportGenerator
 from generators.shared_design_system import (
-    COLORS, FONTS, FONT_SIZES, LAYOUT,
-    create_standard_table_style, create_title_style, 
-    create_section_title_style, create_cell_style, wrap_text,
+    COLORS, FONTS, FONT_SIZES, create_title_style,
+    create_section_title_style, wrap_text,
     create_standardized_header
 )
 from generators.utils.formatting_utils import ValueFormatter
@@ -72,8 +71,8 @@ class LightingReportGenerator(BaseReportGenerator):
     """Generates a PDF report for parsed Daylighting data."""
 
     def __init__(self, data: Dict[str, List[Dict[str, Any]]], output_path: str,
-                 project_name: str = "-", run_id: str = "-",
-                 city_name: str = "-", area_name: str = "-"):
+                 project_name: str = "N/A", run_id: str = "N/A",
+                 city_name: str = "N/A", area_name: str = "N/A"):
         """
         Initializes the LightingReportGenerator.
 
@@ -254,7 +253,7 @@ class LightingReportGenerator(BaseReportGenerator):
                     row_values = [
                         entry.get("Name", "-"),
                         entry.get("Lighting SCHEDULE Name", "-"),
-                        f"{entry['Design Equipment Level (W)']:.2f}" if entry.get('Design Equipment Level (W)') is not None else "-"
+                        f"{entry.get('Design Equipment Level (W)', 0.0):.2f}"
                     ]
                     styled_row = [wrap_text(val, cell_style) for val in row_values]
                     table_data_ext_lights.append(styled_row)

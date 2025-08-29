@@ -10,14 +10,12 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
 from utils.data_loader import get_energy_consumption, safe_float
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.colors import black, Color
-from reportlab.lib.enums import TA_RIGHT, TA_CENTER
-from utils.hebrew_text_utils import safe_format_header_text, get_hebrew_font_name, encode_hebrew_text
-from utils.logo_utils import create_logo_image
+from reportlab.lib.colors import Color
+from reportlab.lib.enums import TA_CENTER
+from utils.hebrew_text_utils import get_hebrew_font_name, encode_hebrew_text
 from generators.shared_design_system import (
-    COLORS, FONTS, FONT_SIZES, LAYOUT,
-    create_multi_header_table_style, create_title_style, 
-    create_header_info_style, create_standardized_header
+    COLORS, FONTS, FONT_SIZES, LAYOUT, create_title_style,
+    create_standardized_header
 )
 from reportlab.graphics.shapes import Drawing, Rect, Polygon, String
 

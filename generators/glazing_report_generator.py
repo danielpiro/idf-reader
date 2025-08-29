@@ -1,12 +1,10 @@
-from typing import Dict, Any
-import pandas as pd
 from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.units import cm
-from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import Paragraph, Spacer, Table
 from generators.base_report_generator import BaseReportGenerator, handle_report_errors, StandardPageSizes
 from generators.shared_design_system import (
-    COLORS, FONTS, FONT_SIZES, LAYOUT,
+    COLORS, FONT_SIZES, LAYOUT,
     create_standard_table_style, create_cell_style, wrap_text, create_title_style
 )
 from generators.utils.formatting_utils import ValueFormatter

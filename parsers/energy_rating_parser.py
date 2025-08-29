@@ -2,7 +2,6 @@
 Extracts and processes energy consumption and rating information from EnergyPlus output files.
 """
 from typing import Dict, Any, List, Optional
-import re
 import csv
 import os
 import logging
@@ -707,10 +706,6 @@ class EnergyRatingParser(CSVOutputParser):
         if not self.energy_data_by_area:
             self.logger.warning(f"GET_ENERGY_RATING_TABLE_DATA DEBUG - No energy data available. energy_data_by_area is empty")
             return table_data
-        
-        # Log first few zone keys and their data for debugging
-        for i, (zone_key, zone_data) in enumerate(list(self.energy_data_by_area.items())[:3]):
-            pass
 
         try:
             # Check if this is office ISO

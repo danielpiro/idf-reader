@@ -40,7 +40,12 @@ class GuiApplication:
                 # Build UI directly - license managed through license button
                 on_license_checked()
             
-            ft.app(target=main, view=ft.AppView.FLET_APP, assets_dir="data")
+            ft.app(
+                target=main, 
+                view=ft.AppView.FLET_APP, 
+                assets_dir="data",
+                web_renderer=ft.WebRenderer.HTML
+            )
             
         except ImportError as import_err:
             err_msg = str(import_err).lower()
