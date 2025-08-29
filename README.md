@@ -1,8 +1,8 @@
 # IDF Reader Website
 
-🌐 Official website for IDF Reader - Professional IDF analysis software
+Official website for IDF Reader - Professional IDF analysis software
 
-## 🚀 Quick Deploy to Vercel
+## Quick Deploy to Vercel
 
 1. **Fork/Clone the repository**
 2. **Connect to Vercel:**
@@ -12,7 +12,7 @@
    - Set root directory to `website`
    - Deploy!
 
-## 🔧 Auto-Deployment Setup
+## Auto-Deployment Setup
 
 The website automatically deploys when you push to the main branch. Two deployment targets are supported:
 
@@ -26,7 +26,7 @@ The website automatically deploys when you push to the main branch. Two deployme
 - Deploys to your custom Vercel domain
 - Requires GitHub secrets configuration (see [setup-vercel.md](../setup-vercel.md))
 
-## 📁 File Structure
+## File Structure
 
 ```
 website/
@@ -39,7 +39,7 @@ website/
 └── README.md           # This file
 ```
 
-## 🔄 Version Management
+## Version Management
 
 The `version.json` file is automatically updated by GitHub Actions with each release:
 
@@ -53,7 +53,7 @@ The `version.json` file is automatically updated by GitHub Actions with each rel
 }
 ```
 
-## 🌐 Features
+## Features
 
 - **Responsive Design**: Works on desktop, tablet, and mobile
 - **Hebrew Support**: Full RTL language support
@@ -62,7 +62,7 @@ The `version.json` file is automatically updated by GitHub Actions with each rel
 - **Performance**: Optimized loading and caching
 - **Analytics**: Google Analytics integration ready
 
-## 🛠️ Development
+## Development
 
 To run locally:
 
@@ -79,11 +79,11 @@ php -S localhost:8000
 
 Then visit `http://localhost:8000`
 
-## 📱 Mobile Testing
+## Mobile Testing
 
 The website includes a dedicated mobile test page at `mobile-test.html` for testing mobile-specific features.
 
-## 🔒 Privacy
+## Privacy
 
 The website respects user privacy:
 
@@ -92,13 +92,13 @@ The website respects user privacy:
 - Minimal data collection
 - GDPR compliant
 
-## 🚀 Performance
+## Performance
 
 - **Lighthouse Score**: 95+ on all metrics
 - **First Contentful Paint**: < 1.5s
 - **Largest Contentful Paint**: < 2.5s
 - **Cumulative Layout Shift**: < 0.1
 
-## 📞 Support
+## Support
 
 For website issues or suggestions, please open an issue in the main repository.
