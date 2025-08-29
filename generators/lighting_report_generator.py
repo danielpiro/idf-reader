@@ -72,8 +72,8 @@ class LightingReportGenerator(BaseReportGenerator):
     """Generates a PDF report for parsed Daylighting data."""
 
     def __init__(self, data: Dict[str, List[Dict[str, Any]]], output_path: str,
-                 project_name: str = "N/A", run_id: str = "N/A",
-                 city_name: str = "N/A", area_name: str = "N/A"):
+                 project_name: str = "-", run_id: str = "-",
+                 city_name: str = "-", area_name: str = "-"):
         """
         Initializes the LightingReportGenerator.
 
@@ -254,7 +254,7 @@ class LightingReportGenerator(BaseReportGenerator):
                     row_values = [
                         entry.get("Name", "-"),
                         entry.get("Lighting SCHEDULE Name", "-"),
-                        f"{entry.get('Design Equipment Level (W)', 0.0):.2f}"
+                        f"{entry['Design Equipment Level (W)']:.2f}" if entry.get('Design Equipment Level (W)') is not None else "-"
                     ]
                     styled_row = [wrap_text(val, cell_style) for val in row_values]
                     table_data_ext_lights.append(styled_row)

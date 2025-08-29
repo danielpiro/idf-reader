@@ -279,8 +279,8 @@ def _to_str(val, precision=None):
     except (ValueError, TypeError):
         return str(val)
 
-def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", project_name="N/A", run_id="N/A", 
-                             city_name="N/A", area_name="N/A"):
+def generate_loads_report_pdf(zone_data, output_filename="output/loads.pdf", project_name="-", run_id="-", 
+                             city_name="-", area_name="-"):
     """
     Generates a PDF report containing zone loads, including a header.
 

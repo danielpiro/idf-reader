@@ -177,6 +177,64 @@ def _calculate_ventilation_bonus(rate_ach):
     else:  # rate_ach >= 10
         return 0.20
 
+
+def _calculate_group_minimum_bonuses(table_data, load_parser, energy_parser, model_year, model_area_definition):
+    """
+    Calculate minimum bonus values for each zone group.
+    For groups of zones, take the minimum bonus value from all zones in the group.
+    
+    Args:
+        table_data: List of row dictionaries with zone data
+        load_parser: Load parser instance for ventilation data
+        energy_parser: Energy parser instance for grouping logic  
+        model_year: Model year to determine if bonus applies
+        model_area_definition: Area definition for ISO type
+        
+    Returns:
+        Dict[str, float]: Mapping from zone_id to minimum group bonus
+    """
+    if model_year != 2023 or not load_parser or not energy_parser:
+        return {}
+    
+    # Group zones and collect individual bonus values
+    group_bonuses = {}  # group_key -> list of bonus values
+    zone_to_group = {}  # zone_id -> group_key
+    
+    for row_dict in table_data:
+        zone_id = row_dict.get('zone_id', '')
+        if not zone_id:
+            continue
+            
+        # Get group key using the same logic as energy parser
+        group_key = energy_parser._extract_floor_and_zone(zone_id, model_year)[0]  # floor_id is the group key
+        zone_to_group[zone_id] = group_key
+        
+        # Calculate individual bonus for this zone
+        bonus_value = 0.0
+        if hasattr(load_parser, 'loads_by_zone') and zone_id in load_parser.loads_by_zone:
+            zone_loads = load_parser.loads_by_zone[zone_id]['loads']
+            ventilation_data = zone_loads.get('ventilation', {})
+            rate_ach = ventilation_data.get('rate_ach', 0)
+            if rate_ach is not None:
+                bonus_value = _calculate_ventilation_bonus(rate_ach)
+        
+        # Add bonus to group
+        if group_key not in group_bonuses:
+            group_bonuses[group_key] = []
+        group_bonuses[group_key].append(bonus_value)
+    
+    # Calculate minimum bonus for each group
+    group_min_bonuses = {}
+    for group_key, bonus_list in group_bonuses.items():
+        group_min_bonuses[group_key] = min(bonus_list) if bonus_list else 0.0
+    
+    # Map each zone to its group's minimum bonus
+    zone_bonuses = {}
+    for zone_id, group_key in zone_to_group.items():
+        zone_bonuses[zone_id] = group_min_bonuses.get(group_key, 0.0)
+    
+    return zone_bonuses
+
 def _get_numeric_area_score_for_group(group_sum_energy_components, group_sum_total_area, group_model_csv_area_desc, model_year, model_area_definition):
     """
     Calculates the numeric area score for a group based on its aggregated data.
@@ -427,7 +485,7 @@ def _calculate_total_energy_rating(raw_table_data, model_year, model_area_defini
 def _get_letter_grade_for_score(score):
     """Map a numeric score to its corresponding letter grade"""
     if score is None:
-        return "N/A"
+        return "-"
     
     # Handle scores within normal range
     if score >= 5:
@@ -450,7 +508,7 @@ def _create_energy_rating_table_visual(total_score, letter_grade):
     """Create a professional energy rating table with chevron arrows."""
     elements = []
     
-    if total_score is None or letter_grade == "N/A":
+    if total_score is None or letter_grade == "-":
         styles = getSampleStyleSheet()
         no_data_style = styles['Normal']
         no_data_style.alignment = TA_CENTER
@@ -575,7 +633,7 @@ def _create_total_energy_rating_table(total_score, letter_grade):
     """Create a graphical representation of the total energy rating."""
     elements = []
 
-    if total_score is None or letter_grade == "N/A":
+    if total_score is None or letter_grade == "-":
         styles = getSampleStyleSheet()
         no_data_style = styles['Normal']
         no_data_style.alignment = TA_CENTER
@@ -692,6 +750,10 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
     if not raw_table_data:
         logger.warning(f"_ENERGY_RATING_TABLE DEBUG - No raw table data available, returning None")
         return None
+    
+    # Calculate group-based minimum bonuses for all zones
+    group_bonuses = _calculate_group_minimum_bonuses(raw_table_data, load_parser, energy_rating_parser, model_year, model_area_definition)
+    logger.info(f"GROUP BONUS DEBUG - Calculated group bonuses for {len(group_bonuses)} zones")
 
     def sort_key(item):
         # Primary sort: Floor ID (numeric first, then alphabetic)
@@ -720,7 +782,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
         
         return (floor_sort_val, area_sort_val, zone_sort_val)
 
-    raw_table_data.sort(key=sort_key)
+    raw_table_data.sort(key=sort_key, reverse=True)
 
     # Determine if this is 2023 ISO (add Bonus column)
     is_2023_iso = model_year == 2023
@@ -816,7 +878,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
 
             numeric_energy_consumption = None
             calculated_improve_by_value = None  # Initialize at the beginning to avoid UnboundLocalError
-            display_energy_consump = "N/A"
+            display_energy_consump = "-"
             display_improve_by = ""
             display_energy_rating = ""
             display_area_rating = ""
@@ -886,29 +948,21 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
                     display_improve_by = _format_number(calculated_improve_by_value)
                 else:
                     display_improve_by = "N/A (No EC)"
-            current_display_energy_rating = "N/A"
-            current_display_area_score = "N/A"
+            current_display_energy_rating = "-"
+            current_display_area_score = "-"
 
             if calculated_improve_by_value is not None:
-                # Calculate the final score with bonus for 2023 ISO
+                # Calculate the final score with group-based minimum bonus for 2023 ISO
                 final_score_for_rating = calculated_improve_by_value
-                if model_year == 2023 and is_2023_iso and load_parser:
-                    logger.info(f"RATING DEBUG - Calculating final score with bonus for zone: {row_dict.get('zone_id', 'None')}")
-                    # Use the original full zone ID, not the extracted zone part
+                if model_year == 2023 and is_2023_iso:
                     original_zone_id = row_dict.get('zone_id', '')
-                    if original_zone_id and hasattr(load_parser, 'loads_by_zone') and original_zone_id in load_parser.loads_by_zone:
-                        zone_loads = load_parser.loads_by_zone[original_zone_id]['loads']
-                        ventilation_data = zone_loads.get('ventilation', {})
-                        rate_ach = ventilation_data.get('rate_ach', 0)
-                        if rate_ach is not None:
-                            bonus_value = _calculate_ventilation_bonus(rate_ach)
-                            logger.info(f"RATING DEBUG - Adding bonus {bonus_value} to base score {calculated_improve_by_value}")
-                            final_score_for_rating = calculated_improve_by_value + bonus_value
-                            logger.info(f"RATING DEBUG - Final score with bonus: {final_score_for_rating}")
-                        else:
-                            logger.warning(f"RATING DEBUG - rate_ach is None, no bonus added")
+                    if original_zone_id in group_bonuses:
+                        bonus_value = group_bonuses[original_zone_id]
+                        logger.info(f"RATING DEBUG - Adding group minimum bonus {bonus_value} to base score {calculated_improve_by_value} for zone {original_zone_id}")
+                        final_score_for_rating = calculated_improve_by_value + bonus_value
+                        logger.info(f"RATING DEBUG - Final score with group bonus: {final_score_for_rating}")
                     else:
-                        logger.warning(f"RATING DEBUG - Zone '{original_zone_id}' not found for bonus calculation")
+                        logger.warning(f"RATING DEBUG - No group bonus found for zone '{original_zone_id}'")
                 
                 if model_year == 2017:
                     climate_zone_lookup_key = CLIMATE_ZONE_MAP.get(model_area_definition)
@@ -964,48 +1018,20 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
             display_energy_rating = ""
             display_area_rating = ""
 
-        # Calculate bonus for 2023 ISO based on ventilation rate_ach
+        # Use group-based minimum bonus for 2023 ISO
         display_bonus = ""
-        logger.info(f"BONUS DEBUG - Starting bonus calculation for row with zone_id: {row_dict.get('zone_id', 'None')}")
-        logger.info(f"BONUS DEBUG - model_year: {model_year}, is_2023_iso: {is_2023_iso}, load_parser exists: {load_parser is not None}")
+        logger.info(f"BONUS DEBUG - Starting group bonus display for row with zone_id: {row_dict.get('zone_id', 'None')}")
         
-        if is_2023_iso and load_parser:
-            # Use the original full zone ID, not the extracted zone part
+        if is_2023_iso:
             original_zone_id = row_dict.get('zone_id', '')
-            logger.info(f"BONUS DEBUG - Original zone ID: '{original_zone_id}'")
-            logger.info(f"BONUS DEBUG - Has loads_by_zone attribute: {hasattr(load_parser, 'loads_by_zone')}")
-            
-            if hasattr(load_parser, 'loads_by_zone'):
-                logger.info(f"BONUS DEBUG - Available zone keys in load_parser: {list(load_parser.loads_by_zone.keys())[:5]}...")
-            
-            if original_zone_id and hasattr(load_parser, 'loads_by_zone') and original_zone_id in load_parser.loads_by_zone:
-                logger.info(f"BONUS DEBUG - Found zone '{original_zone_id}' in load_parser")
-                zone_loads = load_parser.loads_by_zone[original_zone_id]['loads']
-                logger.info(f"BONUS DEBUG - Zone loads keys: {list(zone_loads.keys())}")
-                ventilation_data = zone_loads.get('ventilation', {})
-                logger.info(f"BONUS DEBUG - Ventilation data: {ventilation_data}")
-                rate_ach = ventilation_data.get('rate_ach', 0)
-                logger.info(f"BONUS DEBUG - Rate ACH value: {rate_ach} (type: {type(rate_ach)})")
-                
-                if rate_ach is not None:
-                    bonus_value = _calculate_ventilation_bonus(rate_ach)
-                    logger.info(f"BONUS DEBUG - Calculated bonus value: {bonus_value}")
-                    display_bonus = "{:.2f}".format(bonus_value) if bonus_value is not None else "0.00"
-                    logger.info(f"BONUS DEBUG - Display bonus: '{display_bonus}'")
-                else:
-                    logger.warning(f"BONUS DEBUG - rate_ach is None for zone '{original_zone_id}'")
+            if original_zone_id in group_bonuses:
+                bonus_value = group_bonuses[original_zone_id]
+                display_bonus = "{:.2f}".format(bonus_value) if bonus_value is not None else "0.00"
+                logger.info(f"BONUS DEBUG - Group minimum bonus for zone '{original_zone_id}': {display_bonus}")
             else:
-                if not original_zone_id:
-                    logger.warning(f"BONUS DEBUG - original_zone_id is empty or None")
-                elif not hasattr(load_parser, 'loads_by_zone'):
-                    logger.warning(f"BONUS DEBUG - load_parser doesn't have loads_by_zone attribute")
-                elif original_zone_id not in load_parser.loads_by_zone:
-                    logger.warning(f"BONUS DEBUG - Zone '{original_zone_id}' not found in load_parser.loads_by_zone")
+                logger.warning(f"BONUS DEBUG - No group bonus found for zone '{original_zone_id}'")
         else:
-            if not is_2023_iso:
-                pass
-            if not load_parser:
-                logger.warning(f"BONUS DEBUG - load_parser is None, cannot calculate bonus")
+            logger.info(f"BONUS DEBUG - Not 2023 ISO, no bonus calculated")
 
         # Prepare the row data based on whether this is 2023 ISO or not
         if is_2023_iso:
@@ -1062,8 +1088,8 @@ class EnergyRatingReportGenerator:
 
     def __init__(self, energy_rating_parser, output_dir="output/reports",
                  model_year: int = None, model_area_definition: str = None,
-                 selected_city_name: str = None, project_name: str = "N/A", 
-                 run_id: str = "N/A", area_name: str = "N/A", consultant_data: dict = None,
+                 selected_city_name: str = None, project_name: str = "-", 
+                 run_id: str = "-", area_name: str = "-", consultant_data: dict = None,
                  load_parser=None):
         self.energy_rating_parser = energy_rating_parser
         self.output_dir = output_dir
@@ -1325,7 +1351,7 @@ class EnergyRatingReportGenerator:
         iso_value = f"{self.model_year}" if self.model_year else "לא זמין"
         
         # Format calculation result - need to get the raw_average from the calculation
-        if total_score is not None and letter_grade and letter_grade != "N/A":
+        if total_score is not None and letter_grade and letter_grade != "-":
             # Get the raw_average by recalculating just for display purposes
             raw_table_data = self.energy_rating_parser.get_energy_rating_table_data(self.model_year, self.model_area_definition)
             raw_average = self._get_raw_average_for_display(raw_table_data)

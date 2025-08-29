@@ -5,9 +5,9 @@ import json
 import os
 from pathlib import Path
 from typing import Dict, Any, Optional
-from utils.logger import get_module_logger
+from utils.logging_config import get_logger
 
-logger = get_module_logger(__name__)
+logger = get_logger(__name__)
 
 
 class AppSettings:

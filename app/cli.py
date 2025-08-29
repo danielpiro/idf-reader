@@ -7,9 +7,9 @@ import os
 import time
 from colorama import Fore, init
 from processing_manager import ProcessingManager
-from utils.logger import get_module_logger
+from utils.logging_config import get_logger
 
-logger = get_module_logger(__name__)
+logger = get_logger(__name__)
 init(autoreset=True)
 
 

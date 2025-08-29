@@ -86,11 +86,11 @@ class AreaLossParser:
             self.area_loss_data = self.area_parser.get_area_h_values()
             wall_mass_data = self._get_wall_mass_per_area()
             for item in self.area_loss_data:
-                area_id = item.get('area_id', '')
+                floor_id = item.get('floor_id', '')
                 location = item.get('location', 'Unknown')
                 total_floor_area = item.get('total_floor_area')
-                wall_mass_per_area = wall_mass_data.get(area_id)
-                h_needed = self._calculate_h_needed(location, safe_float(total_floor_area), safe_float(wall_mass_per_area), area_id)
+                wall_mass_per_area = wall_mass_data.get(floor_id)
+                h_needed = self._calculate_h_needed(location, safe_float(total_floor_area), safe_float(wall_mass_per_area), floor_id)
                 item['h_needed'] = h_needed
                 h_value = item.get('h_value')
                 if h_value is None:
@@ -126,41 +126,41 @@ class AreaLossParser:
             element_data = materials_parser.get_element_data()
             for element in element_data:
                 if element.get('element_type', '').lower() == 'wall' and 'external' in element.get('boundary_condition', '').lower():
-                    area_id = element.get('area_id', '')
-                    if not area_id:
+                    floor_id = element.get('floor_id', '')
+                    if not floor_id:
                         continue
                     mass = element.get('mass_per_area')
                     if mass is not None:
-                        current_mass = wall_mass_data.get(area_id, 0.0)
-                        wall_mass_data[area_id] = max(current_mass, mass)
+                        current_mass = wall_mass_data.get(floor_id, 0.0)
+                        wall_mass_data[floor_id] = max(current_mass, mass)
         except Exception as e:
             logger.error(f"Error calculating wall mass per area: {e}")
         return wall_mass_data
 
-    def _calculate_h_needed(self, location: str, total_floor_area: float, wall_mass_per_area: float, area_id: str) -> float:
+    def _calculate_h_needed(self, location: str, total_floor_area: float, wall_mass_per_area: float, floor_id: str) -> float:
         location_num = LOCATION_MAPPING.get(location, 1)
         col_idx = AREA_COLUMN_MAPPING.get(self.city_area_name, 0)
         
         # Special case for external ceiling locations (location_num == 3)
         if location_num == 3:
-            return self._get_location_3_h_value(wall_mass_per_area, area_id, col_idx)
+            return self._get_location_3_h_value(wall_mass_per_area, floor_id, col_idx)
         
         # Regular location cases
         return self._get_regular_location_h_value(total_floor_area, wall_mass_per_area, location_num, col_idx)
     
-    def _get_location_3_h_value(self, wall_mass_per_area: float, area_id: str, col_idx: int) -> float:
+    def _get_location_3_h_value(self, wall_mass_per_area: float, floor_id: str, col_idx: int) -> float:
         """Calculate H-value for external ceiling locations."""
-        # Extract floor level from area_id (handle both old and new formats)
+        # Extract floor level from floor_id (handle both old and new formats)
         level = None
-        if ":" in area_id:
+        if ":" in floor_id:
             # New format: A:B -> extract A part as level
-            parts = area_id.split(":", 1)
+            parts = floor_id.split(":", 1)
             if parts[0].isdigit():
                 level = parts[0]
         else:
             # Old individual format or simple patterns
-            if len(area_id) >= 2 and area_id[:2].isdigit():
-                level = area_id[:2]
+            if len(floor_id) >= 2 and floor_id[:2].isdigit():
+                level = floor_id[:2]
         apts_per_level = self.apartments_per_level.get(level, 0) if level else 0
         is_single_apt = apts_per_level <= 1
         

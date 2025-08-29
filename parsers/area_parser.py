@@ -105,8 +105,8 @@ class AreaParser(SurfaceDataParser):
                     if not zone_id:
                         continue
 
-                    # Use enhanced area_id extraction for better grouping
-                    area_id = self._extract_area_id_enhanced(zone_id)
+                    # Use enhanced floor_id extraction for better grouping
+                    floor_id = self._extract_floor_id_enhanced(zone_id)
                     
                     # Also extract base zone ID for potential grouping
                     base_zone_id = self._extract_base_zone_id(zone_id)
@@ -137,7 +137,7 @@ class AreaParser(SurfaceDataParser):
                         multiplier = calculated_multiplier
 
                     self.areas_by_zone[zone_id] = {
-                        "area_id": area_id,
+                        "floor_id": floor_id,
                         "base_zone_id": base_zone_id,
                         "floor_area": floor_area,
                         "multiplier": multiplier,
@@ -754,13 +754,13 @@ class AreaParser(SurfaceDataParser):
             pass
             return {}
 
-    def get_area_totals(self, area_id: str) -> Dict[str, float]:
+    def get_area_totals(self, floor_id: str) -> Dict[str, float]:
         """
         Get totals for a specific area (e.g., floor area, wall area, window area).
-        Returns a dictionary with zeroed values if area_id is not found or an error occurs.
+        Returns a dictionary with zeroed values if floor_id is not found or an error occurs.
         """
         result = {"total_floor_area": 0.0, "wall_area": 0.0, "window_area": 0.0}
-        if not area_id:
+        if not floor_id:
             pass
             return result
         if not self.processed:
@@ -770,7 +770,7 @@ class AreaParser(SurfaceDataParser):
         found_area = False
         try:
             for zone_id, zone_data in self.areas_by_zone.items():
-                if zone_data.get("area_id") != area_id:
+                if zone_data.get("floor_id") != floor_id:
                     continue
                 found_area = True
 
@@ -779,7 +779,7 @@ class AreaParser(SurfaceDataParser):
                 zone_contribution = zone_floor_area * zone_multiplier
                 result["total_floor_area"] += zone_contribution
                 
-                self.logger.debug(f"AREA TOTALS DEBUG - Zone {zone_id} (area {area_id}): floor_area={zone_floor_area}, multiplier={zone_multiplier}, contribution={zone_contribution}")
+                self.logger.debug(f"AREA TOTALS DEBUG - Zone {zone_id} (floor {floor_id}): floor_area={zone_floor_area}, multiplier={zone_multiplier}, contribution={zone_contribution}")
 
                 for construction_name, construction_data in zone_data.get("constructions", {}).items():
                     try:
@@ -823,7 +823,7 @@ class AreaParser(SurfaceDataParser):
     def get_area_table_data_by_individual_zones(self, materials_parser: Optional[MaterialsParser] = None) -> Dict[str, List[Dict[str, Any]]]:
         """
         Get data for area reports with each zone as individual report (for office ISO).
-        Returns data grouped by zone_id instead of area_id.
+        Returns data grouped by zone_id instead of floor_id.
         """
         result_by_zone: Dict[str, List[Dict[str, Any]]] = {}
         try:
@@ -1006,10 +1006,10 @@ class AreaParser(SurfaceDataParser):
                     if zone_id not in hvac_zones:
                         continue
                     
-                    area_id = zone_data.get("area_id", "unknown")
+                    floor_id = zone_data.get("floor_id", "unknown")
 
-                    if area_id not in result_by_area:
-                        result_by_area[area_id] = []
+                    if floor_id not in result_by_area:
+                        result_by_area[floor_id] = []
 
                     zone_constructions_aggregated = {}
                     constructions_in_zone = zone_data.get("constructions", {})
@@ -1088,7 +1088,7 @@ class AreaParser(SurfaceDataParser):
                             continue
 
                     filtered_results = [entry for entry in zone_constructions_aggregated.values() if entry.get("area", 0.0) > 0.0]
-                    result_by_area[area_id].extend(filtered_results)
+                    result_by_area[floor_id].extend(filtered_results)
 
                 except (TypeError, ValueError, AttributeError, KeyError) as e_zone_proc:
                     pass
@@ -1128,10 +1128,10 @@ class AreaParser(SurfaceDataParser):
                     if zone_id not in hvac_zones:
                         continue
                         
-                    area_id = zone_data.get("area_id", "unknown")
-                    if area_id not in area_floor_totals:
-                        area_floor_totals[area_id] = 0.0
-                    area_floor_totals[area_id] += (
+                    floor_id = zone_data.get("floor_id", "unknown")
+                    if floor_id not in area_floor_totals:
+                        area_floor_totals[floor_id] = 0.0
+                    area_floor_totals[floor_id] += (
                         safe_float(zone_data.get("floor_area", 0.0), 0.0) *
                         int(safe_float(zone_data.get("multiplier", 1), 1))
                     )
@@ -1140,8 +1140,8 @@ class AreaParser(SurfaceDataParser):
 
             from collections import defaultdict
             grouped_data = defaultdict(list)
-            for area_id_key, rows in area_data_for_h_calc.items():
-                grouped_data[area_id_key].extend(rows)
+            for floor_id_key, rows in area_data_for_h_calc.items():
+                grouped_data[floor_id_key].extend(rows)
 
             external_keywords = ["external", "outside"]
             ground_keywords = ["ground", "slab on grade", "slab-on-grade"]
@@ -1150,9 +1150,9 @@ class AreaParser(SurfaceDataParser):
             floor_keywords = ["floor"]
             ceiling_keywords = ["ceiling"]
 
-            for area_id, rows_for_area in grouped_data.items():
+            for floor_id, rows_for_area in grouped_data.items():
                 try:
-                    total_floor_area = area_floor_totals.get(area_id, 0.0)
+                    total_floor_area = area_floor_totals.get(floor_id, 0.0)
                     if total_floor_area <= 0:
                         pass
                         continue
@@ -1239,7 +1239,7 @@ class AreaParser(SurfaceDataParser):
                          elif max_ceiling_type == "separation_ceiling": location = "Separation Floor & Separation ceiling"
 
                     h_values_by_area.append({
-                        'area_id': area_id, 'location': location, 'h_value': h_value,
+                        'floor_id': floor_id, 'location': location, 'h_value': h_value,
                         'total_floor_area': total_floor_area
                     })
                 except (TypeError, ValueError, AttributeError, KeyError, ZeroDivisionError) as e_area_h:
@@ -1279,13 +1279,13 @@ class AreaParser(SurfaceDataParser):
             pass
             return zone_id
 
-    def _extract_area_id_enhanced(self, zone_id: str) -> str:
+    def _extract_floor_id_enhanced(self, zone_id: str) -> str:
         """
-        Enhanced area_id extraction using corrected grouping rules.
+        Enhanced floor_id extraction using corrected grouping rules.
         
         Rules:
-        - For A:BXC or A:B_C patterns: area_id = group_key (A:B)
-        - For A:B or A patterns: area_id = zone_id (individual)
+        - For A:BXC or A:B_C patterns: floor_id = group_key (A:B)
+        - For A:B or A patterns: floor_id = zone_id (individual)
         """
         try:
             # Get the zone group key from DataLoader
@@ -1305,7 +1305,7 @@ class AreaParser(SurfaceDataParser):
                 
             zone_part = parts[1]
             
-            # Handle patterns like A338X... where A338 should be the area_id
+            # Handle patterns like A338X... where A338 should be the floor_id
             if "X" in zone_part:
                 x_index = zone_part.find("X")
                 area_candidate = zone_part[:x_index]
@@ -1351,7 +1351,7 @@ class AreaParser(SurfaceDataParser):
 
     def get_area_table_data_by_base_zone(self, materials_parser: Optional[MaterialsParser] = None) -> Dict[str, List[Dict[str, Any]]]:
         """
-        Get data for area reports grouped by base zone ID instead of area_id.
+        Get data for area reports grouped by base zone ID instead of floor_id.
         Constructions are now merged per zone (not per area) using zone-specific merge keys.
         """
         result_by_base_zone: Dict[str, List[Dict[str, Any]]] = {}
@@ -1375,7 +1375,7 @@ class AreaParser(SurfaceDataParser):
             for zone_id, zone_data in self.areas_by_zone.items():
                 try:
                     zones_processed += 1
-                    area_id = zone_data.get("area_id", "unknown")
+                    floor_id = zone_data.get("floor_id", "unknown")
                     base_zone_id = zone_data.get("base_zone_id", zone_id)
                     
                     if zones_processed <= 3:
@@ -1709,7 +1709,7 @@ class AreaParser(SurfaceDataParser):
         Includes shading information for each glazing element.
         
         Returns:
-            Dict[str, List[Dict[str, Any]]]: Dictionary with area_id as keys and lists of glazing data as values
+            Dict[str, List[Dict[str, Any]]]: Dictionary with floor_id as keys and lists of glazing data as values
         """
         result_by_area: Dict[str, List[Dict[str, Any]]] = {}
         try:
@@ -1734,10 +1734,10 @@ class AreaParser(SurfaceDataParser):
                     if zone_id not in hvac_zones:
                         continue
                         
-                    area_id = zone_data.get("area_id", "unknown")
+                    floor_id = zone_data.get("floor_id", "unknown")
 
-                    if area_id not in result_by_area:
-                        result_by_area[area_id] = []
+                    if floor_id not in result_by_area:
+                        result_by_area[floor_id] = []
 
                     constructions_in_zone = zone_data.get("constructions", {})
                     if not constructions_in_zone:
@@ -1780,7 +1780,7 @@ class AreaParser(SurfaceDataParser):
                                     
                                     # Check if we already have an entry with the same merge criteria
                                     existing_entry = None
-                                    for glazing_entry in result_by_area[area_id]:
+                                    for glazing_entry in result_by_area[floor_id]:
                                         entry_key = (
                                             glazing_entry["construction"],
                                             glazing_entry["element_type"],
@@ -1804,7 +1804,7 @@ class AreaParser(SurfaceDataParser):
                                             "u_value": element_u_value,
                                             "shading": shading_info
                                         }
-                                        result_by_area[area_id].append(glazing_row)
+                                        result_by_area[floor_id].append(glazing_row)
 
                                 except (TypeError, ValueError, AttributeError, KeyError) as e_elem:
                                     pass

@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 class AreaLossReportGenerator(BaseReportGenerator):
     """Area Loss Report Generator using the refactored architecture."""
     
-    def __init__(self, project_name="N/A", run_id="N/A", city_name="N/A", area_name="N/A"):
+    def __init__(self, project_name="-", run_id="-", city_name="-", area_name="-"):
         super().__init__(project_name, run_id, city_name, area_name)
         self.formatter = ValueFormatter()
     
@@ -116,12 +116,12 @@ class AreaLossReportGenerator(BaseReportGenerator):
         ]]
         
         # Sort data
-        sorted_rows = sorted(area_loss_data, key=lambda x: x.get('area_id', ''))
+        sorted_rows = sorted(area_loss_data, key=lambda x: x.get('floor_id', ''))
         
         # Data rows
         for row in sorted_rows:
-            area_id = self.formatter.safe_string(row.get('area_id', 'Unknown'))
-            location = self.formatter.safe_string(row.get('location', 'Unknown'))
+            floor_id = self.formatter.safe_string(row.get('floor_id'))
+            location = self.formatter.safe_string(row.get('location'))
             h_value = self.formatter.format_number(row.get('h_value'), precision=3)
             h_needed = self.formatter.format_number(row.get('h_needed'), precision=3)
             compatible = row.get('compatible', 'No')
@@ -131,7 +131,7 @@ class AreaLossReportGenerator(BaseReportGenerator):
             compatible_cell = Paragraph(f"<font color={color}>{compatible}</font>", compatibility_style)
             
             table_data.append([
-                Paragraph(area_id, cell_style),
+                Paragraph(floor_id, cell_style),
                 Paragraph(location, cell_style),
                 h_value,
                 h_needed,
@@ -144,10 +144,10 @@ class AreaLossReportGenerator(BaseReportGenerator):
 @handle_report_errors("Area Loss")
 def generate_area_loss_report_pdf(area_loss_data: List[Dict[str, Any]],
                                  output_filename: str,
-                                 project_name: str = "N/A", 
-                                 run_id: str = "N/A",
-                                 city_name: str = "N/A",
-                                 area_name: str = "N/A") -> bool:
+                                 project_name: str = "-", 
+                                 run_id: str = "-",
+                                 city_name: str = "-",
+                                 area_name: str = "-") -> bool:
     """
     Generate a PDF report with area loss information, including H-values.
     

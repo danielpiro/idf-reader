@@ -102,7 +102,7 @@ class ValueFormatter:
             return default
     
     @staticmethod
-    def safe_string(value: Any, default: str = '') -> str:
+    def safe_string(value: Any, default: str = '-') -> str:
         """
         Safe string conversion with None handling.
         

@@ -230,8 +230,8 @@ class EnergyRatingParser(CSVOutputParser):
                 zone_data = zones[matched_zone_key]
                 
                 # Apply correct floor and zone extraction rules
-                floor, zone_name_from_header = self._extract_floor_and_zone(matched_zone_key)
-                area_id_from_header = zone_data.get('area_id', matched_zone_key)
+                floor, zone_name_from_header = self._extract_floor_and_zone(matched_zone_key, None)  # model_year unknown during parsing
+                floor_id_from_header = zone_data.get('floor_id', matched_zone_key)
 
                 value_str = values[i] if i < len(values) else "0.0"
                 value = safe_float(value_str, 0.0)
@@ -270,8 +270,8 @@ class EnergyRatingParser(CSVOutputParser):
                     else:
                         # No matching zone found from CSV parsing, try direct DataLoader lookup
                         direct_zone_lookup = None
-                        if area_id_from_header in all_zones_data_from_loader:
-                            direct_zone_lookup = area_id_from_header
+                        if floor_id_from_header in all_zones_data_from_loader:
+                            direct_zone_lookup = floor_id_from_header
                         
                         # For standard patterns, try simple containment check
                         if not direct_zone_lookup:
@@ -284,7 +284,7 @@ class EnergyRatingParser(CSVOutputParser):
                                     (floor == '01' and '01' in zone_name) or
                                     (floor == '02' and '02' in zone_name)
                                 )
-                                area_matches = area_id_from_header in zone_name
+                                area_matches = floor_id_from_header in zone_name
                                 
                                 if floor_matches and area_matches:
                                     direct_zone_lookup = zone_name
@@ -306,7 +306,7 @@ class EnergyRatingParser(CSVOutputParser):
                             # Try fuzzy matching by looking for zones that contain parts of the key
                             fuzzy_match = None
                             for zone_name in all_zones_data_from_loader.keys():
-                                if area_id_from_header in zone_name or zone_name in area_id_from_header:
+                                if floor_id_from_header in zone_name or zone_name in floor_id_from_header:
                                     fuzzy_match = zone_name
                                     break
                             
@@ -327,12 +327,12 @@ class EnergyRatingParser(CSVOutputParser):
                                 zone_keys_missing.add(full_zone_id_key)
                                 self.logger.warning(f"EnergyRatingParser: No matching zone found for '{full_zone_id_key}'. Using defaults for multiplier/floor_area.")
 
-                    total_area_for_legacy_grouping = self._get_area_total_for_area_id(area_id_from_header)
-                    location_for_grouping = self._determine_location(area_id_from_header)
+                    total_area_for_legacy_grouping = self._get_area_total_for_floor_id(floor_id_from_header)
+                    location_for_grouping = self._determine_location(floor_id_from_header)
 
                     self.energy_data_by_area[full_zone_id_key] = {
                         'floor_id_report': floor,
-                        'area_id_report': area_id_from_header,
+                        'floor_id_report': floor_id_from_header,
                         'zone_name_report': zone_name_from_header,
                         'multiplier': zone_multiplier,
                         'individual_zone_floor_area': individual_zone_floor_area,
@@ -478,71 +478,92 @@ class EnergyRatingParser(CSVOutputParser):
             except Exception as e_unexp:
                  self.logger.critical(f"Unexpected error calculating totals for {e_unexp}.", exc_info=True)
 
-    def _get_area_total_for_area_id(self, area_id: str) -> float:
+    def _get_area_total_for_floor_id(self, floor_id: str) -> float:
         """
         Get the total floor area for a specific area ID from AreaParser.
-        Returns 0.0 if area_id is not found or an error occurs.
+        Returns 0.0 if floor_id is not found or an error occurs.
         """
-        if not area_id:
-            self.logger.warning("_get_area_total_for_area_id called with empty area_id. Returning 0.0.")
+        if not floor_id:
+            self.logger.warning("_get_area_total_for_floor_id called with empty floor_id. Returning 0.0.")
             return 0.0
         try:
             if not self.area_parser or not self.area_parser.processed:
-                self.logger.warning(f"AreaParser not available or not processed when getting total for area_id '{area_id}'. Returning 0.0.")
+                self.logger.warning(f"AreaParser not available or not processed when getting total for floor_id '{floor_id}'. Returning 0.0.")
                 return 0.0
 
-            area_totals = self.area_parser.get_area_totals(area_id)
+            area_totals = self.area_parser.get_area_totals(floor_id)
             result = safe_float(area_totals.get("total_floor_area", 0.0), 0.0)
             return result
         except AttributeError:
-            self.logger.error(f"AttributeError accessing AreaParser for area_id '{area_id}'. Returning 0.0.", exc_info=True)
+            self.logger.error(f"AttributeError accessing AreaParser for floor_id '{floor_id}'. Returning 0.0.", exc_info=True)
             return 0.0
         except Exception as e:
-            self.logger.error(f"Error getting total area for area_id '{area_id}': {e}. Returning 0.0.", exc_info=True)
+            self.logger.error(f"Error getting total area for floor_id '{floor_id}': {e}. Returning 0.0.", exc_info=True)
             return 0.0
 
-    def _extract_floor_and_zone(self, zone_id: str) -> tuple[str, str]:
+    def _extract_floor_and_zone(self, zone_id: str, model_year=None) -> tuple[str, str]:
         """
-        Extract floor and zone based on zone ID format.
-        Rules (for energy report columns only):
-        - A:BXC → floor = A, zone = BXC
-        - A:B → floor = A, zone = B  
-        - A → floor = A, zone = A
+        Simplified grouping logic:
+        - For office ISO: no grouping, return zone_id as both floor and zone
+        - For 2017/2023: only look for zones with ':' symbol
+        - If after ':' there's 'X' or '_', floor_id is everything before 'X'/'_', zone is everything after
+        - Otherwise: floor_id = zone_id, zone = zone_id (no grouping)
         """
         if not zone_id:
-            return 'Unknown', 'Unknown'
+            return '-', '-'
         
         try:
-            # Check for patterns with colon
-            if ':' in zone_id:
-                # Split on colon: A:BXC becomes ['A', 'BXC']
-                colon_parts = zone_id.split(':', 1)  # Split on first colon only
-                if len(colon_parts) >= 2:
-                    floor = colon_parts[0]  # A (floor)
-                    zone = colon_parts[1]   # BXC (zone - everything after colon)
-                    self.logger.debug(f"Parsed colon format '{zone_id}': floor='{floor}', zone='{zone}'")
-                    return floor, zone
-                # Fallback if parsing fails
+            # Check if this is office ISO - if so, no grouping needed
+            is_office_iso = model_year and isinstance(model_year, str) and 'office' in model_year.lower()
+            if is_office_iso:
                 return zone_id, zone_id
             
-            # Check for A pattern (no : and no X)
+            # For 2017/2023: only process zones with ':' symbol
+            if ':' in zone_id:
+                # Split on colon: get part after ':'
+                colon_parts = zone_id.split(':', 1)
+                if len(colon_parts) >= 2:
+                    before_colon = colon_parts[0]  # A
+                    after_colon = colon_parts[1]   # BXC or B_C or B
+                    
+                    # Check if after ':' contains 'X' or '_'
+                    if 'X' in after_colon:
+                        # Find position of 'X' and split there
+                        x_pos = after_colon.find('X')
+                        floor_id = before_colon + ':' + after_colon[:x_pos]  # A:B
+                        zone = after_colon[x_pos + 1:]  # C
+                        self.logger.debug(f"Parsed X format '{zone_id}': floor_id='{floor_id}', zone='{zone}'")
+                        return floor_id, zone
+                    elif '_' in after_colon:
+                        # Find position of '_' and split there
+                        underscore_pos = after_colon.find('_')
+                        floor_id = before_colon + ':' + after_colon[:underscore_pos]  # A:B
+                        zone = after_colon[underscore_pos + 1:]  # C
+                        self.logger.debug(f"Parsed _ format '{zone_id}': floor_id='{floor_id}', zone='{zone}'")
+                        return floor_id, zone
+                    else:
+                        # A:B format - no grouping needed
+                        return zone_id, zone_id
+                else:
+                    # Malformed colon format
+                    return zone_id, zone_id
             else:
-                # Both floor and zone are the same
+                # No colon - no grouping
                 return zone_id, zone_id
                 
         except Exception as e:
             self.logger.error(f"Error extracting floor and zone from '{zone_id}': {e}")
-            return 'Unknown', 'Unknown'
+            return '-', '-'
 
-    def _determine_location(self, area_id: str) -> str:
+    def _determine_location(self, floor_id: str) -> str:
         """
         Determine the location type for an area ID using AreaParser's H-value data.
         Falls back to intelligent floor detection based on the building structure.
         For the CSV model lookup, we need to map to valid location types.
         """
         
-        if not area_id:
-            self.logger.warning("_determine_location called with empty area_id. Returning default location.")
+        if not floor_id:
+            self.logger.warning("_determine_location called with empty floor_id. Returning default location.")
             return "Intermediate Floor & Intermediate ceiling"
         
         try:
@@ -551,33 +572,33 @@ class EnergyRatingParser(CSVOutputParser):
                 area_h_values = self.area_parser.get_area_h_values()
                 if area_h_values:
                     
-                    # Debug: log all area_ids in H-values
-                    h_value_area_ids = [area_data.get('area_id', 'None') for area_data in area_h_values]
+                    # Debug: log all floor_ids in H-values
+                    h_value_floor_ids = [area_data.get('floor_id', 'None') for area_data in area_h_values]
                     
                     # Try direct match first
                     for area_data in area_h_values:
-                        h_area_id = area_data.get('area_id', '')
-                        if h_area_id == area_id:
+                        h_floor_id = area_data.get('floor_id', '')
+                        if h_floor_id == floor_id:
                             location = area_data.get('location', '')
-                            if location and location != 'Unknown':
+                            if location and location != '-':
                                 return location
                     
-                    # Try flexible matching - handle different area_id formats
-                    # area_id from header might be '01', but H-value might have '00:01'  
+                    # Try flexible matching - handle different floor_id formats
+                    # floor_id from header might be '01', but H-value might have '00:01'  
                     for area_data in area_h_values:
-                        h_area_id = area_data.get('area_id', '')
+                        h_floor_id = area_data.get('floor_id', '')
                         
-                        # Check if header area_id matches the end of H-value area_id 
+                        # Check if header floor_id matches the end of H-value floor_id 
                         # Handle formats like '01' matching '00X01:01' or '00:01'
-                        if ':' in h_area_id and h_area_id.endswith(f':{area_id}'):
+                        if ':' in h_floor_id and h_floor_id.endswith(f':{floor_id}'):
                             location = area_data.get('location', '')
-                            if location and location != 'Unknown':
+                            if location and location != '-':
                                 return location
                                 
-                        # Also check if header area_id contains H-value area_id (e.g., '00:01XLIVING' contains '00:01')
-                        if h_area_id in area_id:
+                        # Also check if header floor_id contains H-value floor_id (e.g., '00:01XLIVING' contains '00:01')
+                        if h_floor_id in floor_id:
                             location = area_data.get('location', '')
-                            if location and location != 'Unknown':
+                            if location and location != '-':
                                 return location
                 else:
                     pass
@@ -589,10 +610,10 @@ class EnergyRatingParser(CSVOutputParser):
             # Try to get floor information from the data loader zone data
             if self.data_loader:
                 zones = self.data_loader.get_zones()
-                # Look for zones that contain this area_id
+                # Look for zones that contain this floor_id
                 for zone_name, zone_data in zones.items():
-                    zone_area_id = zone_data.get('area_id', '')
-                    if zone_area_id == area_id:
+                    zone_floor_id = zone_data.get('floor_id', '')
+                    if zone_floor_id == floor_id:
                         # Try to extract floor from zone name or data
                         if ':' in zone_name:
                             floor_part = zone_name.split(':')[0]
@@ -612,11 +633,11 @@ class EnergyRatingParser(CSVOutputParser):
                     result = "External Floor & External ceiling"
                     return result
             
-            # Fallback: try to infer from area_id pattern
-            if area_id and len(area_id) >= 2:
+            # Fallback: try to infer from floor_id pattern
+            if floor_id and len(floor_id) >= 2:
                 # For patterns like "01", "02", etc.
-                if area_id.isdigit():
-                    area_num = int(area_id)
+                if floor_id.isdigit():
+                    area_num = int(floor_id)
                     if area_num <= 5:
                         result = "Ground Floor & Intermediate ceiling"
                         return result
@@ -628,7 +649,7 @@ class EnergyRatingParser(CSVOutputParser):
                         return result
                 
                 # For patterns like "E342", "A338", etc.
-                first_char = area_id[0].upper()
+                first_char = floor_id[0].upper()
                 if first_char in ['A', 'B', '0', '1']:
                     result = "Ground Floor & Intermediate ceiling"
                     return result
@@ -644,7 +665,7 @@ class EnergyRatingParser(CSVOutputParser):
             return result
             
         except Exception as e:
-            self.logger.error(f"Error determining location for area_id '{area_id}': {e}. Using default.", exc_info=True)
+            self.logger.error(f"Error determining location for floor_id '{floor_id}': {e}. Using default.", exc_info=True)
             return "Intermediate Floor & Intermediate ceiling"
 
     def get_raw_energy_data_by_full_zone_id(self) -> Dict[str, Dict[str, Any]]:
@@ -709,7 +730,7 @@ class EnergyRatingParser(CSVOutputParser):
                             multiplier = safe_float(area_zone_data.get('multiplier', 1.0), 1.0)
                             
                             # Extract floor and zone using correct parsing
-                            floor_id, zone_name = self._extract_floor_and_zone(zone_id)
+                            floor_id, zone_name = self._extract_floor_and_zone(zone_id, model_year)
                             
                             # Create a basic entry with zero energy values - will be updated if CSV data exists
                             self.energy_data_by_area[zone_id] = {
@@ -719,7 +740,7 @@ class EnergyRatingParser(CSVOutputParser):
                                 'abs_heating': 0.0, 
                                 'abs_cooling': 0.0,
                                 'floor_id_report': floor_id,
-                                'area_id_report': zone_name,  # Use the extracted zone (B from A:BXC)
+                                'zone_name_report': zone_name,  # Use the extracted zone (B from A:BXC)
                             }
                             self.logger.info(f"OFFICE MODE DEBUG - Added zone '{zone_id}' from area_parser: floor_area={floor_area}, multiplier={multiplier}")
                         else:
@@ -732,17 +753,21 @@ class EnergyRatingParser(CSVOutputParser):
                 else:
                     self.logger.warning("OFFICE MODE DEBUG - area_parser not available, using CSV-parsed zones for office mode")
             else:
-                # Non-office: group by floor/area as before
-                floor_area_id_sums: Dict[tuple[str, str], float] = {}
-                for data_for_zone_pre_calc in self.energy_data_by_area.values():
-                    floor_id = data_for_zone_pre_calc.get('floor_id_report', 'N/A')
-                    area_id = data_for_zone_pre_calc.get('area_id_report', 'N/A')
+                # Non-office: group by floor/area - recalculate grouping with correct model_year
+                floor_floor_id_sums: Dict[tuple[str, str], float] = {}
+                for zone_id, data_for_zone_pre_calc in self.energy_data_by_area.items():
+                    # Recalculate floor_id with correct model_year
+                    floor_id, _ = self._extract_floor_and_zone(zone_id, model_year)
+                    data_for_zone_pre_calc['floor_id_report'] = floor_id  # Update with correct grouping
+                    
                     individual_area = safe_float(data_for_zone_pre_calc.get('individual_zone_floor_area', 0.0), 0.0)
+                    multiplier = safe_float(data_for_zone_pre_calc.get('multiplier', 1.0), 1.0)
+                    area_with_multiplier = individual_area * multiplier
 
-                    key = (floor_id, area_id)
-                    if key not in floor_area_id_sums:
-                        floor_area_id_sums[key] = 0.0
-                    floor_area_id_sums[key] += individual_area
+                    key = (floor_id, floor_id)
+                    if key not in floor_floor_id_sums:
+                        floor_floor_id_sums[key] = 0.0
+                    floor_floor_id_sums[key] += area_with_multiplier
 
             for full_zone_id_key, data_for_zone in self.energy_data_by_area.items():
                 try:
@@ -756,8 +781,8 @@ class EnergyRatingParser(CSVOutputParser):
                     abs_cooling = safe_float(data_for_zone.get('cooling', 0.0), 0.0)
                     abs_total = safe_float(data_for_zone.get('total', 0.0), 0.0)
 
-                    report_floor_id = data_for_zone.get('floor_id_report', 'N/A')
-                    report_area_id = data_for_zone.get('area_id_report', 'N/A')
+                    # Get the updated floor_id_report (should be correct now)
+                    report_floor_id = data_for_zone.get('floor_id_report', '-')
                     
                     if is_office_iso:
                         # Office ISO: use individual zone area for calculations
@@ -774,8 +799,8 @@ class EnergyRatingParser(CSVOutputParser):
                             val_total = abs_lighting + abs_heating + abs_cooling
                     else:
                         # Non-office: use grouped area calculations as before
-                        group_lookup_key = (report_floor_id, report_area_id)
-                        correct_total_floor_area_for_group = floor_area_id_sums.get(group_lookup_key, 0.0)
+                        group_lookup_key = (report_floor_id, report_floor_id)
+                        correct_total_floor_area_for_group = floor_floor_id_sums.get(group_lookup_key, 0.0)
 
                         if correct_total_floor_area_for_group > 0:
                             val_lighting = abs_lighting / correct_total_floor_area_for_group
@@ -783,19 +808,19 @@ class EnergyRatingParser(CSVOutputParser):
                             val_cooling = abs_cooling / correct_total_floor_area_for_group
                             val_total = (abs_lighting + abs_heating + abs_cooling) / correct_total_floor_area_for_group
                         else:
-                            self.logger.warning(f"Correct total floor area for group ('{report_floor_id}', '{report_area_id}') is {correct_total_floor_area_for_group} for zone '{full_zone_id_key}'. Energy values in report will be absolute (not per m^2).")
+                            self.logger.warning(f"Correct total floor area for group ('{report_floor_id}', '{report_floor_id}') is {correct_total_floor_area_for_group} for zone '{full_zone_id_key}'. Energy values in report will be absolute (not per m^2).")
                             val_lighting = abs_lighting
                             val_heating = abs_heating
                             val_cooling = abs_cooling
                             val_total = abs_lighting + abs_heating + abs_cooling
 
                     # Get CSV model values for energy_consumption_model, better_percent, and energy_rating
-                    energy_consumption_model_value = 'N/A'
-                    better_percent_value = 'N/A'
-                    energy_rating_value = 'N/A'
+                    energy_consumption_model_value = '-'
+                    better_percent_value = '-'
+                    energy_rating_value = '-'
                     
-                    area_location_for_csv = data_for_zone.get('location', 'Unknown')
-                    if area_location_for_csv and area_location_for_csv != 'Unknown' and model_year is not None and model_area_definition is not None:
+                    area_location_for_csv = data_for_zone.get('location', '-')
+                    if area_location_for_csv and area_location_for_csv != '-' and model_year is not None and model_area_definition is not None:
                         try:
                             from utils.data_loader import get_energy_consumption
                             
@@ -843,9 +868,9 @@ class EnergyRatingParser(CSVOutputParser):
                     
                     row = {
                         'floor_id_report': report_floor_id,
-                        'area_id_report': report_area_id,
+                        'floor_id_report': report_floor_id,
                         'zone_id': full_zone_id_key,  # Add zone_id for office ISO grouping
-                        'zone_name_report': data_for_zone.get('zone_name_report', 'N/A'),
+                        'zone_name_report': data_for_zone.get('zone_name_report', '-'),
                         'multiplier': data_for_zone.get('multiplier', 1),
                         'total_area': current_zone_floor_area,
                         'lighting': val_lighting,

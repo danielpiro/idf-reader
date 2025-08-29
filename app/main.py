@@ -4,11 +4,11 @@ Main application entry point for the IDF Reader.
 import sys
 import flet as ft
 from utils.sentry_config import initialize_sentry, capture_exception_with_context, add_breadcrumb
-from utils.logger import get_module_logger
+from utils.logging_config import get_logger
 from app.cli import run_cli
 from modern_gui import ModernIDFProcessorGUI
 
-logger = get_module_logger(__name__)
+logger = get_logger(__name__)
 
 
 class GuiApplication:

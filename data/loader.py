@@ -9,13 +9,13 @@ from utils.path_utils import (
     get_data_file_path, contains_non_ascii,
     create_safe_path_for_energyplus
 )
-from utils.logger import get_module_logger
+from utils.logging_config import get_logger
 import os
 import sys
 import re
 import pandas as pd
 
-logger = get_module_logger(__name__)
+logger = get_logger(__name__)
 
 
 class DataLoadError(Exception):

@@ -59,7 +59,7 @@ class BaseReportGenerator:
     - Standard styling
     """
     
-    def __init__(self, project_name="N/A", run_id="N/A", city_name="N/A", area_name="N/A"):
+    def __init__(self, project_name="-", run_id="-", city_name="-", area_name="-"):
         """
         Initialize base report generator.
         

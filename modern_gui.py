@@ -2,6 +2,8 @@ import flet as ft
 import json
 import os
 import threading
+import subprocess
+import platform
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -402,6 +404,9 @@ class ModernIDFProcessorGUI:
             reports_dir = os.path.join(job['output_dir'], f"{safe_project_name}-{run_id}")
             simulation_dir = os.path.join(reports_dir, "simulation")
             
+            # Store the actual output folder path in the job for later use
+            job['actual_output_dir'] = reports_dir
+            
             os.makedirs(simulation_dir, exist_ok=True)
             self.show_status(f"מעבד עבודה #{job['id']}: {os.path.basename(job['input_file'])}")
             
@@ -544,34 +549,63 @@ class ModernIDFProcessorGUI:
         if job['end_time']:
             time_text = f"סיים: {job['end_time']}"
         
-        # Create job item
-        job_row = ft.Container(
-            content=ft.Row([
-                # Status indicator
-                ft.Icon(
-                    status_icons[job['status']], 
-                    color=status_colors[job['status']], 
-                    size=20
-                ),
-                # Job info
-                ft.Column([
-                    ft.Text(f"#{job['id']}: {file_name}", size=14, weight=ft.FontWeight.W_500, rtl=True),
-                    ft.Text(f"{status_texts[job['status']]} • {time_text}", size=12, color=ft.Colors.GREY_600, rtl=True)
-                ], spacing=2, expand=True),
-                # Remove button (only for pending jobs)
+        # Create action buttons
+        action_buttons = []
+        
+        # Remove button (only for pending jobs)
+        if job['status'] == 'pending':
+            action_buttons.append(
                 ft.IconButton(
                     icon=ft.Icons.DELETE,
                     icon_color=ft.Colors.RED_400,
                     icon_size=16,
                     tooltip="הסר מהתור",
-                    on_click=lambda e, job_id=job['id']: self._remove_job_click(job_id),
-                    visible=job['status'] == 'pending'
+                    on_click=lambda e, job_id=job['id']: self._remove_job_click(job_id)
                 )
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            )
+        
+        # Folder button (only for completed jobs)
+        if job['status'] == 'completed' and job.get('actual_output_dir'):
+            action_buttons.append(
+                ft.IconButton(
+                    icon=ft.Icons.FOLDER_OPEN,
+                    icon_color=ft.Colors.BLUE_600,
+                    icon_size=16,
+                    tooltip="פתח תיקיית תוצאות",
+                    on_click=lambda e, path=job['actual_output_dir']: self._open_folder(path)
+                )
+            )
+        
+        # Create job item content
+        job_content = ft.Row([
+            # Status indicator
+            ft.Icon(
+                status_icons[job['status']], 
+                color=status_colors[job['status']], 
+                size=20
+            ),
+            # Job info
+            ft.Column([
+                ft.Text(f"#{job['id']}: {file_name}", size=14, weight=ft.FontWeight.W_500, rtl=True),
+                ft.Text(f"{status_texts[job['status']]} • {time_text}", size=12, color=ft.Colors.GREY_600, rtl=True)
+            ], spacing=2, expand=True),
+            # Action buttons
+            *action_buttons
+        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+        
+        # Create job item container
+        job_row = ft.Container(
+            content=job_content,
             padding=ft.padding.symmetric(horizontal=10, vertical=8),
             border=ft.border.all(1, ft.Colors.GREY_300),
             border_radius=8,
-            bgcolor=ft.Colors.GREY_50 if job['status'] == 'running' else None
+            bgcolor=ft.Colors.GREY_50 if job['status'] == 'running' else None,
+            # Make completed jobs clickable by adding hover effect and cursor
+            ink=job['status'] == 'completed',
+            on_click=lambda e, path=job.get('actual_output_dir'): self._open_folder(path) if job['status'] == 'completed' and path else None,
+            # Add visual feedback for completed jobs
+            animate=ft.Animation(300, ft.AnimationCurve.EASE_IN_OUT) if job['status'] == 'completed' else None,
+            tooltip="לחץ לפתיחת תיקיית התוצאות" if job['status'] == 'completed' and job.get('actual_output_dir') else None
         )
         
         return job_row
@@ -579,6 +613,32 @@ class ModernIDFProcessorGUI:
     def _remove_job_click(self, job_id):
         """Handle remove job button click."""
         self.remove_job_from_queue(job_id)
+    
+    def _open_folder(self, folder_path):
+        """Open folder in system file explorer."""
+        try:
+            if not os.path.exists(folder_path):
+                self.show_status(f"התיקייה לא נמצאה: {folder_path}", "error")
+                return False
+                
+            system = platform.system()
+            if system == "Windows":
+                os.startfile(folder_path)
+            elif system == "Darwin":  # macOS
+                subprocess.run(["open", folder_path])
+            elif system == "Linux":
+                subprocess.run(["xdg-open", folder_path])
+            else:
+                self.show_status("מערכת הפעלה לא נתמכת לפתיחת תיקיות", "warning")
+                return False
+                
+            self.show_status(f"נפתחה תיקיית תוצאות: {os.path.basename(folder_path)}", "success")
+            return True
+            
+        except Exception as e:
+            self.show_status(f"שגיאה בפתיחת תיקיית תוצאות: {str(e)}", "error")
+            logger.error(f"Error opening folder {folder_path}: {e}", exc_info=True)
+            return False
 
     def load_settings(self):
         """Load saved settings from JSON file."""

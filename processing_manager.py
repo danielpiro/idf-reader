@@ -1,5 +1,5 @@
 import os
-from utils.logger import get_module_logger
+from utils.logging_config import get_logger
 from utils.sentry_config import capture_exception_with_context, add_breadcrumb, start_transaction
 from pathlib import Path
 from datetime import datetime
@@ -25,8 +25,13 @@ from parsers.materials_parser import MaterialsParser
 from parsers.area_parser import AreaParser
 from parsers.glazing_parser import GlazingParser
 from parsers.lighting_parser import LightingParser
+from utils.report_data_validator import (
+    validate_settings_data, validate_schedule_data, validate_loads_data,
+    validate_materials_data, validate_glazing_data, validate_lighting_data,
+    validate_natural_ventilation_data, validate_automatic_error_detection_data
+)
 
-logger = get_module_logger(__name__)
+logger = get_logger(__name__)
 
 
 class ProcessingManager:
@@ -367,22 +372,34 @@ class ProcessingManager:
             area_name_for_reports = city_area_name_selection if city_area_name_selection else 'N/A'
 
         # Settings
-        self._generate_report_item("Settings", generate_settings_report_pdf, extracted_data["settings"], report_paths["settings"], project_name, run_id, city_name_hebrew, area_name_for_reports)
+        if validate_settings_data(extracted_data["settings"]):
+            self._generate_report_item("Settings", generate_settings_report_pdf, extracted_data["settings"], report_paths["settings"], project_name, run_id, city_name_hebrew, area_name_for_reports)
+        else:
+            self.update_status("דוח הגדרות דולג - אין נתוני הגדרות מספיקים")
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
         # Schedules
-        self._generate_report_item("Schedules", generate_schedules_report_pdf, extracted_data["schedules"], report_paths["schedules"], project_name, run_id, city_name_hebrew, area_name_for_reports)
+        if validate_schedule_data(extracted_data["schedules"]):
+            self._generate_report_item("Schedules", generate_schedules_report_pdf, extracted_data["schedules"], report_paths["schedules"], project_name, run_id, city_name_hebrew, area_name_for_reports)
+        else:
+            self.update_status("דוח לוחות זמנים דולג - אין נתוני לוחות זמנים מספיקים")
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
         # Loads
-        self._generate_report_item("Loads", generate_loads_report_pdf, extracted_data["loads"], report_paths["loads"], project_name, run_id, city_name_hebrew, area_name_for_reports)
+        if validate_loads_data(extracted_data["loads"]):
+            self._generate_report_item("Loads", generate_loads_report_pdf, extracted_data["loads"], report_paths["loads"], project_name, run_id, city_name_hebrew, area_name_for_reports)
+        else:
+            self.update_status("דוח עומסים דולג - אין נתוני עומסים מספיקים")
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
         # Materials
-        self._generate_report_item("Materials", generate_materials_report_pdf, extracted_data["materials"], report_paths["materials"], project_name, run_id, city_name_hebrew, area_name_for_reports)
+        if validate_materials_data(extracted_data["materials"]):
+            self._generate_report_item("Materials", generate_materials_report_pdf, extracted_data["materials"], report_paths["materials"], project_name, run_id, city_name_hebrew, area_name_for_reports)
+        else:
+            self.update_status("דוח חומרים דולג - אין נתוני חומרים מספיקים")
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
@@ -439,12 +456,18 @@ class ProcessingManager:
         if self.is_cancelled: return
 
         # Glazing
-        self._generate_report_item("Glazing", generate_glazing_report_pdf, extracted_data["glazing"], report_paths["glazing"], project_name, run_id, city_name_hebrew, area_name_for_reports)
+        if validate_glazing_data(extracted_data["glazing"]):
+            self._generate_report_item("Glazing", generate_glazing_report_pdf, extracted_data["glazing"], report_paths["glazing"], project_name, run_id, city_name_hebrew, area_name_for_reports)
+        else:
+            self.update_status("דוח זיגוג דולג - אין נתוני זיגוג מספיקים")
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
         # Lighting
-        self._generate_report_item("Lighting", LightingReportGenerator, extracted_data["lighting"], report_paths["lighting"], project_name, run_id, city_name_hebrew, area_name_for_reports, is_generator_class=True)
+        if validate_lighting_data(extracted_data["lighting"]):
+            self._generate_report_item("Lighting", LightingReportGenerator, extracted_data["lighting"], report_paths["lighting"], project_name, run_id, city_name_hebrew, area_name_for_reports, is_generator_class=True)
+        else:
+            self.update_status("דוח תאורה דולג - אין נתוני תאורה מספיקים")
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
         
@@ -455,12 +478,18 @@ class ProcessingManager:
 
         # Natural Ventilation
         ventilation_data = data_loader.get_natural_ventilation_data()
-        self._generate_report_item("Natural Ventilation", generate_natural_ventilation_report, ventilation_data, report_paths["natural_ventilation"], project_name, run_id, city_name_hebrew, area_name_for_reports)
+        if validate_natural_ventilation_data(ventilation_data):
+            self._generate_report_item("Natural Ventilation", generate_natural_ventilation_report, ventilation_data, report_paths["natural_ventilation"], project_name, run_id, city_name_hebrew, area_name_for_reports)
+        else:
+            self.update_status("דוח אוורור טבעי דולג - אין נתוני אוורור טבעי מספיקים")
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 
         # Automatic Validation
-        self._generate_report_item("Automatic Validation", generate_automatic_error_detection_report, extracted_data["automatic_error_detection"], report_paths["automatic_error_detection"], project_name, run_id, city_name_hebrew, area_name_for_reports)
+        if validate_automatic_error_detection_data(extracted_data["automatic_error_detection"]):
+            self._generate_report_item("Automatic Validation", generate_automatic_error_detection_report, extracted_data["automatic_error_detection"], report_paths["automatic_error_detection"], project_name, run_id, city_name_hebrew, area_name_for_reports)
+        else:
+            self.update_status("דוח בדיקה אוטומטית דולג - אין נתוני בדיקה מספיקים")
         progress_step += progress_increment; self.update_progress(progress_step)
         if self.is_cancelled: return
 

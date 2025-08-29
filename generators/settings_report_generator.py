@@ -229,8 +229,8 @@ def _get_standard_table_style():
     return style
 
 def generate_settings_report_pdf(settings_data, output_filename="output/settings.pdf",
-                                 project_name: str = "N/A", run_id: str = "N/A",
-                                 city_name: str = "N/A", area_name: str = "N/A"):
+                                 project_name: str = "-", run_id: str = "-",
+                                 city_name: str = "-", area_name: str = "-"):
     """
     Generates a PDF report showing all extracted settings, including a header.
 

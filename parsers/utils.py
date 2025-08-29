@@ -45,51 +45,76 @@ def safe_int(value: Union[str, int, float, None], default: int = 0) -> int:
     except (ValueError, TypeError):
         return default
 
-def extract_zone_id_parts(zone_id: str) -> Dict[str, str]:
+def extract_zone_id_parts(zone_id: str, iso_type: str = None) -> Dict[str, str]:
     """
-    Extract standard parts from zone ID using consistent grouping logic.
+    Extract standard parts from zone ID using simplified grouping logic.
+    
+    Simplified rules:
+    - For office ISO: no grouping, all fields return zone_id or parts
+    - For 2017/2023: only zones with ':' and 'X' or '_' get grouped
+    - All other zones remain individual
     
     Args:
         zone_id: Zone identifier string
+        iso_type: ISO type to determine grouping behavior
         
     Returns:
-        Dict with extracted parts: floor, area_id, zone_name, base_zone_id, original
+        Dict with extracted parts: floor, floor_id, zone_name, base_zone_id, original
     """
     if not zone_id or not isinstance(zone_id, str):
-        return {"floor": "unknown", "area_id": "unknown", "zone_name": "unknown", "base_zone_id": "unknown", "original": zone_id}
+        return {"floor": "-", "floor_id": "-", "zone_name": "-", "base_zone_id": "-", "original": zone_id}
     
+    # Check if this is office ISO - if so, no grouping needed
+    is_office_iso = iso_type and isinstance(iso_type, str) and 'office' in iso_type.lower()
+    if is_office_iso:
+        # For office ISO: no grouping, return zone parts without grouping logic
+        if ":" in zone_id:
+            parts = zone_id.split(":", 1)
+            floor = parts[0] if len(parts) >= 2 else zone_id
+            zone_part = parts[1] if len(parts) >= 2 else ""
+            return {
+                "floor": floor,
+                "floor_id": zone_id,  # Use full zone_id for office
+                "zone_name": zone_part,
+                "base_zone_id": zone_id,
+                "original": zone_id
+            }
+        else:
+            return {
+                "floor": zone_id,
+                "floor_id": zone_id,
+                "zone_name": "",
+                "base_zone_id": zone_id,
+                "original": zone_id
+            }
+    
+    # For 2017/2023: apply simplified grouping logic
     if ":" in zone_id:
         parts = zone_id.split(":", 1)
         if len(parts) >= 2:
             floor = parts[0]
             zone_part = parts[1]
             
-            # Check if this is A:BXC or A:B_C pattern (groupable)
-            has_x = 'X' in zone_part
-            has_underscore = '_' in zone_part
-            
-            if has_x or has_underscore:
-                # Extract B part and C part
-                if has_x:
-                    separator_index = zone_part.find('X')
-                    area_id = zone_part[:separator_index]  # B part
-                    zone_name = zone_part[separator_index+1:]  # C part
-                else:  # has_underscore
-                    separator_index = zone_part.find('_')
-                    area_id = zone_part[:separator_index]  # B part
-                    zone_name = zone_part[separator_index+1:]  # C part
-                
-                # For groupable zones, base_zone_id is A:B (the grouping key)
-                base_zone_id = f"{floor}:{area_id}" if area_id else zone_id
+            # Check if after ':' contains 'X' or '_'
+            if 'X' in zone_part:
+                separator_index = zone_part.find('X')
+                floor_id = zone_part[:separator_index]  # B part
+                zone_name = zone_part[separator_index+1:]  # C part
+                base_zone_id = f"{floor}:{floor_id}" if floor_id else zone_id
+            elif '_' in zone_part:
+                separator_index = zone_part.find('_')
+                floor_id = zone_part[:separator_index]  # B part
+                zone_name = zone_part[separator_index+1:]  # C part
+                base_zone_id = f"{floor}:{floor_id}" if floor_id else zone_id
             else:
-                # A:B pattern - individual zone
-                area_id = zone_part
+                # A:B pattern - no grouping
+                floor_id = zone_part
                 zone_name = ""
-                base_zone_id = zone_id  # Individual zones use full zone_id as base
+                base_zone_id = zone_id
             
             return {
                 "floor": floor,
-                "area_id": area_id,
+                "floor_id": floor_id,
                 "zone_name": zone_name,
                 "base_zone_id": base_zone_id,
                 "original": zone_id
@@ -98,7 +123,7 @@ def extract_zone_id_parts(zone_id: str) -> Dict[str, str]:
     # A pattern - individual zone
     return {
         "floor": zone_id[:2] if len(zone_id) >= 2 else zone_id,
-        "area_id": zone_id,
+        "floor_id": zone_id,
         "zone_name": "",
         "base_zone_id": zone_id,
         "original": zone_id
@@ -239,7 +264,7 @@ def normalize_surface_type(surface_type: str) -> str:
         Normalized surface type
     """
     if not surface_type:
-        return "Unknown"
+        return "-"
     
     surface_type_lower = surface_type.lower().strip()
     

@@ -104,39 +104,46 @@ def create_natural_ventilation_table_style():
 
     return TableStyle(style)
 
-def _extract_area_id(zone_id: str) -> str:
-    """Extract area_id from a zone_id string using consistent grouping logic."""
+def _extract_area_id(zone_id: str, iso_type: str = None) -> str:
+    """Extract floor_id from a zone_id string using simplified grouping logic.
+    
+    Simplified grouping rules:
+    - For office ISO: no grouping, return zone_id as-is
+    - For 2017/2023: only zones with ':' and 'X' or '_' get grouped by A:B part
+    - All other zones remain individual
+    """
     if not zone_id:
         return ""
     
-    # Use consistent grouping logic
+    # Check if this is office ISO - if so, no grouping needed
+    is_office_iso = iso_type and isinstance(iso_type, str) and 'office' in iso_type.lower()
+    if is_office_iso:
+        return zone_id
+    
+    # For 2017/2023: only process zones with ':' symbol
+    if ':' not in zone_id:
+        return zone_id
+    
     parts = zone_id.split(":", 1)
-    if len(parts) == 1:
-        # A pattern - individual zone
+    if len(parts) < 2 or not parts[1]:
         return zone_id
     
     a_part = parts[0]
     b_full = parts[1]
     
-    if not b_full:
-        return ""
-    
-    # Check if this is A:BXC or A:B_C pattern (groupable)
-    has_x = 'X' in b_full
-    has_underscore = '_' in b_full
-    
-    if has_x or has_underscore:
-        # Extract B part for grouping
-        if has_x:
-            separator_index = b_full.find('X')
-        else:
-            separator_index = b_full.find('_')
-        
+    # Check if after ':' contains 'X' or '_'
+    if 'X' in b_full:
+        separator_index = b_full.find('X')
+        b_part = b_full[:separator_index]
+        if b_part:
+            return f"{a_part}:{b_part}"  # Return group key A:B
+    elif '_' in b_full:
+        separator_index = b_full.find('_')
         b_part = b_full[:separator_index]
         if b_part:
             return f"{a_part}:{b_part}"  # Return group key A:B
     
-    # A:B pattern - individual zone
+    # A:B pattern or no separator - individual zone
     return zone_id
 
 def _extract_zone_prefix(zone_id: str) -> str:
@@ -281,14 +288,14 @@ def generate_natural_ventilation_report(ventilation_data: Dict[str, List[Dict[st
                 row_data = [
                     wrap_text(zone_name, cell_style),
                     wrap_text(vent_data.get('schedule_name', ''), cell_style),
-                    wrap_text(_to_str(vent_data.get('design_flow_rate', 0.0), 3), centered_cell_style),
+                    wrap_text(_to_str(vent_data.get('design_flow_rate'), 3), centered_cell_style),
                     wrap_text(vent_data.get('ventilation_type', ''), cell_style),
-                    wrap_text(_to_str(vent_data.get('min_indoor_temp', 0.0), 1), centered_cell_style),
-                    wrap_text(_to_str(vent_data.get('max_indoor_temp', 0.0), 1), centered_cell_style),
-                    wrap_text(_to_str(vent_data.get('max_temp_difference', 0.0), 1), centered_cell_style),
-                    wrap_text(_to_str(vent_data.get('min_outdoor_temp', 0.0), 1), centered_cell_style),
-                    wrap_text(_to_str(vent_data.get('max_outdoor_temp', 0.0), 1), centered_cell_style),
-                    wrap_text(_to_str(vent_data.get('max_wind_speed', 0.0), 1), centered_cell_style)
+                    wrap_text(_to_str(vent_data.get('min_indoor_temp'), 1), centered_cell_style),
+                    wrap_text(_to_str(vent_data.get('max_indoor_temp'), 1), centered_cell_style),
+                    wrap_text(_to_str(vent_data.get('max_temp_difference'), 1), centered_cell_style),
+                    wrap_text(_to_str(vent_data.get('min_outdoor_temp'), 1), centered_cell_style),
+                    wrap_text(_to_str(vent_data.get('max_outdoor_temp'), 1), centered_cell_style),
+                    wrap_text(_to_str(vent_data.get('max_wind_speed'), 1), centered_cell_style)
                 ]
                 table_data.append(row_data)
         

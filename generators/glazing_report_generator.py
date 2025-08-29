@@ -15,7 +15,7 @@ from generators.utils.formatting_utils import ValueFormatter
 
 class GlazingReportGenerator(BaseReportGenerator):
     """Generates a PDF report summarizing glazing constructions using ReportLab."""
-    def __init__(self, parsed_glazing_data, project_name="N/A", run_id="N/A", city_name="N/A", area_name="N/A"):
+    def __init__(self, parsed_glazing_data, project_name="-", run_id="-", city_name="-", area_name="-"):
         super().__init__(project_name, run_id, city_name, area_name)
         self.glazing_data = parsed_glazing_data
         self.formatter = ValueFormatter()
@@ -179,8 +179,8 @@ class GlazingReportGenerator(BaseReportGenerator):
         table.setStyle(style)
         return table
 
-def generate_glazing_report_pdf(parsed_glazing_data, output_filename, project_name="N/A", run_id="N/A",
-                               city_name="N/A", area_name="N/A"):
+def generate_glazing_report_pdf(parsed_glazing_data, output_filename, project_name="-", run_id="-",
+                               city_name="-", area_name="-"):
     generator = GlazingReportGenerator(parsed_glazing_data, project_name=project_name, run_id=run_id, 
                                       city_name=city_name, area_name=area_name)
     return generator.generate_report_pdf(output_filename)

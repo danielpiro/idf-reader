@@ -138,8 +138,8 @@ def create_hourly_schedule_table(rule_blocks: list, available_width: float) -> T
         return None
 
 def generate_schedules_report_pdf(schedule_data: list, output_filename: str = "output/schedules.pdf",
-                                  project_name: str = "N/A", run_id: str = "N/A", 
-                                  city_name: str = "N/A", area_name: str = "N/A") -> bool:
+                                  project_name: str = "-", run_id: str = "-", 
+                                  city_name: str = "-", area_name: str = "-") -> bool:
     """
     Generates a PDF report containing schedule definitions, including a header.
     Returns:

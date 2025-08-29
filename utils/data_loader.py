@@ -335,32 +335,6 @@ class DataLoader:
         # Disable verbose logging to reduce log noise
         return False
 
-    def _convert_individual_vertices_to_array(self, surface_data) -> list:
-        """
-        Convert individual vertex coordinate fields to vertices array format.
-        EPJSON fenestration surfaces store vertices as individual fields like:
-        vertex_1_x_coordinate, vertex_1_y_coordinate, vertex_1_z_coordinate, etc.
-        
-        Args:
-            surface_data: Surface data dictionary with individual vertex fields
-            
-        Returns:
-            list: Array of vertex dictionaries compatible with _calculate_surface_area_from_vertices
-        """
-        vertices = []
-        try:
-            vertex_num = 1
-            while f"vertex_{vertex_num}_x_coordinate" in surface_data:
-                vertex = {
-                    "vertex_x_coordinate": safe_float(surface_data.get(f"vertex_{vertex_num}_x_coordinate", 0.0)),
-                    "vertex_y_coordinate": safe_float(surface_data.get(f"vertex_{vertex_num}_y_coordinate", 0.0)),
-                    "vertex_z_coordinate": safe_float(surface_data.get(f"vertex_{vertex_num}_z_coordinate", 0.0))
-                }
-                vertices.append(vertex)
-                vertex_num += 1
-            return vertices
-        except Exception as e:
-            return []
 
     def _calculate_surface_area_from_vertices(self, vertices) -> float:
         """
@@ -672,10 +646,9 @@ class DataLoader:
 
             construction_name = window_data.get("construction_name", "")
             
-            # Calculate window area from vertices since EPJSON doesn't store area directly
-            # Convert individual vertex coordinates to vertices array for calculation
-            vertices = self._convert_individual_vertices_to_array(window_data)
-            window_area = self._calculate_surface_area_from_vertices(vertices)
+            # For windows, area calculation is not implemented yet
+            # TODO: Implement window area calculation if needed
+            window_area = 0.0
 
             window_cache_data = {
                 'id': window_id,
@@ -1418,9 +1391,6 @@ class DataLoader:
             return {zone_name: self._ideal_loads_cache.get(zone_name, [])} if zone_name in self._ideal_loads_cache else {}
         return self._ideal_loads_cache
 
-    def get_windows(self) -> Dict[str, Dict[str, Any]]:
-        """Get cached window data"""
-        return self._windows_cache
 
     def get_raw_windows_cache(self) -> Dict[str, Dict[str, Any]]:
         """Get the raw windows cache (FenestrationSurface:Detailed objects)."""

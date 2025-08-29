@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 class MaterialsReportGenerator(BaseReportGenerator):
     """Materials Report Generator using the refactored architecture."""
     
-    def __init__(self, element_data: List[Dict[str, Any]], output_path: str, project_name="N/A", run_id="N/A", city_name="N/A", area_name="N/A"):
+    def __init__(self, element_data: List[Dict[str, Any]], output_path: str, project_name="-", run_id="-", city_name="-", area_name="-"):
         super().__init__(project_name, run_id, city_name, area_name)
         self.element_data = element_data
         self.output_path = output_path
@@ -269,13 +269,13 @@ def _build_table_data(grouped_data, cell_style, header_cell_style, total_style):
                 wrap_text(element_type if i == 0 else "", cell_style),
                 wrap_text(element_name if i == 0 else "", cell_style),
                 wrap_text(safe_value(layer.get("material_name")), cell_style),
-                wrap_text(f"{float(layer.get('thickness', 0)):.3f}", cell_style),
-                wrap_text(f"{float(layer.get('conductivity', 0)):.3f}", cell_style),
-                wrap_text(f"{float(layer.get('density', 0)):.1f}", cell_style),
-                wrap_text(f"{float(layer.get('mass', 0)):.1f}", cell_style),
-                wrap_text(f"{float(layer.get('thermal_resistance', 0)):.3f}", cell_style),
-                wrap_text(f"{float(layer.get('solar_absorptance', 0)):.3f}", cell_style),
-                wrap_text(f"{float(layer.get('specific_heat', 0)):.1f}", cell_style),
+                wrap_text(f"{float(layer['thickness']):.3f}" if layer.get('thickness') is not None else "-", cell_style),
+                wrap_text(f"{float(layer['conductivity']):.3f}" if layer.get('conductivity') is not None else "-", cell_style),
+                wrap_text(f"{float(layer['density']):.1f}" if layer.get('density') is not None else "-", cell_style),
+                wrap_text(f"{float(layer['mass']):.1f}" if layer.get('mass') is not None else "-", cell_style),
+                wrap_text(f"{float(layer['thermal_resistance']):.3f}" if layer.get('thermal_resistance') is not None else "-", cell_style),
+                wrap_text(f"{float(layer['solar_absorptance']):.3f}" if layer.get('solar_absorptance') is not None else "-", cell_style),
+                wrap_text(f"{float(layer['specific_heat']):.1f}" if layer.get('specific_heat') is not None else "-", cell_style),
                 wrap_text("", cell_style),
                 wrap_text("", cell_style)
             ]
@@ -304,10 +304,10 @@ def _build_table_data(grouped_data, cell_style, header_cell_style, total_style):
 @handle_report_errors("Materials")
 def generate_materials_report_pdf(element_data: List[Dict[str, Any]],
                                  output_filename: str = "output/materials.pdf", 
-                                 project_name: str = "N/A", 
-                                 run_id: str = "N/A",
-                                 city_name: str = "N/A", 
-                                 area_name: str = "N/A") -> bool:
+                                 project_name: str = "-", 
+                                 run_id: str = "-",
+                                 city_name: str = "-", 
+                                 area_name: str = "-") -> bool:
     """
     Generate a PDF report containing materials thermal properties.
     

@@ -19,17 +19,17 @@ logger = get_logger(__name__)
 class AreaReportGenerator(BaseReportGenerator):
     """Area Report Generator using the refactored architecture."""
     
-    def __init__(self, project_name="N/A", run_id="N/A", city_name="N/A", area_name="N/A"):
+    def __init__(self, project_name="-", run_id="-", city_name="-", area_name="-"):
         super().__init__(project_name, run_id, city_name, area_name)
         self.formatter = ValueFormatter()
     
     @handle_report_errors("Area")
-    def generate_report(self, area_id: str, area_data: List[Dict[str, Any]], 
+    def generate_report(self, floor_id: str, area_data: List[Dict[str, Any]], 
                        output_filename: str, total_floor_area: float = 0.0,
-                       wall_mass_per_area: float = 0.0, location: str = "Unknown",
+                       wall_mass_per_area: float = 0.0, location: str = "-",
                        areas_data=None, glazing_data: List[Dict[str, Any]] = None) -> bool:
         """Generate area PDF report."""
-        logger.info(f"AREA CLASS DEBUG - AreaReportGenerator.generate_report called for area '{area_id}'")
+        logger.info(f"AREA CLASS DEBUG - AreaReportGenerator.generate_report called for floor '{floor_id}'")
         logger.info(f"AREA CLASS DEBUG - Output filename: {output_filename}")
         
         # Check if there's actual data to generate a report with
@@ -38,7 +38,7 @@ class AreaReportGenerator(BaseReportGenerator):
         has_floor_area = total_floor_area > 0.0
         
         if not has_area_data and not has_glazing_data and not has_floor_area:
-            logger.warning(f"AREA CLASS DEBUG - Skipping report generation for area '{area_id}' - no data available")
+            logger.warning(f"AREA CLASS DEBUG - Skipping report generation for floor '{floor_id}' - no data available")
             logger.info(f"AREA CLASS DEBUG - area_data: {len(area_data) if area_data else 0} items")
             logger.info(f"AREA CLASS DEBUG - glazing_data: {len(glazing_data) if glazing_data else 0} items") 
             logger.info(f"AREA CLASS DEBUG - total_floor_area: {total_floor_area}")
@@ -56,7 +56,7 @@ class AreaReportGenerator(BaseReportGenerator):
         
         # Build story
         story = []
-        report_title = f"Area {area_id}"
+        report_title = f"Floor {floor_id}"
         
         # Add standardized header
         header_elements = self.add_standardized_header(doc, report_title)
@@ -68,7 +68,7 @@ class AreaReportGenerator(BaseReportGenerator):
         story.append(Paragraph(f"{report_title} Report", title_style))
         
         # Add area summary
-        summary_element = self._create_area_summary(area_id, total_floor_area, location, 
+        summary_element = self._create_area_summary(floor_id, total_floor_area, location, 
                                                    wall_mass_per_area, areas_data, doc)
         story.append(summary_element)
         story.append(Spacer(1, 15))
@@ -85,23 +85,23 @@ class AreaReportGenerator(BaseReportGenerator):
             story.extend(glazing_table_elements)
         
         # Build document
-        logger.info(f"AREA CLASS DEBUG - Building PDF document for area '{area_id}' with {len(story)} story elements")
+        logger.info(f"AREA CLASS DEBUG - Building PDF document for floor '{floor_id}' with {len(story)} story elements")
         result = self.build_document(doc, story)
-        logger.info(f"AREA CLASS DEBUG - Document build result for area '{area_id}': {result}")
+        logger.info(f"AREA CLASS DEBUG - Document build result for floor '{floor_id}': {result}")
         return result
     
-    def _create_area_summary(self, area_id: str, total_floor_area: float, location: str,
+    def _create_area_summary(self, floor_id: str, total_floor_area: float, location: str,
                            wall_mass_per_area: float, areas_data, doc) -> Table:
         """Create area summary table with standardized styling."""
-        logger.info(f"AREA SUMMARY DEBUG - Creating summary for area '{area_id}' with total_floor_area={total_floor_area}")
+        logger.info(f"AREA SUMMARY DEBUG - Creating summary for floor '{floor_id}' with total_floor_area={total_floor_area}")
         # Collect window directions from CSV data
         window_directions = set()
         if areas_data:
             if hasattr(areas_data, 'glazing_data_from_csv'):
                 glazing_data_from_csv = areas_data.glazing_data_from_csv
                 if glazing_data_from_csv:
-                    # Extract area ID from the current area_id using consistent logic
-                    current_area_id = area_id
+                    # Extract area ID from the current floor_id using consistent logic
+                    current_area_id = floor_id
                     if ":" in current_area_id:
                         parts = current_area_id.split(":")
                         if len(parts) > 1:
@@ -152,7 +152,7 @@ class AreaReportGenerator(BaseReportGenerator):
                         
                         if surface_area_id == current_area_id and 'CardinalDirection' in data:
                             direction = data['CardinalDirection']
-                            if direction and direction != "Unknown":
+                            if direction and direction != "-":
                                 window_directions.add(direction)
         
         # Define custom sort order for directions (clockwise from North)
@@ -178,7 +178,7 @@ class AreaReportGenerator(BaseReportGenerator):
         summary_text = f"""
         <font name="{FONTS['heading']}" size="{FONT_SIZES['heading']}" color="{COLORS['primary_blue'].hexval()}"><b>Area Summary</b></font><br/>
         <br/>
-        <b>Area Name:</b> {area_id}<br/>
+        <b>Floor Name:</b> {floor_id}<br/>
         <b>Total Area:</b> {self.formatter.format_number(total_floor_area, precision=2)} m²<br/>
         <b>Location:</b> {location}<br/>
         <b>Windows Directions:</b> {window_directions_str}<br/>
@@ -308,11 +308,11 @@ def _area_table_data(merged_data):
     return sorted(merged_data, key=custom_area_sort_key)
 
 # Backward compatibility function
-def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]], 
+def generate_area_report_pdf(floor_id: str, area_data: List[Dict[str, Any]], 
                            output_filename: str, total_floor_area: float = 0.0, 
-                           project_name: str = "N/A", run_id: str = "N/A", 
-                           city_name: str = "N/A", area_name: str = "N/A", 
-                           wall_mass_per_area: float = 0.0, location: str = "Unknown", 
+                           project_name: str = "-", run_id: str = "-", 
+                           city_name: str = "-", area_name: str = "-", 
+                           wall_mass_per_area: float = 0.0, location: str = "-", 
                            areas_data=None, glazing_data: List[Dict[str, Any]] = None) -> bool:
     """
     Generate a PDF report with area information, including a header and separate glazing table.
@@ -320,7 +320,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
     This function provides backward compatibility while using the new refactored architecture.
 
     Args:
-        area_id (str): The area ID for the report.
+        floor_id (str): The floor ID for the report.
         area_data (List[Dict[str, Any]]): List of area data rows for this area (excluding glazing).
         output_filename (str): Path where to save the PDF report.
         total_floor_area (float): The total floor area for this area.
@@ -336,7 +336,7 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
     Returns:
         bool: True if report generation was successful, False otherwise.
     """
-    logger.info(f"PDF GENERATOR DEBUG - Starting PDF generation for area '{area_id}'")
+    logger.info(f"PDF GENERATOR DEBUG - Starting PDF generation for floor '{floor_id}'")
     logger.info(f"PDF GENERATOR DEBUG - Output file: {output_filename}")
     logger.info(f"PDF GENERATOR DEBUG - Area data length: {len(area_data) if area_data else 0}")
     logger.info(f"PDF GENERATOR DEBUG - Glazing data length: {len(glazing_data) if glazing_data else 0}")
@@ -349,10 +349,10 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
             area_name=area_name
         )
         
-        logger.info(f"PDF GENERATOR DEBUG - Calling generator.generate_report for area '{area_id}'")
+        logger.info(f"PDF GENERATOR DEBUG - Calling generator.generate_report for floor '{floor_id}'")
         
         result = generator.generate_report(
-            area_id=area_id,
+            floor_id=floor_id,
             area_data=area_data,
             output_filename=output_filename,
             total_floor_area=total_floor_area,
@@ -362,11 +362,11 @@ def generate_area_report_pdf(area_id: str, area_data: List[Dict[str, Any]],
             glazing_data=glazing_data
         )
         
-        logger.info(f"PDF GENERATOR DEBUG - Generator result for area '{area_id}': {result}")
+        logger.info(f"PDF GENERATOR DEBUG - Generator result for floor '{floor_id}': {result}")
         return result
         
     except Exception as e:
-        logger.error(f"Error in generate_area_report_pdf for area '{area_id}': {type(e).__name__} - {str(e)}", exc_info=True)
+        logger.error(f"Error in generate_area_report_pdf for floor '{floor_id}': {type(e).__name__} - {str(e)}", exc_info=True)
         return False
 
 def _create_area_table(merged_data, table_title, page_width):
@@ -430,8 +430,12 @@ def _create_area_table(merged_data, table_title, page_width):
         element_type_cell = Paragraph(_clean_element_type(element_type), cell_style)
 
         area_value = f"{row['area']:.2f}"
-        u_value_to_format = row.get('weighted_u_value', row.get('u_value', 0.0))
-        u_value = f"{u_value_to_format:.3f}"
+        # Show '-' for missing U-values instead of defaulting to 0
+        u_value_to_format = row.get('weighted_u_value') or row.get('u_value')
+        if u_value_to_format is not None:
+            u_value = f"{u_value_to_format:.3f}"
+        else:
+            u_value = "-"
 
         table_data.append([
             zone_cell,
@@ -556,8 +560,8 @@ def _create_glazing_table(glazing_data, table_title, page_width):
     return elements
 
 def generate_area_reports(areas_data, output_dir: str = "output/areas",
-                          project_name: str = "N/A", run_id: str = "N/A",
-                          city_name: str = "N/A", area_name: str = "N/A", 
+                          project_name: str = "-", run_id: str = "-",
+                          city_name: str = "-", area_name: str = "-", 
                           is_office_iso: bool = True) -> bool:
     """
     Generate individual reports for each area, including header information.
@@ -632,13 +636,13 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                     area_floor_totals[zone_id] = total_area
                     logger.info(f"AREA REPORT DEBUG - Zone {zone_id}: floor_area={floor_area}, multiplier={multiplier}, total={total_area}")
                 else:
-                    # For non-office ISO: group by area_id as before
-                    area_id = zone_data.get("area_id", "unknown")
-                    if area_id not in area_floor_totals:
-                        area_totals = areas_data.get_area_totals(area_id)
+                    # For non-office ISO: group by floor_id as before
+                    floor_id = zone_data.get("floor_id", "unknown")
+                    if floor_id not in area_floor_totals:
+                        area_totals = areas_data.get_area_totals(floor_id)
                         calculated_total = area_totals.get("total_floor_area", 0.0)
-                        area_floor_totals[area_id] = calculated_total
-                        logger.info(f"AREA REPORT DEBUG - Area {area_id} total from get_area_totals(): {calculated_total}")
+                        area_floor_totals[floor_id] = calculated_total
+                        logger.info(f"AREA REPORT DEBUG - Floor {floor_id} total from get_area_totals(): {calculated_total}")
                         
                         # Also log individual zone contributions for debugging
                         zone_floor_area = zone_data.get("floor_area", 0.0)
@@ -652,18 +656,18 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                     multiplier = zone_data.get("multiplier", 1)
                     area_floor_totals[zone_id] = floor_area * multiplier
                 else:
-                    # For non-office ISO: group by area_id
-                    area_id = None
+                    # For non-office ISO: group by floor_id
+                    floor_id = None
                     if hasattr(areas_data, 'get') and isinstance(areas_data.get(zone_id), dict):
-                        area_id = areas_data.get(zone_id, {}).get("area_id", "unknown")
+                        floor_id = areas_data.get(zone_id, {}).get("floor_id", "unknown")
 
-                    if area_id:
-                        if area_id not in area_floor_totals:
-                            area_floor_totals[area_id] = 0.0
+                    if floor_id:
+                        if floor_id not in area_floor_totals:
+                            area_floor_totals[floor_id] = 0.0
 
                         floor_area = zone_data.get("floor_area", 0.0)
                         multiplier = zone_data.get("multiplier", 1)
-                        area_floor_totals[area_id] += floor_area * multiplier
+                        area_floor_totals[floor_id] += floor_area * multiplier
 
         # Use different methods based on ISO type
         if hasattr(areas_data, 'get_area_table_data'):
@@ -702,31 +706,31 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                                         break
 
                         if not element_type and construction_data.get("elements"):
-                            fallback_type = construction_data["elements"][0].get("element_type", "Unknown")
+                            fallback_type = construction_data["elements"][0].get("element_type", "-")
                             element_type = fallback_type
                         elif not element_type:
-                            element_type = "Unknown"
+                            element_type = "-"
 
                         row = {
                             "zone": zone_id,
                             "construction": construction_name,
                             "element_type": element_type,
                             "area": total_area,
-                            "u_value": construction_data.get("elements", [{}])[0].get("u_value", 0.0) if construction_data.get("elements") else 0.0
+                            "u_value": construction_data.get("elements", [{}])[0].get("u_value") if construction_data.get("elements") else None
                         }
                         rows.append(row)
                     
                     area_table_data[zone_id] = rows
             else:
-                # For non-office ISO: group by area_id as before
+                # For non-office ISO: group by floor_id as before
                 areas_grouped = defaultdict(dict)
                 for zone_id, zone_data in areas_data.items():
-                    area_id = zone_data.get("area_id", "unknown")
-                    if area_id not in areas_grouped:
-                        areas_grouped[area_id] = {}
-                    areas_grouped[area_id][zone_id] = zone_data
+                    floor_id = zone_data.get("floor_id", "unknown")
+                    if floor_id not in areas_grouped:
+                        areas_grouped[floor_id] = {}
+                    areas_grouped[floor_id][zone_id] = zone_data
 
-                for area_id, area_zones in areas_grouped.items():
+                for floor_id, area_zones in areas_grouped.items():
                     rows = []
 
                     for zone_id, zone_data in area_zones.items():
@@ -752,21 +756,21 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
                                             break
 
                             if not element_type and construction_data.get("elements"):
-                                fallback_type = construction_data["elements"][0].get("element_type", "Unknown")
+                                fallback_type = construction_data["elements"][0].get("element_type", "-")
                                 element_type = fallback_type
                             elif not element_type:
-                                element_type = "Unknown"
+                                element_type = "-"
 
                             row = {
                                 "zone": zone_id,
                                 "construction": construction_name,
                                 "element_type": element_type,
                                 "area": total_area,
-                                "u_value": construction_data.get("elements", [{}])[0].get("u_value", 0.0) if construction_data.get("elements") else 0.0
+                                "u_value": construction_data.get("elements", [{}])[0].get("u_value") if construction_data.get("elements") else None
                             }
                             rows.append(row)
 
-                    area_table_data[area_id] = rows
+                    area_table_data[floor_id] = rows
 
         # Get glazing table data separately
         glazing_table_data = {}
@@ -780,10 +784,10 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
             try:
                 area_h_values = areas_data.get_area_h_values()
                 for item in area_h_values:
-                    area_id = item.get('area_id')
-                    location = item.get('location', 'Unknown')
-                    if area_id:
-                        area_locations[area_id] = location
+                    floor_id = item.get('floor_id')
+                    location = item.get('location', '-')
+                    if floor_id:
+                        area_locations[floor_id] = location
             except Exception as e_hval:
                 logger.warning(f"Could not retrieve area H values for area reports: {e_hval}", exc_info=True)
 
@@ -853,15 +857,15 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
             elif largest_ext_wall_construction:
                 logger.warning(f"Materials parser not available to calculate wall mass for construction '{largest_ext_wall_construction}'")
 
-            # For location, use area_id for lookup even in office ISO (area_locations is keyed by area_id)
+            # For location, use floor_id for lookup even in office ISO (area_locations is keyed by floor_id)
             if is_office_iso:
-                # For office ISO, try to get area_id from zone data for location lookup
-                location = "Unknown"
+                # For office ISO, try to get floor_id from zone data for location lookup
+                location = "-"
                 if hasattr(areas_data, 'areas_by_zone') and entity_id in areas_data.areas_by_zone:
-                    area_id_for_location = areas_data.areas_by_zone[entity_id].get("area_id", "unknown")
-                    location = area_locations.get(area_id_for_location, "Unknown")
+                    floor_id_for_location = areas_data.areas_by_zone[entity_id].get("floor_id", "unknown")
+                    location = area_locations.get(floor_id_for_location, "-")
             else:
-                location = area_locations.get(entity_id, "Unknown")
+                location = area_locations.get(entity_id, "-")
 
             # Create a safe filename from entity_id by replacing invalid characters
             safe_entity_id = entity_id.replace(":", "_").replace("/", "_").replace("\\", "_")
@@ -876,11 +880,11 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
 
             # Get glazing data for this entity
             if is_office_iso:
-                # For office ISO, glazing data might be keyed by area_id, so we need to find the correct area_id
+                # For office ISO, glazing data might be keyed by floor_id, so we need to find the correct floor_id
                 entity_glazing_data = []
                 if hasattr(areas_data, 'areas_by_zone') and entity_id in areas_data.areas_by_zone:
-                    area_id_for_glazing = areas_data.areas_by_zone[entity_id].get("area_id", "unknown")
-                    entity_glazing_data = glazing_table_data.get(area_id_for_glazing, [])
+                    floor_id_for_glazing = areas_data.areas_by_zone[entity_id].get("floor_id", "unknown")
+                    entity_glazing_data = glazing_table_data.get(floor_id_for_glazing, [])
             else:
                 entity_glazing_data = glazing_table_data.get(entity_id, [])
 
@@ -900,7 +904,7 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
             logger.info(f"AREA GENERATOR DEBUG - Entity data rows: {len(merged_rows)}, Glazing data: {len(entity_glazing_data) if entity_glazing_data else 0}")
             
             success = generate_area_report_pdf(
-                area_id=entity_id,
+                floor_id=entity_id,
                 area_data=merged_rows,
                 output_filename=str(output_file),
                 total_floor_area=total_floor_area,
@@ -930,8 +934,8 @@ def generate_area_reports(areas_data, output_dir: str = "output/areas",
         return False
 
 def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/areas",
-                                     project_name: str = "N/A", run_id: str = "N/A",
-                                     city_name: str = "N/A", area_name: str = "N/A") -> bool:
+                                     project_name: str = "-", run_id: str = "-",
+                                     city_name: str = "-", area_name: str = "-") -> bool:
     """
     Generate individual reports for each base zone, grouping related zones together.
     Zones like '25:A338XLIV' and '25:A338XMMD' will be in the same report.
@@ -1024,10 +1028,10 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
             try:
                 area_h_values = areas_data.get_area_h_values()
                 for item in area_h_values:
-                    area_id = item.get('area_id')
-                    location = item.get('location', 'Unknown')
-                    if area_id:
-                        area_locations[area_id] = location
+                    floor_id = item.get('floor_id')
+                    location = item.get('location', '-')
+                    if floor_id:
+                        area_locations[floor_id] = location
             except Exception as e_hval:
                 logger.warning(f"Could not retrieve area H values for base zone area reports: {e_hval}", exc_info=True)
 
@@ -1071,13 +1075,13 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
                     logger.warning(f"Error calculating mass per area for construction '{largest_ext_wall_construction}' in base zone '{base_zone_id}': {e_mass}")
                     wall_mass_per_area = 0.0
 
-            # Determine location (use first area_id from zones in this base zone)
+            # Determine location (use first floor_id from zones in this base zone)
             location = "Unknown"
             if base_zone_id in base_zone_groupings and base_zone_groupings[base_zone_id]:
                 first_zone_id = base_zone_groupings[base_zone_id][0]
                 if hasattr(areas_data, 'areas_by_zone') and first_zone_id in areas_data.areas_by_zone:
-                    first_area_id = areas_data.areas_by_zone[first_zone_id].get("area_id", "unknown")
-                    location = area_locations.get(first_area_id, "Unknown")
+                    first_floor_id = areas_data.areas_by_zone[first_zone_id].get("floor_id", "unknown")
+                    location = area_locations.get(first_floor_id, "-")
 
             # Create a safe filename from base_zone_id
             safe_base_zone_id = base_zone_id.replace(":", "_").replace("/", "_")
@@ -1095,8 +1099,8 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
             if base_zone_id in base_zone_groupings:
                 for zone_id in base_zone_groupings[base_zone_id]:
                     if hasattr(areas_data, 'areas_by_zone') and zone_id in areas_data.areas_by_zone:
-                        zone_area_id = areas_data.areas_by_zone[zone_id].get("area_id", "unknown")
-                        area_glazing = glazing_table_data.get(zone_area_id, [])
+                        zone_floor_id = areas_data.areas_by_zone[zone_id].get("floor_id", "unknown")
+                        area_glazing = glazing_table_data.get(zone_floor_id, [])
                         # Filter glazing data for this specific zone
                         zone_glazing = [g for g in area_glazing if g.get('zone') == zone_id]
                         base_zone_glazing_data.extend(zone_glazing)
@@ -1104,7 +1108,7 @@ def generate_area_reports_by_base_zone(areas_data, output_dir: str = "output/are
             zones_in_group = base_zone_groupings.get(base_zone_id, [])
 
             success = generate_area_report_pdf(
-                area_id=base_zone_id,
+                floor_id=base_zone_id,
                 area_data=merged_rows,
                 output_filename=str(output_file),
                 total_floor_area=total_floor_area,

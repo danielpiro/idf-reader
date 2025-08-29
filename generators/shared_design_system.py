@@ -306,8 +306,8 @@ def create_total_row_style(row_index):
     ]
 
 
-def create_standardized_header(doc, project_name="N/A", run_id="N/A", 
-                              city_name="N/A", area_name="N/A", 
+def create_standardized_header(doc, project_name="-", run_id="-", 
+                              city_name="-", area_name="-", 
                               report_title="Report", timestamp=None):
     """
    Create a standardized header with logo on top left and metadata on top right.

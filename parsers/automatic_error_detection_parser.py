@@ -115,19 +115,7 @@ class AutomaticErrorDetectionParser:
         # Loads validation table (per ISO type)
         # Structure: Zone -> Load Type -> Field -> {recommended, details}
         self.loads_table = {
-            'Office': {
-                # Example structure - will be populated with actual data
-                'Zone1': {
-                    'Lighting': {
-                        'Power Density': {'recommended': '12', 'details': 'Not supported value'},
-                        'Schedule': {'recommended': 'Office_Lighting', 'details': 'Not supported value'}
-                    },
-                    'Equipment': {
-                        'Power Density': {'recommended': '8', 'details': 'Not supported value'},
-                        'Schedule': {'recommended': 'Office_Equipment', 'details': 'Not supported value'}
-                    }
-                }
-            },
+            'Office': {},
             '2017': {
                 # 2017 ISO Load Table
                 'Occupancy': {
@@ -172,19 +160,7 @@ class AutomaticErrorDetectionParser:
         # HVAC validation table (per ISO type)
         # Structure: Climate Zone -> System Type -> Field -> {recommended, details}
         self.hvac_table = {
-            'Office': {
-                # Example structure - will be populated with actual data
-                'Zone1': {
-                    'Heating_Schedule': {
-                        'Setpoint': {'recommended': '20', 'details': 'Not supported value'},
-                        'Schedule_Type': {'recommended': 'Compact', 'details': 'Not supported value'}
-                    },
-                    'Cooling_Schedule': {
-                        'Setpoint': {'recommended': '24', 'details': 'Not supported value'},
-                        'Schedule_Type': {'recommended': 'Compact', 'details': 'Not supported value'}
-                    }
-                }
-            },
+            'Office': {},
             '2017': {
                 # 2017 ISO HVAC Table - Climate zones A, B, C, D
                 'A': {
@@ -1487,19 +1463,19 @@ class AutomaticErrorDetectionParser:
                     continue
                     
                 # Extract area ID using the same logic as AreaParser
-                area_id = self._extract_area_id_from_zone(zone_id)
+                floor_id = self._extract_floor_id_from_zone(zone_id)
                 # Map zone to area
                 
-                if area_id not in areas_data:
-                    areas_data[area_id] = {
+                if floor_id not in areas_data:
+                    areas_data[floor_id] = {
                         'zones': [],
                         'window_directions': set()
                     }
                 
-                areas_data[area_id]['zones'].append(zone_id)
+                areas_data[floor_id]['zones'].append(zone_id)
             
             # Created areas for validation
-            for area_id, area_info in areas_data.items():
+            for floor_id, area_info in areas_data.items():
                 # Process area zones
                 pass
             
@@ -1523,15 +1499,15 @@ class AutomaticErrorDetectionParser:
                         continue
                         
                     # Extract area ID from surface name
-                    area_id = self._extract_area_id_from_surface_name(surface_name)
+                    floor_id = self._extract_floor_id_from_surface_name(surface_name)
                     direction = data.get('CardinalDirection', 'Unknown')
                     
                     # Process surface direction data
                     
                     if direction and direction != 'Unknown':
                         directions_found += 1
-                        if area_id in areas_data:
-                            areas_data[area_id]['window_directions'].add(direction)
+                        if floor_id in areas_data:
+                            areas_data[floor_id]['window_directions'].add(direction)
                             # Added direction to area
                         else:
                             # Area not found for surface
@@ -1551,7 +1527,7 @@ class AutomaticErrorDetectionParser:
             # Check against required directions
             
             validation_errors = 0
-            for area_id, area_info in areas_data.items():
+            for floor_id, area_info in areas_data.items():
                 window_directions = area_info['window_directions']
                 window_count = len(window_directions)
                 
@@ -1562,7 +1538,7 @@ class AutomaticErrorDetectionParser:
                     # Area failed window direction validation
                     # Add validation error for the area
                     self.error_detection_data.append({
-                        'zone_name': f'{area_id} Natural Ventilation',
+                        'zone_name': f'{floor_id} Natural Ventilation',
                         'category': f'Natural Ventilation Windows (Climate {climate_zone})',
                         'current_model_value': f"{window_count} directions: {list(window_directions)}",
                         'recommended_standard_value': f"{required_directions} different directions required",
@@ -1577,7 +1553,7 @@ class AutomaticErrorDetectionParser:
         except Exception as e:
             logger.error(f"Exception in window direction validation: {e}", exc_info=True)
     
-    def _extract_area_id_from_zone(self, zone_id):
+    def _extract_floor_id_from_zone(self, zone_id):
         """Extract area ID from zone name using consistent grouping logic."""
         try:
             # Use DataLoader's grouping logic for consistency
@@ -1616,7 +1592,7 @@ class AutomaticErrorDetectionParser:
         except Exception:
             return "unknown"
     
-    def _extract_area_id_from_surface_name(self, surface_name):
+    def _extract_floor_id_from_surface_name(self, surface_name):
         """Extract area ID from surface name using consistent grouping logic."""
         try:
             # Extract zone-like part from surface name and use grouping logic
