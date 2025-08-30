@@ -194,32 +194,63 @@ class EnergyRatingParser(CSVOutputParser):
             try:
                 if i == 0:
                     continue
-                # Log all headers to see what we're filtering out
-                if i <= 10:  # Log first 10 headers for debugging
-                    pass
+                    
+                # Log first 20 headers for debugging
+                if i <= 20:
+                    self.logger.debug(f"HEADER DEBUG [{i}]: '{header}'")
+                
                 # Simple containment check - zone_id + energy type
                 zones = self.data_loader.get_zones() if hasattr(self.data_loader, 'get_zones') else {}
                 matched_zone_key = None
                 
-                # Find zone that appears in the header
+                # Find the longest/most specific zone match in the header
+                # This prevents partial matches like '06XCR' matching '06XCRIN' headers
+                matched_zone_key = None
+                longest_match_length = 0
+                
                 for zone_name in zones.keys():
                     if zone_name in header:
-                        matched_zone_key = zone_name
-                        found_zones.add(zone_name)
-                        break
+                        # Only use this match if it's longer (more specific) than previous matches
+                        if len(zone_name) > longest_match_length:
+                            matched_zone_key = zone_name
+                            longest_match_length = len(zone_name)
                 
-                # Check for energy type in header
+                if matched_zone_key:
+                    found_zones.add(matched_zone_key)
+                    # Debug zone matching for problematic zone
+                    if "06XCRIN" in matched_zone_key or "06XCR" in matched_zone_key:
+                        self.logger.info(f"ZONE MATCH DEBUG: Found LONGEST zone '{matched_zone_key}' (length: {len(matched_zone_key)}) in header '{header}'")
+                else:
+                    # Debug zone matching for problematic zone
+                    if "06XCRIN" in header or "06XCR" in header:
+                        self.logger.warning(f"ZONE MATCH DEBUG: NO zone match found for header '{header}'")
+                
+                # Check for energy type in header - match actual EnergyPlus output structure
                 header_lower = header.lower()
-                has_energy_type = ('light' in header_lower or 
-                                 'heating' in header_lower or 
-                                 'cooling' in header_lower)
+                has_heating = 'ideal loads air:zone ideal loads supply air total heating energy [j]' in header_lower
+                has_cooling = 'ideal loads air:zone ideal loads supply air total cooling energy [j]' in header_lower
+                has_lighting = 'general lighting:lights electricity energy [j]' in header_lower
+                
+                has_energy_type = (has_heating or has_cooling or has_lighting)
+                
+                # Debug filtering logic
+                skip_reason = None
+                if not matched_zone_key:
+                    skip_reason = "no_matching_zone"
+                elif not has_energy_type:
+                    skip_reason = "no_energy_type"
+                
+                # Log filtering decisions for first 30 headers
+                if i <= 30:
+                    if skip_reason:
+                        self.logger.debug(f"FILTER DEBUG [{i}]: SKIPPED '{header}' - reason: {skip_reason}, matched_zone: {matched_zone_key}, has_energy: {has_energy_type}")
+                    else:
+                        self.logger.debug(f"FILTER DEBUG [{i}]: ACCEPTED '{header}' - matched_zone: {matched_zone_key}")
                 
                 # Skip if no zone found or no energy type
                 if not matched_zone_key or not has_energy_type:
-                    continue
-                
-                # Check if this is a RunPeriod measurement
-                if "(RunPeriod)" not in header:
+                    if i <= 30:  # Only log for first 30 to avoid spam
+                        skipped_headers.append((header, skip_reason))
                     continue
                 
                 total_headers_with_X += 1
@@ -344,12 +375,12 @@ class EnergyRatingParser(CSVOutputParser):
                     if matched_zone_key:
                         processed_zones.add(matched_zone_key)
 
-                # Determine energy category from header
-                if 'light' in header_lower: 
+                # Determine energy category from header - match actual EnergyPlus output structure
+                if 'general lighting:lights electricity energy [j]' in header_lower: 
                     category = 'lighting'
-                elif 'heating' in header_lower: 
+                elif 'ideal loads air:zone ideal loads supply air total heating energy [j]' in header_lower: 
                     category = 'heating'
-                elif 'cooling' in header_lower: 
+                elif 'ideal loads air:zone ideal loads supply air total cooling energy [j]' in header_lower: 
                     category = 'cooling'
                 else:
                     continue  # Skip if not a recognized energy type
@@ -374,13 +405,32 @@ class EnergyRatingParser(CSVOutputParser):
         
         # Report comprehensive processing results
         self.logger.info(f"ENERGY RATING DEBUG - Zone processing summary:")
+        self.logger.info(f"  - Total headers processed: {len(headers)-1}")  # -1 for skipping index 0
         self.logger.info(f"  - Found {len(found_zones)} unique zones in CSV headers")
         self.logger.info(f"  - Processed {len(processed_zones)} zones successfully") 
         self.logger.info(f"  - Created energy data for {len(self.energy_data_by_area)} zone entries")
         self.logger.info(f"  - Skipped {len(skipped_headers)} headers")
         
+        # Show skipping reasons breakdown
+        if skipped_headers:
+            skip_reasons = {}
+            for header, reason in skipped_headers:
+                skip_reasons[reason] = skip_reasons.get(reason, 0) + 1
+            self.logger.info(f"ENERGY RATING DEBUG - Skip reasons breakdown: {skip_reasons}")
+            
+            # Show sample skipped headers by reason
+            for reason in skip_reasons:
+                sample_headers = [h for h, r in skipped_headers if r == reason][:3]
+                self.logger.info(f"ENERGY RATING DEBUG - Sample '{reason}' headers: {sample_headers}")
+        
         if found_zones:
             self.logger.info(f"ENERGY RATING DEBUG - Found zones: {sorted(list(found_zones))[:10]}...")
+            
+        # Show available zones from data_loader for comparison
+        if zones:
+            self.logger.info(f"ENERGY RATING DEBUG - Available zones in data_loader: {len(zones)} zones")
+            sample_zones = list(zones.keys())[:10]
+            self.logger.info(f"ENERGY RATING DEBUG - Sample data_loader zones: {sample_zones}")
             
         # Compare with area_parser zones
         if self.area_parser and self.area_parser.processed and self.area_parser.areas_by_zone:
@@ -418,15 +468,17 @@ class EnergyRatingParser(CSVOutputParser):
         For now, assuming input 'value' is in Joules as per typical E+ detailed CSV outputs.
         """
         try:
-            pass
-
             processed_val = 0.0
-            if 'light' in header_lower:
-                processed_val = value / 3600000.0
-            elif 'heating' in header_lower or 'cooling' in header_lower:
-                processed_val = value / 10800000.0
+            
+            # Match the specific energy patterns we're using
+            if 'general lighting:lights electricity energy [j]' in header_lower:
+                processed_val = value / 3600000.0  # J to kWh
+            elif 'ideal loads air:zone ideal loads supply air total heating energy [j]' in header_lower:
+                processed_val = value / 10800000.0  # J to kWh (with scaling factor)
+            elif 'ideal loads air:zone ideal loads supply air total cooling energy [j]' in header_lower:
+                processed_val = value / 10800000.0  # J to kWh (with scaling factor)
             else:
-                self.logger.warning(f"Header '{header_lower}' did not match known energy categories for unit conversion. Original value: {value} returned.")
+                self.logger.warning(f"Header '{header_lower}' did not match known energy patterns for unit conversion. Original value: {value} returned.")
                 processed_val = value
 
             return processed_val

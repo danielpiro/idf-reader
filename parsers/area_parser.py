@@ -1822,4 +1822,49 @@ class AreaParser(SurfaceDataParser):
         except Exception as e:
             pass
             return result_by_area
+
+    def _get_zone_area_from_csv(self, zone_id: str) -> Optional[float]:
+        """
+        Get zone floor area from CSV data loaded during initialization.
+        
+        Args:
+            zone_id: Zone identifier to look up
+            
+        Returns:
+            Zone floor area from CSV, or None if not found
+        """
+        if not hasattr(self, 'zone_areas_from_csv') or not self.zone_areas_from_csv:
+            self.logger.debug(f"No CSV zone data available for lookup of '{zone_id}'")
+            return None
+            
+        # Direct lookup first
+        if zone_id in self.zone_areas_from_csv:
+            area = safe_float(self.zone_areas_from_csv[zone_id].get('area', 0))
+            self.logger.debug(f"Found CSV area for zone '{zone_id}': {area} m²")
+            return area
+            
+        # Log available zones for debugging
+        available_zones = list(self.zone_areas_from_csv.keys())[:5]
+        self.logger.debug(f"Zone '{zone_id}' not found in CSV. Available zones: {available_zones}...")
+        return None
+
+    def _get_zone_multiplier_from_csv(self, zone_id: str) -> Optional[int]:
+        """
+        Get zone multiplier from CSV data loaded during initialization.
+        
+        Args:
+            zone_id: Zone identifier to look up
+            
+        Returns:
+            Zone multiplier from CSV, or None if not found
+        """
+        if not hasattr(self, 'zone_areas_from_csv') or not self.zone_areas_from_csv:
+            return None
+            
+        if zone_id in self.zone_areas_from_csv:
+            multiplier = int(safe_float(self.zone_areas_from_csv[zone_id].get('multiplier', 1), 1))
+            self.logger.debug(f"Found CSV multiplier for zone '{zone_id}': {multiplier}")
+            return multiplier
+            
+        return None
     

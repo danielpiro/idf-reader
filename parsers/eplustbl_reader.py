@@ -40,6 +40,7 @@ def _find_csv_path(csv_path: Optional[str]) -> Optional[str]:
     logger.warning(f"No eplustbl.csv found. Searched paths: {search_paths}")
     return None
 
+
 def _parse_exterior_fenestration_table(reader) -> Dict[str, Dict[str, Any]]:
     header_map = {
         "construction": 1,
@@ -292,6 +293,88 @@ def _parse_zone_summary_table(reader) -> Dict[str, Dict[str, Any]]:
                         except (ValueError, IndexError) as e:
                             logger.warning(f"Error parsing zone data for {zone_name}: {e}")
                             continue
+    
+    return result
+
+def _parse_zone_summary_table(reader) -> Dict[str, Dict[str, Any]]:
+    """
+    Parse the Zone Summary table from EnergyPlus CSV output.
+    
+    Returns:
+        Dict mapping zone names to {'area': float, 'multiplier': int}
+    """
+    result = {}
+    in_zone_summary = False
+    headers = []
+    row_count = 0
+    
+    for row in reader:
+        row_count += 1
+        if not row:
+            continue
+            
+        # Debug: Log first 10 rows to see CSV structure
+        if row_count <= 10:
+            logger.debug(f"CSV row {row_count}: {row}")
+            
+        # Look for Zone Summary table header
+        if len(row) > 0 and 'Zone Summary' in str(row[0]):
+            logger.debug(f"Found Zone Summary table at row {row_count}")
+            in_zone_summary = True
+            continue
+        
+        if in_zone_summary:
+            # Check if this is the header row (contains "Area [m2]" and "Multipliers")
+            if not headers and row and any('Area [m2]' in str(cell) for cell in row):
+                headers = [str(cell).strip().lower() for cell in row]
+                logger.debug(f"Found Zone Summary headers: {headers}")
+                continue
+            
+            # Check if we've reached the end of the table (empty row or new section)
+            if headers and row and (not row[0] or row[0].strip() == '' or ('End' in str(row[0]) and 'Zone' in str(row[0]))):
+                logger.debug(f"End of Zone Information table at row {row_count}")
+                break
+                
+            # Process data rows
+            if headers and row and len(row) >= len(headers):
+                try:
+                    # Zone name is always in column 1 (index 1)
+                    zone_name_idx = 1
+                    area_idx = None
+                    multiplier_idx = None
+                    
+                    # Find area and multiplier columns
+                    for i, header in enumerate(headers):
+                        header_lower = str(header).strip().lower()
+                        if 'area [m2]' in header_lower:
+                            area_idx = i
+                            logger.debug(f"Found Area column at index {i}")
+                        elif 'multiplier' in header_lower:
+                            multiplier_idx = i  
+                            logger.debug(f"Found Multiplier column at index {i}")
+                    
+                    if zone_name_idx is not None and area_idx is not None:
+                        zone_name = str(row[zone_name_idx]).strip()
+                        area = safe_float(row[area_idx], 0.0)
+                        multiplier = int(safe_float(row[multiplier_idx], 1.0)) if multiplier_idx is not None else 1
+                        
+                        if zone_name and area > 0:
+                            result[zone_name] = {
+                                'area': area,
+                                'multiplier': multiplier
+                            }
+                            logger.debug(f"Parsed zone {zone_name}: area={area}, multiplier={multiplier}")
+                        
+                except (ValueError, IndexError) as e:
+                    logger.warning(f"Error parsing zone data: {e}")
+                    continue
+    
+    if not in_zone_summary:
+        logger.warning("Zone Summary table not found in CSV")
+    elif not headers:
+        logger.warning("Zone Summary headers not found")
+    else:
+        logger.debug(f"Processed Zone Summary table, found {len(result)} zones")
     
     return result
 

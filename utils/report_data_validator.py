@@ -131,32 +131,35 @@ def validate_schedule_data(schedule_data: List[Dict]) -> bool:
     return True
 
 
-def validate_materials_data(materials_data: Dict) -> bool:
+def validate_materials_data(materials_data) -> bool:
     """
     Validates materials data for report generation.
     
     Args:
-        materials_data: Dict containing materials information
+        materials_data: Can be a Dict containing materials sections or a List of element data
         
     Returns:
         bool: True if there are materials to report
     """
-    if not isinstance(materials_data, dict):
-        logger.info("Skipping Materials report - data is not a dict")
-        return False
-    
-    # Check for common materials sections
-    sections_to_check = ['materials', 'constructions', 'elements']
-    for section in sections_to_check:
-        if section in materials_data and has_valid_data(materials_data[section], f"Materials-{section}"):
-            logger.info(f"Materials report will be generated - found data in {section}")
+    # Handle list data (from get_element_data())
+    if isinstance(materials_data, list):
+        if has_valid_data(materials_data, "Materials-elements"):
+            logger.info(f"Materials report will be generated - found {len(materials_data)} element entries")
             return True
+        else:
+            logger.info("Skipping Materials report - element list is empty or invalid")
+            return False
     
-    # Fallback: check if any value in the dict is valid
-    if has_valid_data(materials_data, "Materials"):
-        return True
+    # Handle dict data (legacy support)
+    if isinstance(materials_data, dict):
+        # Check for common materials sections
+        sections_to_check = ['materials', 'constructions', 'elements']
+        for section in sections_to_check:
+            if section in materials_data and has_valid_data(materials_data[section], f"Materials-{section}"):
+                logger.info(f"Materials report will be generated - found data in {section}")
+                return True
     
-    logger.info("Skipping Materials report - no valid materials data found")
+    logger.info("Skipping Materials report - data is neither a valid list nor dict with expected sections")
     return False
 
 

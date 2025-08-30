@@ -854,7 +854,16 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
         display_improve_by = ""
         display_energy_rating = ""
         display_area_rating = ""
-        display_floor_id = str(row_dict.get('floor_id_report', ''))
+        
+        # Display logic: if zone_id has :, split on : for display
+        original_zone_id = str(row_dict.get('zone_id', ''))
+        if ':' in original_zone_id:
+            display_floor_id = original_zone_id.split(':', 1)[0]  # Everything before ':'
+            display_zone_name = original_zone_id.split(':', 1)[1]  # Everything after ':'
+        else:
+            display_floor_id = original_zone_id  # No colon, use full zone_id
+            display_zone_name = original_zone_id
+        
         display_area_id = str(row_dict.get('area_id_report', ''))
 
         if item_group_key != current_group_key:
@@ -1035,7 +1044,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
         if is_2023_iso:
             table_content.append([
                 display_floor_id,
-                str(row_dict.get('zone_name_report', '')),
+                display_zone_name,
                 _format_number(row_dict.get('total_area', 0)),
                 str(row_dict.get('multiplier', '')),
                 "-" if model_year == 2023 else _format_number(row_dict.get('lighting', 0)),
@@ -1051,7 +1060,7 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
         else:
             table_content.append([
                 display_floor_id,
-                str(row_dict.get('zone_name_report', '')),
+                display_zone_name,
                 _format_number(row_dict.get('total_area', 0)),
                 str(row_dict.get('multiplier', '')),
                 "-" if model_year == 2023 else _format_number(row_dict.get('lighting', 0)),
