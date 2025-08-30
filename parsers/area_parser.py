@@ -1,6 +1,7 @@
 """
 Extracts and processes area information including floor areas and material properties.
 """
+import os
 from typing import Dict, Any, List, Optional
 from parsers.materials_parser import MaterialsParser
 from .utils import safe_float
@@ -27,17 +28,26 @@ class AreaParser(SurfaceDataParser):
             self.construction_areas_from_csv = {}
             
         # Load zone areas from eplustbl.csv Zone Summary table
+        self.logger.info(f"CSV LOADING DEBUG: Attempting to load zone areas from CSV path: {csv_path}")
+        self.logger.info(f"CSV LOADING DEBUG: CSV path exists: {csv_path and os.path.exists(csv_path) if csv_path else False}")
         try:
             self.zone_areas_from_csv = read_zone_areas_from_csv(csv_path)
+            self.logger.info(f"CSV LOADING DEBUG: read_zone_areas_from_csv returned: {type(self.zone_areas_from_csv)} with {len(self.zone_areas_from_csv) if self.zone_areas_from_csv else 0} items")
             if self.zone_areas_from_csv:
                 self.logger.info(f"Loaded zone areas from CSV: {len(self.zone_areas_from_csv)} zones found")
                 # Log first few zone names for debugging
                 sample_zones = list(self.zone_areas_from_csv.keys())[:3]
-                self.logger.debug(f"Sample CSV zone names: {sample_zones}")
+                self.logger.info(f"Sample CSV zone names: {sample_zones}")
+                # Log the data structure for first zone
+                if sample_zones:
+                    first_zone_data = self.zone_areas_from_csv[sample_zones[0]]
+                    self.logger.info(f"Sample zone data structure: {first_zone_data}")
             else:
                 self.logger.warning(f"No zone areas loaded from CSV path: {csv_path}")
         except Exception as e:
             self.logger.error(f"Error loading zone areas from CSV: {e}")
+            import traceback
+            self.logger.error(f"Full traceback: {traceback.format_exc()}")
             self.zone_areas_from_csv = {}
             
         self.materials_parser = materials_parser
@@ -110,9 +120,6 @@ class AreaParser(SurfaceDataParser):
                     
                     # Also extract base zone ID for potential grouping
                     base_zone_id = self._extract_base_zone_id(zone_id)
-                    
-                    # Get group key for debugging
-                    group_key = self.data_loader.get_zone_group_key(zone_id)
 
                     # Try to get floor area from eplustbl.csv first, fallback to calculated value
                     csv_floor_area = self._get_zone_area_from_csv(zone_id)
@@ -1865,6 +1872,52 @@ class AreaParser(SurfaceDataParser):
             multiplier = int(safe_float(self.zone_areas_from_csv[zone_id].get('multiplier', 1), 1))
             self.logger.debug(f"Found CSV multiplier for zone '{zone_id}': {multiplier}")
             return multiplier
+            
+        return None
+
+    def _get_zone_hvac_flag_from_csv(self, zone_id: str) -> Optional[bool]:
+        """
+        Get whether zone has HVAC from CSV "Conditioned (Y/N)" column.
+        
+        Args:
+            zone_id: Zone identifier to look up
+            
+        Returns:
+            True if zone has HVAC, False if not, None if not found
+        """
+        if not hasattr(self, 'zone_areas_from_csv') or not self.zone_areas_from_csv:
+            self.logger.debug(f"HVAC FLAG DEBUG: No CSV zone data available for HVAC lookup of '{zone_id}'")
+            return None
+            
+        if zone_id in self.zone_areas_from_csv:
+            has_hvac = self.zone_areas_from_csv[zone_id].get('has_hvac', False)
+            self.logger.info(f"HVAC FLAG DEBUG: Zone '{zone_id}' CSV HVAC flag = {has_hvac}")
+            return has_hvac
+        else:
+            self.logger.debug(f"HVAC FLAG DEBUG: Zone '{zone_id}' not found in CSV data for HVAC lookup")
+            
+        return None
+
+    def _get_zone_energy_flag_from_csv(self, zone_id: str) -> Optional[bool]:
+        """
+        Get whether zone should be included in energy calculations from CSV "Part of Total Floor Area (Y/N)" column.
+        
+        Args:
+            zone_id: Zone identifier to look up
+            
+        Returns:
+            True if zone should be in energy report, False if not, None if not found
+        """
+        if not hasattr(self, 'zone_areas_from_csv') or not self.zone_areas_from_csv:
+            self.logger.debug(f"ENERGY FLAG DEBUG: No CSV zone data available for energy lookup of '{zone_id}'")
+            return None
+            
+        if zone_id in self.zone_areas_from_csv:
+            include_in_energy = self.zone_areas_from_csv[zone_id].get('include_in_energy', True)
+            self.logger.info(f"ENERGY FLAG DEBUG: Zone '{zone_id}' CSV energy inclusion flag = {include_in_energy}")
+            return include_in_energy
+        else:
+            self.logger.debug(f"ENERGY FLAG DEBUG: Zone '{zone_id}' not found in CSV data for energy lookup")
             
         return None
     

@@ -443,7 +443,7 @@ class AutomaticErrorDetectionParser:
             # Get extracted data
             lighting_data = lighting_parser.parse()  # Updated method name
             schedule_data = schedule_parser.get_all_schedules()  # Updated method name
-            load_data = load_parser.get_parsed_zone_loads(include_core=False)  # Get people and equipment data by zone, excluding CORE zones
+            load_data = load_parser.get_parsed_zone_loads(include_core=False)  # Get people and equipment data by zone, using CSV energy inclusion flags
             
             # Extract people and equipment data from zone-based load_data
             # load_data structure: {zone_name: {loads: {people: {...}, lights: {...}, equipment: {...}}}}
@@ -479,16 +479,14 @@ class AutomaticErrorDetectionParser:
 
     def _validate_2017_loads(self, people_data, lights_data_from_loads, equipment_data, schedule_data, zones, areas_parser):
         """Validate loads according to 2017 ISO standards with area-based criteria."""
-        # Filter for HVAC zones only, excluding CORE zones
+        # Get HVAC zones (already filtered by CSV "Conditioned (Y/N)" flags)
         hvac_zones = self.data_loader.get_hvac_zones()
-        # Filter out CORE zones from HVAC zones
-        hvac_zones = [zone for zone in hvac_zones if not any(keyword in zone.lower() for keyword in ['core', 'corridor', 'stair'])]
         
         # Group zones by floor (extract floor prefix like "00:", "01:", "02:")
         floors_data = {}
         for zone_id, zone_info in zones.items():
             if zone_id not in hvac_zones:
-                continue  # Skip non-HVAC zones or CORE zones
+                continue  # Skip non-HVAC zones (based on CSV "Conditioned (Y/N)" flags)
                 
             # Extract floor number (e.g., "00:01XLIVING" -> "01")
             if ':' in zone_id:
@@ -1016,7 +1014,7 @@ class AutomaticErrorDetectionParser:
             # Get extracted data
             natural_vent_data = natural_vent_parser.get_ventilation_data()  # Updated method name
             schedule_data = schedule_parser.get_all_schedules()  # Updated method name
-            load_data = load_parser.get_parsed_zone_loads(include_core=False)  # Get load data by zone, excluding CORE zones
+            load_data = load_parser.get_parsed_zone_loads(include_core=False)  # Get load data by zone, using CSV energy inclusion flags
             
             # Extract HVAC and infiltration data from zone-based load_data
             hvac_data = {}
@@ -1063,11 +1061,8 @@ class AutomaticErrorDetectionParser:
             
         climate_hvac_table = self.hvac_table['2017'][climate_zone]
         
-        # Get zones and their window directions from area report
+        # Get HVAC zones (already filtered by CSV "Conditioned (Y/N)" flags)
         zones = self.data_loader.get_zones()
-        # Filter out CORE zones
-        zones = {zone_id: zone_info for zone_id, zone_info in zones.items() 
-                if not any(keyword in zone_id.lower() for keyword in ['core', 'corridor', 'stair'])}
         
         zone_window_directions = {}
         
@@ -1085,9 +1080,6 @@ class AutomaticErrorDetectionParser:
                         parts = surface_name.split(':')
                         if len(parts) > 1:
                             zone_id = f"{parts[0]}:{parts[1][:7]}"  # Get zone part
-                            # Skip CORE zones
-                            if any(keyword in zone_id.lower() for keyword in ['core', 'corridor', 'stair']):
-                                continue
                             direction = data.get('CardinalDirection', 'Unknown')
                             if direction and direction != 'Unknown':
                                 if zone_id not in zone_window_directions:
@@ -1452,15 +1444,11 @@ class AutomaticErrorDetectionParser:
         try:
             # Window Direction Validation for Climate zone
             
-            # Group zones by area, excluding CORE zones
+            # Group zones by area, using CSV energy inclusion flags
             areas_data = {}
             # Processing zones for window direction validation
             
             for zone_id in zones.keys():
-                # Skip CORE zones
-                if any(keyword in zone_id.lower() for keyword in ['core', 'corridor', 'stair']):
-                    # Skip CORE zones
-                    continue
                     
                 # Extract area ID using the same logic as AreaParser
                 floor_id = self._extract_floor_id_from_zone(zone_id)

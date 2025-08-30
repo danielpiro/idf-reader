@@ -2,6 +2,9 @@ import csv
 import os
 from typing import Dict, Any
 from .utils import safe_float
+from utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class GlazingParser:
@@ -201,6 +204,18 @@ class GlazingParser:
         incorporating properties from the simulation output CSV if available.
         Populates self.parsed_glazing_data.
         """
+        logger.info(f"GLAZING DEBUG: Starting parse_glazing_data")
+        logger.info(f"GLAZING DEBUG: Total constructions_glazing_cache: {len(self._constructions_glazing_cache)}")
+        logger.info(f"GLAZING DEBUG: Total window_shade_cache: {len(self._window_shade_cache)}")
+        logger.info(f"GLAZING DEBUG: Total window_shading_control_cache: {len(self._window_shading_control_cache)}")
+        logger.info(f"GLAZING DEBUG: Available constructions in cache: {list(self._constructions_glazing_cache.keys())}")
+        
+        if self._window_shade_cache:
+            logger.info(f"GLAZING DEBUG: Available shade materials: {list(self._window_shade_cache.keys())}")
+        
+        if self._window_shading_control_cache:
+            logger.info(f"GLAZING DEBUG: Available shading controls: {list(self._window_shading_control_cache.keys())}")
+        
         self._parse_simulation_output_csv()
         self._sim_properties_lower = {k.lower(): v for k, v in self._sim_properties.items()}
 
@@ -208,11 +223,15 @@ class GlazingParser:
 
         for construction_id, construction_data in self._constructions_glazing_cache.items():
             material_layers = construction_data.get('material_layers', [])
+            logger.info(f"GLAZING DEBUG: First loop - checking construction '{construction_id}' with layers: {material_layers}")
             if not material_layers:
+                logger.info(f"GLAZING DEBUG: First loop - skipping '{construction_id}' (no material layers)")
                 continue
 
             first_layer_name = material_layers[0]
-            if first_layer_name in self._window_simple_glazing_cache:
+            # Only treat as Simple if it has exactly 1 layer and that layer is in simple glazing cache
+            if len(material_layers) == 1 and first_layer_name in self._window_simple_glazing_cache:
+                logger.info(f"GLAZING DEBUG: First loop - processing '{construction_id}' as Simple glazing (first layer: '{first_layer_name}')")
                 simple_data = self._window_simple_glazing_cache[first_layer_name]
                 processed_data[construction_id] = {
                     'id': construction_id,
@@ -231,9 +250,13 @@ class GlazingParser:
                     'shading_layers': [],
                     'raw_object': construction_data.get('raw_object')
                 }
+            else:
+                logger.info(f"GLAZING DEBUG: First loop - NOT processing '{construction_id}' as Simple (layers={len(material_layers)}, first_layer_in_simple_cache={first_layer_name in self._window_simple_glazing_cache})")
 
+        logger.info(f"GLAZING DEBUG: Second loop - starting detailed processing. Already processed: {list(processed_data.keys())}")
         for construction_id, construction_data in self._constructions_glazing_cache.items():
             if construction_id in processed_data:
+                logger.info(f"GLAZING DEBUG: Second loop - skipping '{construction_id}' (already processed as Simple)")
                 continue
 
             material_layers = construction_data.get('material_layers', [])
@@ -242,6 +265,8 @@ class GlazingParser:
             total_thickness = 0.0
             has_glazing_or_gas = False
 
+            logger.info(f"GLAZING DEBUG: Processing construction '{construction_id}' with {len(material_layers)} layers: {material_layers}")
+            
             for layer_name in material_layers:
                 if layer_name in self._window_glazing_cache:
                     glazing = self._window_glazing_cache[layer_name]
@@ -264,6 +289,7 @@ class GlazingParser:
                     })
                     has_glazing_or_gas = True
                 elif layer_name in self._window_shade_cache:
+                    logger.info(f"GLAZING DEBUG: Found shading layer '{layer_name}' in construction '{construction_id}'")
                     shade = self._window_shade_cache[layer_name]
                     thickness = safe_float(shade.get('thickness'))
                     shading_layers_details.append({
@@ -272,6 +298,9 @@ class GlazingParser:
                         'Transmittance': safe_float(shade.get('solar_transmittance')),
                         'Reflectivity': safe_float(shade.get('solar_reflectance'))
                     })
+                    logger.info(f"GLAZING DEBUG: Added shading layer - Name: {layer_name}, Thickness: {thickness}")
+                else:
+                    logger.info(f"GLAZING DEBUG: Layer '{layer_name}' not found in any cache (glazing, gas, or shade) for construction '{construction_id}'")
 
             if has_glazing_or_gas:
                 sim_props = self._sim_properties.get(construction_id)
@@ -299,6 +328,7 @@ class GlazingParser:
                     'shading_layers': shading_layers_details,
                     'raw_object': construction_data.get('raw_object')
                 }
+                logger.info(f"GLAZING DEBUG: Processed construction '{construction_id}': {len(shading_layers_details)} shading layers found")
 
         for construction_id, construction_data in self._constructions_glazing_cache.items():
             if construction_id in processed_data:
@@ -350,9 +380,11 @@ class GlazingParser:
 
         try:
             updated_constructions = set()
+            logger.info(f"GLAZING DEBUG: Processing {len(self._window_shading_control_cache)} shading controls")
             for control_key, control_data in self._window_shading_control_cache.items():
                 shade_position = control_data.get('shading_type')
                 window_names = control_data.get('window_names', [])
+                logger.info(f"GLAZING DEBUG: Shading control '{control_key}': position='{shade_position}', windows={window_names}")
 
                 if not shade_position or not window_names:
                     continue
@@ -360,11 +392,15 @@ class GlazingParser:
                 for window_name in window_names:
                     window_data = self._windows_cache.get(window_name)
                     if not window_data:
+                        logger.info(f"GLAZING DEBUG: Window '{window_name}' not found in windows cache")
                         continue
 
                     window_construction_name = window_data.get('construction_name')
                     if not window_construction_name:
+                        logger.info(f"GLAZING DEBUG: Window '{window_name}' has no construction_name")
                         continue
+                    
+                    logger.info(f"GLAZING DEBUG: Window '{window_name}' uses construction '{window_construction_name}'")
 
                     base_construction_id = window_construction_name
                     try:
@@ -443,6 +479,21 @@ class GlazingParser:
                             'frame_conductance': frame_data.get('frame_conductance')
                         }
                         break
+
+        logger.info(f"GLAZING DEBUG: Final processing complete - {len(final_filtered_data)} constructions processed")
+        
+        # Summary of shading layers found
+        total_shading_layers = 0
+        constructions_with_shading = 0
+        for const_id, const_data in final_filtered_data.items():
+            shading_count = len(const_data.get('shading_layers', []))
+            if shading_count > 0:
+                constructions_with_shading += 1
+                total_shading_layers += shading_count
+                logger.info(f"GLAZING DEBUG: Construction '{const_id}' has {shading_count} shading layers")
+        
+        logger.info(f"GLAZING DEBUG: Summary - {constructions_with_shading} constructions have shading out of {len(final_filtered_data)} total")
+        logger.info(f"GLAZING DEBUG: Total shading layers found: {total_shading_layers}")
 
         self.parsed_glazing_data = final_filtered_data
         return self.parsed_glazing_data

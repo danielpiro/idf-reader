@@ -227,9 +227,9 @@ class BaseParser(ABC):
         return parse_numeric_field(obj, field_name, default)
     
     def _filter_hvac_zones(self, zones: Dict[str, Any]) -> Dict[str, Any]:
-        """Filter out non-HVAC zones using common patterns."""
-        from .utils import filter_hvac_zones
-        return filter_hvac_zones(zones)
+        """Get HVAC zones using CSV 'Conditioned (Y/N)' flags."""
+        hvac_zone_names = set(self.data_loader.get_hvac_zones())
+        return {zone_id: zone_data for zone_id, zone_data in zones.items() if zone_id in hvac_zone_names}
     
     def _validate_required_data(self, data: Dict[str, Any], required_fields: List[str], 
                               item_name: str = "item") -> bool:

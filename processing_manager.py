@@ -152,7 +152,7 @@ class ProcessingManager:
         
         return paths
 
-    def _initialize_core_components(self, input_file: str, idd_path: str = None, energyplus_path: str = None):
+    def _initialize_core_components(self, input_file: str, idd_path: str = None, energyplus_path: str = None, simulation_output_dir: str = None):
         """
         Initializes DataLoader and loads the IDF/EPJSON file.
 
@@ -160,12 +160,13 @@ class ProcessingManager:
             input_file: Path to the IDF/EPJSON file.
             idd_path: Path to the IDD file (not used with EPJSON, kept for compatibility).
             energyplus_path: Path to EnergyPlus installation directory.
+            simulation_output_dir: Path to the simulation output directory where CSV files are generated.
 
         Returns:
             DataLoader instance
         """
         self.update_status("טוען קובץ IDF...")
-        data_loader = DataLoader(energyplus_path=energyplus_path)
+        data_loader = DataLoader(energyplus_path=energyplus_path, simulation_output_dir=simulation_output_dir)
         data_loader.load_file(input_file, energyplus_path=energyplus_path)
         return data_loader
 
@@ -598,6 +599,7 @@ class ProcessingManager:
         
         try:
             # Use project name from consultant data if provided, otherwise default to IDF filename
+            from pathlib import Path
             project_name = self.consultant_data.get('project_name', '').strip() or Path(input_file).stem
             
             # Debug logging to see what project name is being used
@@ -631,7 +633,7 @@ class ProcessingManager:
             if self.is_cancelled: return False
             self.update_progress(0.1)
 
-            data_loader = self._initialize_core_components(input_file, idd_path, energyplus_path)
+            data_loader = self._initialize_core_components(input_file, idd_path, energyplus_path, base_reports_dir)
             
             # Set ISO type in DataLoader for zone grouping decisions
             # Extract ISO type from the run_id or determine from other sources

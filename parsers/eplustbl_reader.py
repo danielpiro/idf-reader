@@ -232,69 +232,6 @@ def read_construction_areas_from_csv(csv_path: Optional[str] = None) -> Dict[str
         logger.warning(f"Error reading construction areas from CSV: {e}")
         return result
 
-def _parse_zone_summary_table(reader) -> Dict[str, Dict[str, Any]]:
-    """Parse the Zone Summary table to extract zone areas."""
-    result = {}
-    in_zone_summary = False
-    headers_found = False
-    col_indices = {}
-    
-    for row in reader:
-        if not row or not any(field.strip() for field in row):
-            continue
-            
-        # Look for Zone Summary table
-        if not in_zone_summary and row[0].strip() == "Zone Summary":
-            in_zone_summary = True
-            headers_found = False
-            col_indices = {}
-            continue
-            
-        if in_zone_summary:
-            if not headers_found:
-                # Look for the headers row
-                current_headers_norm = [h.strip().lower() for h in row]
-                if "area [m2]" in current_headers_norm:
-                    try:
-                        col_indices["area"] = current_headers_norm.index("area [m2]")
-                        col_indices["volume"] = current_headers_norm.index("volume [m3]") if "volume [m3]" in current_headers_norm else None
-                        col_indices["multipliers"] = current_headers_norm.index("multipliers") if "multipliers" in current_headers_norm else None
-                        headers_found = True
-                        logger.debug(f"Found Zone Summary headers: {col_indices}")
-                    except ValueError as e:
-                        logger.warning(f"Error parsing Zone Summary headers: {e}")
-                continue
-            else:
-                # Process data rows
-                if len(row) > 1 and row[1].strip():  # Zone name is in column 1
-                    zone_name = row[1].strip()
-                    
-                    # Skip if this is another table (like "Zone Information")
-                    if zone_name.lower() in ["zone information", "number of zones"]:
-                        break
-                        
-                    if "area" in col_indices and len(row) > col_indices["area"]:
-                        try:
-                            area = safe_float(row[col_indices["area"]])
-                            multiplier = 1.0
-                            if col_indices["multipliers"] and len(row) > col_indices["multipliers"]:
-                                multiplier = safe_float(row[col_indices["multipliers"]], 1.0)
-                            
-                            volume = None
-                            if col_indices["volume"] and len(row) > col_indices["volume"]:
-                                volume = safe_float(row[col_indices["volume"]])
-                            
-                            result[zone_name] = {
-                                'Area': area,
-                                'Volume': volume,
-                                'Multiplier': multiplier
-                            }
-                            logger.debug(f"Parsed zone {zone_name}: area={area}, multiplier={multiplier}")
-                        except (ValueError, IndexError) as e:
-                            logger.warning(f"Error parsing zone data for {zone_name}: {e}")
-                            continue
-    
-    return result
 
 def _parse_zone_summary_table(reader) -> Dict[str, Dict[str, Any]]:
     """
@@ -319,7 +256,7 @@ def _parse_zone_summary_table(reader) -> Dict[str, Dict[str, Any]]:
             
         # Look for Zone Summary table header
         if len(row) > 0 and 'Zone Summary' in str(row[0]):
-            logger.debug(f"Found Zone Summary table at row {row_count}")
+            logger.info(f"CSV PARSE DEBUG: Found Zone Summary table at row {row_count}")
             in_zone_summary = True
             continue
         
@@ -327,54 +264,80 @@ def _parse_zone_summary_table(reader) -> Dict[str, Dict[str, Any]]:
             # Check if this is the header row (contains "Area [m2]" and "Multipliers")
             if not headers and row and any('Area [m2]' in str(cell) for cell in row):
                 headers = [str(cell).strip().lower() for cell in row]
-                logger.debug(f"Found Zone Summary headers: {headers}")
+                logger.info(f"CSV PARSE DEBUG: Found Zone Summary headers: {headers}")
                 continue
             
             # Check if we've reached the end of the table (empty row or new section)
-            if headers and row and (not row[0] or row[0].strip() == '' or ('End' in str(row[0]) and 'Zone' in str(row[0]))):
-                logger.debug(f"End of Zone Information table at row {row_count}")
+            # Data rows start with empty column, so check if both first two columns are empty
+            if headers and row and len(row) >= 2 and (not row[0].strip() and not row[1].strip()):
+                logger.info(f"CSV PARSE DEBUG: End of Zone Summary table at row {row_count}")
                 break
                 
-            # Process data rows
-            if headers and row and len(row) >= len(headers):
+            # Process data rows (data rows may have fewer columns than headers)
+            if headers and row and len(row) >= 6:
+                logger.info(f"CSV PARSE DEBUG: Processing data row: {row[:5]}...")  # Show first 5 columns
                 try:
                     # Zone name is always in column 1 (index 1)
                     zone_name_idx = 1
                     area_idx = None
                     multiplier_idx = None
+                    conditioned_idx = None
+                    part_of_total_idx = None
                     
-                    # Find area and multiplier columns
+                    # Find area, multiplier, and HVAC flags columns
                     for i, header in enumerate(headers):
                         header_lower = str(header).strip().lower()
-                        if 'area [m2]' in header_lower:
+                        if header_lower == 'area [m2]':
                             area_idx = i
-                            logger.debug(f"Found Area column at index {i}")
+                            logger.info(f"CSV PARSE DEBUG: Found Area column at index {i}")
                         elif 'multiplier' in header_lower:
                             multiplier_idx = i  
-                            logger.debug(f"Found Multiplier column at index {i}")
+                            logger.info(f"CSV PARSE DEBUG: Found Multiplier column at index {i}")
+                        elif 'conditioned' in header_lower and '(y/n)' in header_lower:
+                            conditioned_idx = i
+                            logger.info(f"CSV PARSE DEBUG: Found Conditioned column at index {i}")
+                        elif 'part of total' in header_lower and '(y/n)' in header_lower:
+                            part_of_total_idx = i
+                            logger.info(f"CSV PARSE DEBUG: Found Part of Total column at index {i}")
+                    
+                    logger.info(f"CSV PARSE DEBUG: Column indices found - area: {area_idx}, multiplier: {multiplier_idx}, conditioned: {conditioned_idx}, part_of_total: {part_of_total_idx}")
                     
                     if zone_name_idx is not None and area_idx is not None:
                         zone_name = str(row[zone_name_idx]).strip()
                         area = safe_float(row[area_idx], 0.0)
                         multiplier = int(safe_float(row[multiplier_idx], 1.0)) if multiplier_idx is not None else 1
                         
+                        # Extract HVAC and energy report flags
+                        has_hvac = False
+                        include_in_energy = False
+                        
+                        if conditioned_idx is not None and conditioned_idx < len(row):
+                            conditioned_val = str(row[conditioned_idx]).strip().upper()
+                            has_hvac = conditioned_val == 'YES' or conditioned_val == 'Y'
+                            
+                        if part_of_total_idx is not None and part_of_total_idx < len(row):
+                            total_val = str(row[part_of_total_idx]).strip().upper()
+                            include_in_energy = total_val == 'YES' or total_val == 'Y'
+                        
                         if zone_name and area > 0:
                             result[zone_name] = {
                                 'area': area,
-                                'multiplier': multiplier
+                                'multiplier': multiplier,
+                                'has_hvac': has_hvac,
+                                'include_in_energy': include_in_energy
                             }
-                            logger.debug(f"Parsed zone {zone_name}: area={area}, multiplier={multiplier}")
+                            logger.info(f"CSV PARSE DEBUG: Parsed zone {zone_name}: area={area}, multiplier={multiplier}, hvac={has_hvac}, energy={include_in_energy}")
                         
                 except (ValueError, IndexError) as e:
                     logger.warning(f"Error parsing zone data: {e}")
                     continue
     
     if not in_zone_summary:
-        logger.warning("Zone Summary table not found in CSV")
+        logger.info("CSV PARSE DEBUG: Zone Summary table not found in CSV")
     elif not headers:
-        logger.warning("Zone Summary headers not found")
+        logger.info("CSV PARSE DEBUG: Zone Summary headers not found")
     else:
-        logger.debug(f"Processed Zone Summary table, found {len(result)} zones")
+        logger.info(f"CSV PARSE DEBUG: Processed Zone Summary table, found {len(result)} zones")
     
     return result
 
@@ -384,21 +347,31 @@ def read_zone_areas_from_csv(csv_path: Optional[str] = None) -> Dict[str, Dict[s
     Returns a dictionary mapping zone names to their area data.
     """
     result = {}
+    logger.info(f"CSV PARSE DEBUG: read_zone_areas_from_csv called with path: {csv_path}")
     resolved_path = _find_csv_path(csv_path)
+    logger.info(f"CSV PARSE DEBUG: _find_csv_path resolved to: {resolved_path}")
     if not resolved_path:
         logger.warning("eplustbl.csv not found - zone areas will use calculated values")
         return result
         
     try:
+        logger.info(f"CSV PARSE DEBUG: Opening CSV file: {resolved_path}")
         with open(resolved_path, 'r', encoding='utf-8', errors='ignore') as csvfile:
             reader = csv.reader(csvfile)
+            logger.info(f"CSV PARSE DEBUG: Calling _parse_zone_summary_table")
             result = _parse_zone_summary_table(reader)
+            logger.info(f"CSV PARSE DEBUG: _parse_zone_summary_table returned {len(result)} zones")
         
         logger.info(f"Read zone areas for {len(result)} zones from eplustbl.csv")
+        if result:
+            sample_zones = list(result.keys())[:3]
+            logger.info(f"CSV PARSE DEBUG: Sample zones from parsing: {sample_zones}")
         return result
         
     except Exception as e:
         logger.warning(f"Error reading zone areas from CSV: {e}")
+        import traceback
+        logger.error(f"CSV PARSE DEBUG: Full traceback: {traceback.format_exc()}")
         return result
 
 def read_glazing_data_from_csv(csv_path: Optional[str] = None) -> Dict[str, Dict[str, Any]]:

@@ -931,11 +931,22 @@ class EnergyRatingParser(CSVOutputParser):
                         'energy_rating': energy_rating_value,
                     }
                     
-                    # Filter out zones with zero energy sum - exclude from both display and calculations
-                    energy_sum = val_lighting + val_heating + val_cooling
-                    if energy_sum <= 0:
-                        self.logger.info(f"ZERO ENERGY FILTER: Excluding zone '{full_zone_id_key}' with zero energy sum ({energy_sum}) from energy rating")
+                    # Filter zones using CSV "Part of Total Floor Area (Y/N)" flag
+                    include_in_energy = self.area_parser._get_zone_energy_flag_from_csv(full_zone_id_key)
+                    if include_in_energy == False:
+                        self.logger.info(f"CSV ENERGY FILTER: Excluding zone '{full_zone_id_key}' - CSV flag 'Part of Total Floor Area' = No")
                         continue  # Skip this zone entirely
+                    elif include_in_energy == True:
+                        self.logger.info(f"CSV ENERGY FILTER: Including zone '{full_zone_id_key}' - CSV flag 'Part of Total Floor Area' = Yes")
+                    
+                    # Also check energy sum as backup for zones not found in CSV
+                    if include_in_energy is None:
+                        energy_sum = val_lighting + val_heating + val_cooling
+                        if energy_sum <= 0:
+                            self.logger.info(f"ZERO ENERGY FILTER (CSV backup): Excluding zone '{full_zone_id_key}' with zero energy sum ({energy_sum}) from energy rating")
+                            continue  # Skip this zone entirely
+                        else:
+                            self.logger.info(f"ZERO ENERGY FILTER (CSV backup): Including zone '{full_zone_id_key}' with non-zero energy sum ({energy_sum})")
                     
                     table_data.append(row)
                     # Log first few rows for debugging

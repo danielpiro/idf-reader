@@ -753,34 +753,41 @@ def _energy_rating_table(energy_rating_parser, model_year: int, model_area_defin
     group_bonuses = _calculate_group_minimum_bonuses(raw_table_data, load_parser, energy_rating_parser, model_year, model_area_definition)
     logger.info(f"GROUP BONUS DEBUG - Calculated group bonuses for {len(group_bonuses)} zones")
 
+    def natural_sort_key_asc(value):
+        """Create a sort key for natural sorting in ascending order (alphanumeric)."""
+        import re
+        if not value:
+            return (1, [])  # Empty values last
+        
+        # Split into numeric and text parts
+        parts = re.split(r'(\d+)', str(value))
+        sort_parts = []
+        for part in parts:
+            if part.isdigit():
+                # Numeric parts: use positive value for ascending order
+                sort_parts.append((0, int(part)))
+            else:
+                # Text parts: use normal alphabetical order for ascending
+                sort_parts.append((1, part))
+        
+        return (0, sort_parts)
+
     def sort_key(item):
-        # Primary sort: Floor ID (numeric first, then alphabetic)
+        # Primary sort: Floor ID (ascending natural order)
         floor_val = item.get('floor_id_report', '')
-        try:
-            floor_sort_val = (0, int(floor_val))  # (is_numeric, value) tuple
-        except ValueError:
-            if floor_val == '':
-                floor_sort_val = (1, 999999)  # Empty values last
-            else:
-                floor_sort_val = (1, hash(str(floor_val)) % 999999)  # Non-numeric as hash
+        floor_sort_val = natural_sort_key_asc(floor_val)
 
-        # Secondary sort: Area ID (numeric first, then alphabetic)
+        # Secondary sort: Area ID (ascending natural order)
         area_id_val = item.get('area_id_report', '')
-        try:
-            area_sort_val = (0, int(area_id_val)) if area_id_val else (1, 999999)
-        except ValueError:
-            if area_id_val == '':
-                area_sort_val = (1, 999999)  # Empty values last
-            else:
-                area_sort_val = (1, hash(str(area_id_val)) % 999999)  # Non-numeric as hash
+        area_sort_val = natural_sort_key_asc(area_id_val)
 
-        # Tertiary sort: Zone ID for consistency (always string, use hash for numeric comparison)
+        # Tertiary sort: Zone ID (ascending natural order)
         zone_id_val = item.get('zone_id', '')
-        zone_sort_val = (0, hash(str(zone_id_val)) % 999999)
+        zone_sort_val = natural_sort_key_asc(zone_id_val)
         
         return (floor_sort_val, area_sort_val, zone_sort_val)
 
-    raw_table_data.sort(key=sort_key, reverse=True)
+    raw_table_data.sort(key=sort_key, reverse=False)
 
     # Determine if this is 2023 ISO (add Bonus column)
     is_2023_iso = model_year == 2023

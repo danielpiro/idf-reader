@@ -13,6 +13,7 @@ from utils.path_utils import (
 import re
 from utils.logging_config import get_logger
 import pandas as pd
+from parsers.eplustbl_reader import read_zone_areas_from_csv
 
 def get_energy_consumption(iso_type_input: str, area_location_input: str, area_definition_input: str) -> float:
     """
@@ -292,11 +293,12 @@ def safe_float(value: Any, default: float = 0.0) -> float:
 
 class DataLoader:
     """DataLoader for caching and retrieving EPJSON data."""
-    def __init__(self, energyplus_path: Optional[str] = None):
+    def __init__(self, energyplus_path: Optional[str] = None, simulation_output_dir: Optional[str] = None):
         self._epjson_data = None
         self._epjson_handler = None
         self._file_path = None
         self._energyplus_path = energyplus_path
+        self._simulation_output_dir = simulation_output_dir
         self._loaded_sections = set()
         self._zones_cache = {}
         self._hvac_zones_cache = []
@@ -335,6 +337,39 @@ class DataLoader:
         # Disable verbose logging to reduce log noise
         return False
 
+    def _get_csv_path(self) -> Optional[str]:
+        """Get the path to the eplustbl.csv file if it exists."""
+        logger.info(f"CSV PATH DEBUG: _get_csv_path() called, _file_path={self._file_path}, simulation_output_dir={self._simulation_output_dir}")
+        
+        # First, try simulation output directory if provided
+        if self._simulation_output_dir:
+            simulation_csv_path = Path(self._simulation_output_dir) / "simulation" / "eplustbl.csv"
+            logger.info(f"CSV PATH DEBUG: Checking simulation output directory: {simulation_csv_path}")
+            if simulation_csv_path.exists():
+                logger.info(f"CSV PATH DEBUG: Found CSV in simulation directory: {simulation_csv_path}")
+                return str(simulation_csv_path)
+            else:
+                logger.info("CSV PATH DEBUG: No CSV found in simulation directory")
+        
+        # Fallback to original logic - look in input file parent directory
+        if not self._file_path:
+            logger.info("CSV PATH DEBUG: No file path available for fallback")
+            return None
+        
+        # Convert to Path object and get parent directory
+        idf_path = Path(self._file_path)
+        parent_dir = idf_path.parent
+        logger.info(f"CSV PATH DEBUG: Fallback - Looking for CSV in parent directory: {parent_dir}")
+        
+        # Look for eplustbl.csv in the same directory
+        csv_path = parent_dir / "eplustbl.csv"
+        logger.info(f"CSV PATH DEBUG: Fallback - Checking if CSV exists at: {csv_path}")
+        if csv_path.exists():
+            logger.info(f"CSV PATH DEBUG: Fallback - Found CSV file: {csv_path}")
+            return str(csv_path)
+        
+        logger.info("CSV PATH DEBUG: No CSV file found in any location")
+        return None
 
     def _calculate_surface_area_from_vertices(self, vertices) -> float:
         """
@@ -480,6 +515,7 @@ class DataLoader:
 
     def _cache_zones(self) -> None:
         """Cache raw zone data from EPJSON."""
+        logger = get_logger(__name__)
         if not self._epjson_data:
             return
         
@@ -488,27 +524,46 @@ class DataLoader:
         
         zones = self._epjson_data.get('Zone', {})
         
+        # Load CSV data once for HVAC detection
+        csv_path = self._get_csv_path()
+        csv_zone_data = {}
+        if csv_path:
+            try:
+                csv_zone_data = read_zone_areas_from_csv(csv_path)
+            except Exception as e:
+                logger.warning(f"Failed to read CSV for HVAC detection: {e}")
+        
         for zone_id, zone_data in zones.items():
             
-            # Check if this is an HVAC zone
+            # Check if this is an HVAC zone using CSV flag first
             hvac_found = False
-            for schedule_id, schedule_data in self._schedules_cache.items():
-                if schedule_data['is_hvac_indicator'] and zone_id in schedule_id:
+            if zone_id in csv_zone_data:
+                has_hvac_flag = csv_zone_data[zone_id].get('has_hvac')
+                logger.debug(f"HVAC CSV DEBUG: Zone '{zone_id}' has CSV HVAC flag = {has_hvac_flag}")
+                if has_hvac_flag is True:
                     self._hvac_zones_cache.append(zone_id)
                     hvac_found = True
-                    break
-                    
-            # Alternative: Check for direct HVAC equipment references
+                    logger.info(f"HVAC CSV DEBUG: Zone '{zone_id}' added to HVAC zones via CSV flag")
+                elif has_hvac_flag is False:
+                    hvac_found = True  # Explicit no HVAC, don't check fallback
+                    logger.info(f"HVAC CSV DEBUG: Zone '{zone_id}' excluded from HVAC zones via CSV flag")
+            
+            # Fallback: Check schedules and equipment (only if CSV flag not available)
             if not hvac_found:
-                hvac_equipment = self._epjson_data.get('ZoneHVAC:EquipmentConnections', {})
-                for equip_id, equip_data in hvac_equipment.items():
-                    if equip_data.get('zone_name') == zone_id:
+                for schedule_id, schedule_data in self._schedules_cache.items():
+                    if schedule_data['is_hvac_indicator'] and zone_id in schedule_id:
                         self._hvac_zones_cache.append(zone_id)
                         hvac_found = True
                         break
                         
-            if not hvac_found:
-                pass
+                # Alternative: Check for direct HVAC equipment references
+                if not hvac_found:
+                    hvac_equipment = self._epjson_data.get('ZoneHVAC:EquipmentConnections', {})
+                    for equip_id, equip_data in hvac_equipment.items():
+                        if equip_data.get('zone_name') == zone_id:
+                            self._hvac_zones_cache.append(zone_id)
+                            hvac_found = True
+                            break
             
             # Extract area_id using legacy method for backward compatibility
             area_id = self._extract_area_id(zone_id)
@@ -761,6 +816,24 @@ class DataLoader:
                 'raw_object': IDFObjectCompatibilityWrapper(material_id, shade_data)
             }
 
+        # Cache window blind materials (treat as shade materials for glazing system)  
+        window_blind = self._epjson_data.get('WindowMaterial:Blind', {})
+        for material_id, blind_data in window_blind.items():
+            self._window_shade_cache[material_id] = {
+                'id': material_id,
+                'name': material_id,
+                'thickness': safe_float(blind_data.get("slat_thickness", 0.001)),
+                'conductivity': safe_float(blind_data.get("slat_conductivity", 221.0)),  # Default for aluminum
+                'visible_reflectance': safe_float(blind_data.get("slat_beam_visible_reflectance", 0.8)),
+                'solar_reflectance': safe_float(blind_data.get("slat_beam_solar_reflectance", 0.8)),
+                'solar_transmittance': safe_float(blind_data.get("slat_beam_solar_transmittance", 0.0)),
+                'visible_transmittance': safe_float(blind_data.get("slat_beam_visible_transmittance", 0.0)),
+                'blind_type': blind_data.get("slat_orientation", "Horizontal"),
+                'slat_width': safe_float(blind_data.get("slat_width", 0.025)),
+                'slat_separation': safe_float(blind_data.get("slat_separation", 0.019)),
+                'raw_object': IDFObjectCompatibilityWrapper(material_id, blind_data)
+            }
+
         # Cache simple glazing systems
         simple_glazing = self._epjson_data.get('WindowMaterial:SimpleGlazingSystem', {})
         for material_id, simple_data in simple_glazing.items():
@@ -782,6 +855,7 @@ class DataLoader:
         self._constructions_glazing_cache.clear()
 
         constructions = self._epjson_data.get('Construction', {})
+        logger.info(f"DATALOADER CONSTRUCTION DEBUG: Found {len(constructions)} constructions to cache")
         for construction_id, construction_data in constructions.items():
             if construction_id in ['LinearBridgingConstruction', 'IRTSurface']:
                 continue
@@ -817,8 +891,10 @@ class DataLoader:
             }
 
             if is_glazing_construction:
+                logger.info(f"DATALOADER CONSTRUCTION DEBUG: Caching glazing construction '{construction_id}' with layers: {material_layers}")
                 self._constructions_glazing_cache[construction_id] = construction_cache_data
             else:
+                logger.info(f"DATALOADER CONSTRUCTION DEBUG: Caching regular construction '{construction_id}' with layers: {material_layers}")
                 self._constructions_cache[construction_id] = construction_cache_data
 
     def _cache_schedules(self) -> None:
@@ -1281,6 +1357,45 @@ class DataLoader:
         if self._should_log_details('get_hvac_zones'):
             pass
         return self._hvac_zones_cache
+    
+    def get_energy_included_zones(self) -> List[str]:
+        """Get zone names that should be included in energy calculations based on CSV 'Part of Total Floor Area (Y/N)' flags."""
+        logger.info("ENERGY ZONES DEBUG: get_energy_included_zones() called")
+        csv_path = self._get_csv_path()
+        logger.info(f"ENERGY ZONES DEBUG: CSV path resolved to: {csv_path}")
+        if not csv_path:
+            # Fallback to HVAC zones if no CSV available
+            logger.info("ENERGY ZONES DEBUG: No CSV path found, falling back to HVAC zones")
+            fallback_zones = self.get_hvac_zones()
+            logger.info(f"ENERGY ZONES DEBUG: HVAC fallback returning {len(fallback_zones)} zones")
+            return fallback_zones
+        
+        try:
+            from parsers.eplustbl_reader import read_zone_areas_from_csv
+            logger.info(f"ENERGY ZONES DEBUG: Calling read_zone_areas_from_csv with path: {csv_path}")
+            csv_zone_data = read_zone_areas_from_csv(csv_path)
+            logger.info(f"ENERGY ZONES DEBUG: CSV returned {len(csv_zone_data)} zones")
+            
+            energy_zones = []
+            exclude_count = 0
+            for zone_id, zone_info in csv_zone_data.items():
+                include_in_energy = zone_info.get('include_in_energy', True)
+                if include_in_energy:
+                    energy_zones.append(zone_id)
+                else:
+                    exclude_count += 1
+            
+            logger.info(f"ENERGY ZONES DEBUG: Found {len(energy_zones)} zones with include_in_energy=True, {exclude_count} zones excluded from CSV")
+            logger.info(f"ENERGY ZONES DEBUG: Sample included zones: {energy_zones[:5]}")
+            return energy_zones
+            
+        except Exception as e:
+            logger.error(f"ENERGY ZONES DEBUG: Exception in get_energy_included_zones: {e}", exc_info=True)
+            logger.warning(f"Error loading energy inclusion flags from CSV: {e}")
+            # Fallback to HVAC zones
+            fallback_zones = self.get_hvac_zones()
+            logger.info(f"ENERGY ZONES DEBUG: Falling back to HVAC zones, returning {len(fallback_zones)} zones")
+            return fallback_zones
 
     def get_surfaces(self) -> Dict[str, Dict[str, Any]]:
         """Get cached surface data."""

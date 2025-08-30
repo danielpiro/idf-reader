@@ -288,13 +288,28 @@ class LoadParser:
 
     def get_parsed_zone_loads(self, include_core: bool = False) -> Dict[str, Any]:
         """
-        Returns the dictionary of parsed zone loads, optionally filtering out core zones.
+        Returns the dictionary of parsed zone loads, optionally filtering to energy-included zones only.
         """
+        logger.info(f"LOAD PARSER DEBUG - get_parsed_zone_loads called with include_core={include_core}")
+        logger.info(f"LOAD PARSER DEBUG - Total zones in loads_by_zone: {len(self.loads_by_zone)}")
+        
         if include_core:
+            logger.info("LOAD PARSER DEBUG - Returning all zones (include_core=True)")
             return self.loads_by_zone
-        return {
+        
+        # Filter to only zones with include_in_energy=True from CSV "Part of Total Floor Area (Y/N)" flags
+        energy_zones = set(self.data_loader.get_energy_included_zones())
+        logger.info(f"LOAD PARSER DEBUG - Energy included zones from CSV: {len(energy_zones)} zones")
+        logger.info(f"LOAD PARSER DEBUG - Sample energy zones: {list(energy_zones)[:5]}")
+        
+        filtered_loads = {
             zone_name: zone_data
             for zone_name, zone_data in self.loads_by_zone.items()
-            if not any(keyword in zone_name.lower() for keyword in ['core', 'corridor', 'stair'])
+            if zone_name in energy_zones
         }
+        
+        logger.info(f"LOAD PARSER DEBUG - Filtered result: {len(filtered_loads)} zones")
+        logger.info(f"LOAD PARSER DEBUG - Sample filtered zones: {list(filtered_loads.keys())[:5]}")
+        
+        return filtered_loads
 

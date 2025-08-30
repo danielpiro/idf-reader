@@ -230,28 +230,6 @@ def handle_parser_errors(parser_name: str):
         return wrapper
     return decorator
 
-def filter_hvac_zones(zones: Dict[str, Any], exclude_keywords: List[str] = None) -> Dict[str, Any]:
-    """
-    Filter out non-HVAC zones (CORE, corridor, stairs, etc.).
-    Common filtering pattern across parsers.
-    
-    Args:
-        zones: Dictionary of zones to filter
-        exclude_keywords: Keywords to exclude (default: ['core', 'corridor', 'stair'])
-        
-    Returns:
-        Filtered zones dictionary
-    """
-    if exclude_keywords is None:
-        exclude_keywords = ['core', 'corridor', 'stair']
-    
-    filtered_zones = {}
-    for zone_id, zone_data in zones.items():
-        zone_id_lower = zone_id.lower()
-        if not any(keyword in zone_id_lower for keyword in exclude_keywords):
-            filtered_zones[zone_id] = zone_data
-    
-    return filtered_zones
 
 def normalize_surface_type(surface_type: str) -> str:
     """
